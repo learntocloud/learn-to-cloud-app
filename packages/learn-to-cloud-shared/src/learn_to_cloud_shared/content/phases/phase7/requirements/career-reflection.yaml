@@ -3,13 +3,13 @@ uuid: f0779139-1c79-4e33-b90e-b4c73e66ec62
 slug: career-reflection
 submission_type: career_reflection
 name: Reflect on Your Job-Search Readiness
-description: Answer three reflection questions about your interview story, your target role and skill gaps, and a project you're excited about. Write them as if preparing for a real interview — thoughtful, specific, and in your own words.
+description: Answer three reflection questions about your interview story, your target role and skill gaps, and a project you're excited about. Write them as if you're preparing for a real interview, thoughtful, specific, and in your own words.
 type_config:
   min_answer_length: 200
   questions:
   - id: behavioral-story
-    prompt: Describe a real challenge you faced — at work, in Learn to Cloud, or in a personal project. What was the situation, what did you do, and what was the outcome?
+    prompt: Describe a real challenge you faced, at work, in Learn to Cloud, or in a personal project. What was the situation, what did you do, and what was the outcome?
   - id: target-role-and-gaps
     prompt: Pick a real job you'd want. What skills and tools does the listing ask for, which do you already have, and how will you close the gaps?
   - id: project-you-love
-    prompt: Describe a project you genuinely enjoy talking about and how you'd explain it to an interviewer — what you built, why it interested you, and what was hard.
+    prompt: Describe a project you genuinely enjoy talking about and how you'd explain it to an interviewer. What you built, why it interested you, and what was hard.

@@ -1,58 +1,57 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: a6af5633-1cb8-49f3-9632-3e21fb84e69b
 slug: job-search-capstone
-name: 'Capstone: Your Job Search Plan'
-description: Bring everything in this phase together into a plan you can actually run. A big part of standing out is having a project you genuinely care about — something that makes you excited to talk, regardless of whether it makes money or impresses anyone. Then you'll reflect on your readiness in the hands-on requirement to close out the program.
+name: "Capstone: Your Job Search Plan"
+description: This is where everything comes together. You'll make sure you have a project you're genuinely excited to talk about, build a realistic routine for your search, and then complete a reflection that grades your readiness. It will be hard. You will want to quit, and you will face a lot of rejection, but it will all make you better, especially your soft skills.
 learning_objectives:
 - uuid: e12e1374-2c39-49eb-919b-c225d29f61c9
-  text: Build or identify a personal project you're genuinely excited to talk about.
+  text: Have a project you're genuinely excited to talk about in interviews.
   order: 1
 - uuid: 1bf858dc-41aa-4d6c-be6a-a6cdff162caa
-  text: Turn your preparation into a concrete, repeatable job-search routine.
+  text: Build a sustainable routine for your job search.
   order: 2
 learning_steps:
 - uuid: 4a272641-6301-44ab-80bb-925bae1234c3
   order: 1
   action: 'Practice:'
   title: Have a project you're genuinely excited about
-  description: |-
-    Outside of this program, you need some project you're genuinely interested in. It does not have to be successful, make money, or be technically impressive — it just has to be something that makes you excited to talk about it.
-
-    This is gold for interviews. Genuine enthusiasm is obvious and rare, and it shows initiative and curiosity in a way a checklist of certifications never will. The Journal API you built here counts, but a project that's truly yours is even better.
+  description: You need to have some sort of project you are genuinely interested in. It doesn't even have to be cloud related, just something that makes you excited to talk about. That genuine interest comes through in interviews and is far more convincing than anything you build only to impress. The capstone you built in this program counts, as long as you actually enjoy talking about it.
   checklist:
-  - "**Pick something you care about** — A tool, an automation, a site, anything that solves a problem you actually have"
-  - "**Build a little** — It doesn't need to be finished or polished"
-  - "**Practice talking about it** — Why you built it, what was hard, what you'd do next"
-  done_when: You have a personal project you're genuinely excited to talk about in an interview.
+  - "**Pick your project.** The cloud app from this program, or anything else you genuinely enjoy"
+  - "**Know its story.** Why you built it, the choices you made, and what you'd do next"
+  - "**Make it yours.** Be ready to talk about it with real enthusiasm, not a rehearsed pitch"
+  done_when: You have a project you're genuinely excited to talk about and can explain it with enthusiasm.
   slug: phase7-capstone-practice-project-youre-excited-about
 - uuid: 8307f1cb-c125-4e76-a39a-074d931d10c5
   order: 2
   action: 'Practice:'
   title: Build your job-search routine
-  description: Preparation only works if you keep doing it. Turn everything from this phase into a simple weekly routine you can sustain through the ups and downs of a job search. Consistency beats intensity — a steady, repeatable rhythm will carry you further than occasional bursts of effort.
+  description: A job search is a long game, so treat it like a sustainable routine instead of a frantic sprint. Decide how many applications you'll send, when you'll network, and how you'll keep practicing your interview answers. A steady, repeatable rhythm beats burning out in the first week.
   checklist:
-  - "**Applications** — A target number of tailored applications per week"
-  - "**Networking** — One conversation, event, or community interaction per week"
-  - "**Practice** — Regular reps on your stories and common questions"
-  - "**Learning** — Time set aside to close skill gaps as you spot them"
-  done_when: You have a written weekly routine covering applications, networking, practice, and learning.
+  - "**Set an application target.** A realistic weekly number you can actually keep up"
+  - "**Schedule networking.** Recurring time for events, online communities, and reaching out"
+  - "**Keep practicing.** Regular reps on your stories and answers so they stay sharp"
+  - "**Track your applications.** A simple spreadsheet so you know what you applied to and when to follow up"
+  done_when: You have a written, sustainable weekly routine for applying, networking, and practicing.
   slug: phase7-capstone-practice-build-job-search-routine
 - uuid: a68f4251-0e15-4e40-a51e-3e9b328437f6
   order: 3
   action: 'Practice:'
   title: Complete the reflection
-  description: Finish the hands-on requirement for this phase below. You'll answer three reflection questions that pull together your interview story, your target role and skill gaps, and the project you're excited about. Treat it as real interview prep — the answers you write are answers you'll want ready when it counts.
-  done_when: You've submitted thoughtful answers to all three reflection questions and they pass review.
+  description: The hands-on requirement for this phase is a reflection that pulls together everything you've prepared. You'll answer three questions in your own words, a behavioral story, your target role and the skills you need to close, and a project you're excited about. Answer honestly and specifically. This isn't about saying the right thing, it's about proving to yourself that you're actually ready.
+  checklist:
+  - "**Write a real behavioral story.** Use one of the stories you outlined, with situation, action, and result"
+  - "**Name a target role and your gaps.** Be specific about the skills you have and the ones you're closing"
+  - "**Describe a project you love.** The one you're genuinely excited to talk about"
+  done_when: You've submitted the career reflection and it has been graded as passing.
   slug: phase7-capstone-practice-complete-the-reflection
 - uuid: 1e8433f7-1833-47a2-bb01-ff65fe444735
   order: 4
   action: 'Reflect:'
   title: You finished Learn to Cloud
   description: |-
-    This is the end of the program. Take a moment to recognize what that means — you started somewhere on this path, and you've now worked through cloud fundamentals, built and deployed a real application, secured it, and prepared yourself to go after a role. That's a serious amount of work.
+    Take this in for a second. You started at the foundations and you've now deployed, automated, secured, and learned how to talk about a real cloud application. That's a serious accomplishment, and most people who start never get here.
 
-    The market is hard and the search will test you. You will want to quit, and you will face rejection — but every bit of it makes you better, especially your soft skills. Keep showing up. Much luck to you.
-
-    Share that you completed Learn to Cloud on LinkedIn or with the community, and tell people what you're looking for. You never know who's listening.
-  done_when: You've completed the program and shared your progress with the community.
+    From here it's about persistence. It will be hard, you will want to quit, and you will face a lot of rejection, but it will all make you better, especially your soft skills. Keep applying, keep networking, and keep practicing. You've got the skills and the work to back them up. Much luck to you.
+  done_when: You've recognized how far you've come and you're ready to take it into your job search.
   slug: phase7-capstone-reflect-you-finished-learn-to-cloud

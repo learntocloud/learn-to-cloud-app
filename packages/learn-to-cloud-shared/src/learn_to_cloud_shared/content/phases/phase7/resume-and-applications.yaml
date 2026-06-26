@@ -2,7 +2,7 @@
 uuid: 2587efd9-e847-4fc9-84a9-e002a7ea0d81
 slug: resume-and-applications
 name: Resume & Applications
-description: Your resume is a marketing document, not an autobiography. Its only job is to get you a conversation. The people who land roles tailor their resume to each type of role, apply broadly, and don't get hung up on perfect job titles early in their career. Expect to send a lot of applications and face a lot of rejection — that's normal, and it's not a reflection of your worth.
+description: Make sure your resume is as tailored as possible to the roles you're looking for. Do your research, landing a role takes time and work. The people who get hired apply broadly and don't obsess over titles early in their career. Expect to send a lot of applications and face a lot of rejection. Back when I was first trying to land my help desk role I sent hundreds of resumes out and faced plenty of rejection. It's part of the game and it's not a reflection of your worth.
 learning_objectives:
 - uuid: 2c916e32-917f-4ad7-a4ae-361df666fc82
   text: Tailor your resume to the specific roles you're applying for.
@@ -15,34 +15,34 @@ learning_steps:
   order: 1
   action: 'Practice:'
   title: Research the roles you actually want
-  description: Before you touch your resume, get specific about what you're applying for. Collect a handful of real job listings for roles that genuinely interest you. Read them closely and look for the patterns — the skills, tools, and responsibilities that keep showing up. This list is your roadmap for both your resume and your interview prep.
+  description: Before you touch your resume, get specific about what you're applying for. Collect a handful of real job listings for roles that genuinely interest you. Read them closely and look for the patterns, the skills, tools, and responsibilities that keep showing up. This list is your roadmap for both your resume and your interview prep.
   checklist:
-  - "**Collect 5–10 real listings** — Roles you'd genuinely be excited to get (cloud support, junior cloud/DevOps engineer, cloud associate, etc.)"
-  - "**List the recurring skills** — Note the tools and technologies that appear again and again across listings"
-  - "**Spot the patterns** — These recurring requirements tell you what to emphasize and what to learn"
+  - "**Collect 5 to 10 real listings.** Roles you'd genuinely be excited to get (cloud support, junior cloud/DevOps engineer, cloud associate)"
+  - "**List the recurring skills.** Note the tools and technologies that appear again and again across listings"
+  - "**Spot the patterns.** These recurring requirements tell you what to emphasize and what to learn"
   done_when: You have a written list of target roles and the skills they most commonly ask for.
   slug: phase7-resume-practice-research-target-roles
 - uuid: 54424b10-748a-4a44-9890-93216576ff81
   order: 2
   action: 'Practice:'
   title: Tailor your resume to those roles
-  description: A generic resume gets generic results. Use the skills list you just built to tailor your resume to the roles you're targeting. Put the work you did in this program to use — you deployed, automated, and secured a real cloud application, which is exactly the kind of concrete experience these listings ask for.
+  description: A generic resume gets generic results. Use the skills list you just built to tailor your resume to the roles you're targeting. Put the work you did in this program to use. You deployed, automated, and secured a real cloud application, which is exactly the kind of concrete experience these listings ask for.
   checklist:
-  - "**Match their language** — Mirror the skills and tools from the listings where you genuinely have them"
-  - "**Lead with your cloud project** — Describe what you built in this program in concrete, results-oriented terms"
-  - "**Lean on existing experience** — If you have help desk or other work experience, frame it in terms relevant to the roles you want"
-  - "**Keep it tight** — One page, scannable, no filler"
+  - "**Match their language.** Mirror the skills and tools from the listings where you genuinely have them"
+  - "**Lead with your cloud project.** Describe what you built in this program in concrete, results oriented terms"
+  - "**Lean on existing experience.** If you have help desk or other work experience, frame it in terms relevant to the roles you want"
+  - "**Keep it tight.** One page, scannable, no filler"
   done_when: Your resume clearly reflects the skills and language of the roles you're targeting.
   slug: phase7-resume-practice-tailor-your-resume
 - uuid: 973e6244-6566-4adf-af29-451143d179fb
   order: 3
   action: 'Practice:'
   title: Close your biggest skill gaps
-  description: You won't have hands-on experience with everything on every listing — nobody does early in their career. But you should at least know what each required technology is and what it's for. If a listing says Terraform and you can't say what Terraform does, that's a gap worth closing. You can build personal experience with most things even without a job.
+  description: Since you're researching roles, you'll have lists of skills and tech you need to know. Make sure you know what they all are and do. It's probably impossible early in your career to have work experience with everything people ask for, but you can have personal experience with most things. If a listing says Terraform, there's no reason you shouldn't at least know what it is.
   checklist:
-  - "**Audit your list** — For every recurring skill, can you explain what it is and why teams use it?"
-  - "**Fill the obvious gaps** — Spend a little time learning the basics of anything you can't explain"
-  - "**Get hands-on where you can** — Most tools can be tried in a personal project or free tier"
+  - "**Audit your list.** For every recurring skill, can you explain what it is and why teams use it?"
+  - "**Fill the obvious gaps.** Spend a little time learning the basics of anything you can't explain"
+  - "**Get hands-on where you can.** Most tools can be tried in a personal project or free tier"
   tips:
   - type: tip
     text: It's normal not to have professional experience with everything. The goal is to never be caught completely unable to talk about a skill the role explicitly asks for.
@@ -53,8 +53,8 @@ learning_steps:
   action: 'Reflect:'
   title: Apply broadly, don't obsess over titles
   description: |-
-    Early in your career, your goal is not to make the perfect move — it's to take one step forward. That step looks different for everyone.
+    Apply to any role that interests you. Do not obsess over titles. Early in your career your goal is not to make the perfect move, it's to take one step in progressing. This looks different for all of us.
 
-    Apply to any role that genuinely interests you, even if the title isn't exactly what you pictured. Don't disqualify yourself before the employer does. Landing a role takes volume and persistence; when you were first breaking in, sending out a large number of applications and facing plenty of rejection was simply part of the process.
+    Don't disqualify yourself before the employer does. Landing a role takes volume and persistence, so the title not being exactly what you pictured is fine. Get your foot in the door and keep moving.
   done_when: You've committed to applying broadly to roles that interest you, without filtering yourself out over titles.
   slug: phase7-resume-reflect-apply-broadly
