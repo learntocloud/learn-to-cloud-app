@@ -22,7 +22,7 @@ members = [
 # below and are the single source of truth for the quality-gate commands that
 # CI, the devcontainer, and local development all run.
 dev = [
-    "poethepoet>=0.30",
+    "poethepoet>=0.47.0",
     "prek>=0.4.5",
 ]
 
