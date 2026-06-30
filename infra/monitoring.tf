@@ -319,7 +319,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
 
   criteria {
     query                   = <<-QUERY
-      AppMetrics
+      union isfuzzy=true AppMetrics
       | where Name == "verification.attempt"
       | extend result = tostring(Properties['result'])
       | summarize Total = sum(Sum), Failed = sumif(Sum, result in ("fail", "error"))
