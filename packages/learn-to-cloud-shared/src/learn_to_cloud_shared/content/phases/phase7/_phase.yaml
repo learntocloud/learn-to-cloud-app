@@ -2,13 +2,14 @@
 uuid: b73ba847-5c51-449e-9e61-4b96af6175f3
 slug: phase7
 name: Interview & Job Prep
-description: You've built and secured a real cloud application. Now comes the part most people find hardest, turning that work into a job. This market is killer, and landing a role takes time and a lot of rejection. That's part of the game and it makes you stronger. This phase is about the work outside the code. Networking, tailoring your resume, outlining the stories you'll tell in interviews, and getting clear on the roles you're after. None of this is a guarantee, but doing it deliberately puts you way ahead of people who wait until an interview is scheduled to start preparing.
+description: Finishing this curriculum proves discipline, but it does not make you unique. What makes you stand out is what you explored, improved, and built beyond the outline, and this phase helps you turn that into interviews and opportunities. A lot of it is inspired by Cassidoo's [getting-a-gig](https://github.com/cassidoo/getting-a-gig) guide and her excellent [weekly newsletter](https://cassidoo.co/newsletter/), and by [some thoughts I wrote in a community discussion](https://github.com/learntocloud/learn-to-cloud-app/discussions/330#discussioncomment-16742472).
 short_description: Turn your cloud skills into a job. Network, tailor your resume, prepare your interview stories, and learn to talk about your work with confidence.
 order: 7
 topics:
-- networking
+- you-are-not-unique
 - resume-and-applications
 - interview-prep
+- networking
 - job-search-capstone
 hands_on_verification:
   requirements:

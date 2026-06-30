@@ -17,6 +17,7 @@ from learn_to_cloud_shared.content_sync import (
 from learn_to_cloud_shared.models import (
     CurriculumPhase,
     CurriculumRequirement,
+    CurriculumStep,
 )
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirementAdapter,
@@ -195,6 +196,68 @@ async def test_changed_content_bumps_updated_at(
     second = (await db_session.execute(select(CurriculumPhase))).scalar_one()
     assert second.name == "New Name"
     assert second.updated_at > first_updated_at
+
+
+def _topic_with_steps(steps: list[LearningStep]) -> Topic:
+    """A topic carrying an explicit list of steps (no objectives)."""
+    return Topic(
+        uuid=UUID("00000000-0000-0000-0000-0000000000a0"),
+        slug="reorder",
+        name="Reorder",
+        description="Topic for reordering",
+        order=0,
+        learning_steps=steps,
+        learning_objectives=[],
+    )
+
+
+async def test_reordering_steps_within_topic_does_not_violate_unique_index(
+    db_session: AsyncSession,
+) -> None:
+    """Swapping two steps and dropping a third must not trip the partial
+    unique index on (topic_uuid, order). Regression for the deploy-time
+    sync that previously upserted new orders before vacating old ones."""
+    step_a = "00000000-0000-0000-0000-0000000000a1"
+    step_b = "00000000-0000-0000-0000-0000000000a2"
+    step_c = "00000000-0000-0000-0000-0000000000a3"
+
+    initial = _make_phase(
+        topic=_topic_with_steps(
+            [_make_step(step_a, 1), _make_step(step_b, 2), _make_step(step_c, 3)]
+        )
+    )
+    await _patch_validators_and_run(db_session, (initial,))
+
+    # Swap A and B, and drop C entirely.
+    db_session.expire_all()
+    reordered = _make_phase(
+        topic=_topic_with_steps([_make_step(step_b, 1), _make_step(step_a, 2)])
+    )
+    stats = await _patch_validators_and_run(db_session, (reordered,))
+    assert stats.rows_soft_deleted == 1
+
+    db_session.expire_all()
+    active = (
+        (
+            await db_session.execute(
+                select(CurriculumStep)
+                .where(CurriculumStep.deleted_at.is_(None))
+                .order_by(CurriculumStep.order)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [(str(row.uuid), row.order) for row in active] == [
+        (step_b, 1),
+        (step_a, 2),
+    ]
+    dropped = (
+        await db_session.execute(
+            select(CurriculumStep).where(CurriculumStep.uuid == UUID(step_c))
+        )
+    ).scalar_one()
+    assert dropped.deleted_at is not None
 
 
 async def test_absent_entity_is_soft_deleted(

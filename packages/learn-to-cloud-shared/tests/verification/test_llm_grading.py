@@ -12,6 +12,7 @@ from learn_to_cloud_shared.verification.llm_grading import (
     LLMGradingDecisionPayload,
     apply_llm_grading_decisions,
     collect_llm_grading_requests,
+    llm_grading_content_filtered_result,
     llm_grading_unavailable_result,
 )
 from learn_to_cloud_shared.verification.repo_utils import RepositoryRef
@@ -205,6 +206,15 @@ def test_llm_grading_unavailable_result_marks_server_error():
         "problem on our end, not yours. Please report it so we can "
         "fix it."
     )
+
+
+def test_llm_grading_content_filtered_result_asks_learner_to_rephrase():
+    updated = llm_grading_content_filtered_result(_run_result())
+
+    assert updated.validation_result.is_valid is False
+    assert updated.validation_result.verification_completed is False
+    assert "content safety filter" in updated.validation_result.message
+    assert "rewrite your answers" in updated.validation_result.message
 
 
 def _phase7_run_result(

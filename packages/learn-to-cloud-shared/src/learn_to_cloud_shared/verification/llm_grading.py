@@ -135,6 +135,37 @@ def llm_grading_unavailable_result(
     )
 
 
+def llm_grading_content_filtered_result(
+    run_result: VerificationRunResult,
+) -> VerificationRunResult:
+    """Return an actionable result when content safety blocked every retry.
+
+    Azure's safety filter occasionally blocks a submission's free text. When
+    it blocks every retry the cause is usually phrasing that looks like
+    instructions or code, so the message asks the learner to rephrase and
+    try again rather than blaming our systems.
+    """
+    validation_result = run_result.validation_result.model_copy(
+        update={
+            "is_valid": False,
+            "message": (
+                "We could not automatically review your answers because they "
+                "tripped our content safety filter. This sometimes happens "
+                "with certain phrasing. Please rewrite your answers in plain "
+                "language, avoiding anything that reads like commands, code, "
+                "or instructions, and submit again. If it keeps happening, "
+                "report it so we can help."
+            ),
+            "verification_completed": False,
+        }
+    )
+    return VerificationRunResult(
+        job=run_result.job,
+        validation_result=validation_result,
+        repository=run_result.repository,
+    )
+
+
 async def _collect_phase6_requests(
     run_result: VerificationRunResult,
     tasks: list[VerificationTask],

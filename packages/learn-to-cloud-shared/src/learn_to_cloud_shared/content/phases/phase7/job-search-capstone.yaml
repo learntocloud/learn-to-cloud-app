@@ -1,48 +1,69 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: a6af5633-1cb8-49f3-9632-3e21fb84e69b
 slug: job-search-capstone
-name: "Capstone: Your Job Search Plan"
-description: This is where everything comes together. You'll make sure you have a project you're genuinely excited to talk about, build a realistic routine for your search, and then complete a reflection that grades your readiness. It will be hard. You will want to quit, and you will face a lot of rejection, but it will all make you better, especially your soft skills.
+name: Get Ready to Apply
+description: This is where everything comes together. Get comfortable talking about the work that is genuinely yours, set up a simple job search routine if it helps you stay consistent, then answer your readiness reflection. The reflection is the one graded check in this phase.
 learning_objectives:
 - uuid: e12e1374-2c39-49eb-919b-c225d29f61c9
-  text: Have a project you're genuinely excited to talk about in interviews.
+  text: Get comfortable talking about the work that is genuinely yours.
   order: 1
 - uuid: 1bf858dc-41aa-4d6c-be6a-a6cdff162caa
-  text: Build a sustainable routine for your job search.
+  text: Be ready to apply, and submit your readiness reflection.
   order: 2
 learning_steps:
 - uuid: 4a272641-6301-44ab-80bb-925bae1234c3
   order: 1
   action: 'Practice:'
-  title: Have a project you're genuinely excited about
-  description: You need to have some sort of project you are genuinely interested in. It doesn't even have to be cloud related, just something that makes you excited to talk about. That genuine interest comes through in interviews and is far more convincing than anything you build only to impress. The capstone you built in this program counts, as long as you actually enjoy talking about it.
+  title: Practice talking about what makes you unique
+  description: 'Go back to the uniqueness statement you wrote in "Find What Makes You Brilliant." That statement is the work that is genuinely yours, the project, the improvement, and the choices you made on your own. Now get comfortable talking about it out loud, with real enthusiasm.'
   checklist:
-  - "**Pick your project.** The cloud app from this program, or anything else you genuinely enjoy"
+  - "**Revisit your uniqueness statement.** Reread what you wrote in the first topic of this phase"
+  - "**Pick the part you're most excited about.** The improvement or project that genuinely came from you"
   - "**Know its story.** Why you built it, the choices you made, and what you'd do next"
-  - "**Make it yours.** Be ready to talk about it with real enthusiasm, not a rehearsed pitch"
-  done_when: You have a project you're genuinely excited to talk about and can explain it with enthusiasm.
+  - "**Say it out loud.** Practice until it sounds like you, not a rehearsed pitch"
+  done_when: You can talk about the work that's genuinely yours with real enthusiasm.
   slug: phase7-capstone-practice-project-youre-excited-about
 - uuid: 8307f1cb-c125-4e76-a39a-074d931d10c5
   order: 2
   action: 'Practice:'
-  title: Build your job-search routine
-  description: A job search is a long game, so treat it like a sustainable routine instead of a frantic sprint. Decide how many applications you'll send, when you'll network, and how you'll keep practicing your interview answers. A steady, repeatable rhythm beats burning out in the first week.
+  title: Set up a job search routine (optional)
+  description: This one is just for you. Nothing here gets submitted. If a simple weekly routine helps you stay consistent, set up a plan you will actually use, and keep it as light or as detailed as you want.
   checklist:
+  - "**Create the artifact.** Start one document or spreadsheet named `Job Search Plan`"
+  - "**Add three sections.** `Roles to target`, `Weekly rhythm`, and `Application + follow-up tracker`"
+  - "**Set target roles.** List the role titles and 2 to 3 companies you are actively targeting this month"
   - "**Set an application target.** A realistic weekly number you can actually keep up"
   - "**Schedule networking.** Recurring time for events, online communities, and reaching out"
-  - "**Keep practicing.** Regular reps on your stories and answers so they stay sharp"
-  - "**Track your applications.** A simple spreadsheet so you know what you applied to and when to follow up"
-  done_when: You have a written, sustainable weekly routine for applying, networking, and practicing.
+  - "**Schedule interview practice.** Block weekly time to run the story and question reps from Interview Preparation so your answers stay sharp"
+  - "**Plan referral follow-ups.** Track who you met, when to follow up, and where a warm intro would make sense"
+  - "**Track your applications.** Include columns for role, company, date applied, status, and next follow-up date"
+  code: |-
+    # Job Search Plan
+
+    ## Roles to target
+    - Role titles:
+    - Top companies this month:
+
+    ## Weekly rhythm
+    - Applications per week:
+    - Networking actions per week:
+    - Interview practice session:
+
+    ## Application + follow-up tracker
+    | Role | Company | Date applied | Status | Next follow-up |
+    | --- | --- | --- | --- | --- |
+    |  |  |  |  |  |
+  done_when: You have a personal job search routine set up the way you want, or you've decided you don't need one.
   slug: phase7-capstone-practice-build-job-search-routine
 - uuid: a68f4251-0e15-4e40-a51e-3e9b328437f6
   order: 3
   action: 'Practice:'
-  title: Complete the reflection
-  description: The hands-on requirement for this phase is a reflection that pulls together everything you've prepared. You'll answer three questions in your own words, a behavioral story, your target role and the skills you need to close, and a project you're excited about. Answer honestly and specifically. This isn't about saying the right thing, it's about proving to yourself that you're actually ready.
+  title: Submit your readiness reflection
+  description: This is the one graded check in this phase. Answer the three reflection questions in your own words, using the stories, role research, and uniqueness statement you built earlier. Be specific and honest so it reflects real readiness.
   checklist:
   - "**Write a real behavioral story.** Use one of the stories you outlined, with situation, action, and result"
   - "**Name a target role and your gaps.** Be specific about the skills you have and the ones you're closing"
-  - "**Describe a project you love.** The one you're genuinely excited to talk about"
+  - "**Describe a project you love.** The one from your uniqueness statement that you're genuinely excited to talk about"
   done_when: You've submitted the career reflection and it has been graded as passing.
   slug: phase7-capstone-practice-complete-the-reflection
 - uuid: 1e8433f7-1833-47a2-bb01-ff65fe444735
@@ -50,8 +71,8 @@ learning_steps:
   action: 'Reflect:'
   title: You finished Learn to Cloud
   description: |-
-    Take this in for a second. You started at the foundations and you've now deployed, automated, secured, and learned how to talk about a real cloud application. That's a serious accomplishment, and most people who start never get here.
+    Pause and recognize what you finished: foundations, deployment, automation, security, and communication of real project work.
 
-    From here it's about persistence. It will be hard, you will want to quit, and you will face a lot of rejection, but it will all make you better, especially your soft skills. Keep applying, keep networking, and keep practicing. You've got the skills and the work to back them up. Much luck to you.
+    From here, persistence matters most. Keep applying, networking, and practicing. You have the skills and proof of work to support your next step.
   done_when: You've recognized how far you've come and you're ready to take it into your job search.
   slug: phase7-capstone-reflect-you-finished-learn-to-cloud

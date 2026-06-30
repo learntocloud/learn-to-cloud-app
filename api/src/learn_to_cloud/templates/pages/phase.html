@@ -6,7 +6,7 @@
     <div class="flex items-center gap-3 mb-2">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ phase.name }}</h1>
     </div>
-    <p class="text-gray-600 dark:text-gray-400 mt-2">{{ phase.description }}</p>
+    <div class="mt-2 text-gray-600 dark:text-gray-400 [&>p]:m-0 phase-description">{{ phase.description | md | safe }}</div>
 
     {% if progress %}
     {% with progress=progress, progress_label='Complete ✓' if progress.is_complete else progress.percentage | round(0) | int ~ '% complete' %}
@@ -81,10 +81,17 @@
         {% set persisted_error = submission.validation_message if submission and not submission.is_validated and submission.validation_message else None %}
 
         {% if is_verified %}
-        {# Compact verified row #}
-        <div id="requirement-{{ req.slug }}" class="flex items-center gap-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-2.5">
-            <span class="text-green-600 dark:text-green-400">✓</span>
-            <span class="text-sm font-medium text-green-800 dark:text-green-200">{{ req.name }}</span>
+        {# Compact verified row, with expandable feedback explaining why it passed #}
+        <div id="requirement-{{ req.slug }}">
+            <div class="flex items-center gap-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-2.5">
+                <span class="text-green-600 dark:text-green-400">✓</span>
+                <span class="text-sm font-medium text-green-800 dark:text-green-200">{{ req.name }}</span>
+            </div>
+            {% if feedback_tasks %}
+            {% with requirement_slug=req.slug %}
+            {% include "partials/verification_feedback.html" %}
+            {% endwith %}
+            {% endif %}
         </div>
         {% elif not ns.found_active %}
         {# First incomplete — show full card #}

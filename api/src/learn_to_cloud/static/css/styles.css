@@ -1941,6 +1941,16 @@
   border-color: oklch(48.8% 0.243 264.376);
   color: oklch(88.2% 0.059 254.128);
 }
+.phase-description a {
+  color: oklch(54.6% 0.245 262.881);
+  text-decoration: underline;
+}
+.phase-description a:hover {
+  text-decoration: none;
+}
+.dark .phase-description a {
+  color: oklch(70.7% 0.165 254.624);
+}
 @property --tw-rotate-x {
   syntax: "*";
   inherits: false;

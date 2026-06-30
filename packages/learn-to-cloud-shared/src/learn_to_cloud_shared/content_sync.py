@@ -34,7 +34,7 @@ from datetime import UTC, datetime
 from typing import Any, Protocol
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import bindparam, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -284,6 +284,65 @@ async def _upsert_rows(
     await db.execute(stmt)
 
 
+async def _park_order_movers(
+    db: AsyncSession,
+    model: Any,
+    rows: list[dict[str, Any]],
+    now: datetime,
+) -> int:
+    """Temporarily move rows whose ``(parent, order)`` slot is changing.
+
+    ``steps`` and ``learning_objectives`` each carry a partial unique index
+    on ``(parent_uuid, "order") WHERE deleted_at IS NULL``. Postgres cannot
+    defer a *partial* unique index, so it is enforced row-by-row mid-statement.
+    When the curriculum reorders rows within a parent (a swap, or a removal
+    that shifts later rows up), the bulk upsert in :func:`_upsert_rows` would
+    momentarily place two active rows in the same slot and the index rejects it.
+
+    To avoid that, before the final upsert we park every row whose target slot
+    differs from its current DB slot into a unique, out-of-range negative order.
+    Real orders are non-negative, so the parked rows collide with nothing, and
+    the subsequent upsert can assign final orders one row at a time without ever
+    seeing a duplicate. Rows that are not moving are left untouched, so an
+    unchanged curriculum still produces zero writes and ``updated_at`` is
+    preserved.
+
+    Assumes :func:`_soft_delete_absent` has already run for this model, so the
+    only active rows are the ones present in ``rows``.
+    """
+    if not rows:
+        return 0
+
+    desired_slot = {row["uuid"]: (row["topic_uuid"], row["order"]) for row in rows}
+    current = (
+        await db.execute(
+            select(model.uuid, model.topic_uuid, model.order).where(
+                model.deleted_at.is_(None)
+            )
+        )
+    ).all()
+
+    movers = [
+        uuid
+        for uuid, topic_uuid, order in current
+        if uuid in desired_slot and desired_slot[uuid] != (topic_uuid, order)
+    ]
+    if not movers:
+        return 0
+
+    park_params = [
+        {"_uuid": uuid, "_order": -(index + 1)} for index, uuid in enumerate(movers)
+    ]
+    table = model.__table__
+    await db.execute(
+        update(table)
+        .where(table.c.uuid == bindparam("_uuid"))
+        .values({table.c.order: bindparam("_order"), table.c.updated_at: now}),
+        park_params,
+    )
+    return len(movers)
+
+
 async def _check_collisions_and_submission_type(
     db: AsyncSession,
     phases: tuple[Phase, ...],
@@ -466,13 +525,39 @@ async def sync_curriculum_to_db(
     objective_rows = [r for p in phases for r in _build_objective_rows(p, now)]
     requirement_rows = [r for p in phases for r in _build_requirement_rows(p, now)]
 
-    # Upsert in dependency order: phases -> topics/requirements -> steps/objectives.
+    keep_phase = {r["uuid"] for r in phase_rows}
+    keep_topic = {r["uuid"] for r in topic_rows}
+    keep_step = {r["uuid"] for r in step_rows}
+    keep_objective = {r["uuid"] for r in objective_rows}
+    keep_requirement = {r["uuid"] for r in requirement_rows}
+
+    # Upsert the order-unconstrained parents first (phases, topics,
+    # requirements). Their active uniqueness is on slug, not order, so a bulk
+    # upsert can reorder them freely.
     await _upsert_rows(db, CurriculumPhase, phase_rows, _PHASE_UPDATE_FIELDS)
     await _upsert_rows(db, CurriculumTopic, topic_rows, _TOPIC_UPDATE_FIELDS)
     await _upsert_rows(
         db, CurriculumRequirement, requirement_rows, _REQUIREMENT_UPDATE_FIELDS
     )
+
+    # Steps and objectives carry a partial unique index on (parent, order).
+    # For these we must (1) soft-delete rows that left the curriculum so their
+    # order slots free up, (2) park any row whose slot is changing into a safe
+    # negative order, then (3) upsert final orders. Skipping the park step makes
+    # any in-topic reorder fail mid-statement on the unique index. The session
+    # runs with autoflush disabled, so each soft-delete is flushed explicitly
+    # before the park/upsert that depends on those slots being free.
+    deleted_total = 0
+    deleted_total += await _soft_delete_absent(db, CurriculumStep, keep_step, now)
+    await db.flush()
+    await _park_order_movers(db, CurriculumStep, step_rows, now)
     await _upsert_rows(db, CurriculumStep, step_rows, _STEP_UPDATE_FIELDS)
+
+    deleted_total += await _soft_delete_absent(
+        db, CurriculumLearningObjective, keep_objective, now
+    )
+    await db.flush()
+    await _park_order_movers(db, CurriculumLearningObjective, objective_rows, now)
     await _upsert_rows(
         db,
         CurriculumLearningObjective,
@@ -481,19 +566,7 @@ async def sync_curriculum_to_db(
         column_attr_overrides={"text": "text_"},
     )
 
-    # Soft-delete anything no longer in YAML. Order matters: child rows
-    # first so the partial unique indexes don't briefly conflict.
-    keep_phase = {r["uuid"] for r in phase_rows}
-    keep_topic = {r["uuid"] for r in topic_rows}
-    keep_step = {r["uuid"] for r in step_rows}
-    keep_objective = {r["uuid"] for r in objective_rows}
-    keep_requirement = {r["uuid"] for r in requirement_rows}
-
-    deleted_total = 0
-    deleted_total += await _soft_delete_absent(db, CurriculumStep, keep_step, now)
-    deleted_total += await _soft_delete_absent(
-        db, CurriculumLearningObjective, keep_objective, now
-    )
+    # Soft-delete the remaining order-unconstrained tables.
     deleted_total += await _soft_delete_absent(
         db, CurriculumRequirement, keep_requirement, now
     )

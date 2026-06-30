@@ -2,7 +2,7 @@
 uuid: d57fde28-0c92-442c-bda2-d639683a33e4
 slug: interview-prep
 name: Interview Preparation
-description: An interview is about being able to communicate your skills. If you have to think of your examples on the spot, you're already taking away from it. You want to be prepared, not preparing during the interview. The fix is simple. Outline the experiences you can speak to ahead of time, practice the questions that come up in almost every interview, and make sure you can explain every technology on your target roles.
+description: Interview performance is mostly preparation. Build clear stories, practice common questions out loud, and be ready to explain the technologies in your target roles.
 learning_objectives:
 - uuid: d42f5f81-a2ee-4529-967c-8399e81c288b
   text: Prepare specific stories from your experience before the interview, not during it.
@@ -16,13 +16,15 @@ learning_steps:
   action: 'Practice:'
   title: Outline your experience stories in advance
   description: |-
-    The single most useful thing you can do before an interview is to outline, ahead of time, the scenarios and experiences you can speak about. If you have help desk or other work experience, mine it for stories. If you don't, your work in this program and your personal projects are completely valid sources.
+    Outline your stories before interviews. Pull examples from past jobs, personal projects, and the work from your uniqueness statement.
 
-    A simple structure works for each story. The situation you faced, the task or problem, the action you took, and the result. Having a handful of these ready means you're recalling a prepared story, not building one under pressure.
+    Use a simple structure for each story: situation, task, action, and result. The goal is to recall prepared stories, not improvise under pressure.
   checklist:
-  - "**List your raw material.** Past jobs, this program, personal projects, volunteering"
+  - "**List your raw material.** Past jobs, personal projects, volunteering, and the work from your uniqueness statement"
   - "**Write 4 to 6 short stories.** Each with the situation, what you did, and how it turned out"
   - "**Cover a range.** A technical challenge, a time you learned something fast, a time you worked with others"
+  - "**Keep each story concrete.** Name your exact actions and the outcome so your answers sound specific, not generic"
+  - '**Read and apply one idea.** Review [Getting a Gig: Your Skills](https://github.com/cassidoo/getting-a-gig/blob/main/README.md#your-skills) and [Selling Them](https://github.com/cassidoo/getting-a-gig/blob/main/README.md#selling-them), then apply one tactic to your stories'
   done_when: You have a written set of specific stories from your experience that you can pull from in an interview.
   slug: phase7-interview-practice-outline-your-stories
 - uuid: e6ca0c7a-a003-4af8-87e8-fe4944fb674b
@@ -30,7 +32,7 @@ learning_steps:
   action: 'Practice:'
   title: Prepare answers to the universal questions
   description: |-
-    A few questions are quite universal and show up in almost every interview. Prepare for them now using the stories you just outlined. The common ones are:
+    A few questions show up in almost every interview. Prepare them now using the stories you already outlined:
 
     - "Tell me a time you implemented X."
     - "Tell me a difficult challenge you faced and how you overcame it."
@@ -41,26 +43,19 @@ learning_steps:
   - "**Match stories to questions.** Pick which prepared story best answers each common question"
   - "**Answer out loud.** Say your answers aloud, not just in your head. It feels different and exposes the rough spots"
   - "**Keep them concrete.** Specific details and results beat vague generalities"
-  done_when: You can answer each common behavioral question with a specific, prepared story.
+  - "**Practice one a week.** Keep a steady rhythm of answering at least one new behavioral question each week so your stories stay sharp"
+  - "**Prepare before the interview day.** Do this prep early so you are ready, not improvising under pressure"
+  done_when: You can answer each common behavioral question with a specific, prepared story and deliver it confidently without improvising.
   slug: phase7-interview-practice-universal-questions
 - uuid: 9c1698e8-345c-41bb-a8d1-7bbde29eef21
   order: 3
   action: 'Practice:'
   title: Be ready to talk about the tech on the listing
-  description: Interviewers will ask about the skills in their job posting. Go back to the target listings you researched and make sure you can speak to every technology on them. What it is, why teams use it, and any hands-on experience you have. You don't need to be an expert in all of them, but you should never freeze when asked about something the role explicitly requires.
+  description: Interviewers will ask about tools in the job listing. Be ready to explain what each one is, why teams use it, and where you have used it.
   checklist:
   - "**Review your target listings.** Pull the skills and tools they ask for"
   - "**Rehearse a short explanation.** For each, be able to say what it is and where you've used it"
   - "**Be honest about gaps.** For things you haven't used, say so and show you understand the concept"
+  - "**Practice without tools.** Rehearse a few answers and technical explanations without notes, autocomplete, or AI assistance"
   done_when: You can confidently discuss every technology listed on your target roles.
   slug: phase7-interview-practice-talk-about-the-tech
-- uuid: c6ab044e-8a38-4da6-a7f0-02bc370fdda5
-  order: 4
-  action: 'Reflect:'
-  title: Prepare, don't prepare during
-  description: |-
-    The idea that ties this topic together is simple. You want to be prepared, not preparing during the interview.
-
-    If you have to think of your skills and stories on the spot, you're already taking away from the conversation. The work you do before the interview, outlining stories, rehearsing answers, knowing the tech, is what lets you show up calm and present. That's the difference good preparation makes.
-  done_when: You've internalized that interview success comes from preparation done beforehand, not improvisation in the moment.
-  slug: phase7-interview-reflect-prepare-dont-prepare-during
