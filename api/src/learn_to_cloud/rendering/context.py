@@ -104,7 +104,7 @@ _X_SVG = (
 HELP_LINKS: list[dict[str, str]] = [
     {
         "url": "https://github.com/learntocloud/learn-to-cloud-app/discussions",
-        "label": "Join the Community",
+        "label": "Ask the Community",
         "color": "text-indigo-500 dark:text-indigo-400",
         "icon": (
             '<svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none"'
