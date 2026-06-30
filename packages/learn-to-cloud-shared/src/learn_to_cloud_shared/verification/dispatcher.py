@@ -24,7 +24,6 @@ For CI-based code verification, see ci_status.py
 For phase requirements, see requirements.py
 """
 
-import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
@@ -61,11 +60,6 @@ _VERIFICATION_COUNTER = _meter.create_counter(
     description="Number of hands-on verification attempts",
     unit="{attempt}",
 )
-_VERIFICATION_DURATION = _meter.create_histogram(
-    name="verification.duration",
-    description="Time taken to complete a verification attempt",
-    unit="s",
-)
 
 
 async def validate_submission(
@@ -85,7 +79,6 @@ async def validate_submission(
         expected_username: The expected GitHub username
             (required for GitHub-based validations)
     """
-    start = time.monotonic()
     sub_type = requirement.submission_type
     submission_type = sub_type.value if sub_type else "unknown"
     result_attr = "error"
@@ -124,10 +117,8 @@ async def validate_submission(
             verification_completed=False,
         )
     finally:
-        elapsed = time.monotonic() - start
         attrs = {"submission_type": submission_type, "result": result_attr}
         _VERIFICATION_COUNTER.add(1, attrs)
-        _VERIFICATION_DURATION.record(elapsed, attrs)
 
 
 # Uniform call shape for every validator, regardless of how the underlying

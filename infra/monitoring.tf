@@ -297,3 +297,47 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_verification_conf
     action_groups = [azurerm_monitor_action_group.critical.id]
   }
 }
+
+# verification.attempt is a custom OTel counter emitted by validate_submission
+# (packages/learn-to-cloud-shared/.../verification/dispatcher.py) for every
+# inline and background verification, labelled by submission_type and result
+# (pass/fail/error). A clean validator failure never produces a 5xx, so the
+# request-based alerts above would miss a failure-rate spike entirely.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_failure_rate" {
+  name                = "alert-ltc-verification-attempt-failure-rate-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when verification attempts fail/error at a high rate over an hour"
+  severity            = 2
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT1H"
+  window_duration       = "PT1H"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      AppMetrics
+      | where Name == "verification.attempt"
+      | extend result = tostring(Properties['result'])
+      | summarize Total = sum(Sum), Failed = sumif(Sum, result in ("fail", "error"))
+      | where Total >= 5
+      | project FailureRatePct = round(100.0 * Failed / Total, 1)
+    QUERY
+    time_aggregation_method = "Maximum"
+    metric_measure_column   = "FailureRatePct"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 50
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
