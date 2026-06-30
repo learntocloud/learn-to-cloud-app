@@ -42,6 +42,7 @@ from learn_to_cloud.routes import (
     pages_router,
     users_router,
 )
+from learn_to_cloud.routes.health_routes import get_code_alembic_head
 
 # Configure stdlib logging before Azure Monitor adds any logging handlers.
 # Azure Monitor must run before fastapi.FastAPI() is instantiated so request
@@ -114,6 +115,8 @@ async def lifespan(app: fastapi.FastAPI):
     app.state.settings = get_web_settings()
     app.state.engine = create_engine(app.state.settings.database)
     app.state.session_maker = create_session_maker(app.state.engine)
+    # Parsing migration scripts is cheap once, not on every /ready poll.
+    app.state.alembic_code_head = get_code_alembic_head()
 
     app.state.init_done = False
     app.state.init_error = None
