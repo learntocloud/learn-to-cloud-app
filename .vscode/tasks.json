@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "API: migrate + sync curriculum",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/api && uv run alembic upgrade head && uv run python -m learn_to_cloud_shared.cli.sync_curriculum",
+      "problemMatcher": []
+    }
+  ]
+}
