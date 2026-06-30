@@ -11,7 +11,7 @@ jobs:
       issues: write
     steps:
       - name: Classify and label issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -71,7 +71,7 @@ jobs:
             });
 
       - name: Post intake guidance comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
