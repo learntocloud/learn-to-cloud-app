@@ -23,7 +23,7 @@ version = "0.1.0"
 description = "Learn to Cloud API - FastAPI backend for learning cloud computing"
 requires-python = ">=3.13"
 dependencies = [
-    "alembic>=1.18.4",
+    "alembic>=1.18.5",
     "asyncpg>=0.31.0",
     "psycopg2-binary>=2.9.12",
     "authlib>=1.7.0",
