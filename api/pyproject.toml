@@ -36,7 +36,7 @@ dependencies = [
     "markdown>=3.5.0",
     "opentelemetry-instrumentation-sqlalchemy==0.61b0",
     "pydantic>=2.13.3,<3",
-    "pydantic-settings>=2.14.0",
+    "pydantic-settings>=2.14.2",
     "python-dotenv>=1.0.1",
     "python-multipart>=0.0.31",
     "slowapi>=0.1.9",
