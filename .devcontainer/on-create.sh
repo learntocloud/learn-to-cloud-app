@@ -83,9 +83,4 @@ if ! command -v prek &> /dev/null; then
     fi
 fi
 
-# Install Firecrawl CLI + agent skills for web scraping/search.
-echo "🔥 Installing Firecrawl CLI + skills..."
-npm install -g firecrawl-cli@latest
-firecrawl init --all -y --skip-install 2>/dev/null || true
-
 echo "✅ Environment created (venv, tools installed)"

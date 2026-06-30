@@ -114,6 +114,6 @@ Keep search output small and targeted.
 
 ## Research
 
-When asked to research, or if you need to research something that is Azure related, use the azure-skills plugin. For everything else, use firecrawl or tavily (whichever one is installed) and/or context7.
+When asked to research, or if you need to research something that is Azure related, use the azure-skills plugin. For everything else, use tavily and/or context7.
 
-**Do not use the built-in web search tool.** It is not an acceptable fallback. If firecrawl, tavily, and context7 are all unavailable, say so and ask the user how to proceed rather than silently falling back to web search.
+**Do not use the built-in web search tool.** It is not an acceptable fallback. If tavily and context7 are both unavailable, say so and ask the user how to proceed rather than silently falling back to web search.
