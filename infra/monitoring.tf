@@ -341,3 +341,47 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
     action_groups = [azurerm_monitor_action_group.critical.id]
   }
 }
+
+# Tier 3 follow-up from the #432 post-mortem: page if the production DB's
+# applied Alembic head ever falls out of sync with the head baked into the
+# deployed code (manual psql access, a half-applied migration, a future
+# regression). /ready already compares the two on every poll and logs
+# health.ready.schema_drift on mismatch without failing the probe itself, so
+# this alert is the thing that actually pages a human; the readiness probe's
+# 200/503 contract stays reserved for "can this pod serve traffic".
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "schema_drift" {
+  name                = "alert-ltc-schema-drift-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when the deployed DB's Alembic head diverges from the deployed code's Alembic head for more than 10 minutes"
+  severity            = 2
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      traces
+      | where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-${var.environment}")
+          or cloud_RoleName has "learn-to-cloud-api"
+          or cloud_RoleName has "ca-ltc-api"
+      | where message has "health.ready.schema_drift"
+    QUERY
+    time_aggregation_method = "Count"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 3
+      number_of_evaluation_periods             = 3
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
