@@ -303,6 +303,19 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_verification_conf
 # inline and background verification, labelled by submission_type and result
 # (pass/fail/error). A clean validator failure never produces a 5xx, so the
 # request-based alerts above would miss a failure-rate spike entirely.
+#
+# AppMetrics isn't recognized by alert-rule validation until the workspace
+# schema catches up after the first write, so a bare `AppMetrics` reference
+# (or `union isfuzzy=true AppMetrics` alone) fails apply with a hard 400 if no
+# custom metric has landed yet, since fuzzy union only suppresses the error
+# when at least one union operand resolves. Unioning in an empty literal
+# datatable with the same columns we read (Name, Sum, Properties) guarantees
+# one operand always resolves, so the rule deploys cleanly with or without
+# AppMetrics data and produces identical results once the table exists.
+# Verified directly against the live dev Application Insights resource: the
+# bare/fuzzy-only query reproduces "BadArgumentError: invalid properties",
+# the datatable version returns a clean (empty) result with only a non-fatal
+# resolution warning.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_failure_rate" {
   name                = "alert-ltc-verification-attempt-failure-rate-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
@@ -319,7 +332,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
 
   criteria {
     query                   = <<-QUERY
-      union isfuzzy=true AppMetrics
+      union isfuzzy=true AppMetrics, (datatable(Name: string, Sum: real, Properties: dynamic)[])
       | where Name == "verification.attempt"
       | extend result = tostring(Properties['result'])
       | summarize Total = sum(Sum), Failed = sumif(Sum, result in ("fail", "error"))
