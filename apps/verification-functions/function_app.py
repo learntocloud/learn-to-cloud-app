@@ -26,6 +26,7 @@ from learn_to_cloud_shared.submission_values import submission_value_from_column
 from learn_to_cloud_shared.verification.llm_grading import (
     LLMGradingDecisionPayload,
     LLMGradingRequest,
+    llm_grading_content_filtered_result,
     llm_grading_unavailable_result,
 )
 from learn_to_cloud_shared.verification.llm_grading import (
@@ -50,7 +51,11 @@ from opentelemetry import context as otel_context
 from opentelemetry import trace as otel_trace
 from opentelemetry.propagate import extract
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from verification_agents import grade_evidence, missing_grading_config
+from verification_agents import (
+    CONTENT_FILTER_MARKER,
+    grade_evidence,
+    missing_grading_config,
+)
 
 
 def _telemetry_destination_configured() -> bool:
@@ -100,6 +105,7 @@ _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE = {
     SubmissionType.DEPLOYED_API: "verify_phase4_deployed_api_orchestrator",
     SubmissionType.DEVOPS_ANALYSIS: "verify_phase5_devops_orchestrator",
     SubmissionType.SECURITY_SCANNING: "verify_phase6_security_orchestrator",
+    SubmissionType.CAREER_REFLECTION: "verify_phase7_career_orchestrator",
 }
 _VERIFY_RETRY_OPTIONS = df.RetryOptions(
     first_retry_interval_in_milliseconds=5000,
@@ -607,6 +613,12 @@ def verify_phase6_security_orchestrator(context: df.DurableOrchestrationContext)
     return (yield from _run_verification_orchestration(context))
 
 
+@app.orchestration_trigger(context_name="context")
+def verify_phase7_career_orchestrator(context: df.DurableOrchestrationContext):
+    """Run Phase 7 career reflection verification (LLM rubric review)."""
+    return (yield from _run_verification_orchestration(context))
+
+
 @app.activity_trigger(input_name="input_payload")
 async def prepare_verification_job(
     input_payload,
@@ -732,6 +744,18 @@ async def apply_llm_grading_results(
         return result_payload
 
 
+def _is_content_filter_failure(error_type: str, detail: str) -> bool:
+    """Classify a grading failure as an Azure content-safety block.
+
+    Durable Functions may deliver the activity error to the orchestrator as a
+    wrapped exception, so the original type can be lost while the message text
+    survives. Check both the type name and the detail for the stable marker.
+    """
+    return (
+        error_type == "ContentFilteredError" or CONTENT_FILTER_MARKER in detail.lower()
+    )
+
+
 @app.activity_trigger(input_name="payload")
 async def llm_grading_failed(
     payload,
@@ -760,7 +784,10 @@ async def llm_grading_failed(
             "verification.llm_grading.failed",
             extra={"error_type": error_type, "detail": detail},
         )
-        run_result = llm_grading_unavailable_result(run_result_payload)
+        if _is_content_filter_failure(error_type, detail):
+            run_result = llm_grading_content_filtered_result(run_result_payload)
+        else:
+            run_result = llm_grading_unavailable_result(run_result_payload)
         result_payload = run_result.to_payload()
         _set_result_span_attributes(result_payload)
         return result_payload

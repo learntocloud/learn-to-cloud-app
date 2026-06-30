@@ -250,6 +250,27 @@ class DeployedApiConfig(PlaceholderConfig):
     """Config for deployed_api requirements."""
 
 
+class CareerReflectionQuestion(StrictFrozenModel):
+    """One reflection prompt the learner answers in the app."""
+
+    id: str = Field(description="Stable id for this question.")
+    prompt: str = Field(description="The reflection prompt shown to the learner.")
+
+
+class CareerReflectionConfig(StrictFrozenModel):
+    """Config for career_reflection requirements."""
+
+    questions: list[CareerReflectionQuestion] = Field(
+        description="Reflection prompts the learner answers in the app.",
+        min_length=1,
+    )
+    min_answer_length: int = Field(
+        default=200,
+        ge=1,
+        description="Minimum characters required for each answer.",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Hands-on requirement subclasses, one per active SubmissionType
 # (issue #470)
@@ -333,6 +354,11 @@ class SecurityScanningRequirement(_RequirementBase):
     type_config: SecurityScanningConfig
 
 
+class CareerReflectionRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.CAREER_REFLECTION]
+    type_config: CareerReflectionConfig
+
+
 HandsOnRequirement = Annotated[
     GithubProfileRequirement
     | ProfileReadmeRequirement
@@ -342,7 +368,8 @@ HandsOnRequirement = Annotated[
     | JournalApiVerifierRequirement
     | DeployedApiRequirement
     | DevopsAnalysisRequirement
-    | SecurityScanningRequirement,
+    | SecurityScanningRequirement
+    | CareerReflectionRequirement,
     Field(discriminator="submission_type"),
 ]
 
@@ -484,7 +511,7 @@ class PhaseHandsOnVerificationOverview(FrozenModel):
 class Phase(FrozenModel):
     """A phase in the curriculum.
 
-    Phases use ``slug`` (e.g. ``"phase0"``) and ``order`` (int ``0..6``)
+    Phases use ``slug`` (e.g. ``"phase0"``) and ``order`` (int ``0..7``)
     as their human keys. The slug is what shows up in URLs and is the
     primary lookup key; ``order`` drives display ordering and is also
     used in URL paths today (``/phase/{order}``).

@@ -13,6 +13,7 @@ EvidenceSource = Literal[
     "pr_diff",
     "deployed_api",
     "token",
+    "submitted_text",
     "manual",
 ]
 GraderKind = Literal[

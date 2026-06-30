@@ -24,6 +24,7 @@ from learn_to_cloud_shared.schemas import SubmissionResult
 
 from learn_to_cloud.core.auth import AuthenticatedUser
 from learn_to_cloud.routes.htmx_routes import (
+    _combine_reflection_answers,
     htmx_complete_step,
     htmx_delete_account,
     htmx_submit_verification,
@@ -67,6 +68,7 @@ def _mock_job(value: str = "https://github.com/user/repo") -> SimpleNamespace:
         github_url=value,
         token_value=None,
         deployed_url=None,
+        text_value=None,
     )
 
 
@@ -966,3 +968,50 @@ class TestHtmxDeleteAccount:
             result = await htmx_delete_account(request, mock_db, user_id=999)
 
         assert result.status_code == 404
+
+
+class TestCombineReflectionAnswers:
+    """Unit tests for the career reflection answer combiner."""
+
+    @staticmethod
+    def _requirement(min_answer_length: int = 10, question_count: int = 3):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            career_reflection_requirement,
+        )
+
+        return career_reflection_requirement(
+            min_answer_length=min_answer_length,
+            question_count=question_count,
+        )
+
+    def test_combines_answers_with_question_headers(self):
+        requirement = self._requirement(min_answer_length=5, question_count=2)
+        combined = _combine_reflection_answers(
+            requirement,
+            ["First answer body", "Second answer body"],
+        )
+
+        assert "## Question 0?" in combined
+        assert "First answer body" in combined
+        assert "## Question 1?" in combined
+        assert "Second answer body" in combined
+
+    def test_rejects_wrong_number_of_answers(self):
+        requirement = self._requirement(question_count=3)
+        with pytest.raises(ValueError, match="all of the reflection questions"):
+            _combine_reflection_answers(requirement, ["only one answer"])
+
+    def test_rejects_answer_below_minimum_length(self):
+        requirement = self._requirement(min_answer_length=50, question_count=1)
+        with pytest.raises(ValueError, match="at least 50 characters"):
+            _combine_reflection_answers(requirement, ["too short"])
+
+    def test_rejects_answer_above_maximum_length(self):
+        requirement = self._requirement(min_answer_length=1, question_count=1)
+        with pytest.raises(ValueError, match="too long"):
+            _combine_reflection_answers(requirement, ["x" * 6001])
+
+    def test_strips_whitespace_before_validating(self):
+        requirement = self._requirement(min_answer_length=5, question_count=1)
+        with pytest.raises(ValueError, match="at least 5 characters"):
+            _combine_reflection_answers(requirement, ["   a   "])

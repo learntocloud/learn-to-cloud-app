@@ -303,7 +303,26 @@ class TestOrchestratorNameMapping:
             == "verify_phase6_security_orchestrator"
         )
 
+    def test_phase7_maps_to_career_orchestrator(self) -> None:
+        names = function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE
+        assert (
+            names[SubmissionType.CAREER_REFLECTION]
+            == "verify_phase7_career_orchestrator"
+        )
+
     def test_every_mapped_name_is_registered(self) -> None:
         """Guards against pointing the resolver at a non-existent orchestrator."""
         for name in function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE.values():
             assert hasattr(function_app, name), f"missing orchestrator: {name}"
+
+
+class TestContentFilterClassification:
+    def test_matches_typed_error_name(self) -> None:
+        assert function_app._is_content_filter_failure("ContentFilteredError", "x")
+
+    def test_matches_marker_in_detail(self) -> None:
+        detail = "Activity failed: content_filter: blocked by Azure"
+        assert function_app._is_content_filter_failure("Exception", detail)
+
+    def test_ignores_unrelated_failures(self) -> None:
+        assert not function_app._is_content_filter_failure("RuntimeError", "timeout")

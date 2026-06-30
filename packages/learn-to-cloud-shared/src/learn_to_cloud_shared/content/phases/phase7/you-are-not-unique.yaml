@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 021b0faf-9c61-41b9-9f9b-4bb3e978d13e
+slug: you-are-not-unique
+name: Find What Makes You Brilliant
+description: Finishing this curriculum proves you can follow through, but it does not make you stand out. Thousands of people have done the exact same thing. Before you touch your resume, get honest about what you actually did that was your own, and turn that into something real you can talk about.
+learning_objectives:
+- uuid: 009e56b8-c909-4d4f-84d4-51dedd49e8d3
+  text: Get honest about why completing a shared curriculum does not make you stand out.
+  order: 1
+- uuid: 4c38edfa-8cf1-4bda-9067-03b94a57d0b2
+  text: Identify the work that is genuinely your own and build on it.
+  order: 2
+learning_steps:
+- uuid: 60766b3e-acad-4bdb-9657-4855cb1138af
+  order: 1
+  action: 'Reflect:'
+  title: Accept that finishing the curriculum is not your edge
+  description: |-
+    Going through a curriculum, a bootcamp, or any content that anyone can sign up for does not make you unique. It proves you can follow instructions and finish what you start, which matters, but it is the baseline, not your edge.
+
+    That is okay. Accept it now, before you start applying, so you can spend your energy on what actually sets you apart instead of leaning on a certificate of completion.
+  done_when: You accept that finishing shared content is the starting line, not what makes you stand out.
+  slug: phase7-unique-reflect-finishing-is-not-your-edge
+- uuid: afca5e31-216c-4fe7-b291-ff0456eab50a
+  order: 2
+  action: 'Review:'
+  title: Find what you did beyond the outline
+  description: Go back through your work in this curriculum and look for the parts that were yours. The places you went further than the instructions, the topics that genuinely pulled you in, and the questions you chased on your own are where your real story lives.
+  checklist:
+  - "**Re-read your own work.** Walk back through each phase and your capstones, and notice where you went past what was asked"
+  - "**Mark what pulled you in.** Note the topics or problems you actually wanted to keep working on"
+  - "**Turn interest into next steps.** For each one, write a concrete next step that pushes it further than the outline ever did"
+  done_when: You have a written list of where you went beyond the outline and the topics you want to take further.
+  slug: phase7-unique-review-find-what-you-did-beyond
+- uuid: 00da95cb-aced-4e83-b1c2-8a139b79c69c
+  order: 3
+  action: 'Reflect:'
+  title: Write what actually makes you unique
+  description: |-
+    Write a short, honest reflection about what makes you unique. Be specific and real, for example: "Yes, I went through the Learn to Cloud curriculum. When I built the journal API I got interested in how AI fit into it, so I added this improvement and learned this from it."
+
+    Read it back honestly. If you cannot point to anything that was your own, do not move on yet.
+  checklist:
+  - "**Write your uniqueness statement.** A few honest sentences naming what you explored or improved on your own, and why it mattered to you"
+  - "**Point to real work.** Tie every claim to something you actually built or changed, not something you simply completed"
+  - "**Be honest with yourself.** If you read it back and it is just 'I finished the curriculum', that is your signal to keep going"
+  tips:
+  - type: important
+    text: If you did nothing of your own, stop here. Go back into one of the capstones you built and improve something real until it becomes yours. Learn to Cloud has thousands of students. Saying you completed a capstone is not, by itself, worth anything. What you did with it is.
+  done_when: You have an honest written statement of what makes you unique, backed by work you did yourself. If you could not write one, you went back and improved a capstone until you could.
+  slug: phase7-unique-reflect-write-what-makes-you-unique
+- uuid: 91d0440e-b11b-471b-9e29-131b7f8741ee
+  order: 4
+  action: 'Reflect:'
+  title: Accept that this takes time
+  description: |-
+    Quick gut check before you continue: this market is hard, even for experienced candidates.
+
+    Landing a role takes time and rejection. That is part of the process, not proof you are failing. Decide now that you are in this for the long haul.
+  done_when: You've set a realistic expectation. This will take time and persistence, and rejection is part of the process.
+  slug: phase7-unique-reflect-accept-this-takes-time

@@ -304,6 +304,87 @@ class TestAuthPageSmoke:
             response = await auth_client.get("/phase/1")
         assert response.status_code == 200
 
+    async def test_phase_page_shows_feedback_on_verified_requirement(
+        self, auth_client: AsyncClient
+    ):
+        """A passed requirement still surfaces its rubric feedback (the why)."""
+        from datetime import UTC, datetime
+
+        from learn_to_cloud_shared.content_yaml_loader import (
+            get_all_phases_from_yaml,
+        )
+        from learn_to_cloud_shared.schemas import SubmissionData
+
+        phase = next(
+            (p for p in get_all_phases_from_yaml() if p.slug == "phase1"), None
+        )
+        if not phase or not phase.hands_on_verification:
+            pytest.skip("No hands-on requirements in phase1")
+        req_slug = phase.hands_on_verification.requirements[0].slug
+
+        verified_submission = SubmissionData(
+            id=1,
+            submitted_value="https://github.com/testuser/repo",
+            is_validated=True,
+            validated_at=datetime(2024, 1, 2, tzinfo=UTC),
+            verification_completed=True,
+            created_at=datetime(2024, 1, 2, tzinfo=UTC),
+        )
+        mock_sub_context = MagicMock()
+        mock_sub_context.submissions_by_req = {req_slug: verified_submission}
+        mock_sub_context.feedback_by_req = {
+            req_slug: {
+                "tasks": [
+                    {
+                        "name": "Reflection depth",
+                        "passed": True,
+                        "message": "You clearly explained what you explored.",
+                        "next_steps": "",
+                    }
+                ],
+                "passed": 1,
+            }
+        }
+
+        detail = PhaseProgress(
+            phase_id=1,
+            steps_completed=0,
+            steps_required=0,
+            hands_on_validated=1,
+            hands_on_required=1,
+            topic_progress={},
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                return_value=_fake_user(),
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.fetch_phase_progress",
+                return_value=detail,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_phase_submission_context",
+                return_value=mock_sub_context,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.VerificationJobRepository",
+                return_value=MagicMock(
+                    get_active_for_requirements=AsyncMock(return_value=[])
+                ),
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.is_phase_verification_locked",
+                return_value=(False, None),
+            ),
+        ):
+            response = await auth_client.get("/phase/1")
+
+        assert response.status_code == 200
+        assert "All checks passed" in response.text
+        assert "You clearly explained what you explored." in response.text
+
     async def test_topic_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1/{topic_slug} renders the topic detail template."""
         from learn_to_cloud_shared.content_yaml_loader import (

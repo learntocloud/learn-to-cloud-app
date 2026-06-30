@@ -25,12 +25,13 @@ _EXPECTED_INLINE = {
     SubmissionType.NETWORKING_TOKEN,
 }
 
-# The submission types that go through Durable Functions (phases 3-6).
+# The submission types that go through Durable Functions (phases 3-7).
 _EXPECTED_BACKGROUND = {
     SubmissionType.JOURNAL_API_VERIFIER,
     SubmissionType.DEVOPS_ANALYSIS,
     SubmissionType.DEPLOYED_API,
     SubmissionType.SECURITY_SCANNING,
+    SubmissionType.CAREER_REFLECTION,
 }
 
 # Server-derived GitHub repo URL types (owner/repo parsed from the value).
@@ -40,8 +41,11 @@ _EXPECTED_REPO_BACKED = {
     SubmissionType.SECURITY_SCANNING,
 }
 
-# The only type that does not require a GitHub username.
-_EXPECTED_NO_USERNAME = {SubmissionType.DEPLOYED_API}
+# The types that do not require a GitHub username.
+_EXPECTED_NO_USERNAME = {
+    SubmissionType.DEPLOYED_API,
+    SubmissionType.CAREER_REFLECTION,
+}
 
 # Every submission type now has an active validator descriptor.
 _ACTIVE_TYPES = {member.value for member in SubmissionType}

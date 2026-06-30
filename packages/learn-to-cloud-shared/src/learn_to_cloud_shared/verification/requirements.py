@@ -5,7 +5,7 @@ helper loads the full phase tree and builds a ``RequirementIndex``;
 hot paths that need several lookups should load phases once and call
 ``RequirementIndex.from_phases`` themselves to avoid redundant queries.
 
-Phases here are keyed by ``phase.order`` (the int 0..6), matching the
+Phases here are keyed by ``phase.order`` (the int 0..7), matching the
 URL contract and the historical "phase id". Slugs (``"phase0"`` etc.)
 are not used as the index key because callers (sequential gating,
 progress aggregation) think in terms of ordinals.
@@ -96,11 +96,12 @@ async def get_requirement_by_uuid(
 # Sequential gating: these phases require the prior phase's verification
 # to be fully completed before their own verification can be submitted.
 # Key = phase that is gated, Value = phase that must be completed first.
-# Phase keys are ``phase.order`` (int 0..6).
+# Phase keys are ``phase.order`` (int 0..7).
 _PHASE_PREREQUISITES: dict[int, int] = {
     4: 3,
     5: 4,
     6: 5,
+    7: 6,
 }
 
 

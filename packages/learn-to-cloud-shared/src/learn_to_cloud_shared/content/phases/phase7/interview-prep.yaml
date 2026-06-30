@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: d57fde28-0c92-442c-bda2-d639683a33e4
+slug: interview-prep
+name: Interview Preparation
+description: Interview performance is mostly preparation. Build clear stories, practice common questions out loud, and be ready to explain the technologies in your target roles.
+learning_objectives:
+- uuid: d42f5f81-a2ee-4529-967c-8399e81c288b
+  text: Prepare specific stories from your experience before the interview, not during it.
+  order: 1
+- uuid: 13f84a18-2e43-4870-ad05-733ca1d00086
+  text: Practice answering common behavioral and technical questions out loud.
+  order: 2
+learning_steps:
+- uuid: 17535c6b-4d47-4d48-9c34-014d29d986a0
+  order: 1
+  action: 'Practice:'
+  title: Outline your experience stories in advance
+  description: |-
+    Outline your stories before interviews. Pull examples from past jobs, personal projects, and the work from your uniqueness statement.
+
+    Use a simple structure for each story: situation, task, action, and result. The goal is to recall prepared stories, not improvise under pressure.
+  checklist:
+  - "**List your raw material.** Past jobs, personal projects, volunteering, and the work from your uniqueness statement"
+  - "**Write 4 to 6 short stories.** Each with the situation, what you did, and how it turned out"
+  - "**Cover a range.** A technical challenge, a time you learned something fast, a time you worked with others"
+  - "**Keep each story concrete.** Name your exact actions and the outcome so your answers sound specific, not generic"
+  - '**Read and apply one idea.** Review [Getting a Gig: Your Skills](https://github.com/cassidoo/getting-a-gig/blob/main/README.md#your-skills) and [Selling Them](https://github.com/cassidoo/getting-a-gig/blob/main/README.md#selling-them), then apply one tactic to your stories'
+  done_when: You have a written set of specific stories from your experience that you can pull from in an interview.
+  slug: phase7-interview-practice-outline-your-stories
+- uuid: e6ca0c7a-a003-4af8-87e8-fe4944fb674b
+  order: 2
+  action: 'Practice:'
+  title: Prepare answers to the universal questions
+  description: |-
+    A few questions show up in almost every interview. Prepare them now using the stories you already outlined:
+
+    - "Tell me a time you implemented X."
+    - "Tell me a difficult challenge you faced and how you overcame it."
+    - "Tell me a time you had to give or were given feedback and how you handled that."
+
+    Map your stories to these questions so you always have a strong, specific answer ready.
+  checklist:
+  - "**Match stories to questions.** Pick which prepared story best answers each common question"
+  - "**Answer out loud.** Say your answers aloud, not just in your head. It feels different and exposes the rough spots"
+  - "**Keep them concrete.** Specific details and results beat vague generalities"
+  - "**Practice one a week.** Keep a steady rhythm of answering at least one new behavioral question each week so your stories stay sharp"
+  - "**Prepare before the interview day.** Do this prep early so you are ready, not improvising under pressure"
+  done_when: You can answer each common behavioral question with a specific, prepared story and deliver it confidently without improvising.
+  slug: phase7-interview-practice-universal-questions
+- uuid: 9c1698e8-345c-41bb-a8d1-7bbde29eef21
+  order: 3
+  action: 'Practice:'
+  title: Be ready to talk about the tech on the listing
+  description: Interviewers will ask about tools in the job listing. Be ready to explain what each one is, why teams use it, and where you have used it.
+  checklist:
+  - "**Review your target listings.** Pull the skills and tools they ask for"
+  - "**Rehearse a short explanation.** For each, be able to say what it is and where you've used it"
+  - "**Be honest about gaps.** For things you haven't used, say so and show you understand the concept"
+  - "**Practice without tools.** Rehearse a few answers and technical explanations without notes, autocomplete, or AI assistance"
+  done_when: You can confidently discuss every technology listed on your target roles.
+  slug: phase7-interview-practice-talk-about-the-tech

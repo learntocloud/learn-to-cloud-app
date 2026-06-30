@@ -8,6 +8,7 @@ from learn_to_cloud_shared.submission_values import (
     value_kind_for_submission_type,
 )
 from learn_to_cloud_shared.testing.requirement_factories import (
+    career_reflection_requirement,
     ctf_token_requirement,
     deployed_api_requirement,
     github_profile_requirement,
@@ -22,6 +23,7 @@ from learn_to_cloud_shared.testing.requirement_factories import (
         (SubmissionType.JOURNAL_API_VERIFIER, SubmissionValueKind.GITHUB_URL),
         (SubmissionType.CTF_TOKEN, SubmissionValueKind.TOKEN),
         (SubmissionType.DEPLOYED_API, SubmissionValueKind.DEPLOYED_URL),
+        (SubmissionType.CAREER_REFLECTION, SubmissionValueKind.TEXT),
         ("ci_status", SubmissionValueKind.GITHUB_URL),
         ("iac_token", SubmissionValueKind.TOKEN),
     ],
@@ -48,7 +50,48 @@ def test_github_url_value_uses_github_column() -> None:
         "github_url": "https://github.com/user",
         "token_value": None,
         "deployed_url": None,
+        "text_value": None,
     }
+
+
+@pytest.mark.unit
+def test_text_value_uses_text_column() -> None:
+    value = SubmittedValue.from_raw(
+        career_reflection_requirement(),
+        "  ## Question 0?\n\nA thoughtful answer.  ",
+    )
+
+    assert value.kind is SubmissionValueKind.TEXT
+    assert value.text_value == "## Question 0?\n\nA thoughtful answer."
+    assert value.as_text == "## Question 0?\n\nA thoughtful answer."
+    assert value.to_columns() == {
+        "submitted_value": "## Question 0?\n\nA thoughtful answer.",
+        "submission_value_kind": "text",
+        "github_url": None,
+        "token_value": None,
+        "deployed_url": None,
+        "text_value": "## Question 0?\n\nA thoughtful answer.",
+    }
+
+
+@pytest.mark.unit
+def test_text_value_round_trips_through_columns() -> None:
+    original = SubmittedValue.from_raw(
+        career_reflection_requirement(),
+        "Reflection body text.",
+    )
+
+    restored = SubmittedValue.from_columns(
+        kind=original.kind.value,
+        github_url=None,
+        token_value=None,
+        deployed_url=None,
+        text_value=original.text_value,
+        legacy_value=original.as_text,
+    )
+
+    assert restored.kind is SubmissionValueKind.TEXT
+    assert restored.text_value == "Reflection body text."
 
 
 @pytest.mark.unit

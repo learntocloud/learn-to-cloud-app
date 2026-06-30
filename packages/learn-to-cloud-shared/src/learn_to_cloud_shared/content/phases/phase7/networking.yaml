@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 7204db15-b6cf-4908-adc7-ea45b227753f
+slug: networking
+name: Build Your Network
+description: Networking helps you practice your story, meet people in the industry, and create opportunities beyond online applications. Get your introduction ready first, then go put it to use in a real conversation.
+learning_objectives:
+- uuid: 2a4f955a-e5a5-4cec-a813-2900fd1e4d42
+  text: Practice talking about your technical skills and experience with other people.
+  order: 1
+- uuid: 48a46959-72cb-4e58-8606-17f46e45ac40
+  text: Build relationships in the tech community, both in person and online.
+  order: 2
+learning_steps:
+- uuid: 084a7831-8433-400e-9d32-4a6dab14f7bb
+  order: 1
+  action: 'Practice:'
+  title: Write your one-line introduction
+  description: Before you walk into a room or a call, prepare a short introduction you can use in networking chats and interviews. Keep it clear, specific, and natural so it sounds like you.
+  checklist:
+  - "**Who you are.** Your background and where you're coming from (help desk, career changer, recent grad)"
+  - "**What you can do.** The concrete cloud skills you've built (deployed and secured a real API on a cloud provider)"
+  - "**What you want.** The kind of role you're aiming for"
+  done_when: You can deliver a natural, confident two or three sentence introduction without notes.
+  slug: phase7-networking-practice-write-your-introduction
+- uuid: fefbcd92-7e8d-45e5-87ab-61f81b4197e6
+  order: 2
+  action: 'Practice:'
+  title: Attend one tech event
+  description: Now go use the introduction you practiced. Attend one tech event. In-person is ideal, but online is fine if needed. The goal is practice and relationship building, not instant job offers.
+  checklist:
+  - "**Find an event.** Search Meetup, local cloud or DevOps user groups, your cloud provider's community days, or online communities like the Learn to Cloud Discord"
+  - "**Show up.** Go in with low pressure. Your only job is to have a few genuine conversations"
+  - "**Use your introduction when it fits.** You practiced it for a reason, so lean on it when a conversation starts, and pay attention to how it lands"
+  - "**Talk about the work you actually care about.** Bring up something you've explored or focused on, see how people respond, and let their reactions spark more of your own exploration"
+  - "**Stay in touch with people you click with.** If a conversation goes well, swap contact info so you can pick it back up later"
+  done_when: You attended a tech event and had at least one real conversation about your technical work.
+  slug: phase7-networking-practice-attend-one-tech-event
