@@ -67,9 +67,10 @@ network:
     - "*.cloudflare.com"
     - "*.prometheus.io"
     - "*.grafana.com"
-    - "*.uvicorn.org"
+    - "*.uvicorn.dev"
     - "*.caddyserver.com"
     - "*.modelcontextprotocol.io"
+    - "*.opentelemetry.io"
     - "*.n8n.io"
     - "*.mozilla.org"
     - "*.readthedocs.io"
@@ -78,6 +79,7 @@ network:
     # Developer tools
     - "*.visualstudio.com"
     - "*.github.io"
+    - "*.github.blog"
     - "*.atlassian.com"
     - "*.jetbrains.com"
     - "*.ibm.com"
@@ -132,16 +134,15 @@ find packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases -ty
   sort -u
 ```
 
-URLs can appear in many YAML fields (the schema evolves). Historically common locations include:
+URLs appear in two YAML fields, per the topic schema (`learn_to_cloud_shared/content/schemas/topic.schema.json`):
 - `learning_steps[].url`
 - `learning_steps[].options[].url`
-- `security_overviews[].url` (often in `_phase.yaml`)
 
-Ignore template/placeholder URLs and non-external/local URLs, including (but not limited to):
-- `https://github.com/your-username*`, `https://github.com/username/*`, `https://github.com/yourname*` — these are placeholder patterns for student repos (e.g., `github.com/username/journal-starter`, `github.com/username/linux-ctfs`). Match by prefix, not exact string.
-- `https://httpbin.org/*` — these are intentional exercise URLs (e.g., `httpbin.org/status/404`, `httpbin.org/headers`) used to teach HTTP concepts, not broken links.
+Requirement YAML files (`phases/*/requirements/*.yaml`) never carry resource `url:` fields; they use `type_config.placeholder` for submission-form hint text (e.g., `https://your-api.example.com`, `Paste your CTF completion token here`). These are not learner-facing resource links — skip them.
+
+Ignore non-external/local URLs, including (but not limited to):
 - `http://localhost`, `http://127.0.0.1`, `http://host.docker.internal`, `http://0.0.0.0`
-- Any URL under an explicit `placeholder:` key (these are user prompts, not curriculum resources)
+- Any URL under an explicit `placeholder:` key (these are submission-form prompts, not curriculum resources)
 
 ### Step 2: Check each URL
 
