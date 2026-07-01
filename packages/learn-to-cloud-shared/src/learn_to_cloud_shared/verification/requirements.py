@@ -82,17 +82,6 @@ async def get_requirement_by_slug(
     return idx.by_slug.get(requirement_slug)
 
 
-async def get_requirement_by_uuid(
-    db: AsyncSession, requirement_uuid: UUID
-) -> HandsOnRequirement | None:
-    """Get a specific requirement by its UUID."""
-    idx = await load_requirement_index(db)
-    for req in idx.by_slug.values():
-        if req.uuid == requirement_uuid:
-            return req
-    return None
-
-
 # Sequential gating: these phases require the prior phase's verification
 # to be fully completed before their own verification can be submitted.
 # Key = phase that is gated, Value = phase that must be completed first.

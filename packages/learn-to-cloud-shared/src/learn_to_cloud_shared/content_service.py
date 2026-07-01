@@ -17,17 +17,13 @@ validators, use ``learn_to_cloud_shared.content_yaml_loader``.
 
 from __future__ import annotations
 
-from uuid import UUID
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.content_db_loader import (
     load_all_phases_from_db,
     load_phase_by_slug_from_db,
-    load_topic_by_slugs_from_db,
-    load_topic_by_uuid_from_db,
 )
-from learn_to_cloud_shared.schemas import Phase, Topic
+from learn_to_cloud_shared.schemas import Phase
 
 
 async def get_all_phases(db: AsyncSession) -> tuple[Phase, ...]:
@@ -38,15 +34,3 @@ async def get_all_phases(db: AsyncSession) -> tuple[Phase, ...]:
 async def get_phase_by_slug(db: AsyncSession, slug: str) -> Phase | None:
     """Get a phase by its slug (e.g. ``phase1``)."""
     return await load_phase_by_slug_from_db(db, slug)
-
-
-async def get_topic_by_uuid(db: AsyncSession, topic_uuid: UUID) -> Topic | None:
-    """Get a topic by its UUID."""
-    return await load_topic_by_uuid_from_db(db, topic_uuid)
-
-
-async def get_topic_by_slugs(
-    db: AsyncSession, phase_slug: str, topic_slug: str
-) -> Topic | None:
-    """Get a topic by ``(phase_slug, topic_slug)``."""
-    return await load_topic_by_slugs_from_db(db, phase_slug, topic_slug)

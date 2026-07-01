@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
 
 from opentelemetry import trace
 from sqlalchemy import text
@@ -29,10 +28,6 @@ from learn_to_cloud_shared.verification.github_profile import parse_github_url
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
 
-SubmissionPersistHook = Callable[
-    [AsyncSession, Submission, ValidationResult],
-    Awaitable[None],
-]
 MAX_VALIDATION_MESSAGE_LENGTH = 1024
 
 
@@ -173,59 +168,6 @@ def build_submission_result(
         repo_exists=validation_result.repo_exists,
         task_results=validation_result.task_results,
     )
-
-
-async def execute_submission_validation(
-    *,
-    session_maker: async_sessionmaker[AsyncSession],
-    user_id: int,
-    requirement: HandsOnRequirement,
-    submitted_value: str,
-    github_username: str | None,
-    after_persist: SubmissionPersistHook | None = None,
-) -> SubmissionResult:
-    """Run validation without holding a DB session, then persist the result."""
-    typed_value = SubmittedValue.from_raw(requirement, submitted_value)
-    with tracer.start_as_current_span(
-        "execute_submission_validation",
-        attributes={
-            "user.id": user_id,
-            "requirement.slug": requirement.slug,
-            "submission.type": requirement.submission_type.value,
-        },
-    ) as span:
-        validation_result = await validate_submission(
-            requirement=requirement,
-            submitted_value=typed_value.as_text,
-            expected_username=github_username,
-        )
-
-        async with session_maker() as write_session:
-            db_submission = await persist_validation_result(
-                write_session,
-                user_id=user_id,
-                requirement=requirement,
-                submitted_value=typed_value,
-                github_username=github_username,
-                validation_result=validation_result,
-            )
-            if after_persist is not None:
-                await after_persist(write_session, db_submission, validation_result)
-            await write_session.commit()
-
-        span.set_attribute("submission.is_valid", validation_result.is_valid)
-        span.set_attribute(
-            "submission.verification_completed",
-            validation_result.verification_completed,
-        )
-
-        _log_submission_completed(
-            user_id=user_id,
-            requirement=requirement,
-            validation_result=validation_result,
-        )
-
-        return build_submission_result(db_submission, validation_result)
 
 
 def _advisory_lock_key(user_id: int, requirement_slug: str) -> str:
