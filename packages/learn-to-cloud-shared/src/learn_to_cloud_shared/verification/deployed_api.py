@@ -81,11 +81,6 @@ async def _get_client() -> httpx.AsyncClient:
     return await _pool.get()
 
 
-async def close_deployed_api_client() -> None:
-    """Close the shared HTTP client (called on application shutdown)."""
-    await _pool.close()
-
-
 def _is_valid_url(value: str) -> bool:
     """Check if a string is a valid HTTPS URL."""
     parsed = urlparse(value)
