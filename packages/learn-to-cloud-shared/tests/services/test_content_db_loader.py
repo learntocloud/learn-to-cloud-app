@@ -8,18 +8,24 @@ both coexist.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import event, select
+from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.content_db_loader import (
     load_all_phases_from_db,
+    load_curriculum_overview_from_db,
     load_phase_by_slug_from_db,
+    load_requirements_by_phase_order_from_db,
     load_topic_by_slugs_from_db,
     load_topic_by_uuid_from_db,
+    load_topic_containing_step_from_db,
 )
 from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
 from learn_to_cloud_shared.content_yaml_loader import (
@@ -349,3 +355,114 @@ async def test_empty_db_returns_empty_tuple(
     """No content should give an empty tuple, not an error."""
     phases = await load_all_phases_from_db(db_session)
     assert phases == ()
+
+
+# ---------------------------------------------------------------------------
+# Query-count regressions for the narrower read shapes (curriculum
+# read-shapes refactor). These guard against silently regressing back to
+# full-tree loads for consumers that only need a small slice.
+# ---------------------------------------------------------------------------
+
+
+@contextmanager
+def _count_queries() -> Iterator[list[str]]:
+    """Count SQL statements executed against any engine during the block."""
+    statements: list[str] = []
+
+    def _before_cursor_execute(
+        conn, cursor, statement, parameters, context, executemany
+    ):
+        statements.append(statement)
+
+    event.listen(Engine, "before_cursor_execute", _before_cursor_execute)
+    try:
+        yield statements
+    finally:
+        event.remove(Engine, "before_cursor_execute", _before_cursor_execute)
+
+
+async def test_curriculum_overview_is_two_queries(
+    db_session: AsyncSession,
+) -> None:
+    """Shape B (browse-level overview) is 2 light queries, not 5 full-tree ones."""
+    await _seed_with_real_content(db_session)
+
+    with _count_queries() as statements:
+        overview = await load_curriculum_overview_from_db(db_session)
+
+    assert len(statements) == 2
+    assert len(overview) > 0
+    assert all(topic.name for phase in overview for topic in phase.topics)
+
+
+async def test_phase_by_slug_does_not_load_other_phases(
+    db_session: AsyncSession,
+) -> None:
+    """Loading one phase must not touch other phases' topics/steps."""
+    await _seed_with_real_content(db_session)
+    all_phases = await load_all_phases_from_db(db_session)
+    other_phase = next(p for p in all_phases if p.slug != "phase0")
+
+    phase0 = await load_phase_by_slug_from_db(db_session, "phase0")
+
+    assert phase0 is not None
+    assert all(
+        t.uuid not in {t2.uuid for t2 in phase0.topics} for t in other_phase.topics
+    )
+
+
+async def test_topic_containing_step_is_scoped_not_full_tree(
+    db_session: AsyncSession,
+) -> None:
+    """Shape E (single-step lookup) must not load the full curriculum tree.
+
+    Resolves a step UUID to its parent topic via a handful of small,
+    indexed queries -- never the whole 466-row curriculum.
+    """
+    await _seed_with_real_content(db_session)
+    all_phases = await load_all_phases_from_db(db_session)
+    target_step = next(
+        step
+        for phase in all_phases
+        for topic in phase.topics
+        for step in topic.learning_steps
+    )
+
+    with _count_queries() as statements:
+        result = await load_topic_containing_step_from_db(db_session, target_step.uuid)
+
+    assert result is not None
+    topic, step = result
+    assert step.uuid == target_step.uuid
+    # Resolution query + topic row + steps + objectives = 4 small, indexed
+    # queries -- independent of total curriculum size.
+    assert len(statements) <= 4
+
+
+async def test_requirement_index_is_two_queries_not_full_tree(
+    db_session: AsyncSession,
+) -> None:
+    """Shape D (requirement index) only touches requirements + phases."""
+    await _seed_with_real_content(db_session)
+
+    with _count_queries() as statements:
+        by_phase_order = await load_requirements_by_phase_order_from_db(db_session)
+
+    assert len(statements) == 2
+    assert sum(len(reqs) for reqs in by_phase_order.values()) > 0
+
+
+async def test_requirement_index_skips_phase_query_when_mapping_provided(
+    db_session: AsyncSession,
+) -> None:
+    """Passing a pre-loaded phase_order_by_uuid mapping saves one query."""
+    await _seed_with_real_content(db_session)
+    all_phases = await load_all_phases_from_db(db_session)
+    phase_order_by_uuid = {p.uuid: p.order for p in all_phases}
+
+    with _count_queries() as statements:
+        await load_requirements_by_phase_order_from_db(
+            db_session, phase_order_by_uuid=phase_order_by_uuid
+        )
+
+    assert len(statements) == 1

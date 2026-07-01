@@ -172,14 +172,28 @@ class TestPhaseProgressToData:
 class TestFetchUserProgress:
     @pytest.mark.asyncio
     async def test_queries_db_and_returns_progress(self):
-        topic = _make_topic(steps=["s1"])
-        phase = _make_phase(0, topics=[topic])
+        from learn_to_cloud_shared.schemas import PhaseOverview
+        from learn_to_cloud_shared.verification.requirements import RequirementIndex
+
+        phase_overview = (
+            PhaseOverview(uuid=uuid4(), name="Phase 0", slug="phase0", order=0),
+        )
 
         with (
             patch(
-                "learn_to_cloud.services.progress_service.get_all_phases",
+                "learn_to_cloud.services.progress_service.get_curriculum_overview",
                 new_callable=AsyncMock,
-                return_value=(phase,),
+                return_value=phase_overview,
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.get_required_step_counts_by_phase",
+                new_callable=AsyncMock,
+                return_value={0: 3},
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.load_requirement_index",
+                new_callable=AsyncMock,
+                return_value=RequirementIndex(),
             ),
             patch(
                 "learn_to_cloud.services.progress_service.SubmissionRepository",
@@ -190,14 +204,16 @@ class TestFetchUserProgress:
                 autospec=True,
             ) as MockStepRepo,
         ):
-            MockSubRepo.return_value.get_validated_requirement_ids = AsyncMock(
-                return_value=set()
+            MockSubRepo.return_value.count_validated_by_phase_for_user = AsyncMock(
+                return_value={}
             )
-            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
-                return_value=set()
+            MockStepRepo.return_value.count_completed_steps_by_phase_for_user = (
+                AsyncMock(return_value={0: 1})
             )
             result = await fetch_user_progress(AsyncMock(), user_id=1)
             assert result.user_id == 1
+            assert result.phases[0].steps_completed == 1
+            assert result.phases[0].steps_required == 3
 
 
 # ---------------------------------------------------------------------------

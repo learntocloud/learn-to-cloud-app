@@ -58,13 +58,9 @@ def _fake_dashboard() -> DashboardData:
     return DashboardData(
         phases=[
             PhaseSummaryData(
-                id=1,
+                order=1,
                 name="Phase 1",
                 slug="phase1",
-                description="Learn the basics",
-                short_description="Basics",
-                order=1,
-                topics_count=3,
                 progress=PhaseProgressData(
                     steps_completed=0,
                     steps_required=10,
@@ -90,11 +86,27 @@ async def _patched_content():
     from learn_to_cloud_shared.content_yaml_loader import (
         get_all_phases_from_yaml,
     )
+    from learn_to_cloud_shared.schemas import PhaseOverview, TopicOverview
 
     yaml_phases = get_all_phases_from_yaml()
+    yaml_overview = tuple(
+        PhaseOverview(
+            uuid=phase.uuid,
+            order=phase.order,
+            name=phase.name,
+            slug=phase.slug,
+            description=phase.description,
+            short_description=phase.short_description,
+            topics=[
+                TopicOverview(uuid=t.uuid, slug=t.slug, name=t.name)
+                for t in phase.topics
+            ],
+        )
+        for phase in yaml_phases
+    )
 
-    async def _all_phases(_db):
-        return yaml_phases
+    async def _curriculum_overview(_db):
+        return yaml_overview
 
     async def _phase_by_slug(_db, slug):
         return next((p for p in yaml_phases if p.slug == slug), None)
@@ -108,8 +120,8 @@ async def _patched_content():
 
     with (
         patch(
-            "learn_to_cloud.routes.pages_routes.get_all_phases",
-            side_effect=_all_phases,
+            "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
+            side_effect=_curriculum_overview,
         ),
         patch(
             "learn_to_cloud.routes.pages_routes.get_phase_by_slug",

@@ -82,7 +82,7 @@ class TestHomePage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_all_phases",
+                "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
                 new_callable=AsyncMock,
                 return_value=phases,
             ),
@@ -110,7 +110,7 @@ class TestHomePage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_all_phases",
+                "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
                 new_callable=AsyncMock,
                 return_value=phases,
             ),
@@ -138,7 +138,7 @@ class TestCurriculumPage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_all_phases",
+                "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
                 new_callable=AsyncMock,
                 return_value=phases,
             ),

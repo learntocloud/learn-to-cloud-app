@@ -25,7 +25,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.models import (
@@ -36,12 +36,15 @@ from learn_to_cloud_shared.models import (
     CurriculumTopic,
 )
 from learn_to_cloud_shared.schemas import (
+    HandsOnRequirement,
     HandsOnRequirementAdapter,
     LearningObjective,
     LearningStep,
     Phase,
     PhaseHandsOnVerificationOverview,
+    PhaseOverview,
     Topic,
+    TopicOverview,
 )
 
 logger = logging.getLogger(__name__)
@@ -111,14 +114,80 @@ async def load_all_phases_from_db(db: AsyncSession) -> tuple[Phase, ...]:
 async def load_phase_by_slug_from_db(db: AsyncSession, slug: str) -> Phase | None:
     """Return the active phase with the given slug, or None.
 
-    Routes through ``load_all_phases_from_db`` so the visibility rules
-    (active topics inside active phases, etc.) are guaranteed identical.
-    Trivially cheap given curriculum size.
+    Scoped to a single phase: looks up just that phase's row, then only
+    its own descendant topics/steps/objectives/requirements, instead of
+    loading every phase in the curriculum and filtering in Python.
     """
-    for phase in await load_all_phases_from_db(db):
-        if phase.slug == slug:
-            return phase
-    return None
+    phase_row = (
+        await db.scalars(
+            select(CurriculumPhase).where(
+                CurriculumPhase.slug == slug,
+                CurriculumPhase.deleted_at.is_(None),
+            )
+        )
+    ).one_or_none()
+    if phase_row is None:
+        return None
+    return await _load_phase_subtree(db, phase_row)
+
+
+async def _load_phase_subtree(db: AsyncSession, phase_row: CurriculumPhase) -> Phase:
+    """Load one phase's descendants and assemble it into a ``Phase``."""
+    topic_rows = (
+        await db.scalars(
+            select(CurriculumTopic)
+            .where(
+                CurriculumTopic.phase_uuid == phase_row.uuid,
+                CurriculumTopic.deleted_at.is_(None),
+            )
+            .order_by(CurriculumTopic.order)
+        )
+    ).all()
+    topic_uuids = [t.uuid for t in topic_rows]
+
+    step_rows: Sequence[CurriculumStep] = ()
+    objective_rows: Sequence[CurriculumLearningObjective] = ()
+    if topic_uuids:
+        step_rows = (
+            await db.scalars(
+                select(CurriculumStep)
+                .where(
+                    CurriculumStep.topic_uuid.in_(topic_uuids),
+                    CurriculumStep.deleted_at.is_(None),
+                )
+                .order_by(CurriculumStep.order)
+            )
+        ).all()
+        objective_rows = (
+            await db.scalars(
+                select(CurriculumLearningObjective)
+                .where(
+                    CurriculumLearningObjective.topic_uuid.in_(topic_uuids),
+                    CurriculumLearningObjective.deleted_at.is_(None),
+                )
+                .order_by(CurriculumLearningObjective.order)
+            )
+        ).all()
+
+    requirement_rows = (
+        await db.scalars(
+            select(CurriculumRequirement)
+            .where(
+                CurriculumRequirement.phase_uuid == phase_row.uuid,
+                CurriculumRequirement.deleted_at.is_(None),
+            )
+            .order_by(CurriculumRequirement.order)
+        )
+    ).all()
+
+    (phase,) = _assemble_phases(
+        phase_rows=[phase_row],
+        topic_rows=topic_rows,
+        step_rows=step_rows,
+        objective_rows=objective_rows,
+        requirement_rows=requirement_rows,
+    )
+    return phase
 
 
 async def load_topic_by_uuid_from_db(
@@ -126,26 +195,218 @@ async def load_topic_by_uuid_from_db(
 ) -> Topic | None:
     """Return the active topic with the given uuid, or None.
 
-    Routes through ``load_all_phases_from_db`` for consistency.
+    Scoped to the single topic's own steps/objectives, not the whole
+    curriculum tree.
     """
-    for phase in await load_all_phases_from_db(db):
-        for topic in phase.topics:
-            if topic.uuid == topic_uuid:
-                return topic
-    return None
+    topic_row = (
+        await db.scalars(
+            select(CurriculumTopic).where(
+                CurriculumTopic.uuid == topic_uuid,
+                CurriculumTopic.deleted_at.is_(None),
+            )
+        )
+    ).one_or_none()
+    if topic_row is None:
+        return None
+    return await _load_topic_subtree(db, topic_row)
+
+
+async def _load_topic_subtree(db: AsyncSession, topic_row: CurriculumTopic) -> Topic:
+    """Load one topic's steps/objectives and assemble it into a ``Topic``."""
+    step_rows = (
+        await db.scalars(
+            select(CurriculumStep)
+            .where(
+                CurriculumStep.topic_uuid == topic_row.uuid,
+                CurriculumStep.deleted_at.is_(None),
+            )
+            .order_by(CurriculumStep.order)
+        )
+    ).all()
+    objective_rows = (
+        await db.scalars(
+            select(CurriculumLearningObjective)
+            .where(
+                CurriculumLearningObjective.topic_uuid == topic_row.uuid,
+                CurriculumLearningObjective.deleted_at.is_(None),
+            )
+            .order_by(CurriculumLearningObjective.order)
+        )
+    ).all()
+    return _build_topic(
+        topic_row,
+        learning_steps=[_build_step(row) for row in step_rows],
+        learning_objectives=[_build_objective(row) for row in objective_rows],
+    )
 
 
 async def load_topic_by_slugs_from_db(
     db: AsyncSession, phase_slug: str, topic_slug: str
 ) -> Topic | None:
-    """Return the active topic by ``(phase_slug, topic_slug)``."""
-    phase = await load_phase_by_slug_from_db(db, phase_slug)
-    if phase is None:
+    """Return the active topic by ``(phase_slug, topic_slug)``.
+
+    Scoped queries only: looks up the phase, then just that topic
+    within it, never the full curriculum tree.
+    """
+    phase_row = (
+        await db.scalars(
+            select(CurriculumPhase).where(
+                CurriculumPhase.slug == phase_slug,
+                CurriculumPhase.deleted_at.is_(None),
+            )
+        )
+    ).one_or_none()
+    if phase_row is None:
         return None
-    for topic in phase.topics:
-        if topic.slug == topic_slug:
-            return topic
-    return None
+    topic_row = (
+        await db.scalars(
+            select(CurriculumTopic).where(
+                CurriculumTopic.phase_uuid == phase_row.uuid,
+                CurriculumTopic.slug == topic_slug,
+                CurriculumTopic.deleted_at.is_(None),
+            )
+        )
+    ).one_or_none()
+    if topic_row is None:
+        return None
+    return await _load_topic_subtree(db, topic_row)
+
+
+async def load_topic_containing_step_from_db(
+    db: AsyncSession, step_uuid: UUID
+) -> tuple[Topic, LearningStep] | None:
+    """Resolve a step UUID to its parent topic (with all sibling steps).
+
+    One indexed lookup for the owning ``topic_uuid``, then loads only
+    that topic's subtree. Used to check a single step complete/
+    incomplete without walking a fully-loaded multi-phase tree.
+    """
+    topic_uuid = (
+        await db.scalars(
+            select(CurriculumStep.topic_uuid).where(
+                CurriculumStep.uuid == step_uuid,
+                CurriculumStep.deleted_at.is_(None),
+            )
+        )
+    ).one_or_none()
+    if topic_uuid is None:
+        return None
+    topic = await load_topic_by_uuid_from_db(db, topic_uuid)
+    if topic is None:
+        return None
+    step = next((s for s in topic.learning_steps if s.uuid == step_uuid), None)
+    if step is None:
+        return None
+    return topic, step
+
+
+async def load_curriculum_overview_from_db(
+    db: AsyncSession,
+) -> tuple[PhaseOverview, ...]:
+    """Load a lightweight phase+topic overview for browse-level pages.
+
+    No steps/objectives/requirements are loaded here -- the home and
+    curriculum listing pages only ever render phase name/description
+    and topic names, never step-level content. 2 small queries instead
+    of the full 5-table, ~466-row assembly.
+    """
+    phase_rows = (
+        await db.scalars(
+            select(CurriculumPhase)
+            .where(CurriculumPhase.deleted_at.is_(None))
+            .order_by(CurriculumPhase.order)
+        )
+    ).all()
+    topic_rows = (
+        await db.scalars(
+            select(CurriculumTopic)
+            .where(CurriculumTopic.deleted_at.is_(None))
+            .order_by(CurriculumTopic.order)
+        )
+    ).all()
+
+    topics_by_phase: dict[UUID, list[TopicOverview]] = defaultdict(list)
+    for topic_row in topic_rows:
+        topics_by_phase[topic_row.phase_uuid].append(
+            TopicOverview(uuid=topic_row.uuid, slug=topic_row.slug, name=topic_row.name)
+        )
+
+    return tuple(
+        PhaseOverview(
+            uuid=phase_row.uuid,
+            order=phase_row.order,
+            name=phase_row.name,
+            slug=phase_row.slug,
+            description=phase_row.description,
+            short_description=phase_row.short_description,
+            topics=topics_by_phase.get(phase_row.uuid, []),
+        )
+        for phase_row in phase_rows
+    )
+
+
+async def load_requirements_by_phase_order_from_db(
+    db: AsyncSession,
+    *,
+    phase_order_by_uuid: dict[UUID, int] | None = None,
+) -> dict[int, list[HandsOnRequirement]]:
+    """Load all active requirements, grouped by parent phase order.
+
+    Only queries ``requirements`` + ``phases`` (~18 rows total in
+    production), not the full curriculum tree, so gating checks and
+    the requirement index don't pay for 450+ unrelated step/topic rows
+    just to reach 10 requirement rows.
+
+    Callers that already have a phase order mapping in hand (e.g. from
+    ``load_curriculum_overview_from_db``) can pass it via
+    ``phase_order_by_uuid`` to skip the redundant phases query.
+    """
+    if phase_order_by_uuid is None:
+        phase_rows = (
+            await db.scalars(
+                select(CurriculumPhase).where(CurriculumPhase.deleted_at.is_(None))
+            )
+        ).all()
+        phase_order_by_uuid = {row.uuid: row.order for row in phase_rows}
+
+    requirement_rows = (
+        await db.scalars(
+            select(CurriculumRequirement)
+            .where(CurriculumRequirement.deleted_at.is_(None))
+            .order_by(CurriculumRequirement.order)
+        )
+    ).all()
+
+    by_phase_order: dict[int, list[HandsOnRequirement]] = defaultdict(list)
+    for row in requirement_rows:
+        phase_order = phase_order_by_uuid.get(row.phase_uuid)
+        if phase_order is None:
+            continue
+        by_phase_order[phase_order].append(_build_requirement(row))
+    return dict(by_phase_order)
+
+
+async def load_required_step_counts_by_phase_from_db(
+    db: AsyncSession,
+) -> dict[int, int]:
+    """Count active steps per phase via one aggregate query.
+
+    Backs progress totals (``steps_required``) without assembling the
+    full nested Pydantic tree.
+    """
+    result = await db.execute(
+        select(CurriculumPhase.order, func.count(CurriculumStep.uuid))
+        .select_from(CurriculumStep)
+        .join(CurriculumTopic, CurriculumStep.topic_uuid == CurriculumTopic.uuid)
+        .join(CurriculumPhase, CurriculumTopic.phase_uuid == CurriculumPhase.uuid)
+        .where(
+            CurriculumStep.deleted_at.is_(None),
+            CurriculumTopic.deleted_at.is_(None),
+            CurriculumPhase.deleted_at.is_(None),
+        )
+        .group_by(CurriculumPhase.order)
+    )
+    return {order: count for order, count in result.all()}
 
 
 # ---------------------------------------------------------------------------

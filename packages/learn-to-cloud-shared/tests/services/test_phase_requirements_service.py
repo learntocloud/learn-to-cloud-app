@@ -1,15 +1,10 @@
 """Unit tests for verification.requirements after the slug rename."""
 
 from unittest.mock import AsyncMock, patch
-from uuid import uuid4
 
 import pytest
 
-from learn_to_cloud_shared.schemas import (
-    HandsOnRequirement,
-    Phase,
-    PhaseHandsOnVerificationOverview,
-)
+from learn_to_cloud_shared.schemas import HandsOnRequirement
 from learn_to_cloud_shared.testing.requirement_factories import (
     journal_api_verifier_requirement,
 )
@@ -29,16 +24,10 @@ def _make_requirement(slug: str = "req-1") -> HandsOnRequirement:
     )
 
 
-def _make_phase_with_requirements(order: int, slugs: list[str]) -> Phase:
-    reqs = [_make_requirement(s) for s in slugs]
-    return Phase(
-        uuid=uuid4(),
-        name=f"Phase {order}",
-        slug=f"phase{order}",
-        order=order,
-        topics=[],
-        hands_on_verification=PhaseHandsOnVerificationOverview(requirements=reqs),
-    )
+def _make_requirements_by_phase_order(
+    order: int, slugs: list[str]
+) -> dict[int, list[HandsOnRequirement]]:
+    return {order: [_make_requirement(s) for s in slugs]}
 
 
 @pytest.mark.unit
@@ -64,11 +53,11 @@ class TestGetPrerequisitePhase:
 
 @pytest.mark.unit
 class TestRequirementIndex:
-    def test_from_phases_builds_lookups(self):
-        phase3 = _make_phase_with_requirements(3, ["req-a", "req-b"])
-        phase4 = _make_phase_with_requirements(4, ["req-c"])
+    def test_from_requirements_by_phase_order_builds_lookups(self):
+        by_phase_order = _make_requirements_by_phase_order(3, ["req-a", "req-b"])
+        by_phase_order.update(_make_requirements_by_phase_order(4, ["req-c"]))
 
-        index = RequirementIndex.from_phases([phase3, phase4])
+        index = RequirementIndex.from_requirements_by_phase_order(by_phase_order)
 
         assert sorted(index.by_phase_order.keys()) == [3, 4]
         assert {r.slug for r in index.by_phase_order[3]} == {"req-a", "req-b"}
@@ -76,17 +65,8 @@ class TestRequirementIndex:
         assert index.phase_order_by_req_slug["req-a"] == 3
         assert index.phase_order_by_req_slug["req-c"] == 4
 
-    def test_from_phases_handles_no_verification(self):
-        phase = Phase(
-            uuid=uuid4(),
-            name="P0",
-            slug="phase0",
-            order=0,
-            topics=[],
-            hands_on_verification=None,
-        )
-
-        index = RequirementIndex.from_phases([phase])
+    def test_from_requirements_by_phase_order_handles_empty(self):
+        index = RequirementIndex.from_requirements_by_phase_order({0: []})
 
         assert index.by_phase_order[0] == []
         assert index.by_slug == {}
@@ -102,11 +82,11 @@ class TestRequirementIndex:
 class TestAsyncRequirementLookups:
     @pytest.mark.asyncio
     async def test_get_requirement_by_slug_found(self):
-        phase = _make_phase_with_requirements(3, ["req-a"])
+        by_phase_order = _make_requirements_by_phase_order(3, ["req-a"])
         with patch(
-            "learn_to_cloud_shared.verification.requirements.get_all_phases",
+            "learn_to_cloud_shared.verification.requirements.get_requirements_by_phase_order",
             new_callable=AsyncMock,
-            return_value=(phase,),
+            return_value=by_phase_order,
         ):
             req = await get_requirement_by_slug(AsyncMock(), "req-a")
         assert req is not None
@@ -115,9 +95,9 @@ class TestAsyncRequirementLookups:
     @pytest.mark.asyncio
     async def test_get_requirement_by_slug_not_found(self):
         with patch(
-            "learn_to_cloud_shared.verification.requirements.get_all_phases",
+            "learn_to_cloud_shared.verification.requirements.get_requirements_by_phase_order",
             new_callable=AsyncMock,
-            return_value=(),
+            return_value={},
         ):
             assert await get_requirement_by_slug(AsyncMock(), "nonexistent") is None
 
@@ -134,14 +114,14 @@ class TestIsPhaseVerificationLocked:
 
     @pytest.mark.asyncio
     async def test_locked_when_prerequisite_incomplete(self):
-        phase3 = _make_phase_with_requirements(3, ["p3-req"])
-        phase4 = _make_phase_with_requirements(4, ["p4-req"])
+        by_phase_order = _make_requirements_by_phase_order(3, ["p3-req"])
+        by_phase_order.update(_make_requirements_by_phase_order(4, ["p4-req"]))
 
         with (
             patch(
-                "learn_to_cloud_shared.verification.requirements.get_all_phases",
+                "learn_to_cloud_shared.verification.requirements.get_requirements_by_phase_order",
                 new_callable=AsyncMock,
-                return_value=(phase3, phase4),
+                return_value=by_phase_order,
             ),
             patch(
                 "learn_to_cloud_shared.verification.requirements.SubmissionRepository",
@@ -160,14 +140,14 @@ class TestIsPhaseVerificationLocked:
 
     @pytest.mark.asyncio
     async def test_unlocked_when_prerequisite_complete(self):
-        phase3 = _make_phase_with_requirements(3, ["p3-req"])
-        phase4 = _make_phase_with_requirements(4, ["p4-req"])
+        by_phase_order = _make_requirements_by_phase_order(3, ["p3-req"])
+        by_phase_order.update(_make_requirements_by_phase_order(4, ["p4-req"]))
 
         with (
             patch(
-                "learn_to_cloud_shared.verification.requirements.get_all_phases",
+                "learn_to_cloud_shared.verification.requirements.get_requirements_by_phase_order",
                 new_callable=AsyncMock,
-                return_value=(phase3, phase4),
+                return_value=by_phase_order,
             ),
             patch(
                 "learn_to_cloud_shared.verification.requirements.SubmissionRepository",
