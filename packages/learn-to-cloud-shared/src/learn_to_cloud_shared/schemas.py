@@ -533,6 +533,29 @@ class Phase(FrozenModel):
     topics: list[Topic] = Field(default_factory=list)
 
 
+class TopicOverview(FrozenModel):
+    """Browse-level topic summary: name only, no steps/objectives."""
+
+    uuid: UUID
+    slug: str
+    name: str
+
+
+class PhaseOverview(FrozenModel):
+    """Browse-level phase summary for home/curriculum listing pages.
+
+    No topics-with-steps, no requirements: only what those pages render.
+    """
+
+    uuid: UUID
+    order: int
+    name: str
+    slug: str
+    description: str = ""
+    short_description: str = ""
+    topics: list[TopicOverview] = Field(default_factory=list)
+
+
 class TopicProgressData(FrozenModel):
     """Progress status for a topic (service-layer response model)."""
 
@@ -554,18 +577,17 @@ class PhaseProgressData(FrozenModel):
 
 
 class PhaseSummaryData(FrozenModel):
-    """Phase summary data (service-layer response model)."""
+    """Phase summary data for the dashboard (service-layer response model).
 
-    id: int
+    Trimmed to exactly what ``dashboard.html`` renders: order, name,
+    and progress. Full phase content (description, objectives,
+    capstone, requirements) belongs to the phase detail view, not the
+    dashboard list.
+    """
+
+    order: int
     name: str
     slug: str
-    description: str
-    short_description: str
-    order: int
-    topics_count: int
-    objectives: list[str] = Field(default_factory=list)
-    capstone: PhaseCapstoneOverview | None = None
-    hands_on_verification: PhaseHandsOnVerificationOverview | None = None
     progress: PhaseProgressData | None = None
 
 
@@ -587,15 +609,6 @@ class DashboardData(FrozenModel):
     total_phases: int
     is_program_complete: bool
     continue_phase: ContinuePhaseData | None = None
-
-
-class PhaseRequirements(FrozenModel):
-    """Requirements to complete a phase."""
-
-    phase_id: int
-    name: str
-    topics: int
-    steps: int
 
 
 class PhaseProgress(FrozenModel):

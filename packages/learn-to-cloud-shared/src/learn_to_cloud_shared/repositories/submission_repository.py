@@ -12,7 +12,12 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud_shared.models import Submission, utcnow
+from learn_to_cloud_shared.models import (
+    CurriculumPhase,
+    CurriculumRequirement,
+    Submission,
+    utcnow,
+)
 from learn_to_cloud_shared.submission_values import SubmittedValue
 
 
@@ -173,3 +178,34 @@ class SubmissionRepository:
             )
         )
         return result.scalar_one() or 0
+
+    async def count_validated_by_phase_for_user(self, user_id: int) -> dict[int, int]:
+        """Count validated requirements per phase, in one aggregate query.
+
+        Joins ``submissions -> requirements -> phases`` and groups by
+        ``phases.order``, so dashboard-wide progress totals don't
+        require loading the curriculum tree or any per-phase UUID sets.
+        """
+        result = await self.db.execute(
+            select(
+                CurriculumPhase.order,
+                func.count(func.distinct(Submission.requirement_uuid)),
+            )
+            .select_from(Submission)
+            .join(
+                CurriculumRequirement,
+                Submission.requirement_uuid == CurriculumRequirement.uuid,
+            )
+            .join(
+                CurriculumPhase,
+                CurriculumRequirement.phase_uuid == CurriculumPhase.uuid,
+            )
+            .where(
+                Submission.user_id == user_id,
+                Submission.is_validated.is_(True),
+                CurriculumRequirement.deleted_at.is_(None),
+                CurriculumPhase.deleted_at.is_(None),
+            )
+            .group_by(CurriculumPhase.order)
+        )
+        return {order: count for order, count in result.all()}

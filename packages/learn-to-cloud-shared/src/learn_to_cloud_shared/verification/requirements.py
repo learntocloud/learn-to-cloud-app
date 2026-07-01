@@ -1,9 +1,10 @@
 """Phase hands-on requirements lookup helpers.
 
 Backed by the DB curriculum (see ``content_service``). Each convenience
-helper loads the full phase tree and builds a ``RequirementIndex``;
-hot paths that need several lookups should load phases once and call
-``RequirementIndex.from_phases`` themselves to avoid redundant queries.
+helper loads the lightweight requirement index (requirements + phases
+only, not the full curriculum tree) and builds a ``RequirementIndex``;
+hot paths that need several lookups should load the index once and
+reuse it to avoid redundant queries.
 
 Phases here are keyed by ``phase.order`` (the int 0..7), matching the
 URL contract and the historical "phase id". Slugs (``"phase0"`` etc.)
@@ -13,16 +14,15 @@ progress aggregation) think in terms of ordinals.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from learn_to_cloud_shared.content_service import get_all_phases
+from learn_to_cloud_shared.content_service import get_requirements_by_phase_order
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
 )
-from learn_to_cloud_shared.schemas import HandsOnRequirement, Phase
+from learn_to_cloud_shared.schemas import HandsOnRequirement
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,10 +30,10 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class RequirementIndex:
-    """Precomputed lookups over the loaded phases.
+    """Precomputed lookups over the loaded requirements.
 
-    Build once per request via ``from_phases`` and reuse for all
-    requirement-shaped lookups in that request.
+    Build once per request via ``load_requirement_index`` and reuse for
+    all requirement-shaped lookups in that request.
     """
 
     by_phase_order: dict[int, list[HandsOnRequirement]] = field(default_factory=dict)
@@ -41,20 +41,17 @@ class RequirementIndex:
     phase_order_by_req_slug: dict[str, int] = field(default_factory=dict)
 
     @classmethod
-    def from_phases(cls, phases: Sequence[Phase]) -> RequirementIndex:
-        by_phase_order: dict[int, list[HandsOnRequirement]] = {}
+    def from_requirements_by_phase_order(
+        cls, requirements_by_phase_order: dict[int, list[HandsOnRequirement]]
+    ) -> RequirementIndex:
         by_slug: dict[str, HandsOnRequirement] = {}
         phase_order_by_req_slug: dict[str, int] = {}
-        for phase in phases:
-            reqs: list[HandsOnRequirement] = []
-            if phase.hands_on_verification:
-                reqs = list(phase.hands_on_verification.requirements)
-            by_phase_order[phase.order] = reqs
+        for phase_order, reqs in requirements_by_phase_order.items():
             for req in reqs:
                 by_slug[req.slug] = req
-                phase_order_by_req_slug[req.slug] = phase.order
+                phase_order_by_req_slug[req.slug] = phase_order
         return cls(
-            by_phase_order=by_phase_order,
+            by_phase_order=dict(requirements_by_phase_order),
             by_slug=by_slug,
             phase_order_by_req_slug=phase_order_by_req_slug,
         )
@@ -69,9 +66,24 @@ class RequirementIndex:
         return [req.uuid for req in self.requirements_for_phase(phase_order)]
 
 
-async def load_requirement_index(db: AsyncSession) -> RequirementIndex:
-    """Load all phases and build a ``RequirementIndex`` from them."""
-    return RequirementIndex.from_phases(await get_all_phases(db))
+async def load_requirement_index(
+    db: AsyncSession,
+    *,
+    phase_order_by_uuid: dict[UUID, int] | None = None,
+) -> RequirementIndex:
+    """Load the lightweight requirement index (requirements+phases only).
+
+    Does not load the curriculum tree -- only the ``requirements`` and
+    ``phases`` tables (~18 rows in production), since callers here only
+    ever need UUIDs, slugs, and gating/validation metadata. Pass
+    ``phase_order_by_uuid`` when the caller already has one to skip a
+    redundant phases query.
+    """
+    return RequirementIndex.from_requirements_by_phase_order(
+        await get_requirements_by_phase_order(
+            db, phase_order_by_uuid=phase_order_by_uuid
+        )
+    )
 
 
 async def get_requirement_by_slug(

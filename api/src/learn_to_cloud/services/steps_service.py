@@ -9,7 +9,7 @@ rendering) by walking the loaded curriculum tree.
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from learn_to_cloud_shared.content_service import get_all_phases
+from learn_to_cloud_shared.content_service import get_topic_containing_step
 from learn_to_cloud_shared.models import utcnow
 from learn_to_cloud_shared.repositories import StepProgressRepository
 from learn_to_cloud_shared.schemas import LearningStep, StepCompletionResult
@@ -35,18 +35,15 @@ class StepNotFoundError(StepValidationError):
 async def _find_step(db: AsyncSession, step_uuid: UUID) -> tuple["Topic", LearningStep]:
     """Resolve a step UUID to its parent topic + step model.
 
-    Walks the in-memory curriculum tree (small N). Soft-deleted steps
-    are excluded because ``get_all_phases`` only returns active rows;
-    raising :class:`StepNotFoundError` keeps the surface uniform with
-    the verification request paths.
+    Scoped to one topic's subtree (a single indexed lookup plus a
+    handful of sibling steps), not the entire curriculum tree. Raises
+    :class:`StepNotFoundError` for unknown/soft-deleted UUIDs, keeping
+    the surface uniform with the verification request paths.
     """
-    phases = await get_all_phases(db)
-    for phase in phases:
-        for topic in phase.topics:
-            for step in topic.learning_steps:
-                if step.uuid == step_uuid:
-                    return topic, step
-    raise StepNotFoundError(step_uuid)
+    result = await get_topic_containing_step(db, step_uuid)
+    if result is None:
+        raise StepNotFoundError(step_uuid)
+    return result
 
 
 async def get_valid_completed_steps(

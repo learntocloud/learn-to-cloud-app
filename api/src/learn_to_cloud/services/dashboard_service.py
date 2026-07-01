@@ -6,11 +6,11 @@ for the dashboard page.
 
 import logging
 
-from learn_to_cloud_shared.content_service import get_all_phases
+from learn_to_cloud_shared.content_service import get_curriculum_overview
 from learn_to_cloud_shared.schemas import (
     ContinuePhaseData,
     DashboardData,
-    Phase,
+    PhaseOverview,
     PhaseProgressData,
     PhaseSummaryData,
 )
@@ -25,21 +25,14 @@ logger = logging.getLogger(__name__)
 
 
 def _build_phase_summary(
-    phase: Phase,
+    phase: PhaseOverview,
     progress_data: PhaseProgressData | None,
 ) -> PhaseSummaryData:
-    """Build PhaseSummaryData from a Phase and computed values."""
+    """Build PhaseSummaryData from a PhaseOverview and computed progress."""
     return PhaseSummaryData(
-        id=phase.order,
+        order=phase.order,
         name=phase.name,
         slug=phase.slug,
-        description=phase.description,
-        short_description=phase.short_description,
-        order=phase.order,
-        topics_count=len(phase.topics),
-        objectives=list(phase.objectives),
-        capstone=phase.capstone,
-        hands_on_verification=phase.hands_on_verification,
         progress=progress_data,
     )
 
@@ -53,7 +46,7 @@ async def get_dashboard_data(
     Returns phase list, overall stats, and continue-phase pointer.
     For unauthenticated users, returns phases only with zeroed stats.
     """
-    phases = await get_all_phases(db)
+    phases = await get_curriculum_overview(db)
 
     if user_id is None:
         return DashboardData(
@@ -64,7 +57,7 @@ async def get_dashboard_data(
             is_program_complete=False,
         )
 
-    user_progress = await fetch_user_progress(db, user_id, phases=phases)
+    user_progress = await fetch_user_progress(db, user_id, phase_overview=phases)
 
     phase_summaries = [
         _build_phase_summary(

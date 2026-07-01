@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from learn_to_cloud_shared.content_service import (
-    get_all_phases,
+    get_curriculum_overview,
     get_phase_by_slug,
 )
 from learn_to_cloud_shared.core.database import DbSession
@@ -72,7 +72,7 @@ async def home_page(
 ) -> HTMLResponse:
     """Home page with phase overview."""
     user = await _get_user_or_none(db, user_id)
-    phases = await get_all_phases(db)
+    phases = await get_curriculum_overview(db)
 
     return templates.TemplateResponse(
         request,
@@ -89,7 +89,7 @@ async def curriculum_page(
 ) -> HTMLResponse:
     """Full curriculum overview with all phases and topics."""
     user = await _get_user_or_none(db, user_id)
-    phases = await get_all_phases(db)
+    phases = await get_curriculum_overview(db)
 
     return templates.TemplateResponse(
         request,
