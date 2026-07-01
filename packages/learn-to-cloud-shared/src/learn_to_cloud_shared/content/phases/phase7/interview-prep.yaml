@@ -10,6 +10,9 @@ learning_objectives:
 - uuid: 13f84a18-2e43-4870-ad05-733ca1d00086
   text: Practice answering common behavioral and technical questions out loud.
   order: 2
+- uuid: 885d2efa-df93-46d6-8e10-de0db78431b4
+  text: Practice explaining your technical work out loud, diagrams, code, and pipelines included.
+  order: 3
 learning_steps:
 - uuid: 17535c6b-4d47-4d48-9c34-014d29d986a0
   order: 1
@@ -59,3 +62,18 @@ learning_steps:
   - "**Practice without tools.** Rehearse a few answers and technical explanations without notes, autocomplete, or AI assistance"
   done_when: You can confidently discuss every technology listed on your target roles.
   slug: phase7-interview-practice-talk-about-the-tech
+- uuid: 82af6650-c3db-4341-b94c-19b855d4ba96
+  order: 4
+  action: 'Practice:'
+  title: Explain your technical work out loud
+  description: |-
+    Technical interviews for cloud engineering roles usually go beyond trivia questions. You'll be asked to draw something on a whiteboard or screen, and to walk through code and pipelines you've written and explain the reasoning behind them.
+
+    Practice these out loud, the same way you practiced your stories. Saying it out loud surfaces the gaps that just thinking about it hides.
+  checklist:
+  - "**Diagram a 3-tier architecture from memory.** Draw the web, application, and data tiers, then talk through how a request flows through them and why you'd split them that way"
+  - "**Walk through a piece of your own Python code.** Pick something you've written and explain what it does, line by line or block by block, as if a teammate is reading over your shoulder"
+  - "**Explain a CI/CD pipeline you've built.** Talk through each stage, build, test, deploy, and what happens if a stage fails"
+  - "**Practice without notes.** Rehearse each explanation out loud a few times until it flows without a script"
+  done_when: You can diagram a 3-tier architecture and explain your own Python code and CI/CD pipeline out loud, without notes.
+  slug: phase7-interview-practice-explain-your-technical-work
