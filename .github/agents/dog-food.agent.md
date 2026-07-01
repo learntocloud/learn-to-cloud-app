@@ -40,10 +40,14 @@ Run Steps 1–3, then Step 5 (Submission Test), then Step 6.
 | 4 | `deployed-journal-api` | `deployed_api` | **Yes** | URL — user must provide |
 | 5 | `devops-implementation` | `devops_analysis` | **Yes** | Auto-derived from username |
 | 6 | `security-scanning` | `security_scanning` | **Yes** | Auto-derived from username |
+| 7 | `career-reflection` | `career_reflection` | **Yes** | Free text, user must provide 3 answers (200+ chars each) |
 
 For "auto-derived" types, the form input is pre-filled or derived from the
-authenticated user's GitHub username — just click Submit. For token/URL types,
-the user must supply the value when invoking the agent.
+authenticated user's GitHub username, so just click Submit. For token/URL types,
+the user must supply the value when invoking the agent. For `career_reflection`,
+the requirement card renders one `<textarea>` per question in
+`requirement.type_config.questions` (currently three); fill each textarea with
+a substantive answer (200+ characters) before clicking Submit.
 
 You use the **Playwright MCP server** for all browser automation. The MCP server
 is configured in `.mcp.json` (Copilot CLI) and `.vscode/mcp.json` (VS Code) and
@@ -178,11 +182,14 @@ After authentication, navigate and test:
 |------|-----|--------|
 | Dashboard | `/dashboard` | nav, main, username shown |
 | Account | `/account` | nav, main, account settings visible |
+| Phase 0 | `/phase/0` | nav, main, no 500 errors |
 | Phase 1 | `/phase/1` | nav, main, topic links present |
 | Phase 2 | `/phase/2` | nav, main, no 500 errors |
 | Phase 3 | `/phase/3` | nav, main, no 500 errors |
 | Phase 4 | `/phase/4` | nav, main, no 500 errors |
 | Phase 5 | `/phase/5` | nav, main, no 500 errors |
+| Phase 6 | `/phase/6` | nav, main, no 500 errors |
+| Phase 7 | `/phase/7` | nav, main, no 500 errors |
 | First topic | First `/phase/1/*` link | Learning steps, checkboxes |
 
 ### Step toggle test
@@ -235,6 +242,9 @@ Reference table above).
   the user provided into the input, then click Submit.
 - For **URL** types (`deployed_api`): type the URL the user provided, then
   click Submit.
+- For **career_reflection** (phase 7): fill each of the three `<textarea>`
+  elements on the requirement card with a substantive answer (200+ characters,
+  per `type_config.min_answer_length`), then click Submit.
 
 After submitting, the page will either:
 - Show an inline result immediately (sync types)
