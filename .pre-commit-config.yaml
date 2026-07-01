@@ -41,9 +41,9 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^api/htmlcov/
+        exclude: ^(api/htmlcov/|\.github/workflows/.*\.lock\.yml$|\.github/workflows/agentics-maintenance\.yml$)
       - id: end-of-file-fixer
-        exclude: ^(api/htmlcov/|.*\.svg$)
+        exclude: ^(api/htmlcov/|.*\.svg$|\.github/workflows/.*\.lock\.yml$|\.github/workflows/agentics-maintenance\.yml$)
       - id: check-json
         exclude: ^\.vscode/
       - id: check-added-large-files

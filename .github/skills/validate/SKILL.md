@@ -34,20 +34,23 @@ lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 
 ## Steps 1-3: Run the Static Checks (lint, format, type-check)
 
-Run the workspace static checks, which cover ruff lint, ruff format, and ty
-type checking across every project at once:
+`uv run poe static` runs the prek hooks with `--all-files`: ruff lint, ruff
+format check, ty type check, the migration SQL safety lint, and file hygiene,
+across every project at once. This is the exact command CI runs, so a green
+result locally means CI's static job will pass too.
 
 ```bash
 cd <workspace>
 uv run poe static
 ```
 
-This is the same command the **Quality Gates** section of
-`.github/copilot-instructions.md` and CI use, so there is a single source of
-truth for the command.
+prek only inspects files git is already tracking, so a brand-new file you
+haven't staged yet is silently skipped. `git add` new files first, or run
+ruff/ty directly against the path: `uv run ruff check path/to/new_file.py`.
 
 **If lint errors are found:** show them and offer to auto-fix with `uv run ruff check --fix <file>`.
 **If formatting is needed:** offer to fix with `uv run ruff format <file>`.
+**Write code that respects ruff and ty by default**: match `line-length = 88`, prefer explicit imports, keep functions type-annotated, avoid unused imports and variables. Long SQL or string literals in migrations must also respect `line-length = 88`, break long `SELECT`/`INSERT` lists across multiple lines inside the SQL string.
 
 Static checks pass before moving on to starting the API.
 
@@ -183,7 +186,7 @@ Only when the workflow change is purely YAML restructuring with no new Python in
 | Task | Command |
 |------|---------|
 | Kill API | `lsof -ti:8000 \| xargs kill -9 2>/dev/null \|\| true` |
-| Static checks (lint / format / type-check) | `uv run poe static` (single source of truth) |
+| Static checks (lint / format / type-check) | `uv run poe static` |
 | Lint + fix | `uv run ruff check --fix <file>` |
 | Format fix | `uv run ruff format <file>` |
 | Health check | `curl -s http://localhost:8000/health` |
