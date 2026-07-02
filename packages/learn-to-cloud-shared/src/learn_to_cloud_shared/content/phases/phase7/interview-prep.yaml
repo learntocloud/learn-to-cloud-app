@@ -10,6 +10,9 @@ learning_objectives:
 - uuid: 13f84a18-2e43-4870-ad05-733ca1d00086
   text: Practice answering common behavioral and technical questions out loud.
   order: 2
+- uuid: 885d2efa-df93-46d6-8e10-de0db78431b4
+  text: Practice explaining your technical work out loud, including diagrams, code, and pipelines you've built.
+  order: 3
 learning_steps:
 - uuid: 17535c6b-4d47-4d48-9c34-014d29d986a0
   order: 1
@@ -59,3 +62,18 @@ learning_steps:
   - "**Practice without tools.** Rehearse a few answers and technical explanations without notes, autocomplete, or AI assistance"
   done_when: You can confidently discuss every technology listed on your target roles.
   slug: phase7-interview-practice-talk-about-the-tech
+- uuid: 82af6650-c3db-4341-b94c-19b855d4ba96
+  order: 4
+  action: 'Practice:'
+  title: Explain your technical work out loud
+  description: |-
+    Technical interviews for cloud engineering roles usually go beyond trivia questions. Interviewers want to see how you think, so you may be asked to sketch something on a whiteboard or screen, or to walk through work you've done and explain the reasoning behind it. The exact ask varies by company, but a few kinds of exercises come up often enough to be worth rehearsing.
+
+    Practice these out loud, the same way you practiced your stories. Saying it out loud surfaces the gaps that just thinking about it hides.
+  checklist:
+  - "**Diagram a common architecture from memory.** A 3-tier setup (web, application, data) is a frequent example. Practice sketching one and talking through how a request flows through it and why you'd split it that way"
+  - "**Walk through a piece of your own code.** Pick something you've written, Python or otherwise, and explain what it does and why, as if a teammate is reading over your shoulder"
+  - "**Explain a pipeline or process you've built.** A CI/CD pipeline is a common one. Talk through each stage and what happens if a stage fails"
+  - "**Practice without notes.** Rehearse each explanation out loud a few times until it flows without a script"
+  done_when: You can diagram a system, walk through your own code, and explain a pipeline or process out loud, without notes.
+  slug: phase7-interview-practice-explain-your-technical-work
