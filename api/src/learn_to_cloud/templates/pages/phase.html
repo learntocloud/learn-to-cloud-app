@@ -61,10 +61,30 @@
     </div>
     <div class="space-y-2">
         {% for req in requirements %}
+        {% set submission = submissions_by_req.get(req.slug) %}
+        {% set is_verified = submission and submission.is_validated %}
+        {% if is_verified %}
+        {# Already validated before the phase was gated — keep showing it as
+           complete so the card matches the progress percentage. #}
+        {% set fb = feedback_by_req.get(req.slug, {}) if feedback_by_req is defined else {} %}
+        {% set feedback_tasks = fb.get('tasks', []) if fb else [] %}
+        <div id="requirement-{{ req.slug }}">
+            <div class="flex items-center gap-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-2.5">
+                <span class="text-green-600 dark:text-green-400">✓</span>
+                <span class="text-sm font-medium text-green-800 dark:text-green-200">{{ req.name }}</span>
+            </div>
+            {% if feedback_tasks %}
+            {% with requirement_slug=req.slug %}
+            {% include "partials/verification_feedback.html" %}
+            {% endwith %}
+            {% endif %}
+        </div>
+        {% else %}
         <div class="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-2.5 opacity-50">
             <span class="text-gray-400 dark:text-gray-500">🔒</span>
             <span class="text-sm text-gray-500 dark:text-gray-400">{{ req.name }}</span>
         </div>
+        {% endif %}
         {% endfor %}
     </div>
     {% else %}
