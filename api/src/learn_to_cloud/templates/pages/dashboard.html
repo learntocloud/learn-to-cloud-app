@@ -52,7 +52,11 @@
             {% if phase.progress and phase.progress.status == "completed" %}
             <span class="text-xs font-medium text-green-600 dark:text-green-400">Complete ✓</span>
             {% elif phase.progress and phase.progress.status == "in_progress" %}
+            {% if phase.progress.steps_completed == 0 and phase.progress.hands_on_validated > 0 %}
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ phase.progress.hands_on_validated }}/{{ phase.progress.hands_on_required }} hands-on</span>
+            {% else %}
             <span class="text-xs text-gray-500 dark:text-gray-400">{{ phase.progress.steps_completed }}/{{ phase.progress.steps_required }} steps</span>
+            {% endif %}
             {% else %}
             <span class="text-xs text-gray-400 dark:text-gray-500">Not started</span>
             {% endif %}
