@@ -61,6 +61,27 @@ class TestVerifyLabToken:
         assert result.is_valid is False
         assert "Could not decode" in result.message
 
+    def test_token_with_embedded_newline(self):
+        """Terminals (e.g. Rich console output) can wrap a long token and
+        insert a literal newline. The token should still verify once
+        whitespace is stripped."""
+        payload = _valid_payload()
+        token = _make_signed_token(payload)
+        midpoint = len(token) // 2
+        wrapped_token = token[:midpoint] + "\n" + token[midpoint:]
+        result = verify_lab_token(
+            wrapped_token, "testuser", required_challenges=5, display_name="Test"
+        )
+        assert result.is_valid is True
+
+    def test_token_with_surrounding_whitespace(self):
+        payload = _valid_payload()
+        token = _make_signed_token(payload)
+        result = verify_lab_token(
+            f"  {token}\n", "testuser", required_challenges=5, display_name="Test"
+        )
+        assert result.is_valid is True
+
     def test_invalid_json(self):
         token = base64.b64encode(b"not json").decode()
         result = verify_lab_token(token, "testuser", required_challenges=5)
