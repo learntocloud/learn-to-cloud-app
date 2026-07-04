@@ -34,6 +34,7 @@ from learn_to_cloud.rendering.context import (
 )
 from learn_to_cloud.services.dashboard_service import get_dashboard_data
 from learn_to_cloud.services.progress_service import fetch_phase_progress
+from learn_to_cloud.services.stats_service import get_stats_page_data
 from learn_to_cloud.services.steps_service import get_valid_completed_steps
 from learn_to_cloud.services.submissions_service import get_phase_submission_context
 from learn_to_cloud.services.users_service import get_user_by_id
@@ -306,6 +307,23 @@ async def account_page(
         request,
         "pages/account.html",
         _template_context(request, user=user),
+    )
+
+
+@router.get("/stats", response_class=HTMLResponse, summary="Community stats")
+async def stats_page(
+    request: Request,
+    db: DbSession,
+    user_id: OptionalUserId,
+) -> HTMLResponse:
+    """Public community stats: phase funnel, completers, curriculum updates."""
+    user = await _get_user_or_none(db, user_id)
+    stats = await get_stats_page_data(db)
+
+    return templates.TemplateResponse(
+        request,
+        "pages/stats.html",
+        _template_context(request, user=user, stats=stats),
     )
 
 

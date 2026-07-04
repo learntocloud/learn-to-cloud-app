@@ -30,6 +30,7 @@ from learn_to_cloud.routes.pages_routes import (
     home_page,
     phase_page,
     privacy_page,
+    stats_page,
     terms_page,
     topic_page,
 )
@@ -438,3 +439,32 @@ class TestPublicPages:
             await handler(request, mock_db, user_id=None)
 
         assert template.call_args[0][1] == template_name
+
+
+@pytest.mark.unit
+class TestStatsPage:
+    """Tests for GET /stats (public)."""
+
+    async def test_stats_renders_with_stats_context(self, _patch_templates):
+        request, template = _mock_request(_patch_templates)
+        mock_db = AsyncMock()
+        mock_stats = MagicMock()
+
+        with (
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=None,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_stats_page_data",
+                autospec=True,
+                return_value=mock_stats,
+            ),
+        ):
+            await stats_page(request, mock_db, user_id=None)
+
+        assert template.call_args[0][1] == "pages/stats.html"
+        ctx = template.call_args[0][2]
+        assert ctx["stats"] is mock_stats
+        assert ctx["user"] is None

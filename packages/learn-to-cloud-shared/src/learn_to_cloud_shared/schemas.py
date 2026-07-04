@@ -611,6 +611,53 @@ class DashboardData(FrozenModel):
     continue_phase: ContinuePhaseData | None = None
 
 
+class CommunityMember(FrozenModel):
+    """A learner shown publicly on the /stats page."""
+
+    github_username: str
+    avatar_url: str | None = None
+
+
+class FunnelLevel(FrozenModel):
+    """One level of the /stats progress funnel.
+
+    ``pct_of_total`` is relative to total accounts (drives the funnel
+    width); ``pct_of_previous`` is the conversion from the level above
+    (``None`` for the top level).
+    """
+
+    label: str
+    count: int
+    pct_of_total: float
+    pct_of_previous: float | None = None
+    is_total: bool = False
+
+
+class RepoUpdate(FrozenModel):
+    """Latest commit for a curriculum repo (service-layer response model).
+
+    ``available`` is False when the GitHub lookup failed (rate limit,
+    network error); the page still renders the repo with a fallback.
+    """
+
+    name: str
+    url: str
+    available: bool = True
+    commit_message: str | None = None
+    commit_author: str | None = None
+    commit_url: str | None = None
+    committed_at: datetime | None = None
+
+
+class StatsPageData(FrozenModel):
+    """Complete /stats payload (service-layer response model)."""
+
+    total_accounts: int
+    funnel: list[FunnelLevel]
+    graduates: list[CommunityMember]
+    repo_updates: list[RepoUpdate]
+
+
 class PhaseProgress(FrozenModel):
     """User's progress for a single phase.
 

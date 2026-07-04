@@ -26,6 +26,7 @@ from learn_to_cloud_shared.content_db_loader import (
     load_curriculum_overview_from_db,
     load_phase_by_slug_from_db,
     load_required_step_counts_by_phase_from_db,
+    load_requirement_counts_by_phase_from_db,
     load_requirements_by_phase_order_from_db,
     load_topic_containing_step_from_db,
 )
@@ -86,3 +87,8 @@ async def get_requirements_by_phase_order(
 async def get_required_step_counts_by_phase(db: AsyncSession) -> dict[int, int]:
     """Get the count of active required steps per phase order."""
     return await load_required_step_counts_by_phase_from_db(db)
+
+
+async def get_requirement_counts_by_phase(db: AsyncSession) -> dict[int, int]:
+    """Get the count of active hands-on requirements per phase order."""
+    return await load_requirement_counts_by_phase_from_db(db)

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Stats - Learn to Cloud{% endblock %}
+{% block description %}Community stats for Learn to Cloud — how many learners are progressing through each phase, who has finished the whole curriculum, and the latest updates.{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Community stats</h1>
+    <p class="text-gray-600 dark:text-gray-400 mt-2">
+        How the community is progressing through the curriculum, and what's new.
+    </p>
+</div>
+
+{# ── Progress funnel ──────────────────────────────────────────── #}
+<section class="mb-12">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">Progress funnel</h2>
+    <p class="text-base text-gray-500 dark:text-gray-400 mb-6">
+        How many learners have verified every project in each phase.
+    </p>
+
+    <div class="max-w-2xl mx-auto space-y-2" role="img" aria-label="Progress funnel">
+        {% for level in stats.funnel %}
+        <div class="flex items-center gap-3 sm:gap-4">
+            {# Label #}
+            <div class="w-28 sm:w-44 flex-shrink-0 text-right">
+                <p class="text-xs sm:text-sm leading-tight {{ 'font-semibold text-gray-900 dark:text-white' if level.is_total else 'font-medium text-gray-700 dark:text-gray-300' }}"
+                   title="{{ level.label }}">{{ level.label }}</p>
+            </div>
+
+            {# Centered tapering bar #}
+            <div class="flex-1 flex justify-center min-w-0">
+                <div class="flex items-center justify-center h-9 rounded-md px-2 text-sm font-semibold tabular-nums text-white shadow-sm
+                            {{ 'bg-blue-600 dark:bg-blue-500' if level.is_total else 'bg-blue-500 dark:bg-blue-500' }}"
+                     style="width: {{ level.pct_of_total | round(2) }}%; min-width: 3.25rem; {{ '' if level.is_total else 'opacity: %.2f;' | format(1 - loop.index0 * 0.06 if 1 - loop.index0 * 0.06 > 0.55 else 0.55) }}">
+                    {{ level.count }}
+                </div>
+            </div>
+
+            {# Percentages #}
+            <div class="w-20 sm:w-24 flex-shrink-0 text-left tabular-nums leading-tight">
+                {% if level.is_total %}
+                <p class="text-xs text-gray-400 dark:text-gray-500">accounts</p>
+                {% else %}
+                <p class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">{{ level.pct_of_total | round(1) }}%</p>
+                {% if level.pct_of_previous is not none %}
+                <p class="text-xs text-gray-400 dark:text-gray-500">{{ level.pct_of_previous | round(0) | int }}% of prev</p>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="mt-5 text-xs text-gray-400 dark:text-gray-500 text-center">
+        Later phases require completing earlier ones, so the funnel narrows as learners advance.
+        Percentages show share of total accounts and conversion from the previous phase.
+    </p>
+</section>
+
+{# ── Curriculum graduates ─────────────────────────────────────── #}
+<section class="mb-12">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">
+        Curriculum graduates
+        <span class="ml-1 text-base font-normal text-gray-500 dark:text-gray-400">({{ stats.graduates | length }})</span>
+    </h2>
+    <p class="text-base text-gray-500 dark:text-gray-400 mb-4">
+        Learners who have verified every project across all phases.
+    </p>
+
+    {% if stats.graduates %}
+    <ul class="flex flex-wrap gap-2">
+        {% for member in stats.graduates %}
+        <li>
+            <a href="https://github.com/{{ member.github_username }}" target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 py-1 pl-1 pr-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                {% if member.avatar_url %}
+                <img src="{{ member.avatar_url }}" alt="{{ member.github_username }}" class="h-6 w-6 rounded-full" loading="lazy">
+                {% else %}
+                <span class="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-700 inline-flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">{{ member.github_username[0] | upper }}</span>
+                {% endif %}
+                <span class="text-sm text-gray-700 dark:text-gray-300">{{ member.github_username }}</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-6 text-center">
+        <p class="text-sm text-gray-500 dark:text-gray-400">No one has finished the entire curriculum yet. Be the first!</p>
+    </div>
+    {% endif %}
+</section>
+
+{# ── Latest curriculum updates ────────────────────────────────── #}
+<section class="mb-8">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Latest curriculum updates</h2>
+
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {% for repo in stats.repo_updates %}
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-col">
+            <a href="{{ repo.url }}" target="_blank" rel="noopener noreferrer"
+               class="text-base font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                {{ repo.name }}
+            </a>
+            {% if repo.available %}
+            <a href="{{ repo.commit_url }}" target="_blank" rel="noopener noreferrer"
+               class="mt-2 text-sm text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2">
+                {{ repo.commit_message or "(no commit message)" }}
+            </a>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {% if repo.commit_author %}{{ repo.commit_author }}{% endif %}
+                {% if repo.committed_at %}
+                <span class="mx-1">&middot;</span>{{ repo.committed_at.strftime('%b %d, %Y') }}
+                {% endif %}
+            </p>
+            {% else %}
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Latest activity unavailable right now.</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
