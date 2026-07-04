@@ -23,7 +23,7 @@ from learn_to_cloud_shared.repositories.submission_repository import (
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from learn_to_cloud_shared.schemas import (
     CommunityMember,
-    PhaseFunnelRow,
+    FunnelLevel,
     StatsPageData,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,14 +51,31 @@ async def get_stats_page_data(db: AsyncSession) -> StatsPageData:
         order for order, total in requirement_counts.items() if total > 0
     )
 
-    funnel = [
-        PhaseFunnelRow(
-            order=order,
-            name=phase_names.get(order, f"Phase {order}"),
-            count=len(completers_by_phase.get(order, set())),
+    total_accounts = await UserRepository(db).count()
+
+    # Build the funnel top-down: total accounts, then each phase, tracking
+    # both share of total (bar width) and conversion from the level above.
+    funnel: list[FunnelLevel] = [
+        FunnelLevel(
+            label="Total accounts",
+            count=total_accounts,
+            pct_of_total=100.0,
+            pct_of_previous=None,
+            is_total=True,
         )
-        for order in completable_orders
     ]
+    prev_count = total_accounts
+    for order in completable_orders:
+        count = len(completers_by_phase.get(order, set()))
+        funnel.append(
+            FunnelLevel(
+                label=f"Phase {order}: {phase_names.get(order, order)}",
+                count=count,
+                pct_of_total=(count / total_accounts * 100) if total_accounts else 0.0,
+                pct_of_previous=(count / prev_count * 100) if prev_count else None,
+            )
+        )
+        prev_count = count
 
     # Graduates completed every completable phase.
     graduate_ids: set[int] = set()
@@ -66,8 +83,6 @@ async def get_stats_page_data(db: AsyncSession) -> StatsPageData:
         graduate_ids = set.intersection(
             *(completers_by_phase.get(order, set()) for order in completable_orders)
         )
-
-    total_accounts = await UserRepository(db).count()
 
     users = await UserRepository(db).get_by_ids(graduate_ids)
     graduates = sorted(

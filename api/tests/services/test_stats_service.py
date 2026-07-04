@@ -99,11 +99,20 @@ class TestGetStatsPageData:
         assert "grad" in usernames
         assert "partial" not in usernames
 
-        # Funnel covers exactly the completable phases, first phase counts
-        # both users, and total accounts includes everyone.
-        assert [row.order for row in stats.funnel] == completable
-        first_row = next(r for r in stats.funnel if r.order == completable[0])
-        assert first_row.count >= 2
+        # Funnel starts with the total-accounts level, then covers exactly
+        # the completable phases; the first phase counts both users.
+        assert stats.funnel[0].is_total is True
+        assert stats.funnel[0].label == "Total accounts"
+        assert stats.funnel[0].pct_of_total == 100.0
+        phase_levels = stats.funnel[1:]
+        assert len(phase_levels) == len(completable)
+        assert all(
+            f"Phase {order}" in lvl.label
+            for order, lvl in zip(completable, phase_levels, strict=True)
+        )
+        first_phase_level = phase_levels[0]
+        assert first_phase_level.count >= 2
+        assert first_phase_level.pct_of_previous is not None
         assert stats.total_accounts >= 2
 
     async def test_no_graduates_when_no_full_completions(

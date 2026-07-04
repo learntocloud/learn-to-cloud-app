@@ -618,12 +618,19 @@ class CommunityMember(FrozenModel):
     avatar_url: str | None = None
 
 
-class PhaseFunnelRow(FrozenModel):
-    """One row of the /stats phase funnel: how many completed a phase."""
+class FunnelLevel(FrozenModel):
+    """One level of the /stats progress funnel.
 
-    order: int
-    name: str
+    ``pct_of_total`` is relative to total accounts (drives the funnel
+    width); ``pct_of_previous`` is the conversion from the level above
+    (``None`` for the top level).
+    """
+
+    label: str
     count: int
+    pct_of_total: float
+    pct_of_previous: float | None = None
+    is_total: bool = False
 
 
 class RepoUpdate(FrozenModel):
@@ -646,7 +653,7 @@ class StatsPageData(FrozenModel):
     """Complete /stats payload (service-layer response model)."""
 
     total_accounts: int
-    funnel: list[PhaseFunnelRow]
+    funnel: list[FunnelLevel]
     graduates: list[CommunityMember]
     repo_updates: list[RepoUpdate]
 

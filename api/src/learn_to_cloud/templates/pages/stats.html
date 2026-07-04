@@ -10,44 +10,51 @@
     </p>
 </div>
 
-{# ── Phase funnel ─────────────────────────────────────────────── #}
+{# ── Progress funnel ──────────────────────────────────────────── #}
 <section class="mb-12">
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">Progress funnel</h2>
     <p class="text-base text-gray-500 dark:text-gray-400 mb-6">
         How many learners have verified every project in each phase.
     </p>
 
-    {% set total = stats.total_accounts if stats.total_accounts > 0 else 1 %}
-    <div class="space-y-2">
-        {# Top of funnel: all accounts #}
-        <div>
-            <div class="relative h-11 rounded-lg bg-blue-600 flex items-center justify-center">
-                <span class="text-sm font-semibold text-white">Total accounts</span>
-                <span class="absolute right-3 text-sm font-semibold text-white tabular-nums">{{ stats.total_accounts }}</span>
-            </div>
-        </div>
+    <svg viewBox="0 0 100 {{ stats.funnel | length * 20 }}"
+         class="w-full max-w-xl mx-auto text-blue-500 block"
+         preserveAspectRatio="xMidYMid meet" role="img" aria-label="Progress funnel">
+        {% for level in stats.funnel %}
+        {% set i = loop.index0 %}
+        {% set top = level.pct_of_total %}
+        {% set nxt = stats.funnel[i + 1] %}
+        {% set bot = nxt.pct_of_total if nxt else level.pct_of_total %}
+        {% set y0 = i * 20 %}
+        {% set y1 = y0 + 18 %}
+        {% set fill_opacity = 1 - i * 0.09 %}
+        <polygon
+            points="{{ (50 - top / 2) | round(2) }},{{ y0 }} {{ (50 + top / 2) | round(2) }},{{ y0 }} {{ (50 + bot / 2) | round(2) }},{{ y1 }} {{ (50 - bot / 2) | round(2) }},{{ y1 }}"
+            fill="currentColor" style="opacity: {{ fill_opacity if fill_opacity > 0.35 else 0.35 }}"></polygon>
+        <text x="50" y="{{ y0 + 12 }}" text-anchor="middle" font-size="6" font-weight="700" fill="#ffffff">{{ level.count }}</text>
+        {% endfor %}
+    </svg>
 
-        {% for row in stats.funnel %}
-        {% set pct = (row.count / total * 100) %}
-        <div>
-            <div class="relative h-11 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex items-center justify-center">
-                {# Centered fill creates the tapering funnel shape #}
-                <div class="absolute inset-y-0 left-1/2 -translate-x-1/2 bg-blue-500/80 dark:bg-blue-500/60 rounded-lg"
-                     style="width: {{ pct | round(2) }}%"></div>
-                <span class="relative text-sm font-medium text-gray-800 dark:text-gray-100 px-3 truncate">
-                    <span class="text-gray-500 dark:text-gray-400 font-normal">Phase {{ row.order }}</span>
-                    {{ row.name }}
-                </span>
-                <span class="absolute right-3 text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
-                    {{ row.count }}
-                    <span class="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">{{ pct | round(1) }}%</span>
-                </span>
-            </div>
+    <div class="mt-6 space-y-1.5 max-w-xl mx-auto">
+        {% for level in stats.funnel %}
+        <div class="flex items-center justify-between gap-3 text-sm">
+            <span class="{{ 'font-semibold text-gray-900 dark:text-white' if level.is_total else 'font-medium text-gray-700 dark:text-gray-300' }} truncate">
+                {{ level.label }}
+            </span>
+            <span class="flex-shrink-0 tabular-nums text-gray-500 dark:text-gray-400">
+                <span class="font-semibold text-gray-900 dark:text-white">{{ level.count }}</span>
+                {% if not level.is_total %}
+                <span class="ml-1">&middot; {{ level.pct_of_total | round(1) }}% of total</span>
+                {% if level.pct_of_previous is not none %}
+                <span class="ml-1">&middot; {{ level.pct_of_previous | round(0) | int }}% from previous</span>
+                {% endif %}
+                {% endif %}
+            </span>
         </div>
         {% endfor %}
     </div>
-    <p class="mt-3 text-xs text-gray-400 dark:text-gray-500">
-        Percentages are relative to total accounts. Later phases require completing earlier ones, so the funnel narrows as learners advance.
+    <p class="mt-4 text-xs text-gray-400 dark:text-gray-500 text-center">
+        Later phases require completing earlier ones, so the funnel narrows as learners advance.
     </p>
 </section>
 

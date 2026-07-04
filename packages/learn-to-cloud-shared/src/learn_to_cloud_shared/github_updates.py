@@ -26,6 +26,7 @@ CURRICULUM_REPOS: tuple[tuple[str, str], ...] = (
     ("learntocloud", "learn-to-cloud-app"),
     ("learntocloud", "linux-ctfs"),
     ("learntocloud", "networking-lab"),
+    ("learntocloud", "journal-starter"),
 )
 
 # One shared entry keyed by "owner/repo"; ~10 min is fresh enough for a
