@@ -17,44 +17,41 @@
         How many learners have verified every project in each phase.
     </p>
 
-    <svg viewBox="0 0 100 {{ stats.funnel | length * 20 }}"
-         class="w-full max-w-xl mx-auto text-blue-500 block"
-         preserveAspectRatio="xMidYMid meet" role="img" aria-label="Progress funnel">
+    <div class="max-w-2xl mx-auto space-y-2" role="img" aria-label="Progress funnel">
         {% for level in stats.funnel %}
-        {% set i = loop.index0 %}
-        {% set top = level.pct_of_total %}
-        {% set nxt = stats.funnel[i + 1] %}
-        {% set bot = nxt.pct_of_total if nxt else level.pct_of_total %}
-        {% set y0 = i * 20 %}
-        {% set y1 = y0 + 18 %}
-        {% set fill_opacity = 1 - i * 0.09 %}
-        <polygon
-            points="{{ (50 - top / 2) | round(2) }},{{ y0 }} {{ (50 + top / 2) | round(2) }},{{ y0 }} {{ (50 + bot / 2) | round(2) }},{{ y1 }} {{ (50 - bot / 2) | round(2) }},{{ y1 }}"
-            fill="currentColor" style="opacity: {{ fill_opacity if fill_opacity > 0.35 else 0.35 }}"></polygon>
-        <text x="50" y="{{ y0 + 12 }}" text-anchor="middle" font-size="6" font-weight="700" fill="#ffffff">{{ level.count }}</text>
-        {% endfor %}
-    </svg>
+        <div class="flex items-center gap-3 sm:gap-4">
+            {# Label #}
+            <div class="w-28 sm:w-44 flex-shrink-0 text-right">
+                <p class="text-xs sm:text-sm leading-tight {{ 'font-semibold text-gray-900 dark:text-white' if level.is_total else 'font-medium text-gray-700 dark:text-gray-300' }}"
+                   title="{{ level.label }}">{{ level.label }}</p>
+            </div>
 
-    <div class="mt-6 space-y-1.5 max-w-xl mx-auto">
-        {% for level in stats.funnel %}
-        <div class="flex items-center justify-between gap-3 text-sm">
-            <span class="{{ 'font-semibold text-gray-900 dark:text-white' if level.is_total else 'font-medium text-gray-700 dark:text-gray-300' }} truncate">
-                {{ level.label }}
-            </span>
-            <span class="flex-shrink-0 tabular-nums text-gray-500 dark:text-gray-400">
-                <span class="font-semibold text-gray-900 dark:text-white">{{ level.count }}</span>
-                {% if not level.is_total %}
-                <span class="ml-1">&middot; {{ level.pct_of_total | round(1) }}% of total</span>
+            {# Centered tapering bar #}
+            <div class="flex-1 flex justify-center min-w-0">
+                <div class="flex items-center justify-center h-9 rounded-md px-2 text-sm font-semibold tabular-nums text-white shadow-sm
+                            {{ 'bg-blue-600 dark:bg-blue-500' if level.is_total else 'bg-blue-500 dark:bg-blue-500' }}"
+                     style="width: {{ level.pct_of_total | round(2) }}%; min-width: 3.25rem; {{ '' if level.is_total else 'opacity: %.2f;' | format(1 - loop.index0 * 0.06 if 1 - loop.index0 * 0.06 > 0.55 else 0.55) }}">
+                    {{ level.count }}
+                </div>
+            </div>
+
+            {# Percentages #}
+            <div class="w-20 sm:w-24 flex-shrink-0 text-left tabular-nums leading-tight">
+                {% if level.is_total %}
+                <p class="text-xs text-gray-400 dark:text-gray-500">accounts</p>
+                {% else %}
+                <p class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">{{ level.pct_of_total | round(1) }}%</p>
                 {% if level.pct_of_previous is not none %}
-                <span class="ml-1">&middot; {{ level.pct_of_previous | round(0) | int }}% from previous</span>
+                <p class="text-xs text-gray-400 dark:text-gray-500">{{ level.pct_of_previous | round(0) | int }}% of prev</p>
                 {% endif %}
                 {% endif %}
-            </span>
+            </div>
         </div>
         {% endfor %}
     </div>
-    <p class="mt-4 text-xs text-gray-400 dark:text-gray-500 text-center">
+    <p class="mt-5 text-xs text-gray-400 dark:text-gray-500 text-center">
         Later phases require completing earlier ones, so the funnel narrows as learners advance.
+        Percentages show share of total accounts and conversion from the previous phase.
     </p>
 </section>
 
