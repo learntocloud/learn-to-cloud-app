@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Stats - Learn to Cloud{% endblock %}
-{% block description %}Community stats for Learn to Cloud — how many learners have completed each phase, who they are, and the latest curriculum updates.{% endblock %}
+{% block description %}Community stats for Learn to Cloud — how many learners are progressing through each phase, who has finished the whole curriculum, and the latest updates.{% endblock %}
 
 {% block content %}
 <div class="mb-8">
@@ -12,70 +12,76 @@
 
 {# ── Phase funnel ─────────────────────────────────────────────── #}
 <section class="mb-12">
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Phase completion</h2>
-    <p class="text-base text-gray-500 dark:text-gray-400 mb-4">
-        Learners who have verified every project in a phase.
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">Progress funnel</h2>
+    <p class="text-base text-gray-500 dark:text-gray-400 mb-6">
+        How many learners have verified every project in each phase.
     </p>
 
-    {% set max_count = stats.total_accounts if stats.total_accounts > 0 else 1 %}
-    <div class="space-y-3">
-        <div class="flex items-center gap-3">
-            <div class="w-32 flex-shrink-0 text-sm font-medium text-gray-700 dark:text-gray-300">Total accounts</div>
-            <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-md h-8 relative overflow-hidden">
-                <div class="bg-blue-600 h-full rounded-md" style="width: 100%"></div>
+    {% set total = stats.total_accounts if stats.total_accounts > 0 else 1 %}
+    <div class="space-y-2">
+        {# Top of funnel: all accounts #}
+        <div>
+            <div class="relative h-11 rounded-lg bg-blue-600 flex items-center justify-center">
+                <span class="text-sm font-semibold text-white">Total accounts</span>
+                <span class="absolute right-3 text-sm font-semibold text-white tabular-nums">{{ stats.total_accounts }}</span>
             </div>
-            <div class="w-16 flex-shrink-0 text-right text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{{ stats.total_accounts }}</div>
         </div>
 
         {% for row in stats.funnel %}
-        <div class="flex items-center gap-3">
-            <div class="w-32 flex-shrink-0 text-sm font-medium text-gray-700 dark:text-gray-300">
-                <span class="text-gray-400 dark:text-gray-500 font-normal">Phase {{ row.order }}</span>
+        {% set pct = (row.count / total * 100) %}
+        <div>
+            <div class="relative h-11 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex items-center justify-center">
+                {# Centered fill creates the tapering funnel shape #}
+                <div class="absolute inset-y-0 left-1/2 -translate-x-1/2 bg-blue-500/80 dark:bg-blue-500/60 rounded-lg"
+                     style="width: {{ pct | round(2) }}%"></div>
+                <span class="relative text-sm font-medium text-gray-800 dark:text-gray-100 px-3 truncate">
+                    <span class="text-gray-500 dark:text-gray-400 font-normal">Phase {{ row.order }}</span>
+                    {{ row.name }}
+                </span>
+                <span class="absolute right-3 text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
+                    {{ row.count }}
+                    <span class="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">{{ pct | round(1) }}%</span>
+                </span>
             </div>
-            <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-md h-8 relative overflow-hidden">
-                <div class="bg-blue-500 h-full rounded-md" style="width: {{ (row.count / max_count * 100) | round(1) }}%"></div>
-                <span class="absolute inset-0 flex items-center px-3 text-xs text-gray-600 dark:text-gray-300 truncate">{{ row.name }}</span>
-            </div>
-            <div class="w-16 flex-shrink-0 text-right text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{{ row.count }}</div>
         </div>
         {% endfor %}
     </div>
+    <p class="mt-3 text-xs text-gray-400 dark:text-gray-500">
+        Percentages are relative to total accounts. Later phases require completing earlier ones, so the funnel narrows as learners advance.
+    </p>
 </section>
 
-{# ── Completers ───────────────────────────────────────────────── #}
+{# ── Curriculum graduates ─────────────────────────────────────── #}
 <section class="mb-12">
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Phase completers</h2>
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">
+        Curriculum graduates
+        <span class="ml-1 text-base font-normal text-gray-500 dark:text-gray-400">({{ stats.graduates | length }})</span>
+    </h2>
+    <p class="text-base text-gray-500 dark:text-gray-400 mb-4">
+        Learners who have verified every project across all phases.
+    </p>
 
-    <div class="space-y-6">
-        {% for phase in stats.completers %}
-        <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-3">
-                <span class="text-gray-400 dark:text-gray-500 font-normal">Phase {{ phase.order }}</span>
-                {{ phase.name }}
-                <span class="ml-1 text-sm font-normal text-gray-500 dark:text-gray-400">({{ phase.members | length }})</span>
-            </h3>
-            {% if phase.members %}
-            <ul class="flex flex-wrap gap-2">
-                {% for member in phase.members %}
-                <li>
-                    <a href="https://github.com/{{ member.github_username }}" target="_blank" rel="noopener noreferrer"
-                       class="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 py-1 pl-1 pr-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                        {% if member.avatar_url %}
-                        <img src="{{ member.avatar_url }}" alt="{{ member.github_username }}" class="h-6 w-6 rounded-full" loading="lazy">
-                        {% else %}
-                        <span class="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-700 inline-flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">{{ member.github_username[0] | upper }}</span>
-                        {% endif %}
-                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ member.github_username }}</span>
-                    </a>
-                </li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <p class="text-sm text-gray-500 dark:text-gray-400">No one has completed this phase yet. Be the first!</p>
-            {% endif %}
-        </div>
+    {% if stats.graduates %}
+    <ul class="flex flex-wrap gap-2">
+        {% for member in stats.graduates %}
+        <li>
+            <a href="https://github.com/{{ member.github_username }}" target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 py-1 pl-1 pr-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                {% if member.avatar_url %}
+                <img src="{{ member.avatar_url }}" alt="{{ member.github_username }}" class="h-6 w-6 rounded-full" loading="lazy">
+                {% else %}
+                <span class="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-700 inline-flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">{{ member.github_username[0] | upper }}</span>
+                {% endif %}
+                <span class="text-sm text-gray-700 dark:text-gray-300">{{ member.github_username }}</span>
+            </a>
+        </li>
         {% endfor %}
+    </ul>
+    {% else %}
+    <div class="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-6 text-center">
+        <p class="text-sm text-gray-500 dark:text-gray-400">No one has finished the entire curriculum yet. Be the first!</p>
     </div>
+    {% endif %}
 </section>
 
 {# ── Latest curriculum updates ────────────────────────────────── #}

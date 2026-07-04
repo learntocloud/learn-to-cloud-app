@@ -1,9 +1,13 @@
 """Stats service — assembles the public /stats page payload.
 
-The phase funnel and completer lists come from a single completion
+The phase funnel and the graduate list come from a single completion
 aggregate (``SubmissionRepository.list_phase_completions``) plus a total
-account count and one batched user load. The latest-commit panel is
-fetched (and cached) separately via the shared GitHub helper.
+account count and one batched user load. Because phase submissions are
+gated on the previous phase, completions are nested (completers of phase
+N are a subset of phase N-1), so the funnel is monotone and "graduates"
+are simply the learners who appear in every completable phase. The
+latest-commit panel is fetched (and cached) separately via the shared
+GitHub helper.
 """
 
 import logging
@@ -19,7 +23,6 @@ from learn_to_cloud_shared.repositories.submission_repository import (
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from learn_to_cloud_shared.schemas import (
     CommunityMember,
-    PhaseCompleters,
     PhaseFunnelRow,
     StatsPageData,
 )
@@ -38,55 +41,51 @@ async def get_stats_page_data(db: AsyncSession) -> StatsPageData:
         requirement_counts
     )
 
-    # Group (phase_order, user_id) rows into per-phase completer id lists.
-    completer_ids_by_phase: dict[int, list[int]] = {}
+    # Group completions into a per-phase set of completer ids.
+    completers_by_phase: dict[int, set[int]] = {}
     for order, user_id in completions:
-        completer_ids_by_phase.setdefault(order, []).append(user_id)
+        completers_by_phase.setdefault(order, set()).add(user_id)
 
-    total_accounts = await UserRepository(db).count()
+    # Only phases with at least one requirement are "completable".
+    completable_orders = sorted(
+        order for order, total in requirement_counts.items() if total > 0
+    )
 
-    # One batched load resolves every completer across all phases.
-    all_ids = {uid for ids in completer_ids_by_phase.values() for uid in ids}
-    users = await UserRepository(db).get_by_ids(all_ids)
-    member_by_id = {
-        user.id: CommunityMember(
-            github_username=user.github_username,
-            avatar_url=user.avatar_url,
-        )
-        for user in users
-    }
-
-    ordered_phases = sorted(phase_names)
     funnel = [
         PhaseFunnelRow(
             order=order,
-            name=phase_names[order],
-            count=len(completer_ids_by_phase.get(order, [])),
+            name=phase_names.get(order, f"Phase {order}"),
+            count=len(completers_by_phase.get(order, set())),
         )
-        for order in ordered_phases
+        for order in completable_orders
     ]
 
-    completers = [
-        PhaseCompleters(
-            order=order,
-            name=phase_names[order],
-            members=sorted(
-                (
-                    member_by_id[uid]
-                    for uid in completer_ids_by_phase.get(order, [])
-                    if uid in member_by_id
-                ),
-                key=lambda m: m.github_username.lower(),
-            ),
+    # Graduates completed every completable phase.
+    graduate_ids: set[int] = set()
+    if completable_orders:
+        graduate_ids = set.intersection(
+            *(completers_by_phase.get(order, set()) for order in completable_orders)
         )
-        for order in ordered_phases
-    ]
+
+    total_accounts = await UserRepository(db).count()
+
+    users = await UserRepository(db).get_by_ids(graduate_ids)
+    graduates = sorted(
+        (
+            CommunityMember(
+                github_username=user.github_username,
+                avatar_url=user.avatar_url,
+            )
+            for user in users
+        ),
+        key=lambda m: m.github_username.lower(),
+    )
 
     repo_updates = await get_latest_curriculum_commits()
 
     return StatsPageData(
         total_accounts=total_accounts,
         funnel=funnel,
-        completers=completers,
+        graduates=graduates,
         repo_updates=repo_updates,
     )

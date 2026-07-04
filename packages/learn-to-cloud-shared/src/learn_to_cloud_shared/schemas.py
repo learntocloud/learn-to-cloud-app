@@ -626,14 +626,6 @@ class PhaseFunnelRow(FrozenModel):
     count: int
 
 
-class PhaseCompleters(FrozenModel):
-    """Members who fully completed a phase, for the /stats completer list."""
-
-    order: int
-    name: str
-    members: list[CommunityMember]
-
-
 class RepoUpdate(FrozenModel):
     """Latest commit for a curriculum repo (service-layer response model).
 
@@ -655,7 +647,7 @@ class StatsPageData(FrozenModel):
 
     total_accounts: int
     funnel: list[PhaseFunnelRow]
-    completers: list[PhaseCompleters]
+    graduates: list[CommunityMember]
     repo_updates: list[RepoUpdate]
 
 
