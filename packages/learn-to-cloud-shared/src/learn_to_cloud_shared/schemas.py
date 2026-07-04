@@ -611,6 +611,54 @@ class DashboardData(FrozenModel):
     continue_phase: ContinuePhaseData | None = None
 
 
+class CommunityMember(FrozenModel):
+    """A learner shown publicly on the /stats page."""
+
+    github_username: str
+    avatar_url: str | None = None
+
+
+class PhaseFunnelRow(FrozenModel):
+    """One row of the /stats phase funnel: how many completed a phase."""
+
+    order: int
+    name: str
+    count: int
+
+
+class PhaseCompleters(FrozenModel):
+    """Members who fully completed a phase, for the /stats completer list."""
+
+    order: int
+    name: str
+    members: list[CommunityMember]
+
+
+class RepoUpdate(FrozenModel):
+    """Latest commit for a curriculum repo (service-layer response model).
+
+    ``available`` is False when the GitHub lookup failed (rate limit,
+    network error); the page still renders the repo with a fallback.
+    """
+
+    name: str
+    url: str
+    available: bool = True
+    commit_message: str | None = None
+    commit_author: str | None = None
+    commit_url: str | None = None
+    committed_at: datetime | None = None
+
+
+class StatsPageData(FrozenModel):
+    """Complete /stats payload (service-layer response model)."""
+
+    total_accounts: int
+    funnel: list[PhaseFunnelRow]
+    completers: list[PhaseCompleters]
+    repo_updates: list[RepoUpdate]
+
+
 class PhaseProgress(FrozenModel):
     """User's progress for a single phase.
 

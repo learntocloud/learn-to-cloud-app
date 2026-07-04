@@ -386,6 +386,31 @@ async def load_requirements_by_phase_order_from_db(
     return dict(by_phase_order)
 
 
+async def load_requirement_counts_by_phase_from_db(
+    db: AsyncSession,
+) -> dict[int, int]:
+    """Count active requirements per phase via one aggregate query.
+
+    Requirement-side mirror of ``load_required_step_counts_by_phase_from_db``.
+    Backs hands-on totals (``hands_on_required``) and the ``/stats``
+    phase-completion check without assembling the requirement tree.
+    """
+    result = await db.execute(
+        select(CurriculumPhase.order, func.count(CurriculumRequirement.uuid))
+        .select_from(CurriculumRequirement)
+        .join(
+            CurriculumPhase,
+            CurriculumRequirement.phase_uuid == CurriculumPhase.uuid,
+        )
+        .where(
+            CurriculumRequirement.deleted_at.is_(None),
+            CurriculumPhase.deleted_at.is_(None),
+        )
+        .group_by(CurriculumPhase.order)
+    )
+    return {order: count for order, count in result.all()}
+
+
 async def load_required_step_counts_by_phase_from_db(
     db: AsyncSession,
 ) -> dict[int, int]:

@@ -209,3 +209,59 @@ class SubmissionRepository:
             .group_by(CurriculumPhase.order)
         )
         return {order: count for order, count in result.all()}
+
+    async def list_phase_completions(
+        self, requirement_counts_by_phase: dict[int, int]
+    ) -> list[tuple[int, int]]:
+        """List ``(phase_order, user_id)`` for fully-completed phases.
+
+        A phase is "completed" by a user when they have a validated
+        submission for every active requirement in that phase. The
+        ``requirement_counts_by_phase`` map (active requirement totals per
+        phase order, from ``get_requirement_counts_by_phase``) supplies the
+        completion threshold; phases absent from that map or with a
+        non-positive total are treated as not completable and excluded.
+
+        Single aggregate over ``submissions -> requirements -> phases``:
+        groups by phase + user and keeps only groups whose distinct
+        validated requirement count matches the phase total. Drives both
+        the ``/stats`` phase funnel counts and the completer lists.
+        """
+        completable = {
+            order: total
+            for order, total in requirement_counts_by_phase.items()
+            if total > 0
+        }
+        if not completable:
+            return []
+
+        result = await self.db.execute(
+            select(
+                CurriculumPhase.order,
+                Submission.user_id,
+                func.count(func.distinct(Submission.requirement_uuid)).label(
+                    "validated"
+                ),
+            )
+            .select_from(Submission)
+            .join(
+                CurriculumRequirement,
+                Submission.requirement_uuid == CurriculumRequirement.uuid,
+            )
+            .join(
+                CurriculumPhase,
+                CurriculumRequirement.phase_uuid == CurriculumPhase.uuid,
+            )
+            .where(
+                Submission.is_validated.is_(True),
+                CurriculumRequirement.deleted_at.is_(None),
+                CurriculumPhase.deleted_at.is_(None),
+                CurriculumPhase.order.in_(completable.keys()),
+            )
+            .group_by(CurriculumPhase.order, Submission.user_id)
+        )
+        return [
+            (order, user_id)
+            for order, user_id, validated in result.all()
+            if validated >= completable[order]
+        ]

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Stats - Learn to Cloud{% endblock %}
+{% block description %}Community stats for Learn to Cloud — how many learners have completed each phase, who they are, and the latest curriculum updates.{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Community stats</h1>
+    <p class="text-gray-600 dark:text-gray-400 mt-2">
+        How the community is progressing through the curriculum, and what's new.
+    </p>
+</div>
+
+{# ── Phase funnel ─────────────────────────────────────────────── #}
+<section class="mb-12">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Phase completion</h2>
+    <p class="text-base text-gray-500 dark:text-gray-400 mb-4">
+        Learners who have verified every project in a phase.
+    </p>
+
+    {% set max_count = stats.total_accounts if stats.total_accounts > 0 else 1 %}
+    <div class="space-y-3">
+        <div class="flex items-center gap-3">
+            <div class="w-32 flex-shrink-0 text-sm font-medium text-gray-700 dark:text-gray-300">Total accounts</div>
+            <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-md h-8 relative overflow-hidden">
+                <div class="bg-blue-600 h-full rounded-md" style="width: 100%"></div>
+            </div>
+            <div class="w-16 flex-shrink-0 text-right text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{{ stats.total_accounts }}</div>
+        </div>
+
+        {% for row in stats.funnel %}
+        <div class="flex items-center gap-3">
+            <div class="w-32 flex-shrink-0 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span class="text-gray-400 dark:text-gray-500 font-normal">Phase {{ row.order }}</span>
+            </div>
+            <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-md h-8 relative overflow-hidden">
+                <div class="bg-blue-500 h-full rounded-md" style="width: {{ (row.count / max_count * 100) | round(1) }}%"></div>
+                <span class="absolute inset-0 flex items-center px-3 text-xs text-gray-600 dark:text-gray-300 truncate">{{ row.name }}</span>
+            </div>
+            <div class="w-16 flex-shrink-0 text-right text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{{ row.count }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+{# ── Completers ───────────────────────────────────────────────── #}
+<section class="mb-12">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Phase completers</h2>
+
+    <div class="space-y-6">
+        {% for phase in stats.completers %}
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-3">
+                <span class="text-gray-400 dark:text-gray-500 font-normal">Phase {{ phase.order }}</span>
+                {{ phase.name }}
+                <span class="ml-1 text-sm font-normal text-gray-500 dark:text-gray-400">({{ phase.members | length }})</span>
+            </h3>
+            {% if phase.members %}
+            <ul class="flex flex-wrap gap-2">
+                {% for member in phase.members %}
+                <li>
+                    <a href="https://github.com/{{ member.github_username }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 py-1 pl-1 pr-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                        {% if member.avatar_url %}
+                        <img src="{{ member.avatar_url }}" alt="{{ member.github_username }}" class="h-6 w-6 rounded-full" loading="lazy">
+                        {% else %}
+                        <span class="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-700 inline-flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">{{ member.github_username[0] | upper }}</span>
+                        {% endif %}
+                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ member.github_username }}</span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-gray-500 dark:text-gray-400">No one has completed this phase yet. Be the first!</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+{# ── Latest curriculum updates ────────────────────────────────── #}
+<section class="mb-8">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Latest curriculum updates</h2>
+
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {% for repo in stats.repo_updates %}
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-col">
+            <a href="{{ repo.url }}" target="_blank" rel="noopener noreferrer"
+               class="text-base font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                {{ repo.name }}
+            </a>
+            {% if repo.available %}
+            <a href="{{ repo.commit_url }}" target="_blank" rel="noopener noreferrer"
+               class="mt-2 text-sm text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2">
+                {{ repo.commit_message or "(no commit message)" }}
+            </a>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {% if repo.commit_author %}{{ repo.commit_author }}{% endif %}
+                {% if repo.committed_at %}
+                <span class="mx-1">&middot;</span>{{ repo.committed_at.strftime('%b %d, %Y') }}
+                {% endif %}
+            </p>
+            {% else %}
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Latest activity unavailable right now.</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
