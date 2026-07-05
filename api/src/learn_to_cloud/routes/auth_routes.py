@@ -78,14 +78,18 @@ async def callback(request: Request) -> RedirectResponse:
     try:
         t0 = time.perf_counter()
         token = await github.authorize_access_token(request)
-    except (OAuthError, httpx.HTTPStatusError, httpx.ReadTimeout):
+    except (OAuthError, httpx.HTTPError):
         logger.exception("auth.callback.token_exchange_failed")
         return RedirectResponse(url="/", status_code=302)
 
     t1 = time.perf_counter()
-    resp = await github.get("user", token=token)
+    try:
+        resp = await github.get("user", token=token)
+        github_user = resp.json()
+    except httpx.HTTPError:
+        logger.exception("auth.callback.profile_fetch_failed")
+        return RedirectResponse(url="/", status_code=302)
     t2 = time.perf_counter()
-    github_user = resp.json()
 
     github_id = github_user.get("id")
     if github_id is None:
