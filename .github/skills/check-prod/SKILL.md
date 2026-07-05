@@ -21,7 +21,7 @@ Before starting, verify Azure CLI authentication:
 
 Evaluated top-down, first match wins:
 
-**🔴 Critical**: ANY of: readiness probe non-200, any 5xx in 24h, DB CPU > 80% sustained, DB CPU credits < 10, fired Sev0/Sev1 alerts in 24h, `ContainerCrashing` on current revision, any `init.failed` logs in 24h, GitHub API failures > 20 in 24h
+**🔴 Critical**: ANY of: readiness probe non-200, any 5xx in 24h, DB CPU > 80% sustained, DB CPU credits < 10, fired Sev1 alerts in 24h, `ContainerCrashing` on current revision, any `init.failed` logs in 24h, GitHub API failures > 20 in 24h
 
 **⚠️ Warning**: ANY of: P95 latency > 500ms, DB CPU 50–80% peak or Memory 70–85% or Storage 70–85% or CPU credits 10–30, any failed availability tests in 24h, non-zero unhandled exceptions in 7d, active connections > 30 (B1ms max 50), `ReplicaUnhealthy` without matching scale events, error rate spike (single day > 2× weekly average) or rising trend (3+ consecutive days increasing), Container App CPU > 80% or Memory > 80%, ERROR-level AppTraces > 10 in 24h, auth failure rate > 50% in 24h
 
@@ -209,28 +209,33 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "ContainerAppSyste
 az monitor log-analytics query -w $LOG_NAME --analytics-query "AzureActivity | where TimeGenerated > ago(24h) | where OperationNameValue has 'microsoft.insights/metricalerts' or OperationNameValue has 'microsoft.insights/scheduledqueryrules' | where ActivityStatusValue == 'Activated' | extend AlertName=tostring(split(ResourceId, '/')[-1]) | project TimeGenerated, AlertName, ResourceId, Properties | order by TimeGenerated desc" -o json
 ```
 
-Known alert names from Terraform (match against `AlertName`):
-- **Sev0**: `alert-ltc-availability-*` (app unreachable)
-- **Sev1**: `alert-ltc-api-5xx-*`, `alert-ltc-api-restarts-*`, `alert-ltc-db-connections-*`, `alert-ltc-db-credits-*`, `alert-ltc-init-failed-*`
-- **Sev2**: `alert-ltc-api-cpu-*`, `alert-ltc-api-memory-*`, `alert-ltc-api-latency-*`, `alert-ltc-api-4xx-*`, `alert-ltc-db-storage-*`, `alert-ltc-db-cpu-*`
+Known alert names from Terraform `infra/monitoring.tf` (match against `AlertName`):
+- **Sev1**: `alert-ltc-api-5xx-*`, `alert-ltc-verification-functions-5xx-*`, `alert-ltc-verification-functions-exceptions-*`, `alert-ltc-api-verification-config-error-*`
+- **Sev2**: `alert-ltc-api-verification-submit-5xx-leak-*`, `alert-ltc-verification-durable-errors-*`, `alert-ltc-verification-attempt-failure-rate-*`, `alert-ltc-schema-drift-*`
 
-**Verdict**: 🔴 if any Sev0/Sev1 alert names appear. ⚠️ if Sev2 alerts fired.
+**Verdict**: 🔴 if any Sev1 alert names appear. ⚠️ if Sev2 alerts fired.
 
 ### Step 12: Business Metrics (24h)
 
-Custom OTel counters for key domain events.
+Two real signals: the `verification.attempt` OTel **counter** (backs `alert-ltc-verification-attempt-failure-rate`), and auth activity, which is only emitted as structured **logs**, not metrics.
+
+**Query A: verification attempts** (real OTel counter, attributes `submission_type` + `result`):
 
 ```bash
-az monitor log-analytics query -w $LOG_NAME --analytics-query "AppMetrics | where TimeGenerated > ago(24h) and Name in ('auth.login', 'submission.cooldown_active', 'user.deletion', 'step.completed', 'verification.attempt') | summarize Total=sum(Sum) by Name | order by Name asc" -o json
+az monitor log-analytics query -w $LOG_NAME --analytics-query "AppMetrics | where TimeGenerated > ago(24h) and Name == 'verification.attempt' | extend result = tostring(Properties['result']) | summarize Total=sum(Sum) by result | order by result asc" -o json
 ```
 
-Also check auth success/failure ratio:
+`result` is `pass`, `fail`, or `error`.
+
+**Query B: auth activity** (log events, not metrics, over `AppTraces`):
 
 ```bash
-az monitor log-analytics query -w $LOG_NAME --analytics-query "AppMetrics | where TimeGenerated > ago(24h) and Name == 'auth.login' | extend result = tostring(Properties['result']) | summarize Total=sum(Sum) by result" -o json
+az monitor log-analytics query -w $LOG_NAME --analytics-query "AppTraces | where TimeGenerated > ago(24h) and Message in ('auth.login.success', 'auth.callback.token_exchange_failed') | summarize Count=count() by Message" -o json
 ```
 
-**Verdict**: ⚠️ if auth failure rate > 50% (possible GitHub OAuth outage). Include totals in report for situational awareness.
+`auth.login.success` = successful logins; `auth.callback.token_exchange_failed` = OAuth token-exchange failures.
+
+**Verdict**: ⚠️ if auth failure rate > 50% (failed / (success + failed), possible GitHub OAuth outage). A metric returning no rows is not itself a warning, only act on the ratio when there is login activity. Include totals in the report for situational awareness.
 
 ### Step 13: Console Log Errors (24h)
 
@@ -271,7 +276,7 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "ContainerAppConso
 | 9 | Container App | ✅/⚠️/🔴 | CPU {X}nc, Mem {X}B |
 | 10 | Container Stability | ✅/⚠️ | Rev: {rev}, {events} |
 | 11 | Fired Alerts | ✅/🔴 | {N} in 24h, names: {list} |
-| 12 | Business Metrics | ✅/⚠️ | Logins: {N}✓/{N}✗, Steps: {N}, Verifications: {N}, Deletions: {N} |
+| 12 | Business Metrics | ✅/⚠️ | Logins: {N}✓/{N}✗, Verifications: {N}✓/{N}✗/{N}err |
 | 13 | Console Errors | ✅/⚠️/🔴 | {N} crashes, {N} tracebacks in 24h |
 
 ### ⚠️ Items to Watch
