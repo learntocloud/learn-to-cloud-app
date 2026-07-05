@@ -9,7 +9,7 @@ All schemas use frozen=True for immutability where appropriate.
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Literal, get_args
 from uuid import UUID
 
 from pydantic import (
@@ -377,6 +377,23 @@ HandsOnRequirement = Annotated[
 # rehydrating requirements from JSON/dict payloads (e.g., durable
 # verification jobs).
 HandsOnRequirementAdapter = TypeAdapter(HandsOnRequirement)
+
+
+# The submission types this code version can render, derived from the
+# discriminated union's members so it can never drift from the union. Used by
+# the content loader as a tolerant reader: during a rolling deploy the DB may
+# already hold a newer submission_type this revision doesn't know, and those
+# rows must be ignored rather than 500 the whole page.
+def _known_submission_types() -> frozenset[str]:
+    union = get_args(HandsOnRequirement)[0]
+    tags: set[str] = set()
+    for member in get_args(union):
+        literal = get_args(member.model_fields["submission_type"].annotation)[0]
+        tags.add(literal.value if isinstance(literal, SubmissionType) else str(literal))
+    return frozenset(tags)
+
+
+KNOWN_HANDS_ON_SUBMISSION_TYPES: frozenset[str] = _known_submission_types()
 
 
 class HealthResponse(BaseModel):
