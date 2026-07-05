@@ -20,6 +20,12 @@ from learn_to_cloud_shared.verification.tasks.phase3 import (
     PHASE3_FINAL_REQUIREMENT_SLUG,
     PHASE3_LLM_TASKS,
 )
+from learn_to_cloud_shared.verification.tasks.phase4 import (
+    DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
+    PHASE4_LLM_TASKS,
+    PHASE4_REQUIREMENT_SLUG,
+    PHASE4_TASKS,
+)
 from learn_to_cloud_shared.verification.tasks.phase5 import (
     PHASE5_REQUIREMENT_SLUG,
     PHASE5_TASKS,
@@ -51,6 +57,10 @@ __all__ = [
     "JOURNAL_API_FINAL_RUBRIC_TASK",
     "PHASE3_FINAL_REQUIREMENT_SLUG",
     "PHASE3_LLM_TASKS",
+    "DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK",
+    "PHASE4_REQUIREMENT_SLUG",
+    "PHASE4_LLM_TASKS",
+    "PHASE4_TASKS",
     "PHASE5_REQUIREMENT_SLUG",
     "PHASE5_TASKS",
     "PHASE6_REQUIREMENT_SLUG",

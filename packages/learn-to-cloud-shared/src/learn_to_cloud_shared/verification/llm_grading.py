@@ -11,6 +11,9 @@ from learn_to_cloud_shared.schemas import (
 from learn_to_cloud_shared.verification.career_reflection import (
     collect_career_reflection_evidence,
 )
+from learn_to_cloud_shared.verification.deployment_architecture import (
+    collect_deployment_architecture_evidence,
+)
 from learn_to_cloud_shared.verification.journal_api import (
     collect_journal_api_implementation_evidence,
 )
@@ -20,6 +23,8 @@ from learn_to_cloud_shared.verification.security_scanning import (
 )
 from learn_to_cloud_shared.verification.tasks import (
     PHASE3_LLM_TASKS,
+    PHASE4_LLM_TASKS,
+    PHASE4_REQUIREMENT_SLUG,
     PHASE6_LLM_TASKS,
     PHASE7_LLM_TASKS,
     PHASE7_REQUIREMENT_SLUG,
@@ -27,6 +32,9 @@ from learn_to_cloud_shared.verification.tasks import (
     LLMGradingDecision,
     VerificationTask,
     require_llm_rubric_grader,
+)
+from learn_to_cloud_shared.verification.url_derivation import (
+    repository_ref_from_required_repo,
 )
 from learn_to_cloud_shared.verification_job_executor import (
     VerificationRunResult,
@@ -64,6 +72,9 @@ async def collect_llm_grading_requests(
         return _collect_phase7_requests(run_result, tasks)
 
     repo_files = repo_files or default_repo_files()
+
+    if run_result.job.requirement.slug == PHASE4_REQUIREMENT_SLUG:
+        return await _collect_phase4_requests(run_result, tasks, repo_files)
 
     if run_result.job.requirement.slug == "security-scanning":
         return await _collect_phase6_requests(run_result, tasks, repo_files)
@@ -241,6 +252,56 @@ async def _collect_phase3_requests(
     return requests
 
 
+async def _collect_phase4_requests(
+    run_result: VerificationRunResult,
+    tasks: list[VerificationTask],
+    repo_files: RepoFiles,
+) -> list[LLMGradingRequest]:
+    if not run_result.validation_result.is_valid:
+        return []
+
+    requirement = run_result.job.requirement
+    github_username = run_result.job.github_username
+    if not github_username or not requirement.required_repo:
+        return []
+
+    try:
+        repo = repository_ref_from_required_repo(
+            github_username, requirement.required_repo
+        )
+    except ValueError:
+        return []
+
+    description = run_result.job.typed_submitted_value.as_text
+    deploy_script_path = getattr(
+        requirement.type_config, "deploy_script_path", "deploy.sh"
+    )
+    requests: list[LLMGradingRequest] = []
+    for task in tasks:
+        evidence = await collect_deployment_architecture_evidence(
+            repo.owner,
+            repo.repo,
+            description,
+            task,
+            deploy_script_path=deploy_script_path,
+            repo_files=repo_files,
+        )
+        requests.append(
+            LLMGradingRequest(
+                task=task,
+                message=_build_grading_message(
+                    run_result=run_result,
+                    task=task,
+                    owner=repo.owner,
+                    repo=repo.repo,
+                    evidence=evidence.model_dump(mode="json"),
+                ),
+                thread_id=f"{run_result.job.id}-{task.id}",
+            )
+        )
+    return requests
+
+
 def _collect_phase7_requests(
     run_result: VerificationRunResult,
     tasks: list[VerificationTask],
@@ -364,4 +425,6 @@ def _llm_tasks_for_requirement(
         return PHASE3_LLM_TASKS
     if requirement.slug == PHASE7_REQUIREMENT_SLUG:
         return PHASE7_LLM_TASKS
+    if requirement.slug == PHASE4_REQUIREMENT_SLUG:
+        return PHASE4_LLM_TASKS
     return []

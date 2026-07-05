@@ -127,8 +127,41 @@ learning_steps:
   done_when: The verifier shows "Deployed API verified!"
   slug: phase4-topic9-practice-verify-and-submit-your
 
-- uuid: 6dd5149a-494d-4f19-a401-fe7a1a71c75c
+- uuid: 8560edaf-a754-485a-93bc-42b20d6b18f6
   order: 8
+  action: 'Practice:'
+  title: Capture your deployment as an idempotent deploy.sh
+  description: Write a `deploy.sh` at the **root** of your journal-starter fork that provisions your deployment end to end. Idempotent means running it again on a clean environment reproduces the same architecture without manual steps.
+  checklist:
+  - "**Network** — create your virtual network, public subnet, and private subnet with their CIDR ranges"
+  - "**Firewall rules** — recreate the inbound and outbound rules for each subnet, keeping the database private"
+  - "**Compute** — provision the API VM (public) and database VM (private) and install their dependencies"
+  - "**App and database** — install and start the Journal API, install PostgreSQL, create the database, and run your schema"
+  - "**Idempotency** — guard steps so re-running does not error on resources that already exist (check-before-create, or `|| true` where appropriate)"
+  tips:
+  - type: tip
+    text: Your deploy.sh does not need to run untouched on every cloud; it should honestly document what you built. The reviewer compares it against your written description, so keep them consistent.
+  done_when: A `deploy.sh` exists at your repository root and reflects the architecture you deployed.
+  slug: phase4-topic9-practice-capture-your-deployment-as-deploy-sh
+
+- uuid: db9a4aa7-4a04-42c5-a661-c54b091ed157
+  order: 9
+  action: 'Reflect:'
+  title: Describe and submit your architecture
+  description: In the app, write a description of the architecture your `deploy.sh` provisions, then submit it. An automated reviewer reads both your `deploy.sh` and your description and checks that they align and that your design is a secure two-tier deployment.
+  checklist:
+  - Explain your network layout, including public and private subnets and their CIDR ranges
+  - Describe how the API and database VMs are placed and how the database stays private
+  - Walk through the traffic flow from the internet to the API and down to the database
+  - Make sure everything you claim is actually done by your `deploy.sh`
+  tips:
+  - type: warning
+    text: The reviewer fails the check if your description claims resources or controls that your `deploy.sh` does not create. Describe what you built, not the ideal design.
+  done_when: The reviewer confirms your description aligns with your deploy.sh.
+  slug: phase4-topic9-reflect-describe-and-submit-your-architecture
+
+- uuid: 6dd5149a-494d-4f19-a401-fe7a1a71c75c
+  order: 10
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Delete all cloud resources you provisioned. Check your cloud console to confirm nothing is still running or incurring charges.
@@ -143,7 +176,7 @@ learning_steps:
   slug: phase4-topic9-practice-clean-up-your-cloud
 
 - uuid: ab084238-bf88-487e-9aa9-45c257463179
-  order: 9
+  order: 11
   action: 'Reflect:'
   title: Share your progress
   description: Push your work to GitHub and write a brief technical writeup covering your architecture decisions, what networking and security controls you implemented, and what you'd do differently. Share it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.

@@ -310,6 +310,15 @@ class TestOrchestratorNameMapping:
             == "verify_phase7_career_orchestrator"
         )
 
+    def test_deployment_architecture_maps_to_phase4_architecture_orchestrator(
+        self,
+    ) -> None:
+        names = function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE
+        assert (
+            names[SubmissionType.DEPLOYMENT_ARCHITECTURE]
+            == "verify_phase4_architecture_orchestrator"
+        )
+
     def test_every_mapped_name_is_registered(self) -> None:
         """Guards against pointing the resolver at a non-existent orchestrator."""
         for name in function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE.values():

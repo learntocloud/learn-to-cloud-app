@@ -18,3 +18,4 @@ topics:
 hands_on_verification:
   requirements:
   - deployed-journal-api
+  - deployment-architecture

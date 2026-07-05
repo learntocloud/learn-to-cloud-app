@@ -32,6 +32,7 @@ _EXPECTED_BACKGROUND = {
     SubmissionType.DEPLOYED_API,
     SubmissionType.SECURITY_SCANNING,
     SubmissionType.CAREER_REFLECTION,
+    SubmissionType.DEPLOYMENT_ARCHITECTURE,
 }
 
 # Server-derived GitHub repo URL types (owner/repo parsed from the value).
@@ -109,6 +110,17 @@ def test_deployed_api_does_not_require_username():
     descriptor = descriptor_for(SubmissionType.DEPLOYED_API)
     assert descriptor is not None
     assert descriptor.requires_username is False
+
+
+def test_deployment_architecture_is_background_repo_derived_needs_username():
+    descriptor = descriptor_for(SubmissionType.DEPLOYMENT_ARCHITECTURE)
+    assert descriptor is not None
+    assert descriptor.execution_mode is ExecutionMode.BACKGROUND
+    assert descriptor.requires_username is True
+    # The submitted value is free text, not a repo URL, so it is not
+    # repo-backed even though the validator derives a repo from required_repo.
+    assert descriptor.repo_backed is False
+    assert is_repo_backed(SubmissionType.DEPLOYMENT_ARCHITECTURE) is False
 
 
 def test_registry_covers_every_active_submission_type_exactly_once():

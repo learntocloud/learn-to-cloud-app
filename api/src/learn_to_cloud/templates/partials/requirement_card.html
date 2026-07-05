@@ -36,13 +36,14 @@
     </div>
     {% elif not submission or not submission.is_validated %}
     {% set is_reflection = requirement.submission_type == 'career_reflection' %}
+    {% set is_architecture = requirement.submission_type == 'deployment_architecture' %}
     <form
         hx-post="/htmx/github/submit"
         hx-target="#requirement-{{ requirement.slug }}"
         hx-swap="outerHTML"
         hx-indicator="#spinner-{{ requirement.slug }}"
         hx-disabled-elt="find button[type='submit']"
-        class="{% if is_reflection %}flex flex-col gap-4{% else %}flex gap-2{% endif %}"
+        class="{% if is_reflection or is_architecture %}flex flex-col gap-4{% else %}flex gap-2{% endif %}"
     >
         <input type="hidden" name="requirement_slug" value="{{ requirement.slug }}">
 
@@ -66,6 +67,26 @@
             ></textarea>
         </div>
         {% endfor %}
+        {% elif is_architecture %}
+        {# Deployment architecture — one long-text field describing the learner's
+           deploy.sh. Posts as ``architecture_description`` (not the 2048-capped
+           ``submitted_value``) and is graded against the fetched deploy.sh by
+           the LLM rubric. #}
+        <div class="flex flex-col gap-1">
+            <label for="architecture-{{ requirement.slug }}" class="text-sm font-medium text-gray-800 dark:text-gray-200">
+                {{ requirement.type_config.prompt }}
+            </label>
+            <textarea
+                id="architecture-{{ requirement.slug }}"
+                name="architecture_description"
+                rows="8"
+                minlength="{{ requirement.type_config.min_answer_length }}"
+                maxlength="20000"
+                placeholder="Write at least {{ requirement.type_config.min_answer_length }} characters."
+                class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                required
+            ></textarea>
+        </div>
         {% elif requirement.submission_type in ['ctf_token', 'networking_token'] %}
         {# Token input — learner pastes the completion token. #}
         <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>

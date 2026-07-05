@@ -271,6 +271,29 @@ class CareerReflectionConfig(StrictFrozenModel):
     )
 
 
+class DeploymentArchitectureConfig(RepoConfig):
+    """Config for deployment_architecture requirements.
+
+    The learner writes a free-text architecture description in the app; the
+    grader fetches ``deploy_script_path`` from the learner's fork of
+    ``required_repo`` and an LLM rubric checks the description against what the
+    script actually provisions.
+    """
+
+    prompt: str = Field(
+        description="The architecture-description prompt shown to the learner.",
+    )
+    min_answer_length: int = Field(
+        default=200,
+        ge=1,
+        description="Minimum characters required for the description.",
+    )
+    deploy_script_path: str = Field(
+        default="deploy.sh",
+        description="Repo-relative path to the deployment script to grade.",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Hands-on requirement subclasses, one per active SubmissionType
 # (issue #470)
@@ -359,6 +382,11 @@ class CareerReflectionRequirement(_RequirementBase):
     type_config: CareerReflectionConfig
 
 
+class DeploymentArchitectureRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.DEPLOYMENT_ARCHITECTURE]
+    type_config: DeploymentArchitectureConfig
+
+
 HandsOnRequirement = Annotated[
     GithubProfileRequirement
     | ProfileReadmeRequirement
@@ -369,7 +397,8 @@ HandsOnRequirement = Annotated[
     | DeployedApiRequirement
     | DevopsAnalysisRequirement
     | SecurityScanningRequirement
-    | CareerReflectionRequirement,
+    | CareerReflectionRequirement
+    | DeploymentArchitectureRequirement,
     Field(discriminator="submission_type"),
 ]
 

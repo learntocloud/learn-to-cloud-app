@@ -24,6 +24,7 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
 )
 from learn_to_cloud_shared.schemas import (
     CareerReflectionRequirement,
+    DeploymentArchitectureRequirement,
     HandsOnRequirement,
     SubmissionData,
     SubmissionResult,
@@ -323,6 +324,7 @@ async def htmx_submit_verification(
     requirement_slug: Annotated[str, Form(max_length=100)],
     submitted_value: Annotated[str, Form(max_length=2048)] = "",
     answers: Annotated[list[str] | None, Form()] = None,
+    architecture_description: Annotated[str, Form(max_length=20000)] = "",
 ) -> HTMLResponse:
     """Submit a hands-on verification.
 
@@ -382,6 +384,12 @@ async def htmx_submit_verification(
         try:
             if isinstance(requirement, CareerReflectionRequirement):
                 user_input = _combine_reflection_answers(requirement, answers or [])
+            elif isinstance(requirement, DeploymentArchitectureRequirement):
+                user_input = architecture_description.strip()
+                if not user_input:
+                    return _render_card(
+                        error_banner="Please write a description before submitting."
+                    )
             elif is_derivable(requirement.submission_type):
                 user_input = None
             else:

@@ -36,6 +36,9 @@ from learn_to_cloud_shared.verification.career_reflection import (
 )
 from learn_to_cloud_shared.verification.ci_status import verify_ci_status
 from learn_to_cloud_shared.verification.deployed_api import validate_deployed_api
+from learn_to_cloud_shared.verification.deployment_architecture import (
+    validate_deployment_architecture,
+)
 from learn_to_cloud_shared.verification.devops_analysis import run_devops_workflow
 from learn_to_cloud_shared.verification.github_profile import (
     validate_github_profile,
@@ -221,6 +224,14 @@ async def _adapt_career_reflection(
     return validate_career_reflection(submitted_value)
 
 
+async def _adapt_deployment_architecture(
+    requirement: HandsOnRequirement, submitted_value: str, username: str
+) -> ValidationResult:
+    return await validate_deployment_architecture(
+        requirement, submitted_value, username
+    )
+
+
 # Single source of truth: each active submission type maps to one descriptor.
 # Lookups use ``.get(...)`` so an unregistered type surfaces as the explicit
 # "Unknown submission type" result instead of raising.
@@ -283,6 +294,12 @@ _VALIDATOR_REGISTRY: dict[SubmissionType, ValidatorDescriptor] = {
         adapter=_adapt_career_reflection,
         execution_mode=ExecutionMode.BACKGROUND,
         requires_username=False,
+        repo_backed=False,
+    ),
+    SubmissionType.DEPLOYMENT_ARCHITECTURE: ValidatorDescriptor(
+        adapter=_adapt_deployment_architecture,
+        execution_mode=ExecutionMode.BACKGROUND,
+        requires_username=True,
         repo_backed=False,
     ),
 }
