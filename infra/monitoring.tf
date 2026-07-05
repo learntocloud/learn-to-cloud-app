@@ -93,12 +93,13 @@ resource "azurerm_monitor_metric_alert" "availability" {
   window_size         = "PT5M"
   tags                = local.tags
 
-  # Web-test metric alerts must be scoped to both the web test and the App
-  # Insights component the results land in.
-  scopes = [
-    azurerm_application_insights_standard_web_test.availability.id,
-    azurerm_application_insights.main.id,
-  ]
+  # A metric alert can only span a single target resource type. Scope it to the
+  # App Insights component (where the availabilityResults metric lands) and set
+  # target_resource_type/location explicitly; mixing the web-test resource type
+  # into scopes makes Azure reject the alert with a 400.
+  scopes                   = [azurerm_application_insights.main.id]
+  target_resource_type     = "microsoft.insights/components"
+  target_resource_location = azurerm_resource_group.main.location
 
   criteria {
     metric_namespace = "microsoft.insights/components"
