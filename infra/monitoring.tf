@@ -42,6 +42,84 @@ resource "azurerm_monitor_action_group" "critical" {
 }
 
 # ---------------------------------------------------------------------------
+# Availability test (synthetic uptime probe)
+# ---------------------------------------------------------------------------
+
+# Every alert below is a scheduled query over telemetry the app emits while it
+# is running, so none of them fire on a "hard down" outage: a boot crashloop, an
+# ingress/TLS/DNS breakage, or a full platform outage where zero telemetry
+# flows. This standard web test is the one signal that pings the app from
+# outside and pages when it is completely unreachable.
+#
+# It targets /health (pure liveness, always 200) and NOT /ready, which returns
+# 503 on transient DB/schema issues that already have their own alerts; pointing
+# the availability test at /ready would double-page and add noise.
+resource "azurerm_application_insights_standard_web_test" "availability" {
+  name                    = "webtest-ltc-availability-${var.environment}"
+  resource_group_name     = azurerm_resource_group.main.name
+  location                = azurerm_resource_group.main.location
+  application_insights_id = azurerm_application_insights.main.id
+  description             = "Synthetic uptime probe against https://learntocloud.guide/health"
+  enabled                 = true
+  frequency               = 300
+  timeout                 = 30
+  retry_enabled           = true
+  tags                    = local.tags
+
+  # Central US (Chicago) + West US (San Jose). Two regions is enough coverage
+  # for a dev learning platform; full 3+ geo coverage is out of scope.
+  geo_locations = ["us-il-ch1-azr", "us-ca-sjc-azr"]
+
+  request {
+    url                              = "https://learntocloud.guide/health"
+    http_verb                        = "GET"
+    parse_dependent_requests_enabled = false
+    follow_redirects_enabled         = true
+  }
+
+  validation_rules {
+    expected_status_code = 200
+    ssl_check_enabled    = true
+  }
+}
+
+resource "azurerm_monitor_metric_alert" "availability" {
+  name                = "alert-ltc-availability-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  description         = "Alert when the availability web test reports less than 100% success (API unreachable)"
+  severity            = 1
+  enabled             = true
+  frequency           = "PT5M"
+  window_size         = "PT5M"
+  tags                = local.tags
+
+  # Web-test metric alerts must be scoped to both the web test and the App
+  # Insights component the results land in.
+  scopes = [
+    azurerm_application_insights_standard_web_test.availability.id,
+    azurerm_application_insights.main.id,
+  ]
+
+  criteria {
+    metric_namespace = "microsoft.insights/components"
+    metric_name      = "availabilityResults/availabilityPercentage"
+    aggregation      = "Average"
+    operator         = "LessThan"
+    threshold        = 100
+
+    dimension {
+      name     = "availabilityResult/name"
+      operator = "Include"
+      values   = [azurerm_application_insights_standard_web_test.availability.name]
+    }
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.critical.id
+  }
+}
+
+# ---------------------------------------------------------------------------
 # Log Alerts (scheduled query rules v2)
 # ---------------------------------------------------------------------------
 
