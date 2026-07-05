@@ -36,6 +36,7 @@ from learn_to_cloud_shared.models import (
     CurriculumTopic,
 )
 from learn_to_cloud_shared.schemas import (
+    KNOWN_HANDS_ON_SUBMISSION_TYPES,
     HandsOnRequirement,
     HandsOnRequirementAdapter,
     LearningObjective,
@@ -382,6 +383,8 @@ async def load_requirements_by_phase_order_from_db(
         phase_order = phase_order_by_uuid.get(row.phase_uuid)
         if phase_order is None:
             continue
+        if not _is_known_requirement(row):
+            continue
         by_phase_order[phase_order].append(_build_requirement(row))
     return dict(by_phase_order)
 
@@ -468,6 +471,8 @@ def _assemble_phases(
 
     requirements_by_phase: dict[UUID, list] = defaultdict(list)
     for req_row in requirement_rows:
+        if not _is_known_requirement(req_row):
+            continue
         requirements_by_phase[req_row.phase_uuid].append(_build_requirement(req_row))
 
     phases: list[Phase] = []
@@ -549,6 +554,28 @@ def _build_requirement(row: CurriculumRequirement):
             "type_config": row.type_config or {},
         }
     )
+
+
+def _is_known_requirement(row: CurriculumRequirement) -> bool:
+    """Tolerant-reader gate for a requirement row.
+
+    During a rolling deploy the DB can already hold a ``submission_type``
+    this revision's discriminated union doesn't know yet. Skip-and-log those
+    rows instead of letting ``_build_requirement`` 500 every phase page.
+    Rows with a known type still build strictly, so a genuinely malformed
+    ``type_config`` for a known type continues to raise.
+    """
+    if row.submission_type in KNOWN_HANDS_ON_SUBMISSION_TYPES:
+        return True
+    logger.warning(
+        "content_db_loader.skipping_unknown_submission_type",
+        extra={
+            "requirement_slug": row.slug,
+            "submission_type": row.submission_type,
+            "requirement_uuid": str(row.uuid),
+        },
+    )
+    return False
 
 
 def _build_phase(

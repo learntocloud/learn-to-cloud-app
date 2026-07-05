@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import event, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -342,6 +343,144 @@ async def test_requirement_rehydrates_to_correct_subclass(
     rebuilt = phase99.hands_on_verification.requirements[0]
     assert isinstance(rebuilt, RepoForkRequirement)
     assert rebuilt.required_repo == "owner/repo"
+
+
+# ---------------------------------------------------------------------------
+# Tolerant reader: unknown submission_type during a rolling deploy (#603)
+# ---------------------------------------------------------------------------
+
+
+async def _seed_phase_with_requirements(
+    db_session: AsyncSession,
+    *,
+    order: int,
+    requirements: list[CurriculumRequirement],
+) -> CurriculumPhase:
+    now = datetime.now(UTC)
+    phase = CurriculumPhase(
+        uuid=uuid4(),
+        slug=f"phase{order}",
+        name=f"Phase {order}",
+        description="d",
+        short_description="sd",
+        order=order,
+        deleted_at=None,
+        created_at=now,
+        updated_at=now,
+    )
+    db_session.add(phase)
+    await db_session.flush()
+    for i, req in enumerate(requirements, start=1):
+        req.phase_uuid = phase.uuid
+        req.order = i
+        db_session.add(req)
+    await db_session.flush()
+    db_session.expire_all()
+    return phase
+
+
+def _make_requirement(
+    *,
+    slug: str,
+    submission_type: str,
+    submission_value_kind: str,
+    type_config: dict,
+) -> CurriculumRequirement:
+    now = datetime.now(UTC)
+    return CurriculumRequirement(
+        uuid=uuid4(),
+        phase_uuid=uuid4(),  # overwritten by _seed_phase_with_requirements
+        slug=slug,
+        name=slug,
+        description="desc",
+        submission_type=submission_type,
+        submission_value_kind=submission_value_kind,
+        order=0,
+        type_config=type_config,
+        deleted_at=None,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+async def test_unknown_submission_type_is_skipped_not_raised(
+    db_session: AsyncSession,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A submission_type the code doesn't know (but the DB allows) is skipped.
+
+    Reproduces the deploy-skew case: `ci_status` passes the requirements CHECK
+    constraint (with `github_url`) but is not a tag in the discriminated union.
+    The phase must still load and render only the known requirement.
+    """
+    known = _make_requirement(
+        slug="known-fork",
+        submission_type="repo_fork",
+        submission_value_kind="github_url",
+        type_config={"required_repo": "owner/repo"},
+    )
+    unknown = _make_requirement(
+        slug="unknown-type",
+        submission_type="ci_status",
+        submission_value_kind="github_url",
+        type_config={},
+    )
+    phase = await _seed_phase_with_requirements(
+        db_session, order=97, requirements=[known, unknown]
+    )
+
+    with caplog.at_level("WARNING"):
+        phases = await load_all_phases_from_db(db_session)
+
+    loaded = next(p for p in phases if p.uuid == phase.uuid)
+    assert loaded.hands_on_verification is not None
+    slugs = [r.slug for r in loaded.hands_on_verification.requirements]
+    assert slugs == ["known-fork"]
+    assert any(
+        "skipping_unknown_submission_type" in record.message
+        for record in caplog.records
+    )
+
+
+async def test_unknown_submission_type_skipped_in_requirement_index_loader(
+    db_session: AsyncSession,
+) -> None:
+    """The phase-order requirement loader also skips unknown types."""
+    known = _make_requirement(
+        slug="known-fork-2",
+        submission_type="repo_fork",
+        submission_value_kind="github_url",
+        type_config={"required_repo": "owner/repo"},
+    )
+    unknown = _make_requirement(
+        slug="unknown-type-2",
+        submission_type="ci_status",
+        submission_value_kind="github_url",
+        type_config={},
+    )
+    await _seed_phase_with_requirements(
+        db_session, order=96, requirements=[known, unknown]
+    )
+
+    by_order = await load_requirements_by_phase_order_from_db(db_session)
+    loaded_slugs = [r.slug for r in by_order.get(96, [])]
+    assert loaded_slugs == ["known-fork-2"]
+
+
+async def test_malformed_config_for_known_type_still_raises(
+    db_session: AsyncSession,
+) -> None:
+    """The gate only skips unknown types; a known type with bad config raises."""
+    bad = _make_requirement(
+        slug="bad-fork",
+        submission_type="repo_fork",
+        submission_value_kind="github_url",
+        type_config={},  # missing required_repo
+    )
+    await _seed_phase_with_requirements(db_session, order=95, requirements=[bad])
+
+    with pytest.raises(ValidationError):
+        await load_all_phases_from_db(db_session)
 
 
 # ---------------------------------------------------------------------------
