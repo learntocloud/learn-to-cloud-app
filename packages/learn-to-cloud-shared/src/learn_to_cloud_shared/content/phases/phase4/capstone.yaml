@@ -141,7 +141,9 @@ learning_steps:
   tips:
   - type: tip
     text: Your deploy.sh does not need to run untouched on every cloud; it should honestly document what you built. The reviewer compares it against your written description, so keep them consistent.
-  done_when: A `deploy.sh` exists at your repository root and reflects the architecture you deployed.
+  - type: warning
+    text: Your journal-starter fork must be **public** so the reviewer can read your `deploy.sh`. A private fork fails with a "repository not found" error.
+  done_when: "A `deploy.sh` exists at your repository root and clearly shows a secure two-tier design: a public API tier, a private database tier that is not reachable from the internet, and the networking and firewall rules that enforce it."
   slug: phase4-topic9-practice-capture-your-deployment-as-deploy-sh
 
 - uuid: db9a4aa7-4a04-42c5-a661-c54b091ed157
@@ -154,6 +156,7 @@ learning_steps:
   - Describe how the API and database VMs are placed and how the database stays private
   - Walk through the traffic flow from the internet to the API and down to the database
   - Make sure everything you claim is actually done by your `deploy.sh`
+  - Write at least a few paragraphs (roughly 300 characters minimum); a one or two sentence summary is rejected as too short
   tips:
   - type: warning
     text: The reviewer fails the check if your description claims resources or controls that your `deploy.sh` does not create. Describe what you built, not the ideal design.
