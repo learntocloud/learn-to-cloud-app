@@ -141,7 +141,7 @@ variable "foundry_model_sku_name" {
 variable "foundry_model_capacity" {
   description = "Foundry model deployment capacity. For Azure OpenAI Standard/GlobalStandard, this is in thousands of tokens per minute."
   type        = number
-  default     = 1
+  default     = 50
 
   validation {
     condition     = var.foundry_model_capacity > 0
