@@ -33,6 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import (
     Submission,
+    SubmissionType,
     VerificationJob,
 )
 from learn_to_cloud_shared.repositories.verification_job_repository import (
@@ -59,6 +60,9 @@ from learn_to_cloud_shared.verification.execution import (
 from learn_to_cloud_shared.verification.repo_utils import (
     RepositoryRef,
     resolve_repository,
+)
+from learn_to_cloud_shared.verification.url_derivation import (
+    repository_ref_from_required_repo,
 )
 
 tracer = trace.get_tracer(__name__)
@@ -469,7 +473,21 @@ def _resolve_repository_ref(job: PreparedVerificationJob) -> RepositoryRef | Non
     Later async steps (LLM grading) reuse this instead of re-parsing the
     submission URL. Non-repo types and unparseable values yield ``None``;
     the carried value is purely an optimization, so callers still guard on it.
+
+    ``deployment_architecture`` is a special case: its submitted value is the
+    learner's free-text description, not a repo URL, so the repo is derived
+    from the ``github_username`` snapshot plus the requirement's
+    ``required_repo`` fork name instead.
     """
+    if job.requirement.submission_type == SubmissionType.DEPLOYMENT_ARCHITECTURE:
+        if not job.github_username or not job.requirement.required_repo:
+            return None
+        try:
+            return repository_ref_from_required_repo(
+                job.github_username, job.requirement.required_repo
+            )
+        except ValueError:
+            return None
     if not is_repo_backed(job.requirement.submission_type):
         return None
     resolved = resolve_repository(job.typed_submitted_value.as_text)

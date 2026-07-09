@@ -25,7 +25,10 @@ _TOKEN_TYPES = {
     "iac_token",
 }
 _DEPLOYED_URL_TYPES = {SubmissionType.DEPLOYED_API.value}
-_TEXT_TYPES = {SubmissionType.CAREER_REFLECTION.value}
+_TEXT_TYPES = {
+    SubmissionType.CAREER_REFLECTION.value,
+    SubmissionType.DEPLOYMENT_ARCHITECTURE.value,
+}
 
 # Upper bound on stored free-text answers, guarding against abuse. The
 # three reflection answers are combined into one blob before storage.

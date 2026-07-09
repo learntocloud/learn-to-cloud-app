@@ -209,6 +209,81 @@
       "title": "DeployedApiRequirement",
       "type": "object"
     },
+    "DeploymentArchitectureConfig": {
+      "additionalProperties": false,
+      "description": "Config for deployment_architecture requirements.\n\nThe learner writes a free-text architecture description in the app; the\ngrader fetches ``deploy_script_path`` from the learner's fork of\n``required_repo`` and an LLM rubric checks the description against what the\nscript actually provisions.",
+      "properties": {
+        "deploy_script_path": {
+          "default": "deploy.sh",
+          "description": "Repo-relative path to the deployment script to grade.",
+          "title": "Deploy Script Path",
+          "type": "string"
+        },
+        "min_answer_length": {
+          "default": 200,
+          "description": "Minimum characters required for the description.",
+          "minimum": 1,
+          "title": "Min Answer Length",
+          "type": "integer"
+        },
+        "prompt": {
+          "description": "The architecture-description prompt shown to the learner.",
+          "title": "Prompt",
+          "type": "string"
+        },
+        "required_repo": {
+          "description": "Upstream repo (owner/name) the learner forks from.",
+          "title": "Required Repo",
+          "type": "string"
+        }
+      },
+      "required": [
+        "required_repo",
+        "prompt"
+      ],
+      "title": "DeploymentArchitectureConfig",
+      "type": "object"
+    },
+    "DeploymentArchitectureRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string"
+        },
+        "submission_type": {
+          "const": "deployment_architecture",
+          "title": "Submission Type",
+          "type": "string"
+        },
+        "type_config": {
+          "$ref": "#/$defs/DeploymentArchitectureConfig"
+        },
+        "uuid": {
+          "format": "uuid",
+          "title": "Uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uuid",
+        "slug",
+        "name",
+        "description",
+        "submission_type",
+        "type_config"
+      ],
+      "title": "DeploymentArchitectureRequirement",
+      "type": "object"
+    },
     "DevopsAnalysisConfig": {
       "additionalProperties": false,
       "description": "Config for devops_analysis requirements.",
@@ -584,6 +659,7 @@
       "career_reflection": "#/$defs/CareerReflectionRequirement",
       "ctf_token": "#/$defs/CtfTokenRequirement",
       "deployed_api": "#/$defs/DeployedApiRequirement",
+      "deployment_architecture": "#/$defs/DeploymentArchitectureRequirement",
       "devops_analysis": "#/$defs/DevopsAnalysisRequirement",
       "github_profile": "#/$defs/GithubProfileRequirement",
       "journal_api_verifier": "#/$defs/JournalApiVerifierRequirement",
@@ -624,6 +700,9 @@
     },
     {
       "$ref": "#/$defs/CareerReflectionRequirement"
+    },
+    {
+      "$ref": "#/$defs/DeploymentArchitectureRequirement"
     }
   ]
 }

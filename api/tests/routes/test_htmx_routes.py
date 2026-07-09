@@ -659,6 +659,107 @@ class TestHtmxSubmitVerification:
         (call_arg,) = await_args.args
         assert call_arg.id == job.id
 
+    async def test_deployment_architecture_long_description_reaches_derive(self):
+        """A >2048-char architecture description must not be truncated by the
+        shared ``submitted_value`` cap; it flows via ``architecture_description``
+        into ``derive_submission_value`` intact and starts an orchestration."""
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            deployment_architecture_requirement,
+        )
+
+        requirement = deployment_architecture_requirement(
+            slug="deployment-architecture",
+            required_repo="learntocloud/journal-starter",
+        )
+        long_description = "A detailed two-tier deployment description. " * 100
+        assert len(long_description) > 2048
+
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        job = _mock_job()
+        async_result = VerificationJobSubmission(
+            job=cast(VerificationJob, job),
+            created=True,
+            requirement=requirement,
+            github_username="user",
+        )
+        start_result = SimpleNamespace(instance_id=str(job.id))
+        write_session = AsyncMock()
+        request.app.state.session_maker.return_value.__aenter__.return_value = (
+            write_session
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=requirement,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
+                autospec=True,
+                return_value=long_description,
+            ) as mock_derive,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                new_callable=AsyncMock,
+                return_value=async_result,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                new_callable=AsyncMock,
+                return_value=start_result,
+            ) as mock_start,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                return_value=MagicMock(),
+            ),
+        ):
+            result = await htmx_submit_verification(
+                request,
+                AsyncMock(),
+                current_user,
+                requirement_slug="deployment-architecture",
+                architecture_description=long_description,
+            )
+
+        assert isinstance(result, HTMLResponse)
+        mock_start.assert_awaited_once()
+        derive_kwargs = mock_derive.call_args.kwargs
+        assert derive_kwargs["user_input"] == long_description.strip()
+
+    async def test_deployment_architecture_empty_description_shows_error(self):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            deployment_architecture_requirement,
+        )
+
+        requirement = deployment_architecture_requirement(
+            slug="deployment-architecture",
+            required_repo="learntocloud/journal-starter",
+        )
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=requirement,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                new_callable=AsyncMock,
+            ) as mock_create,
+        ):
+            result = await htmx_submit_verification(
+                request,
+                AsyncMock(),
+                current_user,
+                requirement_slug="deployment-architecture",
+                architecture_description="   ",
+            )
+
+        assert isinstance(result, HTMLResponse)
+        mock_create.assert_not_awaited()
+
     async def test_duplicate_submit_skips_durable_start(self):
         """When ``create_verification_job`` returns ``created=False``
         (concurrent submit raced into the same job row), the route does

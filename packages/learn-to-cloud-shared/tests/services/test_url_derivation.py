@@ -53,6 +53,7 @@ class TestIsDerivable:
             SubmissionType.NETWORKING_TOKEN,
             SubmissionType.DEPLOYED_API,
             SubmissionType.CAREER_REFLECTION,
+            SubmissionType.DEPLOYMENT_ARCHITECTURE,
         ],
     )
     def test_non_derivable_types(self, sub_type: SubmissionType):
@@ -73,6 +74,34 @@ class TestForkNameFromRequiredRepo:
     def test_missing_slash_raises(self):
         with pytest.raises(ValueError, match="owner/name"):
             fork_name_from_required_repo("journal-starter")
+
+
+@pytest.mark.unit
+class TestRepositoryRefFromRequiredRepo:
+    def test_derives_fork_owner_and_repo(self):
+        from learn_to_cloud_shared.verification.url_derivation import (
+            repository_ref_from_required_repo,
+        )
+
+        ref = repository_ref_from_required_repo("alice", "learntocloud/journal-starter")
+        assert ref.owner == "alice"
+        assert ref.repo == "journal-starter"
+
+    def test_empty_username_raises(self):
+        from learn_to_cloud_shared.verification.url_derivation import (
+            repository_ref_from_required_repo,
+        )
+
+        with pytest.raises(ValueError, match="github_username is required"):
+            repository_ref_from_required_repo("", "learntocloud/journal-starter")
+
+    def test_missing_slash_raises(self):
+        from learn_to_cloud_shared.verification.url_derivation import (
+            repository_ref_from_required_repo,
+        )
+
+        with pytest.raises(ValueError, match="owner/name"):
+            repository_ref_from_required_repo("alice", "journal-starter")
 
 
 @pytest.mark.unit
@@ -162,6 +191,16 @@ class TestDeriveSubmissionValue:
         req = _req(SubmissionType.CAREER_REFLECTION)
         combined = "## Question 0?\n\nMy answer."
         assert derive_submission_value(req, "alice", user_input=combined) == combined
+
+    def test_deployment_architecture_passes_through(self):
+        req = _req(
+            SubmissionType.DEPLOYMENT_ARCHITECTURE,
+            required_repo="learntocloud/journal-starter",
+        )
+        description = "My two-tier deployment: public API, private database."
+        assert (
+            derive_submission_value(req, "alice", user_input=description) == description
+        )
 
     def test_derivable_ignores_user_input(self):
         """Tampered submitted_value for derivable types is silently ignored.

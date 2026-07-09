@@ -109,6 +109,9 @@ class SubmissionType(StrEnum):
     # Phase 4: Cloud deployment validation
     DEPLOYED_API = "deployed_api"
 
+    # Phase 4: Capstone architecture alignment (deploy.sh vs description)
+    DEPLOYMENT_ARCHITECTURE = "deployment_architecture"
+
     # Phase 5: DevOps analysis
     DEVOPS_ANALYSIS = "devops_analysis"
 
@@ -651,7 +654,10 @@ class CurriculumRequirement(TimestampMixin, Base):
                 AND submission_value_kind = 'deployed_url'
             )
             OR (
-                submission_type = 'career_reflection'
+                submission_type IN (
+                    'career_reflection',
+                    'deployment_architecture'
+                )
                 AND submission_value_kind = 'text'
             )
             """,

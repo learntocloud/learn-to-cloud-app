@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import HandsOnRequirement
+from learn_to_cloud_shared.verification.repo_utils import RepositoryRef
 
 # Derivable types: the server constructs the URL from username + required_repo.
 # The template renders these as read-only fields so the learner cannot edit
@@ -41,6 +42,7 @@ _PASS_THROUGH_TYPES: frozenset[SubmissionType] = frozenset(
         SubmissionType.NETWORKING_TOKEN,
         SubmissionType.DEPLOYED_API,
         SubmissionType.CAREER_REFLECTION,
+        SubmissionType.DEPLOYMENT_ARCHITECTURE,
     }
 )
 
@@ -64,6 +66,27 @@ def fork_name_from_required_repo(required_repo: str) -> str:
             f"required_repo must be in 'owner/name' format, got: {required_repo!r}"
         )
     return required_repo.rsplit("/", 1)[-1]
+
+
+def repository_ref_from_required_repo(
+    github_username: str,
+    required_repo: str,
+) -> RepositoryRef:
+    """Resolve the learner's fork identity from their username + ``required_repo``.
+
+    Used by verification types that are not ``repo_backed`` (their submitted
+    value is free text, not a repo URL) but still need to inspect the learner's
+    fork of ``required_repo`` (e.g. ``deployment_architecture``). The fork is
+    assumed to live at ``<username>/<repo-name>``, matching how
+    ``derive_submission_value`` builds repo-backed URLs.
+
+    Raises ``ValueError`` if ``required_repo`` is not ``owner/name`` or the
+    username is empty.
+    """
+    if not github_username:
+        raise ValueError("github_username is required to resolve the fork repo")
+    fork = fork_name_from_required_repo(required_repo)
+    return RepositoryRef(owner=github_username, repo=fork)
 
 
 def derive_submission_value(

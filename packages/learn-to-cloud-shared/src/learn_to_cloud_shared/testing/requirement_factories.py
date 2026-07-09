@@ -34,6 +34,8 @@ from learn_to_cloud_shared.schemas import (
     CtfTokenRequirement,
     DeployedApiConfig,
     DeployedApiRequirement,
+    DeploymentArchitectureConfig,
+    DeploymentArchitectureRequirement,
     DevopsAnalysisConfig,
     DevopsAnalysisRequirement,
     GithubProfileRequirement,
@@ -223,6 +225,31 @@ def career_reflection_requirement(
     )
 
 
+def deployment_architecture_requirement(
+    *,
+    slug: str = "deployment-architecture",
+    name: str = "Test deployment architecture requirement",
+    description: str = "Test description",
+    required_repo: str = "owner/journal-starter",
+    min_answer_length: int = 200,
+    deploy_script_path: str = "deploy.sh",
+    prompt: str = "Describe your deployment architecture.",
+) -> DeploymentArchitectureRequirement:
+    return DeploymentArchitectureRequirement(
+        uuid=uuid4(),
+        slug=slug,
+        submission_type=SubmissionType.DEPLOYMENT_ARCHITECTURE,
+        name=name,
+        description=description,
+        type_config=DeploymentArchitectureConfig(
+            required_repo=required_repo,
+            prompt=prompt,
+            min_answer_length=min_answer_length,
+            deploy_script_path=deploy_script_path,
+        ),
+    )
+
+
 def make_requirement(
     submission_type: SubmissionType,
     *,
@@ -291,6 +318,13 @@ def make_requirement(
         case SubmissionType.CAREER_REFLECTION:
             return career_reflection_requirement(
                 slug=slug, name=name, description=description
+            )
+        case SubmissionType.DEPLOYMENT_ARCHITECTURE:
+            return deployment_architecture_requirement(
+                slug=slug,
+                name=name,
+                description=description,
+                required_repo=required_repo or "owner/journal-starter",
             )
         case _:
             raise ValueError(
