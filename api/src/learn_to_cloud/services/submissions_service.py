@@ -25,12 +25,9 @@ from learn_to_cloud_shared.schemas import (
     Phase,
     PhaseSubmissionContext,
     SubmissionData,
-    SubmissionResult,
 )
 from learn_to_cloud_shared.submission_values import SubmittedValue
-from learn_to_cloud_shared.verification.dispatcher import is_inline
 from learn_to_cloud_shared.verification.execution import (
-    execute_sync_submission_validation,
     to_submission_data,
 )
 from learn_to_cloud_shared.verification.requirements import (
@@ -153,24 +150,6 @@ class VerificationJobSubmission:
     github_username: str | None
 
 
-@dataclass(frozen=True, slots=True)
-class SyncVerificationResult:
-    """Result of running a sync verification inside the FastAPI request.
-
-    Returned by :func:`create_verification_job` for submission types whose
-    validators finish in well under a second (phases 0-2). No Durable
-    Functions orchestration is started — the ``Submission`` row is already
-    persisted by the time this is returned.
-    """
-
-    submission_result: SubmissionResult
-
-
-# Tagged union returned by ``create_verification_job``. Callers use
-# ``isinstance`` to pick the rendering path.
-SubmissionDispatchResult = VerificationJobSubmission | SyncVerificationResult
-
-
 async def _check_submission_preconditions(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
@@ -232,13 +211,13 @@ async def create_verification_job(
     requirement_slug: str,
     submitted_value: str,
     github_username: str | None,
-) -> SubmissionDispatchResult:
-    """Validate request preconditions and dispatch to the right execution path.
+) -> VerificationJobSubmission:
+    """Validate request preconditions and create the Durable verification job.
 
-    Returns a :class:`SyncVerificationResult` for submission types whose
-    validators run inside the FastAPI request (phases 0-2). Returns a
-    :class:`VerificationJobSubmission` for types that go through Durable
-    Functions (phases 3-6).
+    Every submission type runs through Durable Functions: this validates the
+    request, creates (or reuses) the ``VerificationJob`` row, and returns a
+    :class:`VerificationJobSubmission` for the caller to start the
+    orchestration.
     """
     ctx = await _check_submission_preconditions(
         session_maker,
@@ -250,16 +229,6 @@ async def create_verification_job(
         typed_value = SubmittedValue.from_raw(ctx.requirement, submitted_value)
     except ValueError as exc:
         raise InvalidSubmittedValueError(str(exc)) from exc
-
-    if is_inline(ctx.requirement.submission_type):
-        submission_result = await execute_sync_submission_validation(
-            session_maker=session_maker,
-            user_id=user_id,
-            requirement=ctx.requirement,
-            submitted_value=typed_value.as_text,
-            github_username=github_username,
-        )
-        return SyncVerificationResult(submission_result=submission_result)
 
     async with session_maker() as write_session:
         repo = VerificationJobRepository(write_session)

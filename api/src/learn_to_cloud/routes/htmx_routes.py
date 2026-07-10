@@ -25,9 +25,7 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
 from learn_to_cloud_shared.schemas import (
     CareerReflectionRequirement,
     DeploymentArchitectureRequirement,
-    HandsOnRequirement,
     SubmissionData,
-    SubmissionResult,
 )
 from learn_to_cloud_shared.submission_values import submission_value_from_columns
 from learn_to_cloud_shared.verification.execution import (
@@ -69,7 +67,6 @@ from learn_to_cloud.services.submissions_service import (
     InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
-    SyncVerificationResult,
     VerificationJobSubmission,
     create_verification_job,
 )
@@ -328,16 +325,10 @@ async def htmx_submit_verification(
 ) -> HTMLResponse:
     """Submit a hands-on verification.
 
-    Routes to one of two execution paths based on the requirement's
-    submission type:
-
-    * Sync (phases 0-2) — :func:`create_verification_job` runs validation
-      inside this request and persists the ``Submission`` row. The response
-      reloads the page so the just-updated card and any newly-unlocked
-      requirement render with fresh server-side state.
-    * Async (phases 3-6) — :func:`create_verification_job` returns a
-      ``VerificationJobSubmission`` and we start a Durable orchestration,
-      then return a spinner card that polls for status.
+    Every submission type runs through Durable Functions:
+    :func:`create_verification_job` validates the request and creates a
+    ``VerificationJob``; we start the Durable orchestration and return a
+    spinner card that polls for status.
     """
     user_id = current_user.user_id
     github_username = current_user.github_username
@@ -408,9 +399,9 @@ async def htmx_submit_verification(
     else:
         derived_value = submitted_value
 
-    # ── Dispatch to sync or async execution path ───────────────────────
+    # ── Create the Durable verification job ────────────────────────────
     try:
-        dispatch_result = await create_verification_job(
+        job_submission = await create_verification_job(
             session_maker=session_maker,
             user_id=user_id,
             requirement_slug=requirement_slug,
@@ -437,51 +428,13 @@ async def htmx_submit_verification(
             ),
         )
 
-    if isinstance(dispatch_result, SyncVerificationResult):
-        return _render_sync_result(
-            user_id=user_id,
-            requirement=requirement,
-            result=dispatch_result.submission_result,
-        )
-
     return await _start_async_job_and_render(
         session_maker=session_maker,
         user_id=user_id,
         requirement_slug=requirement_slug,
-        job_submission=dispatch_result,
+        job_submission=job_submission,
         render_card=_render_card,
     )
-
-
-def _render_sync_result(
-    *,
-    user_id: int,
-    requirement: HandsOnRequirement | None,
-    result: SubmissionResult,
-) -> HTMLResponse:
-    """Render the response for a sync verification that already finished.
-
-    The ``Submission`` row is already persisted; we reload the phase page
-    so the card, progress bar, and any newly-unlocked next requirement
-    all render from fresh server state. Reload trigger matches the
-    pattern used by :func:`_reload_verification_html` for async
-    completion so behavior is consistent across paths.
-    """
-    logger.info(
-        "htmx.submit.sync_completed",
-        extra={
-            "user_id": user_id,
-            "submission_id": result.submission.id,
-            "requirement_slug": requirement.slug if requirement is not None else None,
-            "submission_type": (
-                requirement.submission_type.value if requirement is not None else None
-            ),
-            "is_valid": result.is_valid,
-            "verification_completed": result.submission.verification_completed,
-            "is_server_error": result.is_server_error,
-        },
-    )
-    return HTMLResponse(_reload_verification_html())
 
 
 async def _start_async_job_and_render(

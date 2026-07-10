@@ -22,7 +22,6 @@ from learn_to_cloud.services.submissions_service import (
     AlreadyValidatedError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
-    SyncVerificationResult,
     VerificationJobSubmission,
     create_verification_job,
     get_phase_submission_context,
@@ -336,14 +335,15 @@ class TestSequentialPhaseGating:
 
 
 @pytest.mark.unit
-class TestSyncDispatchBranch:
+class TestCreateVerificationJob:
     @pytest.mark.asyncio
-    async def test_sync_type_runs_in_process_and_returns_sync_result(self):
+    async def test_formerly_inline_type_creates_verification_job(self):
+        """Types that used to run inline (phases 0-2) now create a job too."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.GITHUB_PROFILE,
         )
-        sentinel_result = MagicMock(name="SubmissionResult")
+        mock_job = MagicMock()
 
         with (
             patch(
@@ -359,15 +359,16 @@ class TestSyncDispatchBranch:
                 "learn_to_cloud.services.submissions_service.VerificationJobRepository",
                 autospec=True,
             ) as mock_job_repo_class,
-            patch(
-                "learn_to_cloud.services.submissions_service.execute_sync_submission_validation",
-                new_callable=AsyncMock,
-                return_value=sentinel_result,
-            ) as mock_sync_execute,
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
             mock_repo_class.return_value = mock_repo
+
+            mock_job_repo = MagicMock()
+            mock_job_repo.create_or_get_active = AsyncMock(
+                return_value=(mock_job, True)
+            )
+            mock_job_repo_class.return_value = mock_job_repo
 
             result = await create_verification_job(
                 session_maker=mock_session_maker,
@@ -377,13 +378,13 @@ class TestSyncDispatchBranch:
                 github_username="user",
             )
 
-        assert isinstance(result, SyncVerificationResult)
-        assert result.submission_result is sentinel_result
-        mock_sync_execute.assert_awaited_once()
-        mock_job_repo_class.assert_not_called()
+        assert isinstance(result, VerificationJobSubmission)
+        assert result.job is mock_job
+        assert result.created is True
+        mock_job_repo.create_or_get_active.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_async_type_returns_verification_job_submission(self):
+    async def test_returns_verification_job_submission(self):
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.JOURNAL_API_VERIFIER,
@@ -404,10 +405,6 @@ class TestSyncDispatchBranch:
                 "learn_to_cloud.services.submissions_service.VerificationJobRepository",
                 autospec=True,
             ) as mock_job_repo_class,
-            patch(
-                "learn_to_cloud.services.submissions_service.execute_sync_submission_validation",
-                new_callable=AsyncMock,
-            ) as mock_sync_execute,
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
@@ -430,11 +427,10 @@ class TestSyncDispatchBranch:
         assert isinstance(result, VerificationJobSubmission)
         assert result.job is mock_job
         assert result.created is True
-        mock_sync_execute.assert_not_awaited()
         mock_job_repo.create_or_get_active.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_sync_preconditions_still_enforced(self):
+    async def test_preconditions_still_enforced(self):
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.CTF_TOKEN,
@@ -451,9 +447,9 @@ class TestSyncDispatchBranch:
                 autospec=True,
             ) as mock_repo_class,
             patch(
-                "learn_to_cloud.services.submissions_service.execute_sync_submission_validation",
-                new_callable=AsyncMock,
-            ) as mock_sync_execute,
+                "learn_to_cloud.services.submissions_service.VerificationJobRepository",
+                autospec=True,
+            ) as mock_job_repo_class,
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(
@@ -470,7 +466,7 @@ class TestSyncDispatchBranch:
                     github_username="user",
                 )
 
-        mock_sync_execute.assert_not_awaited()
+        mock_job_repo_class.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
