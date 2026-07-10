@@ -14,7 +14,14 @@ on:
       - 'docker-compose.yml'
       - '.github/workflows/deploy.yml'
   pull_request:
-    branches: [main]
+    # Include feature-branch prefixes so stacked PRs (base != main) still get CI.
+    # Keep these globs in sync with the branch prefixes in .github/copilot-instructions.md.
+    branches:
+      - main
+      - 'feat/**'
+      - 'fix/**'
+      - 'chore/**'
+      - 'refactor/**'
   workflow_dispatch:
     inputs:
       force_rebuild:

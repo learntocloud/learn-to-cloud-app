@@ -16,6 +16,8 @@ Workflow:
 4. Open a Pull Request to merge into `main`
 5. Never force-push to `main`, alert user if some git error occurs
 
+These prefixes must stay in sync with the `pull_request.branches` globs in `.github/workflows/deploy.yml`, so stacked PRs (base != `main`) still run CI.
+
 
 ## Code Comments and Docstrings
 
@@ -44,7 +46,10 @@ Default to short, plain, direct output. Answer in the fewest words that fully ad
 - Don't recap the full plan before or after doing it. State only what changed, and only if it's not obvious from a diff.
 - Use plain language over jargon, but plain does not mean long. A short plain sentence beats a long plain paragraph.
 - Don't narrate routine, successful steps ("ran tests, they passed"). Elaborate only when something is surprising, risky, or needs a decision from @madebygps.
-- Exceptions: security-sensitive or irreversible changes, tradeoffs affecting a decision, or when explicitly asked to explain in depth.
+- Answering a question is not license to be verbose. Lead with the direct answer in 1-3 sentences. Add detail only if needed for correctness. Don't teach, list every option, or give multiple framings unless asked.
+- No structural padding for short answers: no headers, no bold labels, no "here's why / here's the tradeoff" scaffolding unless the answer genuinely needs sections.
+- Give one recommendation, not a menu, unless @madebygps asks to compare options.
+- Exceptions (may be longer): security-sensitive or irreversible changes, tradeoffs affecting a decision, or when explicitly asked to explain in depth or "walk me through" something.
 
 ## Research
 
