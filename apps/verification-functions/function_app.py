@@ -18,7 +18,6 @@ from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.database import create_engine, create_session_maker
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE, configure_logging
 from learn_to_cloud_shared.core.observability import configure_observability
-from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
@@ -86,28 +85,12 @@ configure_observability()
 
 app = df.DFApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
-_DEFAULT_ORCHESTRATOR_NAME = "verification_orchestrator"
-# BACKGROUND submission types: phase 3+ verifications that involve LLM
-# grading, multi-task fan-out, or external probes with retries and run on
-# the Durable Functions path. The INLINE phase 0-2 types (github_profile,
-# profile_readme, repo_fork, ctf_token, networking_token) run inside the
-# FastAPI request instead and are intentionally absent. Execution mode is
-# declared per type in verification/dispatcher.py (_VALIDATOR_REGISTRY);
-# this map only picks the orchestrator name for the background types.
-#
-# Each background type maps to its own per-phase orchestration (issue
-# #429): phases 3 and 6 run the canonical grading-capable workflow,
-# phases 4 and 5 run the deterministic (never-grades) workflow.
-_ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE = {
-    SubmissionType.JOURNAL_API_VERIFIER: (
-        "verify_phase3_journal_api_verifier_orchestrator"
-    ),
-    SubmissionType.DEPLOYED_API: "verify_phase4_deployed_api_orchestrator",
-    SubmissionType.DEVOPS_ANALYSIS: "verify_phase5_devops_orchestrator",
-    SubmissionType.SECURITY_SCANNING: "verify_phase6_security_orchestrator",
-    SubmissionType.CAREER_REFLECTION: "verify_phase7_career_orchestrator",
-    SubmissionType.DEPLOYMENT_ARCHITECTURE: ("verify_phase4_architecture_orchestrator"),
-}
+# Every submission type runs through this one orchestrator. Routing to the
+# right validator happens inside the verify activity via the dispatcher
+# registry (verification/dispatcher.py _VALIDATOR_REGISTRY), and LLM grading
+# is data-driven -- the grading step runs only when the verify step emits
+# grading requests, so deterministic phases pass straight through.
+_ORCHESTRATOR_NAME = "verification_orchestrator"
 _VERIFY_RETRY_OPTIONS = df.RetryOptions(
     first_retry_interval_in_milliseconds=5000,
     max_number_of_attempts=3,
@@ -286,23 +269,6 @@ def _log_verification_job_completed(
             "verification_completed": result.get("verification_completed"),
             "error_code": result.get("code"),
         },
-    )
-
-
-def _orchestrator_name_for_submission_type(submission_type: str) -> str:
-    """Pick the Durable orchestrator for a verification's submission type.
-
-    Phase D.3 dropped ``submission_type`` from ``verification_jobs``;
-    callers resolve it via the linked requirement (see
-    :func:`start_verification_job`).
-    """
-    try:
-        enum_value = SubmissionType(submission_type)
-    except ValueError:
-        return _DEFAULT_ORCHESTRATOR_NAME
-    return _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE.get(
-        enum_value,
-        _DEFAULT_ORCHESTRATOR_NAME,
     )
 
 
@@ -494,13 +460,16 @@ def _persist_step(
 
 
 def _run_verification_orchestration(context: df.DurableOrchestrationContext):
-    """Canonical verification workflow: prepare -> verify -> grade -> persist.
+    """The verification workflow for every submission type.
 
-    The LLM grading step is data-driven: it runs only when the verify
-    step produced grading requests, so phases that never grade simply
-    pass through it. Used by the grading-capable phases (3 and 6), the
-    default orchestrator, and every drain-only legacy orchestrator, whose
-    in-flight jobs recorded this exact activity sequence.
+    prepare -> verify -> grade -> persist. The LLM grading step is
+    data-driven: it runs only when the verify step produced grading
+    requests, so deterministic phases (which never emit grading requests)
+    pass straight through it. Routing to the right validator happens inside
+    the verify activity via the dispatcher registry.
+
+    Kept as a plain generator (separate from the decorated trigger) so the
+    orchestration tests can drive it directly.
     """
     outcome = yield from _prepare_step(context)
     if isinstance(outcome, _TerminalOutcome):
@@ -510,119 +479,9 @@ def _run_verification_orchestration(context: df.DurableOrchestrationContext):
     return (yield from _persist_step(context, outcome, run_result))
 
 
-def _deterministic_verification(context: df.DurableOrchestrationContext):
-    """Workflow for phases that never LLM-grade (phases 4 and 5).
-
-    prepare -> verify -> persist, with no ``collect_llm_grading_requests``
-    call. These verification jobs are short-lived and low-volume, so the
-    orchestrator name is not versioned; the rare case of a job being
-    mid-flight across a deploy is acceptable and recoverable by resubmitting.
-    """
-    outcome = yield from _prepare_step(context)
-    if isinstance(outcome, _TerminalOutcome):
-        return outcome.result
-    run_result = yield from _verify_step(context, outcome)
-    return (yield from _persist_step(context, outcome, run_result))
-
-
 @app.orchestration_trigger(context_name="context")
 def verification_orchestrator(context: df.DurableOrchestrationContext):
-    """Run the default verification workflow for unmapped submission types."""
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_github_profile_orchestrator(context: df.DurableOrchestrationContext):
-    """Drain-only orchestrator for in-flight phase 0 GitHub profile jobs.
-
-    Phase 0-2 verifications now run synchronously in FastAPI (see
-    ``api/src/learn_to_cloud/routes/htmx_routes.py``). This trigger stays
-    registered so any orchestration started before the cutover can still
-    complete cleanly. Safe to remove after Durable retention expires.
-    """
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_profile_readme_orchestrator(context: df.DurableOrchestrationContext):
-    """Drain-only orchestrator for in-flight phase 0 profile README jobs.
-
-    See :func:`verify_github_profile_orchestrator` for rationale.
-    """
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_repo_fork_orchestrator(context: df.DurableOrchestrationContext):
-    """Drain-only orchestrator for in-flight phase 0 repo fork jobs.
-
-    See :func:`verify_github_profile_orchestrator` for rationale.
-    """
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_ctf_token_orchestrator(context: df.DurableOrchestrationContext):
-    """Drain-only orchestrator for in-flight phase 1 CTF token jobs.
-
-    See :func:`verify_github_profile_orchestrator` for rationale.
-    """
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_networking_token_orchestrator(context: df.DurableOrchestrationContext):
-    """Drain-only orchestrator for in-flight phase 2 networking token jobs.
-
-    See :func:`verify_github_profile_orchestrator` for rationale.
-    """
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_phase3_ci_status_orchestrator(context: df.DurableOrchestrationContext):
-    """Drain-only orchestrator for in-flight phase 3 ci_status jobs.
-
-    See :func:`verify_github_profile_orchestrator` for rationale.
-    """
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_phase3_journal_api_verifier_orchestrator(
-    context: df.DurableOrchestrationContext,
-):
-    """Run Phase 3 journal API verification (CI gate + LLM rubric review)."""
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_phase4_deployed_api_orchestrator(context: df.DurableOrchestrationContext):
-    """Run Phase 4 deployed API verification (deterministic, no LLM grading)."""
-    return (yield from _deterministic_verification(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_phase5_devops_orchestrator(context: df.DurableOrchestrationContext):
-    """Run Phase 5 DevOps verification (deterministic, no LLM grading)."""
-    return (yield from _deterministic_verification(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_phase6_security_orchestrator(context: df.DurableOrchestrationContext):
-    """Run Phase 6 security verification (probes + LLM rubric review)."""
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_phase7_career_orchestrator(context: df.DurableOrchestrationContext):
-    """Run Phase 7 career reflection verification (LLM rubric review)."""
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_phase4_architecture_orchestrator(context: df.DurableOrchestrationContext):
-    """Run Phase 4 capstone architecture alignment (deploy.sh vs description)."""
+    """Run the verification workflow for every submission type."""
     return (yield from _run_verification_orchestration(context))
 
 
@@ -881,10 +740,9 @@ async def start_verification_job(
                 )
 
         submission_type_str = prepared.requirement.submission_type.value
-        orchestrator_name = _orchestrator_name_for_submission_type(submission_type_str)
         _set_verification_span_attributes(job_id=job_id)
         instance_id = await client.start_new(
-            orchestrator_name,
+            _ORCHESTRATOR_NAME,
             instance_id=job_id,
             client_input=prepared.to_payload(),
         )
@@ -893,7 +751,7 @@ async def start_verification_job(
             extra={
                 "job_id": job_id,
                 "instance_id": instance_id,
-                "orchestrator_name": orchestrator_name,
+                "orchestrator_name": _ORCHESTRATOR_NAME,
                 "requirement_slug": prepared.requirement.slug,
                 "submission_type": submission_type_str,
             },

@@ -1,12 +1,12 @@
-"""Per-phase orchestration workflow tests (issue #429).
+"""Verification orchestration workflow tests.
 
-The Durable orchestration generators are driven manually here: a fake
+The Durable orchestration generator is driven manually here: a fake
 context records each yielded activity call, and the test feeds back the
-activity result. This asserts the exact sequence of activity calls each
-workflow makes, including the determinism-critical difference that the
-deterministic workflow (phases 4 and 5) never calls
-``collect_llm_grading_requests`` while the graded workflow (phases 3 and
-6) does.
+activity result. This asserts the exact sequence of activity calls the
+single workflow makes. LLM grading is data-driven -- the workflow calls
+``collect_llm_grading_requests`` for every submission type and only grades
+when that activity returns requests, so deterministic phases pass straight
+through with an empty request list.
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ from typing import Any
 from uuid import uuid4
 
 import function_app
-from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.testing.requirement_factories import (
     deployed_api_requirement,
     journal_api_verifier_requirement,
@@ -162,8 +161,7 @@ def _sequence(calls: list[_RecordedCall]) -> list[tuple[str, str]]:
 
 
 class TestCanonicalWorkflow:
-    """The grading-capable workflow used by phases 3 and 6, the default
-    orchestrator, and the drain-only legacy orchestrators."""
+    """The single verification workflow used by every submission type."""
 
     def test_grades_when_requests_present(self) -> None:
         payload = _graded_payload()
@@ -251,18 +249,24 @@ class TestCanonicalWorkflow:
         assert result == terminal
 
 
-class TestDeterministicWorkflow:
-    def test_never_calls_collect_llm_grading(self) -> None:
+class TestDeterministicSubmissionTypes:
+    """Deterministic types (e.g. phase 4 deployed_api) run the same single
+    workflow: they call ``collect_llm_grading_requests``, get an empty list,
+    and skip grading -- no separate deterministic orchestrator."""
+
+    def test_passes_through_grading_with_no_requests(self) -> None:
         payload = _deterministic_payload()
         ctx = _FakeOrchestrationContext({"id": "job-1", **payload})
-        responder = _make_responder(payload)
-        calls, result = _drive(function_app._deterministic_verification(ctx), responder)
+        responder = _make_responder(payload, llm_requests=[])
+        calls, result = _drive(
+            function_app._run_verification_orchestration(ctx), responder
+        )
         assert _sequence(calls) == [
             ("activity_with_retry", "prepare_verification_job"),
             ("activity_with_retry", "execute_requirement_verification"),
+            ("activity", "collect_llm_grading_requests"),
             ("activity_with_retry", "persist_verification_result"),
         ]
-        assert all(call.name != "collect_llm_grading_requests" for call in calls)
         assert result == {
             "job_id": "job-1",
             "status": "completed",
@@ -274,55 +278,19 @@ class TestDeterministicWorkflow:
         ctx = _FakeOrchestrationContext({"id": "job-1", **payload})
         terminal = {"job_id": "job-1", "status": "completed", "submission_id": 1}
         responder = _make_responder(payload, terminal=terminal)
-        calls, result = _drive(function_app._deterministic_verification(ctx), responder)
+        calls, result = _drive(
+            function_app._run_verification_orchestration(ctx), responder
+        )
         assert _sequence(calls) == [
             ("activity_with_retry", "prepare_verification_job"),
         ]
         assert result == terminal
 
 
-class TestOrchestratorNameMapping:
-    def test_phase4_and_phase5_map_to_deterministic_orchestrators(self) -> None:
-        names = function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE
-        assert (
-            names[SubmissionType.DEPLOYED_API]
-            == "verify_phase4_deployed_api_orchestrator"
-        )
-        assert (
-            names[SubmissionType.DEVOPS_ANALYSIS] == "verify_phase5_devops_orchestrator"
-        )
-
-    def test_phase3_and_phase6_map_to_canonical_orchestrators(self) -> None:
-        names = function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE
-        assert (
-            names[SubmissionType.JOURNAL_API_VERIFIER]
-            == "verify_phase3_journal_api_verifier_orchestrator"
-        )
-        assert (
-            names[SubmissionType.SECURITY_SCANNING]
-            == "verify_phase6_security_orchestrator"
-        )
-
-    def test_phase7_maps_to_career_orchestrator(self) -> None:
-        names = function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE
-        assert (
-            names[SubmissionType.CAREER_REFLECTION]
-            == "verify_phase7_career_orchestrator"
-        )
-
-    def test_deployment_architecture_maps_to_phase4_architecture_orchestrator(
-        self,
-    ) -> None:
-        names = function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE
-        assert (
-            names[SubmissionType.DEPLOYMENT_ARCHITECTURE]
-            == "verify_phase4_architecture_orchestrator"
-        )
-
-    def test_every_mapped_name_is_registered(self) -> None:
-        """Guards against pointing the resolver at a non-existent orchestrator."""
-        for name in function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE.values():
-            assert hasattr(function_app, name), f"missing orchestrator: {name}"
+class TestSingleOrchestrator:
+    def test_all_submission_types_use_one_orchestrator(self) -> None:
+        assert function_app._ORCHESTRATOR_NAME == "verification_orchestrator"
+        assert hasattr(function_app, function_app._ORCHESTRATOR_NAME)
 
 
 class TestContentFilterClassification:
