@@ -1,39 +1,18 @@
 """Tests for the registry-driven dispatch in the verification dispatcher.
 
-Each submission type's behavior (execution mode, username requirement, and
-whether it is repo-backed) is declared once in ``_VALIDATOR_REGISTRY``. These
-tests pin that registry so a new or changed type can't silently alter routing.
+Each submission type's behavior (username requirement and whether it is
+repo-backed) is declared once in ``_VALIDATOR_REGISTRY``. These tests pin that
+registry so a new or changed type can't silently alter routing.
 """
 
 import pytest
 
-from learn_to_cloud_shared.models import ExecutionMode, SubmissionType
+from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.verification.dispatcher import (
     _VALIDATOR_REGISTRY,
     descriptor_for,
-    execution_mode_for,
-    is_inline,
     is_repo_backed,
 )
-
-# The submission types that run inside the FastAPI request (phases 0-2).
-_EXPECTED_INLINE = {
-    SubmissionType.GITHUB_PROFILE,
-    SubmissionType.PROFILE_README,
-    SubmissionType.REPO_FORK,
-    SubmissionType.CTF_TOKEN,
-    SubmissionType.NETWORKING_TOKEN,
-}
-
-# The submission types that go through Durable Functions (phases 3-7).
-_EXPECTED_BACKGROUND = {
-    SubmissionType.JOURNAL_API_VERIFIER,
-    SubmissionType.DEVOPS_ANALYSIS,
-    SubmissionType.DEPLOYED_API,
-    SubmissionType.SECURITY_SCANNING,
-    SubmissionType.CAREER_REFLECTION,
-    SubmissionType.DEPLOYMENT_ARCHITECTURE,
-}
 
 # Server-derived GitHub repo URL types (owner/repo parsed from the value).
 _EXPECTED_REPO_BACKED = {
@@ -52,32 +31,6 @@ _EXPECTED_NO_USERNAME = {
 _ACTIVE_TYPES = {member.value for member in SubmissionType}
 
 
-def test_inline_set_is_exactly_the_phase_0_to_2_types():
-    """Guard rail: any new inline type must be added intentionally.
-
-    Keeping this concrete protects against silently routing a new phase 3+
-    verification through the in-request path.
-    """
-    inline = {t for t in _VALIDATOR_REGISTRY if is_inline(t)}
-    assert inline == _EXPECTED_INLINE
-
-
-@pytest.mark.parametrize(
-    "submission_type", sorted(_EXPECTED_INLINE, key=lambda t: t.value)
-)
-def test_is_inline_true_for_inline_types(submission_type):
-    assert is_inline(submission_type) is True
-    assert execution_mode_for(submission_type) is ExecutionMode.INLINE
-
-
-@pytest.mark.parametrize(
-    "submission_type", sorted(_EXPECTED_BACKGROUND, key=lambda t: t.value)
-)
-def test_is_inline_false_for_background_types(submission_type):
-    assert is_inline(submission_type) is False
-    assert execution_mode_for(submission_type) is ExecutionMode.BACKGROUND
-
-
 @pytest.mark.parametrize(
     "submission_type", sorted(_EXPECTED_REPO_BACKED, key=lambda t: t.value)
 )
@@ -87,7 +40,10 @@ def test_repo_backed_true_for_repo_url_types(submission_type):
 
 @pytest.mark.parametrize(
     "submission_type",
-    sorted(_EXPECTED_INLINE | _EXPECTED_NO_USERNAME, key=lambda t: t.value),
+    sorted(
+        (set(SubmissionType) - _EXPECTED_REPO_BACKED),
+        key=lambda t: t.value,
+    ),
 )
 def test_repo_backed_false_for_non_repo_types(submission_type):
     assert is_repo_backed(submission_type) is False
@@ -112,10 +68,9 @@ def test_deployed_api_does_not_require_username():
     assert descriptor.requires_username is False
 
 
-def test_deployment_architecture_is_background_repo_derived_needs_username():
+def test_deployment_architecture_is_repo_derived_needs_username():
     descriptor = descriptor_for(SubmissionType.DEPLOYMENT_ARCHITECTURE)
     assert descriptor is not None
-    assert descriptor.execution_mode is ExecutionMode.BACKGROUND
     assert descriptor.requires_username is True
     # The submitted value is free text, not a repo URL, so it is not
     # repo-backed even though the validator derives a repo from required_repo.

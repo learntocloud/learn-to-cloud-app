@@ -28,9 +28,6 @@ from learn_to_cloud_shared.schemas import (
     SubmissionData,
 )
 from learn_to_cloud_shared.submission_values import submission_value_from_columns
-from learn_to_cloud_shared.verification.execution import (
-    SubmissionAlreadyInFlightError,
-)
 from learn_to_cloud_shared.verification.requirements import get_requirement_by_slug
 from learn_to_cloud_shared.verification.url_derivation import (
     derive_submission_value,
@@ -90,7 +87,6 @@ _USER_FACING_ERRORS = (
     InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
-    SubmissionAlreadyInFlightError,
 )
 
 _DURABLE_START_ERROR_MESSAGE = (

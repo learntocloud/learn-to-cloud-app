@@ -5,8 +5,7 @@ from __future__ import annotations
 import logging
 
 from opentelemetry import trace
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.models import Submission, SubmissionType
 from learn_to_cloud_shared.repositories.submission_repository import (
@@ -22,23 +21,12 @@ from learn_to_cloud_shared.submission_values import (
     SubmittedValue,
     submission_value_from_columns,
 )
-from learn_to_cloud_shared.verification.dispatcher import validate_submission
 from learn_to_cloud_shared.verification.github_profile import parse_github_url
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
 
 MAX_VALIDATION_MESSAGE_LENGTH = 1024
-
-
-class SubmissionAlreadyInFlightError(Exception):
-    """Raised when a sync verification is already running for the same requirement.
-
-    Used as a dedupe signal when two concurrent submits (e.g. a double-click)
-    arrive for the same ``(user_id, requirement_slug)``. The first one holds a
-    Postgres transactional advisory lock; the second one sees the lock is
-    busy and bails out so the user can wait for the first to finish.
-    """
 
 
 def persisted_validation_message(message: str | None) -> str | None:
@@ -168,91 +156,3 @@ def build_submission_result(
         repo_exists=validation_result.repo_exists,
         task_results=validation_result.task_results,
     )
-
-
-def _advisory_lock_key(user_id: int, requirement_slug: str) -> str:
-    """Stable Postgres advisory-lock key for one (user, requirement) pair.
-
-    Namespaced so it can't collide with any other advisory locks the app
-    may take in the future.
-    """
-    return f"verification-sub:{user_id}:{requirement_slug}"
-
-
-async def execute_sync_submission_validation(
-    *,
-    session_maker: async_sessionmaker[AsyncSession],
-    user_id: int,
-    requirement: HandsOnRequirement,
-    submitted_value: str,
-    github_username: str | None,
-) -> SubmissionResult:
-    """Run a sync (sub-second) verification in one DB transaction.
-
-    Used for submission types that finish quickly enough to answer from
-    the same HTTP request — no Durable Functions, no spinner, no polling.
-
-    Concurrency: takes a Postgres transactional advisory lock keyed on
-    ``(user_id, requirement_slug)`` so two parallel submits (e.g. a
-    double-click) can't both run validation and race
-    ``Submission.attempt_number`` into a duplicate-key crash. If the lock
-    is already held, raises :class:`SubmissionAlreadyInFlightError`.
-
-    The DB connection is held across the validator call (typically a
-    single GitHub API request, ~200-500ms). Lock contention is bounded to
-    the same user submitting the same requirement, so pool pressure
-    stays negligible.
-    """
-    lock_key = _advisory_lock_key(user_id, requirement.slug)
-    typed_value = SubmittedValue.from_raw(requirement, submitted_value)
-
-    with tracer.start_as_current_span(
-        "execute_sync_submission_validation",
-        attributes={
-            "user.id": user_id,
-            "requirement.slug": requirement.slug,
-            "submission.type": requirement.submission_type.value,
-        },
-    ) as span:
-        async with session_maker() as session, session.begin():
-            acquired = await session.scalar(
-                text("SELECT pg_try_advisory_xact_lock(hashtext(:key))"),
-                {"key": lock_key},
-            )
-            if not acquired:
-                span.set_attribute("submission.lock_acquired", False)
-                raise SubmissionAlreadyInFlightError(
-                    "A verification for this requirement is already in progress. "
-                    "Please wait a moment and try again."
-                )
-            span.set_attribute("submission.lock_acquired", True)
-
-            validation_result = await validate_submission(
-                requirement=requirement,
-                submitted_value=typed_value.as_text,
-                expected_username=github_username,
-            )
-
-            db_submission = await persist_validation_result(
-                session,
-                user_id=user_id,
-                requirement=requirement,
-                submitted_value=typed_value,
-                github_username=github_username,
-                validation_result=validation_result,
-            )
-
-        span.set_attribute("submission.is_valid", validation_result.is_valid)
-        span.set_attribute(
-            "submission.verification_completed",
-            validation_result.verification_completed,
-        )
-
-        _log_submission_completed(
-            user_id=user_id,
-            requirement=requirement,
-            validation_result=validation_result,
-            execution_path="sync",
-        )
-
-        return build_submission_result(db_submission, validation_result)

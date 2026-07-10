@@ -122,26 +122,6 @@ class SubmissionType(StrEnum):
     CAREER_REFLECTION = "career_reflection"
 
 
-class ExecutionMode(StrEnum):
-    """Where a verification runs and when the learner gets the answer.
-
-    Every validator is an ``async def`` coroutine; this enum is about
-    *where* the work runs, not about asyncio. It replaces the older
-    "sync vs async" wording, which was misleading in a codebase where
-    every validator already awaits.
-    """
-
-    # Runs inside the FastAPI request and answers immediately. Used for
-    # checks that finish in well under a second (one GitHub API call or a
-    # constant-time token compare).
-    INLINE = "inline"
-
-    # Handed off to Durable Functions and answered later via polling.
-    # Used for checks that involve LLM grading, fan-out, or external
-    # probes with retries.
-    BACKGROUND = "background"
-
-
 class SubmissionValueKind(StrEnum):
     """Storage shape for a submitted verification value."""
 
