@@ -73,7 +73,7 @@ async def synced_requirement(
     and ``get_requirement_by_slug`` only returns active rows so the test
     requirement must be alive in the curriculum.
 
-    Uses a still-legacy repo-backed type (security_scanning) so the executor's
+    Uses a still-legacy repo-backed type (repo_fork) so the executor's
     generic plumbing is exercised through the transitional ``legacy_validate``
     step, which these tests mock via ``validate_submission``. Migrated profiles
     (e.g. journal_api_verifier) run declared steps instead and would bypass
@@ -95,7 +95,7 @@ async def synced_requirement(
                     CurriculumRequirement.slug,
                     CurriculumRequirement.submission_type,
                 )
-                .where(CurriculumRequirement.submission_type == "security_scanning")
+                .where(CurriculumRequirement.submission_type == "repo_fork")
                 .limit(1)
             )
         ).one()
@@ -200,8 +200,8 @@ async def test_split_verification_primitives_prepare_run_and_persist(
     assert run_result.to_payload()["job"] == preparation.job.to_payload()
     assert run_result.job.target == GitHubTarget(
         owner="executoruser",
-        repo="sec-repo",
-        forked_from="owner/sec-repo",
+        repo="test-repo",
+        forked_from="owner/test-repo",
     )
     assert "repository" not in run_result.to_payload()
 
@@ -247,7 +247,7 @@ async def test_execute_verification_job_marks_success_and_links_submission(
     assert payload["code"] == VERIFICATION_SUCCEEDED_CODE
     assert payload["requirement_slug"] == synced_requirement.slug
     assert payload["requirement_name"] == "Verification Executor Test"
-    assert payload["submission_type"] == SubmissionType.SECURITY_SCANNING.value
+    assert payload["submission_type"] == SubmissionType.REPO_FORK.value
     assert payload["message"] == "Verification succeeded."
 
     assert await _get_job_link(session_maker, job_id) == result.submission_id

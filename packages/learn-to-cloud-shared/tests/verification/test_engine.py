@@ -6,7 +6,6 @@ import pytest
 
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.testing.requirement_factories import (
-    career_reflection_requirement,
     repo_fork_requirement,
 )
 from learn_to_cloud_shared.verification import engine as engine_module
@@ -66,7 +65,7 @@ async def test_legacy_step_passes_dispatcher_result_through(monkeypatch):
 
     monkeypatch.setattr(engine_module, "validate_submission", fake_validate)
 
-    result = await run_profile(_job(career_reflection_requirement()))
+    result = await run_profile(_job(repo_fork_requirement()))
 
     assert result.validation_result is sentinel
     assert result.evidence is None
@@ -284,7 +283,7 @@ async def test_legacy_type_leaves_grading_requests_none(monkeypatch):
 
     monkeypatch.setattr(engine_module, "validate_submission", fake_validate)
 
-    result = await run_profile(_job(career_reflection_requirement()))
+    result = await run_profile(_job(repo_fork_requirement()))
 
     assert result.grading_requests is None
 
@@ -463,3 +462,112 @@ async def test_devops_profile_fails_when_workflow_fails(monkeypatch):
 
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
+
+
+# ---------------------------------------------------------------------------
+# Phase 6/7 rubric profiles: security scanning (repo) and career reflection
+# (text-only) both gate then record a grading request.
+# ---------------------------------------------------------------------------
+
+
+def _security_job() -> PreparedVerificationJob:
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        security_scanning_requirement,
+    )
+
+    return PreparedVerificationJob(
+        id=uuid4(),
+        user_id=1,
+        github_username="learner",
+        requirement=security_scanning_requirement(
+            slug="security-scanning",
+            required_repo="owner/sec-repo",
+        ),
+        submitted_value="https://github.com/learner/sec-repo",
+    )
+
+
+def _career_job(text: str) -> PreparedVerificationJob:
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        career_reflection_requirement,
+    )
+
+    return PreparedVerificationJob(
+        id=uuid4(),
+        user_id=1,
+        github_username=None,
+        requirement=career_reflection_requirement(slug="career-reflection"),
+        submitted_value=text,
+    )
+
+
+@pytest.mark.asyncio
+async def test_security_profile_records_grading_request_when_gate_passes(monkeypatch):
+    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+    from learn_to_cloud_shared.verification.tasks.phase6 import (
+        SECURITY_SCANNING_RUBRIC_TASK,
+    )
+
+    async def fake_gate(owner, repo, repo_files=None):
+        return ValidationResult(is_valid=True, message="Dependabot configured")
+
+    monkeypatch.setattr(engine_module, "validate_security_scanning", fake_gate)
+    repo_files = InMemoryRepoFiles(
+        {".github/dependabot.yml": "version: 2\nupdates: []\n"}
+    )
+
+    result = await run_profile(_security_job(), repo_files=repo_files)
+
+    assert result.validation_result.is_valid is True
+    assert result.grading_requests is not None
+    assert len(result.grading_requests) == 1
+    assert result.grading_requests[0].task.id == SECURITY_SCANNING_RUBRIC_TASK.id
+
+
+@pytest.mark.asyncio
+async def test_security_profile_skips_grading_when_gate_fails(monkeypatch):
+    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+
+    async def fake_gate(owner, repo, repo_files=None):
+        return ValidationResult(is_valid=False, message="No scanning found")
+
+    monkeypatch.setattr(engine_module, "validate_security_scanning", fake_gate)
+
+    result = await run_profile(_security_job(), repo_files=InMemoryRepoFiles({}))
+
+    assert result.validation_result.is_valid is False
+    assert result.grading_requests == []
+    assert result.evidence is None
+
+
+@pytest.mark.asyncio
+async def test_career_profile_records_text_grading_request_when_gate_passes():
+    from learn_to_cloud_shared.verification.tasks.phase7 import (
+        CAREER_REFLECTION_RUBRIC_TASK,
+    )
+
+    text = "A specific, first-person reflection on my target role and projects."
+    result = await run_profile(_career_job(text))
+
+    assert result.validation_result.is_valid is True
+    assert result.grading_requests is not None
+    assert len(result.grading_requests) == 1
+    request = result.grading_requests[0]
+    assert request.task.id == CAREER_REFLECTION_RUBRIC_TASK.id
+    assert request.task.evidence.source == "submitted_text"
+    assert text in request.message
+
+
+@pytest.mark.asyncio
+async def test_career_profile_skips_grading_when_gate_fails(monkeypatch):
+    def fake_gate(text):
+        return ValidationResult(is_valid=False, message="Your reflection was empty.")
+
+    monkeypatch.setattr(engine_module, "validate_career_reflection", fake_gate)
+    text = "A specific, first-person reflection on my target role and projects."
+
+    result = await run_profile(_career_job(text))
+
+    assert result.validation_result.is_valid is False
+    assert result.grading_requests == []
+    assert result.evidence is None

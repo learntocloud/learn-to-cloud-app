@@ -1,35 +1,19 @@
-"""Prepare and apply durable LLM grading for verification jobs.
+"""Apply durable LLM grading decisions to verification job results.
 
-Transitional home of the self-gating grading probe for the phases that have
-not yet moved to a declared engine profile. Migrated phases (Phase 3 onward)
-record their grading requests on the verify result via the engine's
-``llm_rubric_review`` step, so they no longer route through this probe; their
-branches are removed here as they migrate, and the probe is deleted once the
-last graded phase is migrated.
+Migrated engine profiles record their grading requests on the verify result
+via the engine's rubric-review steps, so evidence collection and prompt
+assembly live in the engine, not here. This module now only merges the
+grader's decisions back into the run result and formats grader-outage and
+content-filter results.
 """
 
 from __future__ import annotations
 
-from learn_to_cloud_shared.schemas import (
-    HandsOnRequirement,
-)
-from learn_to_cloud_shared.verification.career_reflection import (
-    collect_career_reflection_evidence,
-)
 from learn_to_cloud_shared.verification.grading_requests import (
     LLMGradingDecisionPayload,
     LLMGradingRequest,
-    build_repo_rubric_message,
-    build_text_rubric_message,
-)
-from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
-from learn_to_cloud_shared.verification.security_scanning import (
-    collect_security_scanning_evidence,
 )
 from learn_to_cloud_shared.verification.tasks import (
-    PHASE6_LLM_TASKS,
-    PHASE7_LLM_TASKS,
-    PHASE7_REQUIREMENT_SLUG,
     GradingResult,
     LLMGradingDecision,
     VerificationTask,
@@ -43,33 +27,9 @@ __all__ = [
     "LLMGradingDecisionPayload",
     "LLMGradingRequest",
     "apply_llm_grading_decisions",
-    "collect_llm_grading_requests",
     "llm_grading_content_filtered_result",
     "llm_grading_unavailable_result",
 ]
-
-
-async def collect_llm_grading_requests(
-    run_result: VerificationRunResult,
-    repo_files: RepoFiles | None = None,
-) -> list[LLMGradingRequest]:
-    """Collect evidence and prompts for tasks that require LLM grading."""
-    if not run_result.validation_result.verification_completed:
-        return []
-
-    tasks = _llm_tasks_for_requirement(run_result.job.requirement)
-    if not tasks:
-        return []
-
-    if run_result.job.requirement.slug == PHASE7_REQUIREMENT_SLUG:
-        return _collect_phase7_requests(run_result, tasks)
-
-    repo_files = repo_files or default_repo_files()
-
-    if run_result.job.requirement.slug == "security-scanning":
-        return await _collect_phase6_requests(run_result, tasks, repo_files)
-
-    return []
 
 
 def apply_llm_grading_decisions(
@@ -161,101 +121,6 @@ def llm_grading_content_filtered_result(
     )
 
 
-async def _collect_phase6_requests(
-    run_result: VerificationRunResult,
-    tasks: list[VerificationTask],
-    repo_files: RepoFiles,
-) -> list[LLMGradingRequest]:
-    target = run_result.job.target
-    if target is None or not target.repo:
-        return []
-
-    owner, repo = target.owner, target.repo
-    file_paths = await repo_files.tree(owner, repo)
-    requests: list[LLMGradingRequest] = []
-    for task in tasks:
-        evidence = await collect_security_scanning_evidence(
-            owner,
-            repo,
-            file_paths,
-            task,
-            repo_files=repo_files,
-        )
-        requests.append(
-            LLMGradingRequest(
-                task=task,
-                message=_build_grading_message(
-                    run_result=run_result,
-                    task=task,
-                    owner=owner,
-                    repo=repo,
-                    evidence=evidence.model_dump(mode="json"),
-                ),
-                thread_id=f"{run_result.job.id}-{task.id}",
-            )
-        )
-    return requests
-
-
-def _collect_phase7_requests(
-    run_result: VerificationRunResult,
-    tasks: list[VerificationTask],
-) -> list[LLMGradingRequest]:
-    if not run_result.validation_result.is_valid:
-        return []
-
-    submitted_text = run_result.job.typed_submitted_value.as_text
-    requests: list[LLMGradingRequest] = []
-    for task in tasks:
-        evidence = collect_career_reflection_evidence(submitted_text, task)
-        requests.append(
-            LLMGradingRequest(
-                task=task,
-                message=_build_text_grading_message(
-                    run_result=run_result,
-                    task=task,
-                    evidence=evidence.model_dump(mode="json"),
-                ),
-                thread_id=f"{run_result.job.id}-{task.id}",
-            )
-        )
-    return requests
-
-
-def _build_grading_message(
-    *,
-    run_result: VerificationRunResult,
-    task: VerificationTask,
-    owner: str,
-    repo: str,
-    evidence: dict[str, object],
-) -> str:
-    return build_repo_rubric_message(
-        requirement_slug=run_result.job.requirement.slug,
-        requirement_name=run_result.job.requirement.name,
-        deterministic_result=run_result.validation_result,
-        owner=owner,
-        repo=repo,
-        task=task,
-        evidence=evidence,
-    )
-
-
-def _build_text_grading_message(
-    *,
-    run_result: VerificationRunResult,
-    task: VerificationTask,
-    evidence: dict[str, object],
-) -> str:
-    return build_text_rubric_message(
-        requirement_slug=run_result.job.requirement.slug,
-        requirement_name=run_result.job.requirement.name,
-        deterministic_result=run_result.validation_result,
-        task=task,
-        evidence=evidence,
-    )
-
-
 def _decision_to_grading_result(
     task: VerificationTask,
     decision: LLMGradingDecision,
@@ -279,13 +144,3 @@ def _decision_to_grading_result(
         rubric_version=grader.rubric_id,
         evidence_refs=decision.evidence_refs,
     )
-
-
-def _llm_tasks_for_requirement(
-    requirement: HandsOnRequirement,
-) -> list[VerificationTask]:
-    if requirement.slug == "security-scanning":
-        return PHASE6_LLM_TASKS
-    if requirement.slug == PHASE7_REQUIREMENT_SLUG:
-        return PHASE7_LLM_TASKS
-    return []
