@@ -1,11 +1,16 @@
-"""Prepare and apply durable LLM grading for verification jobs."""
+"""Prepare and apply durable LLM grading for verification jobs.
+
+Transitional home of the self-gating grading probe for the phases that have
+not yet moved to a declared engine profile. Migrated phases (Phase 3 onward)
+record their grading requests on the verify result via the engine's
+``llm_rubric_review`` step, so they no longer route through this probe; their
+branches are removed here as they migrate, and the probe is deleted once the
+last graded phase is migrated.
+"""
 
 from __future__ import annotations
 
-import json
-
 from learn_to_cloud_shared.schemas import (
-    FrozenModel,
     HandsOnRequirement,
 )
 from learn_to_cloud_shared.verification.career_reflection import (
@@ -14,15 +19,17 @@ from learn_to_cloud_shared.verification.career_reflection import (
 from learn_to_cloud_shared.verification.deployment_architecture import (
     collect_deployment_architecture_evidence,
 )
-from learn_to_cloud_shared.verification.journal_api import (
-    collect_journal_api_implementation_evidence,
+from learn_to_cloud_shared.verification.grading_requests import (
+    LLMGradingDecisionPayload,
+    LLMGradingRequest,
+    build_repo_rubric_message,
+    build_text_rubric_message,
 )
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.security_scanning import (
     collect_security_scanning_evidence,
 )
 from learn_to_cloud_shared.verification.tasks import (
-    PHASE3_LLM_TASKS,
     PHASE4_LLM_TASKS,
     PHASE4_REQUIREMENT_SLUG,
     PHASE6_LLM_TASKS,
@@ -37,20 +44,14 @@ from learn_to_cloud_shared.verification_job_executor import (
     VerificationRunResult,
 )
 
-
-class LLMGradingRequest(FrozenModel):
-    """One durable agent grading request."""
-
-    task: VerificationTask
-    message: str
-    thread_id: str
-
-
-class LLMGradingDecisionPayload(FrozenModel):
-    """A structured LLM decision paired with its task definition."""
-
-    task: VerificationTask
-    decision: LLMGradingDecision
+__all__ = [
+    "LLMGradingDecisionPayload",
+    "LLMGradingRequest",
+    "apply_llm_grading_decisions",
+    "collect_llm_grading_requests",
+    "llm_grading_content_filtered_result",
+    "llm_grading_unavailable_result",
+]
 
 
 async def collect_llm_grading_requests(
@@ -75,9 +76,6 @@ async def collect_llm_grading_requests(
 
     if run_result.job.requirement.slug == "security-scanning":
         return await _collect_phase6_requests(run_result, tasks, repo_files)
-
-    if run_result.job.requirement.slug == "journal-api-implementation":
-        return await _collect_phase3_requests(run_result, tasks, repo_files)
 
     return []
 
@@ -207,45 +205,6 @@ async def _collect_phase6_requests(
     return requests
 
 
-async def _collect_phase3_requests(
-    run_result: VerificationRunResult,
-    tasks: list[VerificationTask],
-    repo_files: RepoFiles,
-) -> list[LLMGradingRequest]:
-    if not run_result.validation_result.is_valid:
-        return []
-
-    target = run_result.job.target
-    if target is None or not target.repo:
-        return []
-
-    owner, repo = target.owner, target.repo
-    file_paths = await repo_files.tree(owner, repo)
-    requests: list[LLMGradingRequest] = []
-    for task in tasks:
-        evidence = await collect_journal_api_implementation_evidence(
-            owner,
-            repo,
-            file_paths,
-            task,
-            repo_files=repo_files,
-        )
-        requests.append(
-            LLMGradingRequest(
-                task=task,
-                message=_build_grading_message(
-                    run_result=run_result,
-                    task=task,
-                    owner=owner,
-                    repo=repo,
-                    evidence=evidence.model_dump(mode="json"),
-                ),
-                thread_id=f"{run_result.job.id}-{task.id}",
-            )
-        )
-    return requests
-
-
 async def _collect_phase4_requests(
     run_result: VerificationRunResult,
     tasks: list[VerificationTask],
@@ -322,28 +281,14 @@ def _build_grading_message(
     repo: str,
     evidence: dict[str, object],
 ) -> str:
-    grader = require_llm_rubric_grader(task)
-    payload = {
-        "requirement": {
-            "id": run_result.job.requirement.slug,
-            "name": run_result.job.requirement.name,
-        },
-        "task": {
-            "id": task.id,
-            "name": task.name,
-            "criteria": task.criteria,
-            "rubric_id": grader.rubric_id,
-            "prompt_version": grader.prompt_version,
-            "passing_score": grader.passing_score,
-        },
-        "repository": {"owner": owner, "name": repo},
-        "deterministic_result": run_result.validation_result.model_dump(mode="json"),
-        "evidence": evidence,
-    }
-    return (
-        "Grade this Learn to Cloud verification task using only the JSON payload. "
-        "Return a structured grading decision that follows the configured schema.\n\n"
-        f"{json.dumps(payload, sort_keys=True)}"
+    return build_repo_rubric_message(
+        requirement_slug=run_result.job.requirement.slug,
+        requirement_name=run_result.job.requirement.name,
+        deterministic_result=run_result.validation_result,
+        owner=owner,
+        repo=repo,
+        task=task,
+        evidence=evidence,
     )
 
 
@@ -353,28 +298,12 @@ def _build_text_grading_message(
     task: VerificationTask,
     evidence: dict[str, object],
 ) -> str:
-    grader = require_llm_rubric_grader(task)
-    payload = {
-        "requirement": {
-            "id": run_result.job.requirement.slug,
-            "name": run_result.job.requirement.name,
-        },
-        "task": {
-            "id": task.id,
-            "name": task.name,
-            "criteria": task.criteria,
-            "rubric_id": grader.rubric_id,
-            "prompt_version": grader.prompt_version,
-            "passing_score": grader.passing_score,
-        },
-        "deterministic_result": run_result.validation_result.model_dump(mode="json"),
-        "evidence": evidence,
-    }
-    return (
-        "Grade this Learn to Cloud verification task using only the JSON payload. "
-        "The evidence is the learner's own free-text reflection answers. "
-        "Return a structured grading decision that follows the configured schema.\n\n"
-        f"{json.dumps(payload, sort_keys=True)}"
+    return build_text_rubric_message(
+        requirement_slug=run_result.job.requirement.slug,
+        requirement_name=run_result.job.requirement.name,
+        deterministic_result=run_result.validation_result,
+        task=task,
+        evidence=evidence,
     )
 
 
@@ -408,8 +337,6 @@ def _llm_tasks_for_requirement(
 ) -> list[VerificationTask]:
     if requirement.slug == "security-scanning":
         return PHASE6_LLM_TASKS
-    if requirement.slug == "journal-api-implementation":
-        return PHASE3_LLM_TASKS
     if requirement.slug == PHASE7_REQUIREMENT_SLUG:
         return PHASE7_LLM_TASKS
     if requirement.slug == PHASE4_REQUIREMENT_SLUG:

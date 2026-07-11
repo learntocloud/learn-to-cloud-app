@@ -208,3 +208,82 @@ def test_register_check_rejects_duplicates():
 def test_check_for_unknown_raises():
     with pytest.raises(KeyError):
         check_for("does-not-exist")
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 journal API profile: CI gate + rubric review + grading requests.
+# ---------------------------------------------------------------------------
+
+
+def _journal_job() -> PreparedVerificationJob:
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        journal_api_verifier_requirement,
+    )
+
+    return PreparedVerificationJob(
+        id=uuid4(),
+        user_id=1,
+        github_username="learner",
+        requirement=journal_api_verifier_requirement(
+            slug="journal-api-implementation",
+            name="Journal API Implementation",
+            required_repo="owner/journal-starter",
+        ),
+        submitted_value="https://github.com/learner/journal-starter",
+    )
+
+
+@pytest.mark.asyncio
+async def test_journal_profile_records_grading_requests_when_ci_passes(monkeypatch):
+    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+    from learn_to_cloud_shared.verification.tasks.phase3 import (
+        JOURNAL_API_FINAL_RUBRIC_TASK,
+        JOURNAL_API_IMPORTANT_PATHS,
+    )
+
+    async def fake_ci(owner, repo, runs=None):
+        return ValidationResult(is_valid=True, message="CI is green")
+
+    monkeypatch.setattr(engine_module, "verify_ci_status", fake_ci)
+    repo_files = InMemoryRepoFiles(
+        {path: f"content of {path}" for path in JOURNAL_API_IMPORTANT_PATHS}
+    )
+
+    result = await run_profile(_journal_job(), repo_files=repo_files)
+
+    assert result.validation_result.is_valid is True
+    assert result.evidence is not None and len(result.evidence) == 1
+    assert result.grading_requests is not None
+    assert len(result.grading_requests) == 1
+    request = result.grading_requests[0]
+    assert request.task.id == JOURNAL_API_FINAL_RUBRIC_TASK.id
+    assert "journal-api-implementation" in request.message
+
+
+@pytest.mark.asyncio
+async def test_journal_profile_skips_grading_when_ci_fails(monkeypatch):
+    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+
+    async def fake_ci(owner, repo, runs=None):
+        return ValidationResult(is_valid=False, message="CI is red")
+
+    monkeypatch.setattr(engine_module, "verify_ci_status", fake_ci)
+
+    result = await run_profile(_journal_job(), repo_files=InMemoryRepoFiles({}))
+
+    assert result.validation_result.is_valid is False
+    assert result.validation_result.message == "CI is red"
+    assert result.grading_requests == []
+    assert result.evidence is None
+
+
+@pytest.mark.asyncio
+async def test_legacy_type_leaves_grading_requests_none(monkeypatch):
+    async def fake_validate(**kwargs):
+        return ValidationResult(is_valid=True, message="legacy ran")
+
+    monkeypatch.setattr(engine_module, "validate_submission", fake_validate)
+
+    result = await run_profile(_job(career_reflection_requirement()))
+
+    assert result.grading_requests is None

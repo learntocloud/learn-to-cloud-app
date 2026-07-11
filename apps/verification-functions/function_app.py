@@ -7,7 +7,7 @@ import atexit
 import json
 import logging
 import os
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from uuid import UUID
@@ -381,13 +381,24 @@ def _llm_grading_step(
 ):
     """Apply LLM rubric grading when the run produced grading requests.
 
-    Used only by graded phases (3 and 6). When no requests are produced
-    the run result passes through unchanged.
+    Migrated profiles record their grading requests on the verify result
+    (``grading_requests`` is a list, possibly empty); the orchestrator grades
+    exactly those. Legacy types leave it absent, so we fall back to the
+    transitional grading probe. When no requests result, the run result passes
+    through unchanged.
     """
-    llm_requests = yield context.call_activity(
-        "collect_llm_grading_requests",
-        run_result,
-    )
+    recorded_requests: Sequence[object] | None = None
+    if isinstance(run_result, Mapping):
+        value = _activity_payload(run_result).get("grading_requests")
+        if isinstance(value, list):
+            recorded_requests = value
+    if recorded_requests is None:
+        llm_requests = yield context.call_activity(
+            "collect_llm_grading_requests",
+            run_result,
+        )
+    else:
+        llm_requests = recorded_requests
     if not llm_requests:
         return run_result
 
