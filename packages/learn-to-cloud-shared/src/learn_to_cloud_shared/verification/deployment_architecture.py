@@ -15,6 +15,9 @@ from hashlib import sha256
 import httpx
 
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
+from learn_to_cloud_shared.submission_derivation import (
+    repository_ref_from_required_repo,
+)
 from learn_to_cloud_shared.verification.evidence import truncate_to_bytes
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.tasks.base import (
@@ -24,9 +27,6 @@ from learn_to_cloud_shared.verification.tasks.base import (
 )
 from learn_to_cloud_shared.verification.tasks.phase4 import (
     DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
-)
-from learn_to_cloud_shared.verification.url_derivation import (
-    repository_ref_from_required_repo,
 )
 
 _DESCRIPTION_EVIDENCE_PATH = "architecture-description.md"

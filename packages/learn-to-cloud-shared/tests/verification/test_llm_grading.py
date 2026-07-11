@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 
 from learn_to_cloud_shared.schemas import (
+    RepositoryRef,
     TaskResult,
     ValidationResult,
 )
@@ -15,7 +16,6 @@ from learn_to_cloud_shared.verification.llm_grading import (
     llm_grading_content_filtered_result,
     llm_grading_unavailable_result,
 )
-from learn_to_cloud_shared.verification.repo_utils import RepositoryRef
 from learn_to_cloud_shared.verification.tasks import (
     PHASE3_LLM_TASKS,
     PHASE4_LLM_TASKS,

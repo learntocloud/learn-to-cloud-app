@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from learn_to_cloud_shared.verification.url_derivation import (
+from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
     is_derivable,
 )

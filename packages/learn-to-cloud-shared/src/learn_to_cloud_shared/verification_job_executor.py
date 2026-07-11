@@ -1,8 +1,7 @@
 """Execute persisted verification jobs outside the FastAPI request path.
 
-PR4 removed the legacy ``status`` enum and the ``mark_*`` lifecycle
-writes. A verification job is now identified by the presence of its row
-in ``verification_jobs``; the outcome lives entirely in the linked
+A verification job is identified by the presence of its row in
+``verification_jobs``; the outcome lives entirely in the linked
 ``Submission``. The executor:
 
 1. ``prepare_verification_job`` validates the persisted job against the
@@ -15,11 +14,11 @@ in ``verification_jobs``; the outcome lives entirely in the linked
    it to the job via ``VerificationJobRepository.link_submission``.
    Idempotent against retries via the ``ALREADY_LINKED`` short-circuit.
 
-After the curriculum-decoupling refactor, the requirement definition
-and ``github_username`` snapshot travel with the orchestration payload
-so the executor never reads ``users`` or any curriculum table. Any
-soft-delete of the requirement between submit and execute is invisible
-here -- validation runs against the submit-time snapshot.
+The requirement definition and ``github_username`` snapshot travel with
+the orchestration payload, so the executor never reads ``users`` or any
+curriculum table. A soft-delete of the requirement between submit and
+execute is invisible here: validation runs against the submit-time
+snapshot.
 """
 
 from __future__ import annotations
@@ -43,7 +42,11 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
     HandsOnRequirementAdapter,
+    RepositoryRef,
     ValidationResult,
+)
+from learn_to_cloud_shared.submission_derivation import (
+    repository_ref_from_required_repo,
 )
 from learn_to_cloud_shared.submission_values import (
     SubmittedValue,
@@ -57,11 +60,7 @@ from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
 )
 from learn_to_cloud_shared.verification.repo_utils import (
-    RepositoryRef,
     resolve_repository,
-)
-from learn_to_cloud_shared.verification.url_derivation import (
-    repository_ref_from_required_repo,
 )
 
 tracer = trace.get_tracer(__name__)

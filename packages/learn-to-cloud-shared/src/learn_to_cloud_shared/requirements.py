@@ -7,9 +7,9 @@ hot paths that need several lookups should load the index once and
 reuse it to avoid redundant queries.
 
 Phases here are keyed by ``phase.order`` (the int 0..7), matching the
-URL contract and the historical "phase id". Slugs (``"phase0"`` etc.)
-are not used as the index key because callers (sequential gating,
-progress aggregation) think in terms of ordinals.
+URL contract and the numeric phase id. Slugs (``"phase0"`` etc.) are
+not used as the index key because callers (sequential gating, progress
+aggregation) think in terms of ordinals.
 """
 
 from __future__ import annotations

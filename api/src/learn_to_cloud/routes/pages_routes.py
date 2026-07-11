@@ -18,7 +18,7 @@ from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
-from learn_to_cloud_shared.verification.requirements import (
+from learn_to_cloud_shared.requirements import (
     is_phase_verification_locked,
 )
 

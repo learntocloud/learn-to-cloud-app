@@ -8,6 +8,9 @@ from learn_to_cloud_shared.schemas import (
     FrozenModel,
     HandsOnRequirement,
 )
+from learn_to_cloud_shared.submission_derivation import (
+    repository_ref_from_required_repo,
+)
 from learn_to_cloud_shared.verification.career_reflection import (
     collect_career_reflection_evidence,
 )
@@ -32,9 +35,6 @@ from learn_to_cloud_shared.verification.tasks import (
     LLMGradingDecision,
     VerificationTask,
     require_llm_rubric_grader,
-)
-from learn_to_cloud_shared.verification.url_derivation import (
-    repository_ref_from_required_repo,
 )
 from learn_to_cloud_shared.verification_job_executor import (
     VerificationRunResult,

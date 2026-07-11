@@ -20,6 +20,11 @@ from learn_to_cloud_shared.repositories.submission_repository import (
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
+from learn_to_cloud_shared.requirements import (
+    RequirementIndex,
+    get_prerequisite_phase,
+    load_requirement_index,
+)
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
     Phase,
@@ -29,11 +34,6 @@ from learn_to_cloud_shared.schemas import (
 from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.verification.execution import (
     to_submission_data,
-)
-from learn_to_cloud_shared.verification.requirements import (
-    RequirementIndex,
-    get_prerequisite_phase,
-    load_requirement_index,
 )
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 

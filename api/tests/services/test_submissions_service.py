@@ -12,8 +12,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from learn_to_cloud_shared.models import SubmissionType, SubmissionValueKind
+from learn_to_cloud_shared.requirements import RequirementIndex
 from learn_to_cloud_shared.schemas import HandsOnRequirement, Phase
-from learn_to_cloud_shared.verification.requirements import RequirementIndex
 
 from learn_to_cloud.services.submissions_service import (
     _SMOKE_USER_ID as SMOKE_USER_ID,

@@ -1,12 +1,14 @@
-"""Pydantic schemas for API request/response validation.
+"""Shared data types for API validation and cross-service payloads.
 
-This module contains all Pydantic schemas used throughout the application.
-Schemas are used both for API request/response validation and as
-service-layer response models.
-
-All schemas use frozen=True for immutability where appropriate.
+Holds the Pydantic models used for API request/response validation and
+service-layer responses, plus a few lightweight dataclasses (such as
+``RepositoryRef``) that carry structured values between the API and the
+verification runtime. Pydantic models use ``frozen=True`` for immutability
+where appropriate.
 """
 
+from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal, get_args
@@ -912,3 +914,30 @@ class ParsedGitHubUrl(FrozenModel):
     file_path: str | None = None
     is_valid: bool = True
     error: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RepositoryRef:
+    """A resolved GitHub repository identity (``owner`` + repo ``name``).
+
+    Parsed once from a validated submission value and carried across the
+    verification pipeline so later steps reuse the identity instead of
+    re-deriving it. The payload helpers serialize it across Durable activity
+    boundaries.
+    """
+
+    owner: str
+    repo: str
+
+    def to_payload(self) -> dict[str, str]:
+        """Return a JSON-serializable activity payload."""
+        return {"owner": self.owner, "repo": self.repo}
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object]) -> "RepositoryRef":
+        """Rehydrate a repository reference from a Durable activity payload."""
+        owner = payload.get("owner")
+        repo = payload.get("repo")
+        if not isinstance(owner, str) or not isinstance(repo, str):
+            raise TypeError("RepositoryRef payload requires string 'owner' and 'repo'")
+        return cls(owner=owner, repo=repo)

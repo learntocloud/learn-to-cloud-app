@@ -3,22 +3,21 @@
 For repo-backed requirements (fork, CI status, DevOps analysis,
 security scanning) the canonical URL is derived from the authenticated
 user's ``github_username`` plus the requirement's ``required_repo``.
-Profile-based types (``github_profile``, ``profile_readme``) derive
-from ``github_username`` alone.  Keeping this logic on the server
-closes an injection vector (learners can no longer craft arbitrary
-URLs) and removes a fragile copy/paste step from the UI.
+Profile-based types (``github_profile``, ``profile_readme``) derive from
+``github_username`` alone. Deriving the value on the server keeps
+learners from submitting arbitrary URLs and removes a copy/paste step
+from the UI.
 
-The resulting string is what gets persisted in ``Submission.submitted_value``
-and passed to the validators.  Token-based types, the Phase 4 deployed API
-type, and the journal API response type keep their existing free-form input
-and pass through unchanged.
+The resulting string is persisted in ``Submission.submitted_value`` and
+passed to the validators. Token-based types, the deployed API type, and
+the journal API response type accept free-form input and pass through
+unchanged.
 """
 
 from __future__ import annotations
 
 from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.schemas import HandsOnRequirement
-from learn_to_cloud_shared.verification.repo_utils import RepositoryRef
+from learn_to_cloud_shared.schemas import HandsOnRequirement, RepositoryRef
 
 # Derivable types: the server constructs the URL from username + required_repo.
 # The template renders these as read-only fields so the learner cannot edit

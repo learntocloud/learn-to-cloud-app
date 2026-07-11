@@ -1,18 +1,18 @@
-"""Unit tests for verification.requirements after the slug rename."""
+"""Unit tests for the requirements lookup helpers."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from learn_to_cloud_shared.schemas import HandsOnRequirement
-from learn_to_cloud_shared.testing.requirement_factories import (
-    journal_api_verifier_requirement,
-)
-from learn_to_cloud_shared.verification.requirements import (
+from learn_to_cloud_shared.requirements import (
     RequirementIndex,
     get_prerequisite_phase,
     get_requirement_by_slug,
     is_phase_verification_locked,
+)
+from learn_to_cloud_shared.schemas import HandsOnRequirement
+from learn_to_cloud_shared.testing.requirement_factories import (
+    journal_api_verifier_requirement,
 )
 
 
@@ -84,7 +84,7 @@ class TestAsyncRequirementLookups:
     async def test_get_requirement_by_slug_found(self):
         by_phase_order = _make_requirements_by_phase_order(3, ["req-a"])
         with patch(
-            "learn_to_cloud_shared.verification.requirements.get_requirements_by_phase_order",
+            "learn_to_cloud_shared.requirements.get_requirements_by_phase_order",
             new_callable=AsyncMock,
             return_value=by_phase_order,
         ):
@@ -95,7 +95,7 @@ class TestAsyncRequirementLookups:
     @pytest.mark.asyncio
     async def test_get_requirement_by_slug_not_found(self):
         with patch(
-            "learn_to_cloud_shared.verification.requirements.get_requirements_by_phase_order",
+            "learn_to_cloud_shared.requirements.get_requirements_by_phase_order",
             new_callable=AsyncMock,
             return_value={},
         ):
@@ -119,12 +119,12 @@ class TestIsPhaseVerificationLocked:
 
         with (
             patch(
-                "learn_to_cloud_shared.verification.requirements.get_requirements_by_phase_order",
+                "learn_to_cloud_shared.requirements.get_requirements_by_phase_order",
                 new_callable=AsyncMock,
                 return_value=by_phase_order,
             ),
             patch(
-                "learn_to_cloud_shared.verification.requirements.SubmissionRepository",
+                "learn_to_cloud_shared.requirements.SubmissionRepository",
                 autospec=True,
             ) as MockRepo,
         ):
@@ -145,12 +145,12 @@ class TestIsPhaseVerificationLocked:
 
         with (
             patch(
-                "learn_to_cloud_shared.verification.requirements.get_requirements_by_phase_order",
+                "learn_to_cloud_shared.requirements.get_requirements_by_phase_order",
                 new_callable=AsyncMock,
                 return_value=by_phase_order,
             ),
             patch(
-                "learn_to_cloud_shared.verification.requirements.SubmissionRepository",
+                "learn_to_cloud_shared.requirements.SubmissionRepository",
                 autospec=True,
             ) as MockRepo,
         ):
