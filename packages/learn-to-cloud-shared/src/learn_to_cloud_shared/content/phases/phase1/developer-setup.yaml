@@ -11,7 +11,7 @@ learning_objectives:
   text: Install VS Code and practice core terminal commands on your operating system.
   order: 2
 - uuid: 37069f97-e291-4273-ac57-64c319654725
-  text: Create and update a profile README using a local-to-remote Git workflow.
+  text: Update your profile README locally and push changes using a local-to-remote Git workflow.
   order: 3
 learning_steps:
 - uuid: 6e5bfcf7-e17c-416e-9681-f6d717d338e5
@@ -64,9 +64,9 @@ learning_steps:
 - uuid: 21e322f4-9fae-4609-af79-13fb33f828a0
   order: 6
   action: 'Practice:'
-  title: Adding a profile README
+  title: Review your profile README repository
   url: https://docs.github.com/account-and-profile/how-tos/profile-customization/managing-your-profile-readme
-  description: Follow this guide to create the special repository that powers your GitHub profile README.
+  description: In Phase 0 you created your profile README repository on GitHub. Open it and review the README that powers your profile before you start editing it locally.
   slug: phase1-topic1-practice-adding-a-profile-readme
 - uuid: 4a41c7e9-a0aa-4ab4-b47d-8760d92c6ffc
   order: 7

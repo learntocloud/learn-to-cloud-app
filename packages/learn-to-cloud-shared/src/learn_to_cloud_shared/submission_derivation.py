@@ -23,7 +23,6 @@ from learn_to_cloud_shared.schemas import HandsOnRequirement
 # them before submitting.
 _DERIVABLE_TYPES: frozenset[SubmissionType] = frozenset(
     {
-        SubmissionType.GITHUB_PROFILE,
         SubmissionType.PROFILE_README,
         SubmissionType.REPO_FORK,
         SubmissionType.JOURNAL_API_VERIFIER,
@@ -108,9 +107,6 @@ def build_target(
 
     sub_type = requirement.submission_type
 
-    if sub_type == SubmissionType.GITHUB_PROFILE:
-        return GitHubTarget(owner=github_username)
-
     if sub_type == SubmissionType.PROFILE_README:
         return GitHubTarget(owner=github_username, repo=github_username)
 
@@ -148,9 +144,6 @@ def derive_submission_value(
             ``required_repo``).
     """
     sub_type = requirement.submission_type
-
-    if sub_type == SubmissionType.GITHUB_PROFILE:
-        return f"https://github.com/{github_username}"
 
     if sub_type == SubmissionType.PROFILE_README:
         return f"https://github.com/{github_username}/{github_username}"

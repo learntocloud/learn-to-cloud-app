@@ -1,9 +1,9 @@
 """GitHub-specific validation for hands-on verification.
 
-Validates the learner's GitHub profile, profile README repository, and repo
-forks. Each validator receives the ``GitHubTarget`` constructed from the
-learner's username plus the requirement (see ``submission_derivation``), so it
-checks existence and fork lineage without parsing a URL back into an identity.
+Validates the learner's profile README repository and repo forks. Each
+validator receives the ``GitHubTarget`` constructed from the learner's username
+plus the requirement (see ``submission_derivation``), so it checks existence and
+fork lineage without parsing a URL back into an identity.
 
 For the GitHub HTTP plumbing (retry, headers, error mapping), see
 ``github_http.py``. For the existence/metadata seam these validators build on,
@@ -33,7 +33,6 @@ __all__ = [
     "check_repo_is_fork_of",
     "default_github_metadata",
     "github_error_to_validation_result",
-    "validate_github_profile",
     "validate_profile_readme",
     "validate_repo_fork",
 ]
@@ -148,32 +147,6 @@ async def check_repo_is_fork_of(
             message=f"Unexpected error: {e!s}",
             verification_completed=False,
         )
-
-
-async def validate_github_profile(
-    target: GitHubTarget,
-    metadata: GitHubMetadata | None = None,
-) -> ValidationResult:
-    """Confirm the learner's GitHub profile page exists.
-
-    The profile is built from the authenticated username, so the identity is
-    guaranteed by construction; this only checks that the page resolves.
-    """
-    result = await check_github_url_exists(target.url, metadata)
-    if not result.is_valid:
-        return result.model_copy(
-            update={
-                "message": f"Could not find GitHub profile. {result.message}",
-                "username_match": True,
-                "repo_exists": False,
-            }
-        )
-    return ValidationResult(
-        is_valid=True,
-        message=f"GitHub profile verified for @{target.owner}",
-        username_match=True,
-        repo_exists=True,
-    )
 
 
 async def validate_profile_readme(

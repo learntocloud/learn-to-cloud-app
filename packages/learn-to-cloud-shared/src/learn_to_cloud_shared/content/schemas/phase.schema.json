@@ -342,48 +342,9 @@
     },
     "EmptyConfig": {
       "additionalProperties": false,
-      "description": "No type-specific config (used by github_profile, profile_readme).",
+      "description": "No type-specific config (used by profile_readme).",
       "properties": {},
       "title": "EmptyConfig",
-      "type": "object"
-    },
-    "GithubProfileRequirement": {
-      "additionalProperties": false,
-      "properties": {
-        "description": {
-          "title": "Description",
-          "type": "string"
-        },
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "slug": {
-          "title": "Slug",
-          "type": "string"
-        },
-        "submission_type": {
-          "const": "github_profile",
-          "title": "Submission Type",
-          "type": "string"
-        },
-        "type_config": {
-          "$ref": "#/$defs/EmptyConfig"
-        },
-        "uuid": {
-          "format": "uuid",
-          "title": "Uuid",
-          "type": "string"
-        }
-      },
-      "required": [
-        "uuid",
-        "slug",
-        "name",
-        "description",
-        "submission_type"
-      ],
-      "title": "GithubProfileRequirement",
       "type": "object"
     },
     "JournalApiVerifierConfig": {
@@ -701,7 +662,6 @@
                 "deployed_api": "#/$defs/DeployedApiRequirement",
                 "deployment_architecture": "#/$defs/DeploymentArchitectureRequirement",
                 "devops_analysis": "#/$defs/DevopsAnalysisRequirement",
-                "github_profile": "#/$defs/GithubProfileRequirement",
                 "journal_api_verifier": "#/$defs/JournalApiVerifierRequirement",
                 "networking_token": "#/$defs/NetworkingTokenRequirement",
                 "profile_readme": "#/$defs/ProfileReadmeRequirement",
@@ -711,9 +671,6 @@
               "propertyName": "submission_type"
             },
             "oneOf": [
-              {
-                "$ref": "#/$defs/GithubProfileRequirement"
-              },
               {
                 "$ref": "#/$defs/ProfileReadmeRequirement"
               },

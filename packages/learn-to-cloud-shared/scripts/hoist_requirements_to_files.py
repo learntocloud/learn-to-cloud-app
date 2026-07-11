@@ -49,7 +49,6 @@ CONTENT_DIR = (
 # inline requirement should be moved into ``type_config``. Fields not
 # listed are left at the top level of the new requirement file.
 _TYPE_CONFIG_FIELDS: dict[str, list[str]] = {
-    "github_profile": [],
     "profile_readme": [],
     "repo_fork": ["required_repo"],
     "ctf_token": ["placeholder"],

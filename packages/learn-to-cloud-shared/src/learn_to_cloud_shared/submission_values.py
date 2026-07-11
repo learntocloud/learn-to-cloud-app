@@ -11,7 +11,6 @@ from learn_to_cloud_shared.models import SubmissionType, SubmissionValueKind
 from learn_to_cloud_shared.schemas import HandsOnRequirement
 
 _GITHUB_URL_TYPES = {
-    SubmissionType.GITHUB_PROFILE.value,
     SubmissionType.PROFILE_README.value,
     SubmissionType.REPO_FORK.value,
     SubmissionType.JOURNAL_API_VERIFIER.value,

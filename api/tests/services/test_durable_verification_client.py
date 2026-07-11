@@ -8,7 +8,7 @@ import httpx
 import pytest
 from azure.core.exceptions import ClientAuthenticationError
 from learn_to_cloud_shared.testing.requirement_factories import (
-    github_profile_requirement,
+    profile_readme_requirement,
 )
 from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
 
@@ -45,8 +45,8 @@ def _prepared(job_id=None) -> PreparedVerificationJob:
         id=job_id or uuid4(),
         user_id=42,
         github_username="testuser",
-        requirement=github_profile_requirement(),
-        submitted_value="https://github.com/testuser",
+        requirement=profile_readme_requirement(),
+        submitted_value="https://github.com/testuser/testuser",
     )
 
 

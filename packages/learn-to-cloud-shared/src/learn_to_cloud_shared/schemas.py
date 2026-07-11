@@ -190,12 +190,12 @@ class UserResponse(UserBase):
 # Variation between submission types lives inside ``type_config``.
 # Pydantic validates per-type config via a discriminated union, so YAML
 # authors get parse errors for mismatched fields (e.g., placeholder on a
-# github_profile requirement).
+# profile_readme requirement).
 # ---------------------------------------------------------------------------
 
 
 class EmptyConfig(StrictFrozenModel):
-    """No type-specific config (used by github_profile, profile_readme)."""
+    """No type-specific config (used by profile_readme)."""
 
 
 class RepoConfig(StrictFrozenModel):
@@ -317,11 +317,6 @@ class _RequirementBase(StrictFrozenModel):
         return getattr(cfg, "placeholder", None) if cfg is not None else None
 
 
-class GithubProfileRequirement(_RequirementBase):
-    submission_type: Literal[SubmissionType.GITHUB_PROFILE]
-    type_config: EmptyConfig = Field(default_factory=EmptyConfig)
-
-
 class ProfileReadmeRequirement(_RequirementBase):
     submission_type: Literal[SubmissionType.PROFILE_README]
     type_config: EmptyConfig = Field(default_factory=EmptyConfig)
@@ -373,8 +368,7 @@ class DeploymentArchitectureRequirement(_RequirementBase):
 
 
 HandsOnRequirement = Annotated[
-    GithubProfileRequirement
-    | ProfileReadmeRequirement
+    ProfileReadmeRequirement
     | RepoForkRequirement
     | CtfTokenRequirement
     | NetworkingTokenRequirement

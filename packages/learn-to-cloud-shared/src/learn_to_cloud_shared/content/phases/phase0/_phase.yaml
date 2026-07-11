@@ -7,7 +7,7 @@ short_description: Build your beginner-friendly IT foundation across Linux, netw
 order: 0
 hands_on_verification:
   requirements:
-  - github-profile
+  - profile-readme
 topics:
 - prepare-to-learn
 - linux

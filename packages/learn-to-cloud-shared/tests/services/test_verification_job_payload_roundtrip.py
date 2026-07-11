@@ -15,7 +15,7 @@ import pytest
 
 from learn_to_cloud_shared.testing.requirement_factories import (
     deployed_api_requirement,
-    github_profile_requirement,
+    profile_readme_requirement,
     repo_fork_requirement,
 )
 from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
@@ -39,13 +39,13 @@ class TestPreparedVerificationJobRoundTrip:
         assert restored.requirement.type_config.required_repo == "owner/repo"
         assert type(restored.requirement) is type(job.requirement)
 
-    def test_github_profile_requirement_round_trip(self) -> None:
+    def test_profile_readme_requirement_round_trip(self) -> None:
         job = PreparedVerificationJob(
             id=uuid4(),
             user_id=1,
             github_username="bob",
-            requirement=github_profile_requirement(slug="profile"),
-            submitted_value="https://github.com/bob",
+            requirement=profile_readme_requirement(slug="profile"),
+            submitted_value="https://github.com/bob/bob",
         )
         payload = job.to_payload()
         restored = PreparedVerificationJob.from_payload(payload)
