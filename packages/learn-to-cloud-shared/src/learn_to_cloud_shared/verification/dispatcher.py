@@ -15,8 +15,8 @@ To add a new verification type:
 3. Create a validator function (here or in a new module):
    - async def validate_<type>(url: str, ...) -> ValidationResult
 4. Register a ValidatorDescriptor for it in _VALIDATOR_REGISTRY below:
-   declare its adapter callable, execution mode (INLINE vs BACKGROUND),
-   whether it needs a GitHub username, and whether it is repo-backed.
+   declare its adapter callable, whether it needs a GitHub username, and
+   whether it is repo-backed.
 
 For GitHub-specific validations, see github_profile.py
 For CTF token validation, see ctf.py
@@ -29,7 +29,7 @@ from dataclasses import dataclass
 
 from opentelemetry import metrics, trace
 
-from learn_to_cloud_shared.models import ExecutionMode, SubmissionType
+from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
 from learn_to_cloud_shared.verification.career_reflection import (
     validate_career_reflection,
@@ -138,16 +138,12 @@ ValidatorAdapter = Callable[
 class ValidatorDescriptor:
     """Everything the dispatcher needs to know about one submission type.
 
-    Collapses what used to be four separate type-keyed structures (the
-    if/elif routing chain plus three frozensets) into a single home, so a
-    new verification type is declared in exactly one place.
+    Collapses what used to be several separate type-keyed structures (the
+    if/elif routing chain plus frozensets) into a single home, so a new
+    verification type is declared in exactly one place.
     """
 
     adapter: ValidatorAdapter
-    # Where the check runs: INLINE finishes in the request, BACKGROUND goes
-    # through Durable Functions. This is a property of the work itself, so it
-    # lives with the validator rather than in requirement content.
-    execution_mode: ExecutionMode
     # Whether a GitHub username is required before the validator runs.
     requires_username: bool
     # Whether the submitted value is a server-derived GitHub repo URL whose
@@ -238,67 +234,56 @@ async def _adapt_deployment_architecture(
 _VALIDATOR_REGISTRY: dict[SubmissionType, ValidatorDescriptor] = {
     SubmissionType.GITHUB_PROFILE: ValidatorDescriptor(
         adapter=_adapt_github_profile,
-        execution_mode=ExecutionMode.INLINE,
         requires_username=True,
         repo_backed=False,
     ),
     SubmissionType.PROFILE_README: ValidatorDescriptor(
         adapter=_adapt_profile_readme,
-        execution_mode=ExecutionMode.INLINE,
         requires_username=True,
         repo_backed=False,
     ),
     SubmissionType.REPO_FORK: ValidatorDescriptor(
         adapter=_adapt_repo_fork,
-        execution_mode=ExecutionMode.INLINE,
         requires_username=True,
         repo_backed=False,
     ),
     SubmissionType.CTF_TOKEN: ValidatorDescriptor(
         adapter=_adapt_ctf_token,
-        execution_mode=ExecutionMode.INLINE,
         requires_username=True,
         repo_backed=False,
     ),
     SubmissionType.NETWORKING_TOKEN: ValidatorDescriptor(
         adapter=_adapt_networking_token,
-        execution_mode=ExecutionMode.INLINE,
         requires_username=True,
         repo_backed=False,
     ),
     SubmissionType.JOURNAL_API_VERIFIER: ValidatorDescriptor(
         adapter=_adapt_journal_api_verifier,
-        execution_mode=ExecutionMode.BACKGROUND,
         requires_username=True,
         repo_backed=True,
     ),
     SubmissionType.DEVOPS_ANALYSIS: ValidatorDescriptor(
         adapter=_adapt_devops_analysis,
-        execution_mode=ExecutionMode.BACKGROUND,
         requires_username=True,
         repo_backed=True,
     ),
     SubmissionType.DEPLOYED_API: ValidatorDescriptor(
         adapter=_adapt_deployed_api,
-        execution_mode=ExecutionMode.BACKGROUND,
         requires_username=False,
         repo_backed=False,
     ),
     SubmissionType.SECURITY_SCANNING: ValidatorDescriptor(
         adapter=_adapt_security_scanning,
-        execution_mode=ExecutionMode.BACKGROUND,
         requires_username=True,
         repo_backed=True,
     ),
     SubmissionType.CAREER_REFLECTION: ValidatorDescriptor(
         adapter=_adapt_career_reflection,
-        execution_mode=ExecutionMode.BACKGROUND,
         requires_username=False,
         repo_backed=False,
     ),
     SubmissionType.DEPLOYMENT_ARCHITECTURE: ValidatorDescriptor(
         adapter=_adapt_deployment_architecture,
-        execution_mode=ExecutionMode.BACKGROUND,
         requires_username=True,
         repo_backed=False,
     ),
@@ -310,19 +295,6 @@ def descriptor_for(
 ) -> ValidatorDescriptor | None:
     """Return the descriptor for a submission type, or None if unsupported."""
     return _VALIDATOR_REGISTRY.get(submission_type)
-
-
-def execution_mode_for(
-    submission_type: SubmissionType,
-) -> ExecutionMode | None:
-    """Return the execution mode for a submission type, or None if unsupported."""
-    descriptor = _VALIDATOR_REGISTRY.get(submission_type)
-    return descriptor.execution_mode if descriptor is not None else None
-
-
-def is_inline(submission_type: SubmissionType) -> bool:
-    """Return True if the submission type runs inline in the FastAPI request."""
-    return execution_mode_for(submission_type) is ExecutionMode.INLINE
 
 
 def is_repo_backed(submission_type: SubmissionType) -> bool:

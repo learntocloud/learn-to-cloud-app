@@ -237,8 +237,6 @@ async def test_execute_verification_job_marks_success_and_links_submission(
     assert payload["requirement_name"] == "Verification Executor Test"
     assert payload["submission_type"] == SubmissionType.JOURNAL_API_VERIFIER.value
     assert payload["message"] == "Verification succeeded."
-    # On success there is no validation message; ``detail`` is None.
-    assert payload["detail"] is None
 
     assert await _get_job_link(session_maker, job_id) == result.submission_id
     submission = await _get_submission(session_maker, result.submission_id)
@@ -274,9 +272,11 @@ async def test_execute_verification_job_marks_user_validation_failure(
     assert result.code == VALIDATION_FAILED_ERROR_CODE
     assert result.is_valid is False
     assert result.verification_completed is True
-    assert result.detail == "GitHub username does not match"
 
     assert await _get_job_link(session_maker, job_id) == result.submission_id
+    # The validator's failure reason is persisted on the submission row.
+    submission = await _get_submission(session_maker, result.submission_id)
+    assert submission.validation_message == "GitHub username does not match"
 
 
 async def test_execute_verification_job_marks_server_error(
@@ -310,11 +310,11 @@ async def test_execute_verification_job_marks_server_error(
     assert result.status == "server_error"
     assert result.code == VERIFICATION_INCOMPLETE_ERROR_CODE
     assert result.verification_completed is False
-    assert result.detail == "GitHub API unavailable"
 
     submission = await _get_submission(session_maker, result.submission_id)
     assert submission.is_validated is False
     assert submission.verification_completed is False
+    assert submission.validation_message == "GitHub API unavailable"
 
 
 async def test_execute_verification_job_truncates_persisted_error_messages(
@@ -322,8 +322,7 @@ async def test_execute_verification_job_truncates_persisted_error_messages(
     synced_requirement: HandsOnRequirement,
 ):
     """Validation messages over the persisted limit are truncated for
-    storage; the ``detail`` in the activity result follows the same
-    rule."""
+    storage on the submission row."""
     job_id = await _create_job(session_maker, synced_requirement)
     long_message = "x" * (MAX_VALIDATION_MESSAGE_LENGTH + 64)
     validation = AsyncMock(
@@ -347,8 +346,9 @@ async def test_execute_verification_job_truncates_persisted_error_messages(
         )
 
     assert result.status == "failed"
-    assert result.detail is not None
-    assert len(result.detail) <= MAX_VALIDATION_MESSAGE_LENGTH
+    submission = await _get_submission(session_maker, result.submission_id)
+    assert submission.validation_message is not None
+    assert len(submission.validation_message) <= MAX_VALIDATION_MESSAGE_LENGTH
 
 
 async def test_execute_verification_job_rejects_payload_mismatch(

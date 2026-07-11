@@ -55,7 +55,6 @@ from learn_to_cloud_shared.verification.dispatcher import (
 )
 from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
-    persisted_validation_message,
 )
 from learn_to_cloud_shared.verification.repo_utils import (
     RepositoryRef,
@@ -110,7 +109,6 @@ class VerificationJobExecutionResult:
     is_valid: bool
     verification_completed: bool
     message: str
-    detail: str | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-serializable Durable activity result."""
@@ -125,7 +123,6 @@ class VerificationJobExecutionResult:
             "is_valid": self.is_valid,
             "verification_completed": self.verification_completed,
             "message": self.message,
-            "detail": self.detail,
         }
 
 
@@ -332,7 +329,6 @@ def _build_result_from_submission(
         is_valid=submission.is_validated,
         verification_completed=submission.verification_completed,
         message=_MESSAGE_BY_OUTCOME[outcome],
-        detail=submission.validation_message,
     )
 
 
@@ -590,9 +586,6 @@ async def persist_verification_result(
             is_valid=validation_result.is_valid,
             verification_completed=validation_result.verification_completed,
             message=_MESSAGE_BY_OUTCOME[outcome],
-            detail=persisted_validation_message(validation_result.message)
-            if not validation_result.is_valid
-            else None,
         )
 
 
