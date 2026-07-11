@@ -8,9 +8,6 @@ from learn_to_cloud_shared.schemas import (
     FrozenModel,
     HandsOnRequirement,
 )
-from learn_to_cloud_shared.submission_derivation import (
-    repository_ref_from_required_repo,
-)
 from learn_to_cloud_shared.verification.career_reflection import (
     collect_career_reflection_evidence,
 )
@@ -116,7 +113,6 @@ def apply_llm_grading_decisions(
     return VerificationRunResult(
         job=run_result.job,
         validation_result=validation_result,
-        repository=run_result.repository,
     )
 
 
@@ -142,7 +138,6 @@ def llm_grading_unavailable_result(
     return VerificationRunResult(
         job=run_result.job,
         validation_result=validation_result,
-        repository=run_result.repository,
     )
 
 
@@ -173,7 +168,6 @@ def llm_grading_content_filtered_result(
     return VerificationRunResult(
         job=run_result.job,
         validation_result=validation_result,
-        repository=run_result.repository,
     )
 
 
@@ -182,11 +176,11 @@ async def _collect_phase6_requests(
     tasks: list[VerificationTask],
     repo_files: RepoFiles,
 ) -> list[LLMGradingRequest]:
-    repository = run_result.repository
-    if repository is None:
+    target = run_result.job.target
+    if target is None or not target.repo:
         return []
 
-    owner, repo = repository.owner, repository.repo
+    owner, repo = target.owner, target.repo
     file_paths = await repo_files.tree(owner, repo)
     requests: list[LLMGradingRequest] = []
     for task in tasks:
@@ -221,11 +215,11 @@ async def _collect_phase3_requests(
     if not run_result.validation_result.is_valid:
         return []
 
-    repository = run_result.repository
-    if repository is None:
+    target = run_result.job.target
+    if target is None or not target.repo:
         return []
 
-    owner, repo = repository.owner, repository.repo
+    owner, repo = target.owner, target.repo
     file_paths = await repo_files.tree(owner, repo)
     requests: list[LLMGradingRequest] = []
     for task in tasks:
@@ -261,15 +255,8 @@ async def _collect_phase4_requests(
         return []
 
     requirement = run_result.job.requirement
-    github_username = run_result.job.github_username
-    if not github_username or not requirement.required_repo:
-        return []
-
-    try:
-        repo = repository_ref_from_required_repo(
-            github_username, requirement.required_repo
-        )
-    except ValueError:
+    target = run_result.job.target
+    if target is None or not target.repo:
         return []
 
     description = run_result.job.typed_submitted_value.as_text
@@ -279,8 +266,8 @@ async def _collect_phase4_requests(
     requests: list[LLMGradingRequest] = []
     for task in tasks:
         evidence = await collect_deployment_architecture_evidence(
-            repo.owner,
-            repo.repo,
+            target.owner,
+            target.repo,
             description,
             task,
             deploy_script_path=deploy_script_path,
@@ -292,8 +279,8 @@ async def _collect_phase4_requests(
                 message=_build_grading_message(
                     run_result=run_result,
                     task=task,
-                    owner=repo.owner,
-                    repo=repo.repo,
+                    owner=target.owner,
+                    repo=target.repo,
                     evidence=evidence.model_dump(mode="json"),
                 ),
                 thread_id=f"{run_result.job.id}-{task.id}",

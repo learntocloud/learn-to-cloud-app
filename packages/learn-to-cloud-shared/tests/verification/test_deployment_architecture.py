@@ -3,6 +3,7 @@
 import httpx
 import pytest
 
+from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.testing.requirement_factories import (
     deployment_architecture_requirement,
 )
@@ -12,6 +13,7 @@ from learn_to_cloud_shared.verification.deployment_architecture import (
 )
 from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
 
+_TARGET = GitHubTarget(owner="alice", repo="journal-starter")
 _DEPLOY_SH = "#!/usr/bin/env bash\naz group create ...\n"
 _LONG_DESCRIPTION = (
     "My deployment provisions a public API tier behind a load balancer and a "
@@ -38,7 +40,7 @@ class TestValidateDeploymentArchitecture:
         repo_files = InMemoryRepoFiles({"deploy.sh": _DEPLOY_SH})
 
         result = await validate_deployment_architecture(
-            req, _LONG_DESCRIPTION, "alice", repo_files=repo_files
+            req, _LONG_DESCRIPTION, _TARGET, repo_files=repo_files
         )
 
         assert result.is_valid is True
@@ -49,7 +51,7 @@ class TestValidateDeploymentArchitecture:
         repo_files = InMemoryRepoFiles({"deploy.sh": _DEPLOY_SH})
 
         result = await validate_deployment_architecture(
-            req, "too short", "alice", repo_files=repo_files
+            req, "too short", _TARGET, repo_files=repo_files
         )
 
         assert result.is_valid is False
@@ -62,7 +64,7 @@ class TestValidateDeploymentArchitecture:
         repo_files = InMemoryRepoFiles({"README.md": "# project\n"})
 
         result = await validate_deployment_architecture(
-            req, _LONG_DESCRIPTION, "alice", repo_files=repo_files
+            req, _LONG_DESCRIPTION, _TARGET, repo_files=repo_files
         )
 
         assert result.is_valid is False
@@ -75,7 +77,7 @@ class TestValidateDeploymentArchitecture:
         repo_files = InMemoryRepoFiles({"setup.sh": _DEPLOY_SH})
 
         result = await validate_deployment_architecture(
-            req, _LONG_DESCRIPTION, "alice", repo_files=repo_files
+            req, _LONG_DESCRIPTION, _TARGET, repo_files=repo_files
         )
 
         assert result.is_valid is False
@@ -87,7 +89,7 @@ class TestValidateDeploymentArchitecture:
         repo_files = InMemoryRepoFiles(tree_error=_http_error(404))
 
         result = await validate_deployment_architecture(
-            req, _LONG_DESCRIPTION, "alice", repo_files=repo_files
+            req, _LONG_DESCRIPTION, _TARGET, repo_files=repo_files
         )
 
         assert result.is_valid is False
@@ -102,7 +104,7 @@ class TestValidateDeploymentArchitecture:
 
         with pytest.raises(httpx.HTTPStatusError):
             await validate_deployment_architecture(
-                req, _LONG_DESCRIPTION, "alice", repo_files=repo_files
+                req, _LONG_DESCRIPTION, _TARGET, repo_files=repo_files
             )
 
 
@@ -142,13 +144,12 @@ class TestCollectDeploymentArchitectureEvidence:
 
 
 @pytest.mark.unit
-class TestResolveRepositoryRef:
-    def test_derives_ref_from_username_and_required_repo(self):
+class TestJobTarget:
+    def test_derives_target_from_username_and_required_repo(self):
         from uuid import uuid4
 
         from learn_to_cloud_shared.verification_job_executor import (
             PreparedVerificationJob,
-            _resolve_repository_ref,
         )
 
         req = deployment_architecture_requirement(
@@ -162,18 +163,17 @@ class TestResolveRepositoryRef:
             submitted_value="my long architecture description",
         )
 
-        ref = _resolve_repository_ref(job)
+        target = job.target
 
-        assert ref is not None
-        assert ref.owner == "alice"
-        assert ref.repo == "journal-starter"
+        assert target is not None
+        assert target.owner == "alice"
+        assert target.repo == "journal-starter"
 
     def test_returns_none_when_username_missing(self):
         from uuid import uuid4
 
         from learn_to_cloud_shared.verification_job_executor import (
             PreparedVerificationJob,
-            _resolve_repository_ref,
         )
 
         req = deployment_architecture_requirement(
@@ -187,4 +187,4 @@ class TestResolveRepositoryRef:
             submitted_value="my long architecture description",
         )
 
-        assert _resolve_repository_ref(job) is None
+        assert job.target is None

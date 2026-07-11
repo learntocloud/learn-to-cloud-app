@@ -1,23 +1,22 @@
-"""Server-side derivation of canonical submission values.
+"""Server-side construction of GitHub identity and submission values.
 
-For repo-backed requirements (fork, CI status, DevOps analysis,
-security scanning) the canonical URL is derived from the authenticated
-user's ``github_username`` plus the requirement's ``required_repo``.
-Profile-based types (``github_profile``, ``profile_readme``) derive from
-``github_username`` alone. Deriving the value on the server keeps
-learners from submitting arbitrary URLs and removes a copy/paste step
-from the UI.
+Every repo- or profile-based verification is a pure function of two atoms:
+the authenticated learner's ``github_username`` and the requirement's
+``required_repo``. ``build_target`` constructs the ``GitHubTarget`` those
+atoms describe; the pipeline reads it everywhere instead of parsing a URL
+back into an identity.
 
-The resulting string is persisted in ``Submission.submitted_value`` and
-passed to the validators. Token-based types, the deployed API type, and
-the journal API response type accept free-form input and pass through
-unchanged.
+``derive_submission_value`` builds the display/persist string shown in the
+UI and stored in ``Submission.submitted_value``. Token-based types, the
+deployed API type, and the journal API response type accept free-form input
+and pass through unchanged.
 """
 
 from __future__ import annotations
 
+from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.schemas import HandsOnRequirement, RepositoryRef
+from learn_to_cloud_shared.schemas import HandsOnRequirement
 
 # Derivable types: the server constructs the URL from username + required_repo.
 # The template renders these as read-only fields so the learner cannot edit
@@ -46,6 +45,19 @@ _PASS_THROUGH_TYPES: frozenset[SubmissionType] = frozenset(
 )
 
 
+# Repo-target types: the verified GitHub location is the learner's fork of the
+# requirement's ``required_repo``, living at ``<username>/<fork-name>``.
+_REPO_TARGET_TYPES: frozenset[SubmissionType] = frozenset(
+    {
+        SubmissionType.REPO_FORK,
+        SubmissionType.JOURNAL_API_VERIFIER,
+        SubmissionType.DEVOPS_ANALYSIS,
+        SubmissionType.SECURITY_SCANNING,
+        SubmissionType.DEPLOYMENT_ARCHITECTURE,
+    }
+)
+
+
 def is_derivable(submission_type: SubmissionType) -> bool:
     """Return True if the URL for this submission type is derived server-side.
 
@@ -67,25 +79,51 @@ def fork_name_from_required_repo(required_repo: str) -> str:
     return required_repo.rsplit("/", 1)[-1]
 
 
-def repository_ref_from_required_repo(
-    github_username: str,
-    required_repo: str,
-) -> RepositoryRef:
-    """Resolve the learner's fork identity from their username + ``required_repo``.
+def _required_repo(requirement: HandsOnRequirement) -> str | None:
+    """Read the upstream ``required_repo`` from a requirement's typed config.
 
-    Used by verification types that are not ``repo_backed`` (their submitted
-    value is free text, not a repo URL) but still need to inspect the learner's
-    fork of ``required_repo`` (e.g. ``deployment_architecture``). The fork is
-    assumed to live at ``<username>/<repo-name>``, matching how
-    ``derive_submission_value`` builds repo-backed URLs.
+    Only repo-target configs carry it; profile and free-form configs do not,
+    so this returns ``None`` for them.
+    """
+    cfg = getattr(requirement, "type_config", None)
+    return getattr(cfg, "required_repo", None) if cfg is not None else None
 
-    Raises ``ValueError`` if ``required_repo`` is not ``owner/name`` or the
-    username is empty.
+
+def build_target(
+    requirement: HandsOnRequirement,
+    github_username: str | None,
+) -> GitHubTarget | None:
+    """Construct the GitHub identity a requirement verifies against.
+
+    Returns ``None`` for free-form types (tokens, deployed API, career
+    reflection) that reference no GitHub location, and when ``github_username``
+    is missing so no identity can be built. Profile types yield a profile
+    target; repo types yield the learner's fork of ``required_repo``.
+
+    Raises ``ValueError`` if a repo-target requirement is missing a valid
+    ``required_repo``.
     """
     if not github_username:
-        raise ValueError("github_username is required to resolve the fork repo")
-    fork = fork_name_from_required_repo(required_repo)
-    return RepositoryRef(owner=github_username, repo=fork)
+        return None
+
+    sub_type = requirement.submission_type
+
+    if sub_type == SubmissionType.GITHUB_PROFILE:
+        return GitHubTarget(owner=github_username)
+
+    if sub_type == SubmissionType.PROFILE_README:
+        return GitHubTarget(owner=github_username, repo=github_username)
+
+    if sub_type in _REPO_TARGET_TYPES:
+        required_repo = _required_repo(requirement)
+        if not required_repo:
+            raise ValueError(
+                f"Requirement {requirement.slug!r} is missing required_repo"
+            )
+        fork = fork_name_from_required_repo(required_repo)
+        return GitHubTarget(owner=github_username, repo=fork, forked_from=required_repo)
+
+    return None
 
 
 def derive_submission_value(
@@ -123,11 +161,12 @@ def derive_submission_value(
         SubmissionType.DEVOPS_ANALYSIS,
         SubmissionType.SECURITY_SCANNING,
     ):
-        if not requirement.required_repo:
+        required_repo = _required_repo(requirement)
+        if not required_repo:
             raise ValueError(
                 f"Requirement {requirement.slug!r} is missing required_repo"
             )
-        fork = fork_name_from_required_repo(requirement.required_repo)
+        fork = fork_name_from_required_repo(required_repo)
         return f"https://github.com/{github_username}/{fork}"
 
     if sub_type in _PASS_THROUGH_TYPES:
@@ -135,5 +174,5 @@ def derive_submission_value(
 
     raise ValueError(
         f"Unhandled submission type {sub_type!r}. Add it to "
-        "_DERIVABLE_TYPES or _PASS_THROUGH_TYPES in url_derivation.py."
+        "_DERIVABLE_TYPES or _PASS_THROUGH_TYPES in submission_derivation.py."
     )

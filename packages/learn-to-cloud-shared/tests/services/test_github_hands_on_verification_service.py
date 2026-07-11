@@ -1,12 +1,11 @@
 """Unit tests for github_hands_on_verification_service.
 
 Tests cover:
-- parse_github_url URL parsing and normalization
 - _parse_retry_after header parsing
 - get_github_headers with and without token
-- validate_github_profile ownership and existence checks
-- validate_profile_readme URL, ownership, and repo name checks
-- validate_repo_fork URL, ownership, and fork verification
+- validate_github_profile existence check against a constructed target
+- validate_profile_readme existence check against a constructed target
+- validate_repo_fork lineage check against a constructed target
 
 The validation tests inject an :class:`InMemoryGitHubMetadata` adapter
 instead of patching internals, so they exercise the real validator logic
@@ -18,6 +17,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
+from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.verification.errors import GitHubServerError
 from learn_to_cloud_shared.verification.github_http import (
     _parse_retry_after,
@@ -25,7 +25,6 @@ from learn_to_cloud_shared.verification.github_http import (
 )
 from learn_to_cloud_shared.verification.github_metadata import InMemoryGitHubMetadata
 from learn_to_cloud_shared.verification.github_profile import (
-    parse_github_url,
     validate_github_profile,
     validate_profile_readme,
     validate_repo_fork,
@@ -86,105 +85,6 @@ class TestGetGitHubHeaders:
 
 
 # ---------------------------------------------------------------------------
-# parse_github_url
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestParseGitHubUrl:
-    def test_standard_repo_url(self):
-        result = parse_github_url("https://github.com/user/repo")
-        assert result.is_valid is True
-        assert result.username == "user"
-        assert result.repo_name == "repo"
-
-    def test_trailing_slash(self):
-        result = parse_github_url("https://github.com/user/repo/")
-        assert result.is_valid is True
-        assert result.repo_name == "repo"
-
-    def test_profile_url_no_repo(self):
-        result = parse_github_url("https://github.com/user")
-        assert result.is_valid is True
-        assert result.username == "user"
-        assert result.repo_name is None
-
-    def test_http_prefix_normalized(self):
-        result = parse_github_url("http://github.com/user/repo")
-        assert result.is_valid is True
-        assert result.username == "user"
-
-    def test_www_prefix_normalized(self):
-        result = parse_github_url("https://www.github.com/user/repo")
-        assert result.is_valid is True
-        assert result.username == "user"
-
-    def test_http_www_prefix_normalized(self):
-        result = parse_github_url("http://www.github.com/user/repo")
-        assert result.is_valid is True
-
-    def test_bare_github_prefix(self):
-        result = parse_github_url("github.com/user/repo")
-        assert result.is_valid is True
-        assert result.username == "user"
-
-    def test_www_without_scheme(self):
-        result = parse_github_url("www.github.com/user/repo")
-        assert result.is_valid is True
-
-    def test_blob_path_extracts_file(self):
-        result = parse_github_url("https://github.com/user/repo/blob/main/src/app.py")
-        assert result.is_valid is True
-        assert result.username == "user"
-        assert result.repo_name == "repo"
-        assert result.file_path == "src/app.py"
-
-    def test_tree_path_without_file(self):
-        result = parse_github_url("https://github.com/user/repo/tree/main")
-        assert result.is_valid is True
-        assert result.file_path is None
-
-    def test_non_github_url_invalid(self):
-        result = parse_github_url("https://gitlab.com/user/repo")
-        assert result.is_valid is False
-
-    def test_empty_string_invalid(self):
-        result = parse_github_url("")
-        assert result.is_valid is False
-
-    def test_whitespace_stripped(self):
-        result = parse_github_url("  https://github.com/user/repo  ")
-        assert result.is_valid is True
-        assert result.username == "user"
-
-    def test_username_too_long_invalid(self):
-        long_name = "a" * 40
-        result = parse_github_url(f"https://github.com/{long_name}/repo")
-        assert result.is_valid is False
-        assert "Invalid GitHub username" in (result.error or "")
-
-    def test_username_starts_with_hyphen_invalid(self):
-        result = parse_github_url("https://github.com/-invalid/repo")
-        assert result.is_valid is False
-
-    def test_username_ends_with_hyphen_invalid(self):
-        result = parse_github_url("https://github.com/invalid-/repo")
-        assert result.is_valid is False
-
-    def test_single_char_username_valid(self):
-        result = parse_github_url("https://github.com/a/repo")
-        assert result.is_valid is True
-
-    def test_hyphenated_username_valid(self):
-        result = parse_github_url("https://github.com/my-user/repo")
-        assert result.is_valid is True
-
-    def test_github_com_only_invalid(self):
-        result = parse_github_url("https://github.com/")
-        assert result.is_valid is False
-
-
-# ---------------------------------------------------------------------------
 # validate_github_profile
 # ---------------------------------------------------------------------------
 
@@ -192,34 +92,16 @@ class TestParseGitHubUrl:
 @pytest.mark.unit
 class TestValidateGitHubProfile:
     @pytest.mark.asyncio
-    async def test_non_github_url_fails(self):
-        result = await validate_github_profile("https://linkedin.com/user", "testuser")
-        assert result.is_valid is False
-        assert result.username_match is False
-
-    @pytest.mark.asyncio
-    async def test_username_mismatch_fails(self):
-        result = await validate_github_profile(
-            "https://github.com/otheruser", "testuser"
-        )
-        assert result.is_valid is False
-        assert "does not match" in result.message
-
-    @pytest.mark.asyncio
     async def test_profile_exists_succeeds(self):
         metadata = InMemoryGitHubMetadata(existing_urls={"https://github.com/testuser"})
-        result = await validate_github_profile(
-            "https://github.com/testuser", "testuser", metadata
-        )
+        result = await validate_github_profile(GitHubTarget(owner="testuser"), metadata)
         assert result.is_valid is True
         assert result.username_match is True
 
     @pytest.mark.asyncio
     async def test_profile_not_found_fails(self):
         metadata = InMemoryGitHubMetadata(existing_urls=set())
-        result = await validate_github_profile(
-            "https://github.com/testuser", "testuser", metadata
-        )
+        result = await validate_github_profile(GitHubTarget(owner="testuser"), metadata)
         assert result.is_valid is False
         assert result.username_match is True
 
@@ -228,16 +110,9 @@ class TestValidateGitHubProfile:
         metadata = InMemoryGitHubMetadata(
             url_error=GitHubServerError("GitHub service temporarily unavailable")
         )
-        result = await validate_github_profile(
-            "https://github.com/testuser", "testuser", metadata
-        )
+        result = await validate_github_profile(GitHubTarget(owner="testuser"), metadata)
         assert result.is_valid is False
         assert result.verification_completed is False
-
-    @pytest.mark.asyncio
-    async def test_empty_username_in_url_fails(self):
-        result = await validate_github_profile("https://github.com/", "testuser")
-        assert result.is_valid is False
 
 
 # ---------------------------------------------------------------------------
@@ -248,38 +123,17 @@ class TestValidateGitHubProfile:
 @pytest.mark.unit
 class TestValidateProfileReadme:
     @pytest.mark.asyncio
-    async def test_invalid_url_fails(self):
-        result = await validate_profile_readme("not-a-url", "testuser")
-        assert result.is_valid is False
-
-    @pytest.mark.asyncio
-    async def test_username_mismatch_fails(self):
-        result = await validate_profile_readme(
-            "https://github.com/otheruser/otheruser/blob/main/README.md", "testuser"
-        )
-        assert result.is_valid is False
-        assert "does not match" in result.message
-
-    @pytest.mark.asyncio
-    async def test_wrong_repo_name_fails(self):
-        result = await validate_profile_readme(
-            "https://github.com/testuser/wrong-repo/blob/main/README.md", "testuser"
-        )
-        assert result.is_valid is False
-        assert "must be in a repo named" in result.message
-
-    @pytest.mark.asyncio
     async def test_readme_exists_succeeds(self):
-        url = "https://github.com/testuser/testuser/blob/main/README.md"
-        metadata = InMemoryGitHubMetadata(existing_urls={url})
-        result = await validate_profile_readme(url, "testuser", metadata)
+        target = GitHubTarget(owner="testuser", repo="testuser")
+        metadata = InMemoryGitHubMetadata(existing_urls={target.url})
+        result = await validate_profile_readme(target, metadata)
         assert result.is_valid is True
 
     @pytest.mark.asyncio
     async def test_readme_not_found_fails(self):
-        url = "https://github.com/testuser/testuser/blob/main/README.md"
+        target = GitHubTarget(owner="testuser", repo="testuser")
         metadata = InMemoryGitHubMetadata(existing_urls=set())
-        result = await validate_profile_readme(url, "testuser", metadata)
+        result = await validate_profile_readme(target, metadata)
         assert result.is_valid is False
 
 
@@ -288,32 +142,17 @@ class TestValidateProfileReadme:
 # ---------------------------------------------------------------------------
 
 
+def _fork_target() -> GitHubTarget:
+    return GitHubTarget(owner="testuser", repo="repo", forked_from="learntocloud/repo")
+
+
 @pytest.mark.unit
 class TestValidateRepoFork:
     @pytest.mark.asyncio
-    async def test_invalid_url_fails(self):
-        result = await validate_repo_fork("not-a-url", "testuser", "learntocloud/repo")
+    async def test_missing_forked_from_fails(self):
+        result = await validate_repo_fork(GitHubTarget(owner="testuser", repo="repo"))
         assert result.is_valid is False
-
-    @pytest.mark.asyncio
-    async def test_username_mismatch_fails(self):
-        result = await validate_repo_fork(
-            "https://github.com/otheruser/repo",
-            "testuser",
-            "learntocloud/repo",
-        )
-        assert result.is_valid is False
-        assert "does not match" in result.message
-
-    @pytest.mark.asyncio
-    async def test_no_repo_name_fails(self):
-        result = await validate_repo_fork(
-            "https://github.com/testuser",
-            "testuser",
-            "learntocloud/repo",
-        )
-        assert result.is_valid is False
-        assert "repository name" in result.message.lower()
+        assert "required_repo" in result.message
 
     @pytest.mark.asyncio
     async def test_valid_fork_succeeds(self):
@@ -325,23 +164,13 @@ class TestValidateRepoFork:
                 }
             }
         )
-        result = await validate_repo_fork(
-            "https://github.com/testuser/repo",
-            "testuser",
-            "learntocloud/repo",
-            metadata,
-        )
+        result = await validate_repo_fork(_fork_target(), metadata)
         assert result.is_valid is True
 
     @pytest.mark.asyncio
     async def test_not_a_fork_fails(self):
         metadata = InMemoryGitHubMetadata(repos={"testuser/repo": {"fork": False}})
-        result = await validate_repo_fork(
-            "https://github.com/testuser/repo",
-            "testuser",
-            "learntocloud/repo",
-            metadata,
-        )
+        result = await validate_repo_fork(_fork_target(), metadata)
         assert result.is_valid is False
 
     @pytest.mark.asyncio
@@ -354,24 +183,14 @@ class TestValidateRepoFork:
                 }
             }
         )
-        result = await validate_repo_fork(
-            "https://github.com/testuser/repo",
-            "testuser",
-            "learntocloud/repo",
-            metadata,
-        )
+        result = await validate_repo_fork(_fork_target(), metadata)
         assert result.is_valid is False
         assert "not learntocloud/repo" in result.message
 
     @pytest.mark.asyncio
     async def test_repo_not_found_fails(self):
         metadata = InMemoryGitHubMetadata(repos={})
-        result = await validate_repo_fork(
-            "https://github.com/testuser/repo",
-            "testuser",
-            "learntocloud/repo",
-            metadata,
-        )
+        result = await validate_repo_fork(_fork_target(), metadata)
         assert result.is_valid is False
         assert "not found" in result.message
 
@@ -383,12 +202,7 @@ class TestValidateRepoFork:
                 "Unauthorized", request=response.request, response=response
             )
         )
-        result = await validate_repo_fork(
-            "https://github.com/testuser/repo",
-            "testuser",
-            "learntocloud/repo",
-            metadata,
-        )
+        result = await validate_repo_fork(_fork_target(), metadata)
         assert result.is_valid is False
         assert result.verification_completed is False
         assert "Unexpected error" not in result.message
@@ -398,11 +212,6 @@ class TestValidateRepoFork:
         metadata = InMemoryGitHubMetadata(
             repo_error=GitHubServerError("GitHub unavailable")
         )
-        result = await validate_repo_fork(
-            "https://github.com/testuser/repo",
-            "testuser",
-            "learntocloud/repo",
-            metadata,
-        )
+        result = await validate_repo_fork(_fork_target(), metadata)
         assert result.is_valid is False
         assert result.verification_completed is False

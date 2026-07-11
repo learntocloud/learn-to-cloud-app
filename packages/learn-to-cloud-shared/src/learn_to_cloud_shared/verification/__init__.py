@@ -9,6 +9,6 @@ Runs inside the Durable Function verify step. Submodules:
     devops_analysis   - DevOps artifact analysis
     security_scanning - Dependabot + CodeQL verification
     deployed_api      - Live API challenge-response testing
-    repo_utils        - GitHub URL parsing and identity resolution
+    errors            - Verification error types and error-to-result mappers
     tasks/            - Task definitions per phase
 """

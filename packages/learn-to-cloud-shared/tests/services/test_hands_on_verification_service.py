@@ -14,6 +14,7 @@ import pytest
 
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
+from learn_to_cloud_shared.submission_derivation import build_target
 from learn_to_cloud_shared.verification.dispatcher import (
     validate_submission,
 )
@@ -98,14 +99,11 @@ class TestValidateSubmissionRouting:
             result = await validate_submission(
                 requirement=requirement,
                 submitted_value="https://github.com/testuser/networking-lab",
+                target=build_target(requirement, "testuser"),
                 expected_username="testuser",
             )
 
-            mock.assert_called_once_with(
-                "https://github.com/testuser/networking-lab",
-                "testuser",
-                "learntocloud/networking-lab",
-            )
+            mock.assert_called_once_with(build_target(requirement, "testuser"))
             assert result.is_valid is True
 
     @pytest.mark.asyncio
@@ -201,6 +199,7 @@ class TestSubmissionRouting:
             result = await validate_submission(
                 requirement=requirement,
                 submitted_value="https://github.com/testuser/journal-starter",
+                target=build_target(requirement, "testuser"),
                 expected_username="testuser",
             )
 
@@ -283,9 +282,10 @@ class TestDispatchGitHubProfile:
             result = await validate_submission(
                 requirement=requirement,
                 submitted_value="https://github.com/testuser",
+                target=build_target(requirement, "testuser"),
                 expected_username="testuser",
             )
-        mock.assert_called_once_with("https://github.com/testuser", "testuser")
+        mock.assert_called_once_with(build_target(requirement, "testuser"))
         assert result.is_valid is True
 
 
@@ -305,6 +305,7 @@ class TestDispatchSecurityScanning:
             result = await validate_submission(
                 requirement=requirement,
                 submitted_value="https://github.com/testuser/journal-starter",
+                target=build_target(requirement, "testuser"),
                 expected_username="testuser",
             )
         mock.assert_called_once_with("testuser", "journal-starter")

@@ -342,7 +342,7 @@ async def test_requirement_rehydrates_to_correct_subclass(
     assert phase99.hands_on_verification is not None
     rebuilt = phase99.hands_on_verification.requirements[0]
     assert isinstance(rebuilt, RepoForkRequirement)
-    assert rebuilt.required_repo == "owner/repo"
+    assert rebuilt.type_config.required_repo == "owner/repo"
 
 
 # ---------------------------------------------------------------------------

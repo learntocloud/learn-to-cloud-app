@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytest
 
 from learn_to_cloud_shared.schemas import (
-    RepositoryRef,
     TaskResult,
     ValidationResult,
 )
@@ -59,7 +58,6 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
                 )
             ],
         ),
-        repository=RepositoryRef(owner="learner", repo="journal"),
     )
 
 
@@ -86,7 +84,6 @@ def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
             is_valid=is_valid,
             message="CI tests are passing on main.",
         ),
-        repository=RepositoryRef(owner="learner", repo="journal-starter"),
     )
 
 
@@ -153,14 +150,20 @@ async def test_collect_phase3_llm_requests_skips_when_ci_failed():
 
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_collect_llm_requests_skips_when_repository_missing():
+async def test_collect_llm_requests_skips_when_target_missing():
     run_result = _run_result()
-    without_repo = VerificationRunResult(
-        job=run_result.job,
+    without_username = VerificationRunResult(
+        job=run_result.job.__class__(
+            id=run_result.job.id,
+            user_id=run_result.job.user_id,
+            github_username="",
+            requirement=run_result.job.requirement,
+            submitted_value=run_result.job.submitted_value,
+        ),
         validation_result=run_result.validation_result,
     )
 
-    requests = await collect_llm_grading_requests(without_repo)
+    requests = await collect_llm_grading_requests(without_username)
 
     assert requests == []
 

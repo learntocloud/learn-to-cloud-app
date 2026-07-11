@@ -36,7 +36,7 @@ class TestPreparedVerificationJobRoundTrip:
         payload = job.to_payload()
         restored = PreparedVerificationJob.from_payload(payload)
         assert restored.requirement.slug == job.requirement.slug
-        assert restored.requirement.required_repo == "owner/repo"
+        assert restored.requirement.type_config.required_repo == "owner/repo"
         assert type(restored.requirement) is type(job.requirement)
 
     def test_github_profile_requirement_round_trip(self) -> None:
@@ -50,7 +50,7 @@ class TestPreparedVerificationJobRoundTrip:
         payload = job.to_payload()
         restored = PreparedVerificationJob.from_payload(payload)
         assert restored.requirement.slug == "profile"
-        assert restored.requirement.required_repo is None
+        assert type(restored.requirement) is type(job.requirement)
 
     def test_deployed_api_requirement_round_trip(self) -> None:
         job = PreparedVerificationJob(

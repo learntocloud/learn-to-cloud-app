@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
 from learn_to_cloud_shared.content_yaml_loader import clear_cache
+from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import (
     CurriculumRequirement,
     Submission,
@@ -22,7 +23,6 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
 )
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
-    RepositoryRef,
     ValidationResult,
 )
 from learn_to_cloud_shared.submission_values import SubmittedValue
@@ -190,11 +190,12 @@ async def test_split_verification_primitives_prepare_run_and_persist(
 
     assert await _count_submissions(session_maker) == 0
     assert run_result.to_payload()["job"] == preparation.job.to_payload()
-    assert run_result.repository == RepositoryRef(owner="executoruser", repo="repo")
-    assert run_result.to_payload()["repository"] == {
-        "owner": "executoruser",
-        "repo": "repo",
-    }
+    assert run_result.job.target == GitHubTarget(
+        owner="executoruser",
+        repo="journal-repo",
+        forked_from="owner/journal-repo",
+    )
+    assert "repository" not in run_result.to_payload()
 
     result = await persist_verification_result(
         run_result,

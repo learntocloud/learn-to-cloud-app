@@ -14,10 +14,8 @@ from hashlib import sha256
 
 import httpx
 
+from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
-from learn_to_cloud_shared.submission_derivation import (
-    repository_ref_from_required_repo,
-)
 from learn_to_cloud_shared.verification.evidence import truncate_to_bytes
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.tasks.base import (
@@ -50,7 +48,7 @@ def _top_level_shell_scripts(file_paths: list[str]) -> list[str]:
 async def validate_deployment_architecture(
     requirement: HandsOnRequirement,
     description: str,
-    github_username: str,
+    target: GitHubTarget | None,
     repo_files: RepoFiles | None = None,
 ) -> ValidationResult:
     """Deterministic gate for the deployment architecture submission.
@@ -62,7 +60,7 @@ async def validate_deployment_architecture(
     records them as operational failures.
     """
     cfg = _deployment_architecture_config(requirement)
-    if cfg is None or not requirement.required_repo:
+    if cfg is None or target is None or not target.repo:
         return ValidationResult(
             is_valid=False,
             message=(
@@ -86,27 +84,16 @@ async def validate_deployment_architecture(
             verification_completed=True,
         )
 
-    try:
-        repo = repository_ref_from_required_repo(
-            github_username, requirement.required_repo
-        )
-    except ValueError as exc:
-        return ValidationResult(
-            is_valid=False,
-            message=f"Requirement configuration error: {exc}",
-            verification_completed=True,
-        )
-
     repo_files = repo_files or default_repo_files()
     try:
-        file_paths = await repo_files.tree(repo.owner, repo.repo)
+        file_paths = await repo_files.tree(target.owner, target.repo)
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == 404:
             return ValidationResult(
                 is_valid=False,
                 message=(
-                    f"Repository '{repo.owner}/{repo.repo}' not found. Make sure "
-                    "you forked it and the fork is public."
+                    f"Repository '{target.owner}/{target.repo}' not found. Make "
+                    "sure you forked it and the fork is public."
                 ),
                 verification_completed=True,
                 repo_exists=False,
