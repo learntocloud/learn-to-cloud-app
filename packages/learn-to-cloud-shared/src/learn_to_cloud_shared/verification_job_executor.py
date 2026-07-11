@@ -24,7 +24,7 @@ snapshot.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from uuid import UUID
 
 from opentelemetry import trace
@@ -55,6 +55,7 @@ from learn_to_cloud_shared.verification.dispatcher import (
 from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
 )
+from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle
 
 tracer = trace.get_tracer(__name__)
 
@@ -209,27 +210,53 @@ class VerificationJobPreparation:
 
 @dataclass(frozen=True, slots=True)
 class VerificationRunResult:
-    """Serializable validation result for a prepared verification job."""
+    """Serializable validation result for a prepared verification job.
+
+    ``evidence`` carries the :class:`EvidenceBundle`s gathered by the engine's
+    steps so grading can read file contents without re-fetching. It is
+    round-tripped between activities but stripped before the terminal DB write
+    (see :meth:`without_evidence`) so file contents never reach Postgres.
+    Defaults to ``None`` for the legacy path that gathers no evidence.
+    """
 
     job: PreparedVerificationJob
     validation_result: ValidationResult
+    evidence: list[EvidenceBundle] | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-serializable activity payload."""
         return {
             "job": self.job.to_payload(),
             "validation_result": self.validation_result.model_dump(mode="json"),
+            "evidence": (
+                [bundle.model_dump(mode="json") for bundle in self.evidence]
+                if self.evidence is not None
+                else None
+            ),
         }
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> VerificationRunResult:
         """Rehydrate a validation result from a Durable activity payload."""
+        raw_evidence = payload.get("evidence")
+        evidence = (
+            [EvidenceBundle.model_validate(bundle) for bundle in raw_evidence]
+            if isinstance(raw_evidence, list)
+            else None
+        )
         return cls(
             job=PreparedVerificationJob.from_payload(_expect_mapping(payload["job"])),
             validation_result=ValidationResult.model_validate(
                 payload["validation_result"]
             ),
+            evidence=evidence,
         )
+
+    def without_evidence(self) -> VerificationRunResult:
+        """Return a copy with evidence dropped, for the terminal DB write."""
+        if self.evidence is None:
+            return self
+        return replace(self, evidence=None)
 
 
 @dataclass(frozen=True, slots=True)
