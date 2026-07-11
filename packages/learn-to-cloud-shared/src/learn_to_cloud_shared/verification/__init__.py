@@ -1,7 +1,7 @@
 """Verification subsystem for hands-on learning requirements.
 
 Runs inside the Durable Function verify step. Submodules:
-    dispatcher        - Routes submissions to the matching validator
+    engine            - Declarative profile registry that routes each type
     events            - In-process event bus for async verification results
     github_profile    - Profile README/fork verification
     ci_status         - CI test-pass check

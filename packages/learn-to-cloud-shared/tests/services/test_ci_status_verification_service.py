@@ -8,7 +8,7 @@ Tests cover:
 - Run failed
 - GitHub API errors
 
-URL validation and ownership checks are tested in the dispatcher tests.
+URL validation and ownership checks are exercised by the engine gate tests.
 
 These tests inject an :class:`InMemoryWorkflowRuns` adapter instead of
 patching internals, so they exercise the real ``verify_ci_status`` logic

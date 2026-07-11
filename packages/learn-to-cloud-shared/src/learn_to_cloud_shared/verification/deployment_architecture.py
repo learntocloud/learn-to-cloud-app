@@ -56,7 +56,7 @@ async def validate_deployment_architecture(
     Confirms the description meets the configured minimum length and that the
     deploy script exists in the learner's fork before handing the real
     judgement to the LLM rubric grader. Missing script or repo yields an
-    actionable failure; transient GitHub errors bubble up so the dispatcher
+    actionable failure; transient GitHub errors bubble up so the engine
     records them as operational failures.
     """
     cfg = _deployment_architecture_config(requirement)

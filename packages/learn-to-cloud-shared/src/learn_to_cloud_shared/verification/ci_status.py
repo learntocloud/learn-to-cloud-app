@@ -9,7 +9,7 @@ The ``journal-starter`` repo includes a GitHub Actions workflow
 fork, they inherit the workflow.  A green CI on ``main`` proves all
 tests pass — which is the honest acceptance gate.
 
-URL validation and ownership checks are handled by the dispatcher
+URL validation and ownership checks are handled by the engine gate
 before this module is called.
 
 Workflow::
@@ -49,7 +49,7 @@ async def verify_ci_status(
 ) -> ValidationResult:
     """Verify that CI tests pass on the learner's fork's main branch.
 
-    URL validation and ownership checks are handled by the dispatcher
+    URL validation and ownership checks are handled by the engine gate
     before this function is called.
 
     Args:

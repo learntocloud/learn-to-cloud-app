@@ -83,9 +83,9 @@ configure_observability()
 app = df.DFApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 # Every submission type runs through this one orchestrator. Routing to the
-# right validator happens inside the verify activity via the dispatcher
-# registry (verification/dispatcher.py _VALIDATOR_REGISTRY), and LLM grading
-# is data-driven -- the grading step runs only when the verify step emits
+# right steps happens inside the verify activity via the engine profile
+# registry (verification/engine.py run_profile), and LLM grading is
+# data-driven -- the grading step runs only when the verify step emits
 # grading requests, so deterministic phases pass straight through.
 _ORCHESTRATOR_NAME = "verification_orchestrator"
 _VERIFY_RETRY_OPTIONS = df.RetryOptions(
@@ -466,7 +466,7 @@ def _run_verification_orchestration(context: df.DurableOrchestrationContext):
     data-driven: it runs only when the verify step produced grading
     requests, so deterministic phases (which never emit grading requests)
     pass straight through it. Routing to the right validator happens inside
-    the verify activity via the dispatcher registry.
+    the verify activity via the engine profile registry.
 
     Kept as a plain generator (separate from the decorated trigger) so the
     orchestration tests can drive it directly.
