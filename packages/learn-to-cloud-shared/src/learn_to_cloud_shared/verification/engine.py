@@ -32,6 +32,10 @@ from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import FrozenModel, TaskResult, ValidationResult
 from learn_to_cloud_shared.verification.ci_status import verify_ci_status
+from learn_to_cloud_shared.verification.deployment_architecture import (
+    collect_deployment_architecture_evidence,
+    validate_deployment_architecture,
+)
 from learn_to_cloud_shared.verification.dispatcher import (
     ValidatorDescriptor,
     descriptor_for,
@@ -51,6 +55,9 @@ from learn_to_cloud_shared.verification.tasks.base import (
 from learn_to_cloud_shared.verification.tasks.phase3 import (
     JOURNAL_API_FINAL_RUBRIC_TASK,
     JOURNAL_API_IMPORTANT_PATHS,
+)
+from learn_to_cloud_shared.verification.tasks.phase4 import (
+    DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
 )
 from learn_to_cloud_shared.verification_job_executor import (
     PreparedVerificationJob,
@@ -93,8 +100,33 @@ class LLMRubricReviewParams(FrozenModel):
     evidence_paths: tuple[str, ...]
 
 
+class DeploymentArchitectureGateParams(FrozenModel):
+    """Params for the Phase 4 ``deployment_architecture_gate`` (no config).
+
+    The gate reads the description length and deploy-script path from the
+    requirement's ``type_config`` at runtime, so it carries no data.
+    """
+
+    check: Literal["deployment_architecture_gate"] = "deployment_architecture_gate"
+
+
+class DeploymentArchitectureReviewParams(FrozenModel):
+    """Params for the Phase 4 ``deployment_architecture_review`` rubric step.
+
+    Bundles the learner's forked ``deploy.sh`` with their architecture
+    description for the LLM rubric grader.
+    """
+
+    check: Literal["deployment_architecture_review"] = "deployment_architecture_review"
+    task: VerificationTask
+
+
 StepParams = Annotated[
-    LegacyValidateParams | CIStatusParams | LLMRubricReviewParams,
+    LegacyValidateParams
+    | CIStatusParams
+    | LLMRubricReviewParams
+    | DeploymentArchitectureGateParams
+    | DeploymentArchitectureReviewParams,
     Field(discriminator="check"),
 ]
 
@@ -273,6 +305,58 @@ async def _check_llm_rubric_review(
     )
 
 
+@register_check("deployment_architecture_gate")
+async def _check_deployment_architecture_gate(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Phase 4 gate: description meets min length and ``deploy.sh`` exists."""
+    result = await validate_deployment_architecture(
+        context.job.requirement,
+        context.submitted_value,
+        context.repository,
+        context.repo_files,
+    )
+    return StepResult(
+        passed=result.is_valid,
+        stop_on_fail=True,
+        validation_result=result,
+    )
+
+
+@register_check("deployment_architecture_review")
+async def _check_deployment_architecture_review(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Bundle the fork's ``deploy.sh`` and the architecture description.
+
+    Like ``llm_rubric_review`` but its evidence is a repo file plus the
+    learner's free-text description, not a set of exact repository paths.
+    """
+    assert isinstance(params, DeploymentArchitectureReviewParams)
+    target = context.repository
+    if target is None or not target.repo:
+        return StepResult(passed=True, stop_on_fail=False)
+    deploy_script_path = getattr(
+        context.job.requirement.type_config, "deploy_script_path", "deploy.sh"
+    )
+    bundle = await collect_deployment_architecture_evidence(
+        target.owner,
+        target.repo,
+        context.submitted_value,
+        params.task,
+        deploy_script_path=deploy_script_path,
+        repo_files=context.repo_files or default_repo_files(),
+    )
+    return StepResult(
+        passed=True,
+        stop_on_fail=False,
+        evidence=[bundle],
+        grading_task=params.task,
+    )
+
+
 _LEGACY_STEP = Step(
     check="legacy_validate",
     params=LegacyValidateParams(),
@@ -337,6 +421,34 @@ _JOURNAL_API_PROFILE = VerificationProfile(
 )
 
 register_profile(SubmissionType.JOURNAL_API_VERIFIER, _JOURNAL_API_PROFILE)
+
+
+_DEPLOYMENT_ARCHITECTURE_RUBRIC = DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK.grader
+assert isinstance(_DEPLOYMENT_ARCHITECTURE_RUBRIC, LLMRubricGraderConfig)
+
+_DEPLOYMENT_ARCHITECTURE_PROFILE = VerificationProfile(
+    adapter=_profile_steps_adapter,
+    requires_username=True,
+    steps=(
+        Step(
+            check="deployment_architecture_gate",
+            params=DeploymentArchitectureGateParams(),
+            task_id="deployment-architecture-gate",
+        ),
+        Step(
+            check="deployment_architecture_review",
+            params=DeploymentArchitectureReviewParams(
+                task=DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
+            ),
+            task_id=DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK.id,
+        ),
+    ),
+    rubric=_DEPLOYMENT_ARCHITECTURE_RUBRIC,
+)
+
+register_profile(
+    SubmissionType.DEPLOYMENT_ARCHITECTURE, _DEPLOYMENT_ARCHITECTURE_PROFILE
+)
 
 
 def _resolve_descriptor(job: PreparedVerificationJob) -> ValidatorDescriptor | None:
