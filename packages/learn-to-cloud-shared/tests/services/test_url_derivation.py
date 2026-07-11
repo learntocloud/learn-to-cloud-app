@@ -77,31 +77,43 @@ class TestForkNameFromRequiredRepo:
 
 
 @pytest.mark.unit
-class TestRepositoryRefFromRequiredRepo:
-    def test_derives_fork_owner_and_repo(self):
-        from learn_to_cloud_shared.submission_derivation import (
-            repository_ref_from_required_repo,
-        )
+class TestBuildTarget:
+    def test_github_profile_builds_profile_target(self):
+        from learn_to_cloud_shared.submission_derivation import build_target
 
-        ref = repository_ref_from_required_repo("alice", "learntocloud/journal-starter")
-        assert ref.owner == "alice"
-        assert ref.repo == "journal-starter"
+        target = build_target(_req(SubmissionType.GITHUB_PROFILE), "alice")
+        assert target is not None
+        assert target.owner == "alice"
+        assert target.repo is None
+        assert target.forked_from is None
 
-    def test_empty_username_raises(self):
-        from learn_to_cloud_shared.submission_derivation import (
-            repository_ref_from_required_repo,
-        )
+    def test_profile_readme_builds_self_repo_target(self):
+        from learn_to_cloud_shared.submission_derivation import build_target
 
-        with pytest.raises(ValueError, match="github_username is required"):
-            repository_ref_from_required_repo("", "learntocloud/journal-starter")
+        target = build_target(_req(SubmissionType.PROFILE_README), "alice")
+        assert target is not None
+        assert target.owner == "alice"
+        assert target.repo == "alice"
 
-    def test_missing_slash_raises(self):
-        from learn_to_cloud_shared.submission_derivation import (
-            repository_ref_from_required_repo,
-        )
+    def test_repo_fork_carries_forked_from(self):
+        from learn_to_cloud_shared.submission_derivation import build_target
 
-        with pytest.raises(ValueError, match="owner/name"):
-            repository_ref_from_required_repo("alice", "journal-starter")
+        req = _req(SubmissionType.REPO_FORK, required_repo="learntocloud/linux-ctfs")
+        target = build_target(req, "alice")
+        assert target is not None
+        assert target.owner == "alice"
+        assert target.repo == "linux-ctfs"
+        assert target.forked_from == "learntocloud/linux-ctfs"
+
+    def test_free_form_type_returns_none(self):
+        from learn_to_cloud_shared.submission_derivation import build_target
+
+        assert build_target(_req(SubmissionType.CTF_TOKEN), "alice") is None
+
+    def test_missing_username_returns_none(self):
+        from learn_to_cloud_shared.submission_derivation import build_target
+
+        assert build_target(_req(SubmissionType.GITHUB_PROFILE), None) is None
 
 
 @pytest.mark.unit

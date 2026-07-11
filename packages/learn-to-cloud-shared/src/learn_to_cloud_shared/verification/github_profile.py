@@ -1,20 +1,21 @@
-"""GitHub-specific validation utilities for hands-on verification.
+"""GitHub-specific validation for hands-on verification.
 
-This module handles all GitHub-specific validations including:
-- GitHub profile verification (Phase 0)
-- Profile README verification (Phase 1)
-- Repository fork verification (Phase 1)
+Validates the learner's GitHub profile, profile README repository, and repo
+forks. Each validator receives the ``GitHubTarget`` constructed from the
+learner's username plus the requirement (see ``submission_derivation``), so it
+checks existence and fork lineage without parsing a URL back into an identity.
 
-For URL parsing, see ``repo_utils.parse_github_url``.
 For the GitHub HTTP plumbing (retry, headers, error mapping), see
-``github_http.py``. For the existence/metadata seam these validators build
-on, see ``github_metadata.py``.
-For the main hands-on verification orchestration, see hands_on_verification.py
+``github_http.py``. For the existence/metadata seam these validators build on,
+see ``github_metadata.py``.
 """
+
+from __future__ import annotations
 
 import httpx
 from opentelemetry import trace
 
+from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
@@ -24,7 +25,6 @@ from learn_to_cloud_shared.verification.github_metadata import (
     GitHubMetadata,
     default_github_metadata,
 )
-from learn_to_cloud_shared.verification.repo_utils import parse_github_url
 
 __all__ = [
     "GitHubMetadata",
@@ -33,7 +33,6 @@ __all__ = [
     "check_repo_is_fork_of",
     "default_github_metadata",
     "github_error_to_validation_result",
-    "parse_github_url",
     "validate_github_profile",
     "validate_profile_readme",
     "validate_repo_fork",
@@ -152,42 +151,15 @@ async def check_repo_is_fork_of(
 
 
 async def validate_github_profile(
-    github_url: str,
-    expected_username: str,
+    target: GitHubTarget,
     metadata: GitHubMetadata | None = None,
 ) -> ValidationResult:
-    """Validate a GitHub profile URL submission.
+    """Confirm the learner's GitHub profile page exists.
 
-    The URL should be like: https://github.com/username
-    And the username should match the expected_username (case-insensitive).
+    The profile is built from the authenticated username, so the identity is
+    guaranteed by construction; this only checks that the page resolves.
     """
-    parsed = parse_github_url(github_url)
-
-    if not parsed.is_valid or not parsed.username:
-        return ValidationResult(
-            is_valid=False,
-            message=parsed.error or "Could not extract username from URL",
-            username_match=False,
-            repo_exists=False,
-        )
-
-    username = parsed.username
-    username_match = username.lower() == expected_username.lower()
-
-    if not username_match:
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"GitHub username '{username}' does not match "
-                f"your account username '{expected_username}'"
-            ),
-            username_match=False,
-            repo_exists=False,
-        )
-
-    profile_url = f"https://github.com/{username}"
-    result = await check_github_url_exists(profile_url, metadata)
-
+    result = await check_github_url_exists(target.url, metadata)
     if not result.is_valid:
         return result.model_copy(
             update={
@@ -196,61 +168,24 @@ async def validate_github_profile(
                 "repo_exists": False,
             }
         )
-
     return ValidationResult(
         is_valid=True,
-        message=f"GitHub profile verified for @{username}",
+        message=f"GitHub profile verified for @{target.owner}",
         username_match=True,
         repo_exists=True,
     )
 
 
 async def validate_profile_readme(
-    github_url: str,
-    expected_username: str,
+    target: GitHubTarget,
     metadata: GitHubMetadata | None = None,
 ) -> ValidationResult:
-    """Validate a GitHub profile README submission.
+    """Confirm the learner's profile README repository exists.
 
-    The URL should be like: https://github.com/username/username/blob/main/README.md
-    And the username should match the expected_username (case-insensitive).
+    The repository lives at ``<username>/<username>`` by construction, so this
+    only checks that it resolves.
     """
-    parsed = parse_github_url(github_url)
-
-    if not parsed.is_valid:
-        return ValidationResult(
-            is_valid=False,
-            message=parsed.error or "Invalid URL",
-            username_match=False,
-            repo_exists=False,
-        )
-
-    username_match = parsed.username.lower() == expected_username.lower()
-
-    if not username_match:
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"GitHub username '{parsed.username}' does not match "
-                f"your account username '{expected_username}'"
-            ),
-            username_match=False,
-            repo_exists=False,
-        )
-
-    if parsed.repo_name and parsed.repo_name.lower() != parsed.username.lower():
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"Profile README must be in a repo named "
-                f"'{parsed.username}', not '{parsed.repo_name}'"
-            ),
-            username_match=True,
-            repo_exists=False,
-        )
-
-    result = await check_github_url_exists(github_url, metadata)
-
+    result = await check_github_url_exists(target.url, metadata)
     if not result.is_valid:
         return result.model_copy(
             update={
@@ -259,7 +194,6 @@ async def validate_profile_readme(
                 "repo_exists": False,
             }
         )
-
     return ValidationResult(
         is_valid=True,
         message="Profile README validated successfully!",
@@ -269,51 +203,26 @@ async def validate_profile_readme(
 
 
 async def validate_repo_fork(
-    github_url: str,
-    expected_username: str,
-    required_repo: str,
+    target: GitHubTarget,
     metadata: GitHubMetadata | None = None,
 ) -> ValidationResult:
-    """Validate a repository fork submission.
+    """Confirm the learner's repository is a fork of the required upstream.
 
-    The URL should be like: https://github.com/username/repo-name
-    And the repo should be a fork of the required_repo.
+    The fork identity (``<username>/<fork-name>``) and the upstream it must
+    descend from (``target.forked_from``) are both known by construction, so
+    this only verifies the fork lineage against GitHub.
     """
-    parsed = parse_github_url(github_url)
-
-    if not parsed.is_valid:
+    if not target.repo or not target.forked_from:
         return ValidationResult(
             is_valid=False,
-            message=parsed.error or "Invalid URL",
-            username_match=False,
-            repo_exists=False,
-        )
-
-    username_match = parsed.username.lower() == expected_username.lower()
-
-    if not username_match:
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"GitHub username '{parsed.username}' does not match "
-                f"your account username '{expected_username}'"
-            ),
-            username_match=False,
-            repo_exists=False,
-        )
-
-    if not parsed.repo_name:
-        return ValidationResult(
-            is_valid=False,
-            message="Could not extract repository name from URL",
+            message="Requirement configuration error: missing required_repo",
             username_match=True,
             repo_exists=False,
         )
 
     fork_result = await check_repo_is_fork_of(
-        parsed.username, parsed.repo_name, required_repo, metadata
+        target.owner, target.repo, target.forked_from, metadata
     )
-
     if not fork_result.is_valid:
         return fork_result.model_copy(
             update={
@@ -321,7 +230,6 @@ async def validate_repo_fork(
                 "repo_exists": False,
             }
         )
-
     return ValidationResult(
         is_valid=True,
         message=f"Repository fork validated successfully! {fork_result.message}",

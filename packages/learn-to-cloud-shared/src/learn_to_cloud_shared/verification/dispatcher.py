@@ -4,7 +4,9 @@ Runs inside the Durable Function verify step. ``validate_submission`` is
 the single entry point: it looks up the submission type in
 ``_VALIDATOR_REGISTRY``, enforces the GitHub-username guard, dispatches to
 the matching validator through a uniform adapter, records verification
-metrics and spans, and returns a ``ValidationResult``.
+metrics and spans, and returns a ``ValidationResult``. Repo- and
+profile-based validators receive the ``GitHubTarget`` constructed upstream
+(see ``submission_derivation.build_target``) rather than parsing a URL.
 
 Supported types include GitHub profile, profile README, repo fork, CTF
 token, networking token, deployed API, DevOps analysis, security
@@ -12,12 +14,12 @@ scanning, career reflection, and deployment architecture.
 
 To add a new verification type:
 1. Add the ``SubmissionType`` enum value in models.py.
-2. Add optional fields to ``HandsOnRequirement`` in schemas.py if needed.
-3. Create a validator function (here or in a new module):
-   ``async def validate_<type>(url: str, ...) -> ValidationResult``.
+2. Add a typed ``type_config`` to ``schemas.py`` if it needs one.
+3. Create a validator function (here or in a new module).
 4. Register a ``ValidatorDescriptor`` in ``_VALIDATOR_REGISTRY`` below,
-   declaring its adapter, whether it needs a GitHub username, and whether
-   it is repo-backed.
+   declaring its adapter and whether it needs a GitHub username.
+5. If it verifies a GitHub location, extend ``build_target`` so its
+   ``GitHubTarget`` is constructed.
 
 For GitHub-specific validations, see github_profile.py.
 For CTF and networking token validation, see token_base.py.
@@ -30,6 +32,7 @@ from dataclasses import dataclass
 
 from opentelemetry import metrics, trace
 
+from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
 from learn_to_cloud_shared.verification.career_reflection import (
@@ -41,14 +44,11 @@ from learn_to_cloud_shared.verification.deployment_architecture import (
     validate_deployment_architecture,
 )
 from learn_to_cloud_shared.verification.devops_analysis import run_devops_workflow
+from learn_to_cloud_shared.verification.errors import VerificationError
 from learn_to_cloud_shared.verification.github_profile import (
     validate_github_profile,
     validate_profile_readme,
     validate_repo_fork,
-)
-from learn_to_cloud_shared.verification.repo_utils import (
-    VerificationError,
-    resolve_repository,
 )
 from learn_to_cloud_shared.verification.security_scanning import (
     validate_security_scanning,
@@ -69,6 +69,7 @@ _VERIFICATION_COUNTER = _meter.create_counter(
 async def validate_submission(
     requirement: HandsOnRequirement,
     submitted_value: str,
+    target: GitHubTarget | None = None,
     expected_username: str | None = None,
 ) -> ValidationResult:
     """Validate a submission based on its requirement type.
@@ -80,6 +81,8 @@ async def validate_submission(
         requirement: The requirement being validated
         submitted_value: The value submitted by the user
             (URL, token, or challenge response)
+        target: The GitHub location this requirement verifies against,
+            constructed upstream. ``None`` for free-form types.
         expected_username: The expected GitHub username
             (required for GitHub-based validations)
     """
@@ -89,7 +92,7 @@ async def validate_submission(
 
     try:
         validation_result = await _dispatch_validation(
-            requirement, submitted_value, expected_username
+            requirement, submitted_value, target, expected_username
         )
         result_attr = "pass" if validation_result.is_valid else "fail"
         return validation_result
@@ -127,106 +130,137 @@ async def validate_submission(
 
 # Uniform call shape for every validator, regardless of how the underlying
 # function is written. Adapters below absorb the per-validator differences
-# (sync token functions, the repo_fork config path, deployed_api taking only
-# a value, and repo-backed owner/repo resolution).
+# (sync token functions, deployed_api taking only a value, and repo/profile
+# validators taking the constructed GitHubTarget).
 ValidatorAdapter = Callable[
-    [HandsOnRequirement, str, str],
+    [HandsOnRequirement, "GitHubTarget | None", str, str],
     Awaitable[ValidationResult],
 ]
+
+_MISSING_TARGET = ValidationResult(
+    is_valid=False,
+    message="Requirement configuration error: could not resolve GitHub target",
+    username_match=True,
+    repo_exists=False,
+)
 
 
 @dataclass(frozen=True)
 class ValidatorDescriptor:
     """Everything the dispatcher needs to know about one submission type.
 
-    Collapses what used to be several separate type-keyed structures (the
-    if/elif routing chain plus frozensets) into a single home, so a new
+    Collapses the type-keyed routing into a single home, so a new
     verification type is declared in exactly one place.
     """
 
     adapter: ValidatorAdapter
     # Whether a GitHub username is required before the validator runs.
     requires_username: bool
-    # Whether the submitted value is a server-derived GitHub repo URL whose
-    # owner/repo identity can be parsed straight from it.
-    repo_backed: bool
 
 
 async def _adapt_github_profile(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
+    requirement: HandsOnRequirement,
+    target: GitHubTarget | None,
+    submitted_value: str,
+    username: str,
 ) -> ValidationResult:
-    return await validate_github_profile(submitted_value, username)
+    if target is None:
+        return _MISSING_TARGET
+    return await validate_github_profile(target)
 
 
 async def _adapt_profile_readme(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
+    requirement: HandsOnRequirement,
+    target: GitHubTarget | None,
+    submitted_value: str,
+    username: str,
 ) -> ValidationResult:
-    return await validate_profile_readme(submitted_value, username)
+    if target is None:
+        return _MISSING_TARGET
+    return await validate_profile_readme(target)
 
 
 async def _adapt_repo_fork(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
+    requirement: HandsOnRequirement,
+    target: GitHubTarget | None,
+    submitted_value: str,
+    username: str,
 ) -> ValidationResult:
-    if not requirement.required_repo:
-        return ValidationResult(
-            is_valid=False,
-            message="Requirement configuration error: missing required_repo",
-            username_match=False,
-            repo_exists=False,
-        )
-    return await validate_repo_fork(
-        submitted_value, username, requirement.required_repo
-    )
+    if target is None:
+        return _MISSING_TARGET
+    return await validate_repo_fork(target)
 
 
 async def _adapt_ctf_token(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
+    requirement: HandsOnRequirement,
+    target: GitHubTarget | None,
+    submitted_value: str,
+    username: str,
 ) -> ValidationResult:
     return verify_ctf_token(submitted_value, username)
 
 
 async def _adapt_networking_token(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
+    requirement: HandsOnRequirement,
+    target: GitHubTarget | None,
+    submitted_value: str,
+    username: str,
 ) -> ValidationResult:
     return verify_networking_token(submitted_value, username)
 
 
 async def _adapt_deployed_api(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
+    requirement: HandsOnRequirement,
+    target: GitHubTarget | None,
+    submitted_value: str,
+    username: str,
 ) -> ValidationResult:
     return await validate_deployed_api(submitted_value)
 
 
 async def _adapt_journal_api_verifier(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
+    requirement: HandsOnRequirement,
+    target: GitHubTarget | None,
+    submitted_value: str,
+    username: str,
 ) -> ValidationResult:
-    return await _verify_repo_backed(submitted_value, verify_ci_status)
+    return await _verify_repo_backed(target, verify_ci_status)
 
 
 async def _adapt_devops_analysis(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
+    requirement: HandsOnRequirement,
+    target: GitHubTarget | None,
+    submitted_value: str,
+    username: str,
 ) -> ValidationResult:
-    return await _verify_repo_backed(submitted_value, run_devops_workflow)
+    return await _verify_repo_backed(target, run_devops_workflow)
 
 
 async def _adapt_security_scanning(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
+    requirement: HandsOnRequirement,
+    target: GitHubTarget | None,
+    submitted_value: str,
+    username: str,
 ) -> ValidationResult:
-    return await _verify_repo_backed(submitted_value, validate_security_scanning)
+    return await _verify_repo_backed(target, validate_security_scanning)
 
 
 async def _adapt_career_reflection(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
+    requirement: HandsOnRequirement,
+    target: GitHubTarget | None,
+    submitted_value: str,
+    username: str,
 ) -> ValidationResult:
     return validate_career_reflection(submitted_value)
 
 
 async def _adapt_deployment_architecture(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
+    requirement: HandsOnRequirement,
+    target: GitHubTarget | None,
+    submitted_value: str,
+    username: str,
 ) -> ValidationResult:
-    return await validate_deployment_architecture(
-        requirement, submitted_value, username
-    )
+    return await validate_deployment_architecture(requirement, submitted_value, target)
 
 
 # Single source of truth: each active submission type maps to one descriptor.
@@ -236,57 +270,46 @@ _VALIDATOR_REGISTRY: dict[SubmissionType, ValidatorDescriptor] = {
     SubmissionType.GITHUB_PROFILE: ValidatorDescriptor(
         adapter=_adapt_github_profile,
         requires_username=True,
-        repo_backed=False,
     ),
     SubmissionType.PROFILE_README: ValidatorDescriptor(
         adapter=_adapt_profile_readme,
         requires_username=True,
-        repo_backed=False,
     ),
     SubmissionType.REPO_FORK: ValidatorDescriptor(
         adapter=_adapt_repo_fork,
         requires_username=True,
-        repo_backed=False,
     ),
     SubmissionType.CTF_TOKEN: ValidatorDescriptor(
         adapter=_adapt_ctf_token,
         requires_username=True,
-        repo_backed=False,
     ),
     SubmissionType.NETWORKING_TOKEN: ValidatorDescriptor(
         adapter=_adapt_networking_token,
         requires_username=True,
-        repo_backed=False,
     ),
     SubmissionType.JOURNAL_API_VERIFIER: ValidatorDescriptor(
         adapter=_adapt_journal_api_verifier,
         requires_username=True,
-        repo_backed=True,
     ),
     SubmissionType.DEVOPS_ANALYSIS: ValidatorDescriptor(
         adapter=_adapt_devops_analysis,
         requires_username=True,
-        repo_backed=True,
     ),
     SubmissionType.DEPLOYED_API: ValidatorDescriptor(
         adapter=_adapt_deployed_api,
         requires_username=False,
-        repo_backed=False,
     ),
     SubmissionType.SECURITY_SCANNING: ValidatorDescriptor(
         adapter=_adapt_security_scanning,
         requires_username=True,
-        repo_backed=True,
     ),
     SubmissionType.CAREER_REFLECTION: ValidatorDescriptor(
         adapter=_adapt_career_reflection,
         requires_username=False,
-        repo_backed=False,
     ),
     SubmissionType.DEPLOYMENT_ARCHITECTURE: ValidatorDescriptor(
         adapter=_adapt_deployment_architecture,
         requires_username=True,
-        repo_backed=False,
     ),
 }
 
@@ -298,15 +321,10 @@ def descriptor_for(
     return _VALIDATOR_REGISTRY.get(submission_type)
 
 
-def is_repo_backed(submission_type: SubmissionType) -> bool:
-    """Return True if the submission value is a server-derived GitHub repo URL."""
-    descriptor = _VALIDATOR_REGISTRY.get(submission_type)
-    return descriptor.repo_backed if descriptor is not None else False
-
-
 async def _dispatch_validation(
     requirement: HandsOnRequirement,
     submitted_value: str,
+    target: GitHubTarget | None = None,
     expected_username: str | None = None,
 ) -> ValidationResult:
     """Route to the appropriate validator based on submission type."""
@@ -330,20 +348,24 @@ async def _dispatch_validation(
     # Narrow type: after the guard above, username is str for all branches
     # that require it. Validators that don't need it ignore the value.
     username: str = expected_username or ""
-    return await descriptor.adapter(requirement, submitted_value, username)
+    return await descriptor.adapter(requirement, target, submitted_value, username)
 
 
 async def _verify_repo_backed(
-    submitted_value: str,
+    target: GitHubTarget | None,
     verifier: Callable[[str, str], Awaitable[ValidationResult]],
 ) -> ValidationResult:
-    """Resolve the repo identity from the validated submission value and verify.
+    """Run a repo verifier against the constructed target's owner/repo.
 
-    The owner/repo come straight from the server-derived, DB-validated
-    submission URL, so no ownership or fork-name re-check is needed here (see
-    ``resolve_repository``). A malformed URL surfaces as a ``ValidationResult``.
+    The owner/repo come from the target built from the learner's username plus
+    the requirement's ``required_repo``, so no ownership or fork-name re-check
+    is needed. A missing target surfaces as a configuration failure.
     """
-    repo = resolve_repository(submitted_value)
-    if isinstance(repo, ValidationResult):
-        return repo
-    return await verifier(repo.owner, repo.repo)
+    if target is None or not target.repo:
+        return ValidationResult(
+            is_valid=False,
+            message="Requirement configuration error: missing required_repo",
+            username_match=True,
+            repo_exists=False,
+        )
+    return await verifier(target.owner, target.repo)

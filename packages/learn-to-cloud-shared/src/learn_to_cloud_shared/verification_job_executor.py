@@ -30,9 +30,9 @@ from uuid import UUID
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import (
     Submission,
-    SubmissionType,
     VerificationJob,
 )
 from learn_to_cloud_shared.repositories.verification_job_repository import (
@@ -42,25 +42,18 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
     HandsOnRequirementAdapter,
-    RepositoryRef,
     ValidationResult,
 )
-from learn_to_cloud_shared.submission_derivation import (
-    repository_ref_from_required_repo,
-)
+from learn_to_cloud_shared.submission_derivation import build_target
 from learn_to_cloud_shared.submission_values import (
     SubmittedValue,
     submission_value_from_columns,
 )
 from learn_to_cloud_shared.verification.dispatcher import (
-    is_repo_backed,
     validate_submission,
 )
 from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
-)
-from learn_to_cloud_shared.verification.repo_utils import (
-    resolve_repository,
 )
 
 tracer = trace.get_tracer(__name__)
@@ -70,9 +63,8 @@ VERIFICATION_INCOMPLETE_ERROR_CODE = "verification_incomplete"
 REQUIREMENT_NOT_FOUND_ERROR_CODE = "requirement_not_found"
 VERIFICATION_SUCCEEDED_CODE = "verification_succeeded"
 
-# Plain string outcomes kept for Durable activity payload compatibility
-# with deployed pre-PR4 readers. ``status`` consumers expect one of these
-# literals.
+# Plain string outcomes carried on the Durable activity payload. ``status``
+# consumers expect one of these literals.
 _OUTCOME_SUCCEEDED = "succeeded"
 _OUTCOME_FAILED = "failed"
 _OUTCOME_SERVER_ERROR = "server_error"
@@ -93,9 +85,8 @@ class VerificationJobExecutionResult:
     """Result of running one persisted verification job.
 
     ``status`` is a plain string (``"succeeded"`` / ``"failed"`` /
-    ``"server_error"``) rather than the legacy ``VerificationJobStatus``
-    enum so Durable activity payloads stay compatible with any pre-PR4
-    readers still in flight.
+    ``"server_error"``) so Durable activity payloads carry a stable literal
+    rather than an enum.
     """
 
     job_id: UUID
@@ -160,6 +151,17 @@ class PreparedVerificationJob:
             return SubmittedValue.from_raw(self.requirement, self.submitted_value)
         return self.submitted_value
 
+    @property
+    def target(self) -> GitHubTarget | None:
+        """The GitHub location this job verifies against.
+
+        Constructed from the requirement plus the ``github_username`` snapshot,
+        both already on the payload, so every activity derives the same
+        identity without carrying or re-parsing it. ``None`` for free-form
+        types that reference no GitHub location.
+        """
+        return build_target(self.requirement, self.github_username)
+
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> PreparedVerificationJob:
         """Rehydrate a prepared job from a Durable activity payload."""
@@ -211,33 +213,22 @@ class VerificationRunResult:
 
     job: PreparedVerificationJob
     validation_result: ValidationResult
-    repository: RepositoryRef | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-serializable activity payload."""
-        payload: dict[str, object] = {
+        return {
             "job": self.job.to_payload(),
             "validation_result": self.validation_result.model_dump(mode="json"),
         }
-        if self.repository is not None:
-            payload["repository"] = self.repository.to_payload()
-        return payload
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> VerificationRunResult:
         """Rehydrate a validation result from a Durable activity payload."""
-        repository_payload = payload.get("repository")
-        repository = (
-            RepositoryRef.from_payload(_expect_mapping(repository_payload))
-            if repository_payload is not None
-            else None
-        )
         return cls(
             job=PreparedVerificationJob.from_payload(_expect_mapping(payload["job"])),
             validation_result=ValidationResult.model_validate(
                 payload["validation_result"]
             ),
-            repository=repository,
         )
 
 
@@ -447,6 +438,7 @@ async def run_verification(
         validation_result = await validate_submission(
             requirement=job.requirement,
             submitted_value=job.typed_submitted_value.as_text,
+            target=job.target,
             expected_username=job.github_username,
         )
         span.set_attribute("verification.is_valid", validation_result.is_valid)
@@ -454,39 +446,10 @@ async def run_verification(
             "verification.completed",
             validation_result.verification_completed,
         )
-        repository = _resolve_repository_ref(job)
         return VerificationRunResult(
             job=job,
             validation_result=validation_result,
-            repository=repository,
         )
-
-
-def _resolve_repository_ref(job: PreparedVerificationJob) -> RepositoryRef | None:
-    """Parse the repo identity once for repo-backed jobs, to carry forward.
-
-    Later async steps (LLM grading) reuse this instead of re-parsing the
-    submission URL. Non-repo types and unparseable values yield ``None``;
-    the carried value is purely an optimization, so callers still guard on it.
-
-    ``deployment_architecture`` is a special case: its submitted value is the
-    learner's free-text description, not a repo URL, so the repo is derived
-    from the ``github_username`` snapshot plus the requirement's
-    ``required_repo`` fork name instead.
-    """
-    if job.requirement.submission_type == SubmissionType.DEPLOYMENT_ARCHITECTURE:
-        if not job.github_username or not job.requirement.required_repo:
-            return None
-        try:
-            return repository_ref_from_required_repo(
-                job.github_username, job.requirement.required_repo
-            )
-        except ValueError:
-            return None
-    if not is_repo_backed(job.requirement.submission_type):
-        return None
-    resolved = resolve_repository(job.typed_submitted_value.as_text)
-    return resolved if isinstance(resolved, RepositoryRef) else None
 
 
 async def persist_verification_result(
@@ -534,6 +497,7 @@ async def persist_verification_result(
                 user_id=job.user_id,
                 requirement=job.requirement,
                 submitted_value=job.typed_submitted_value,
+                target=job.target,
                 github_username=job.github_username,
                 validation_result=validation_result,
             )

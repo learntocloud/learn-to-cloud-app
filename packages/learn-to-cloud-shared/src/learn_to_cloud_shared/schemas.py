@@ -1,14 +1,10 @@
 """Shared data types for API validation and cross-service payloads.
 
 Holds the Pydantic models used for API request/response validation and
-service-layer responses, plus a few lightweight dataclasses (such as
-``RepositoryRef``) that carry structured values between the API and the
-verification runtime. Pydantic models use ``frozen=True`` for immutability
-where appropriate.
+service-layer responses. Models use ``frozen=True`` for immutability where
+appropriate.
 """
 
-from collections.abc import Mapping
-from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal, get_args
@@ -313,19 +309,6 @@ class _RequirementBase(StrictFrozenModel):
     slug: str
     name: str
     description: str
-
-    @property
-    def required_repo(self) -> str | None:
-        """Backwards-compat shim: read ``type_config.required_repo`` if any.
-
-        Lets dispatcher/url_derivation/templates keep reading
-        ``requirement.required_repo`` directly while consumers migrate
-        to typed ``type_config`` access. Plain ``@property`` (not
-        ``@computed_field``) so it does NOT appear in
-        ``model_dump()`` output and round-trip serialization works.
-        """
-        cfg = getattr(self, "type_config", None)
-        return getattr(cfg, "required_repo", None) if cfg is not None else None
 
     @property
     def placeholder(self) -> str | None:
@@ -904,40 +887,3 @@ class ValidationResult(FrozenModel):
     task_results: list[TaskResult] | None = None
     verification_completed: bool = True
     cloud_provider: str | None = None
-
-
-class ParsedGitHubUrl(FrozenModel):
-    """Parsed components of a GitHub URL."""
-
-    username: str
-    repo_name: str | None = None
-    file_path: str | None = None
-    is_valid: bool = True
-    error: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class RepositoryRef:
-    """A resolved GitHub repository identity (``owner`` + repo ``name``).
-
-    Parsed once from a validated submission value and carried across the
-    verification pipeline so later steps reuse the identity instead of
-    re-deriving it. The payload helpers serialize it across Durable activity
-    boundaries.
-    """
-
-    owner: str
-    repo: str
-
-    def to_payload(self) -> dict[str, str]:
-        """Return a JSON-serializable activity payload."""
-        return {"owner": self.owner, "repo": self.repo}
-
-    @classmethod
-    def from_payload(cls, payload: Mapping[str, object]) -> "RepositoryRef":
-        """Rehydrate a repository reference from a Durable activity payload."""
-        owner = payload.get("owner")
-        repo = payload.get("repo")
-        if not isinstance(owner, str) or not isinstance(repo, str):
-            raise TypeError("RepositoryRef payload requires string 'owner' and 'repo'")
-        return cls(owner=owner, repo=repo)

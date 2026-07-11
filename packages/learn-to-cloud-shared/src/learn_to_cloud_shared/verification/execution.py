@@ -7,6 +7,7 @@ import logging
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import Submission, SubmissionType
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
@@ -21,7 +22,6 @@ from learn_to_cloud_shared.submission_values import (
     SubmittedValue,
     submission_value_from_columns,
 )
-from learn_to_cloud_shared.verification.github_profile import parse_github_url
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -93,17 +93,22 @@ def to_submission_data(submission: Submission) -> SubmissionData:
 
 def _extract_username(
     requirement: HandsOnRequirement,
-    submitted_value: str,
+    target: GitHubTarget | None,
     github_username: str | None,
 ) -> str | None:
+    """Return the GitHub username tied to this submission, if any.
+
+    Tokens carry no GitHub location but are still tied to the authenticated
+    learner. Repo/profile types own a constructed target whose owner is that
+    same learner. Free-form types (deployed API, career reflection) have
+    neither, so they record no username.
+    """
     if requirement.submission_type in (
         SubmissionType.CTF_TOKEN,
         SubmissionType.NETWORKING_TOKEN,
     ):
         return github_username
-
-    parsed = parse_github_url(submitted_value)
-    return parsed.username if parsed.is_valid else None
+    return target.owner if target is not None else None
 
 
 def _feedback_json(validation_result: ValidationResult) -> list[dict] | None:
@@ -118,6 +123,7 @@ async def persist_validation_result(
     user_id: int,
     requirement: HandsOnRequirement,
     submitted_value: SubmittedValue,
+    target: GitHubTarget | None,
     github_username: str | None,
     validation_result: ValidationResult,
 ) -> Submission:
@@ -129,7 +135,7 @@ async def persist_validation_result(
         submitted_value=submitted_value,
         extracted_username=_extract_username(
             requirement,
-            submitted_value.as_text,
+            target,
             github_username,
         ),
         is_validated=validation_result.is_valid,

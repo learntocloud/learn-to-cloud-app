@@ -45,6 +45,18 @@ def make_retriable(
 # ---------------------------------------------------------------------------
 # Server error hierarchy
 # ---------------------------------------------------------------------------
+class VerificationError(Exception):
+    """Base exception for verification failures.
+
+    Attributes:
+        retriable: ``True`` when the caller should retry (transient error).
+    """
+
+    def __init__(self, message: str, retriable: bool = False):
+        super().__init__(message)
+        self.retriable = retriable
+
+
 class ServerError(Exception):
     """Base for retriable server-side errors across all services.
 
