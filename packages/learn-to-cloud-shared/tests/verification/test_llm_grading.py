@@ -11,7 +11,6 @@ from learn_to_cloud_shared.schemas import (
 from learn_to_cloud_shared.verification.llm_grading import (
     LLMGradingDecisionPayload,
     apply_llm_grading_decisions,
-    collect_llm_grading_requests,
     llm_grading_content_filtered_result,
     llm_grading_unavailable_result,
 )
@@ -139,26 +138,6 @@ def test_apply_phase3_llm_decision_appends_feedback_when_passed():
     )
 
 
-@pytest.mark.asyncio
-@pytest.mark.unit
-async def test_collect_llm_requests_skips_when_target_missing():
-    run_result = _run_result()
-    without_username = VerificationRunResult(
-        job=run_result.job.__class__(
-            id=run_result.job.id,
-            user_id=run_result.job.user_id,
-            github_username="",
-            requirement=run_result.job.requirement,
-            submitted_value=run_result.job.submitted_value,
-        ),
-        validation_result=run_result.validation_result,
-    )
-
-    requests = await collect_llm_grading_requests(without_username)
-
-    assert requests == []
-
-
 @pytest.mark.unit
 def test_apply_llm_grading_decisions_fails_when_score_is_below_threshold():
     run_result = _run_result()
@@ -238,27 +217,6 @@ def _phase7_run_result(
             message="Reflection received. Reviewing your answers.",
         ),
     )
-
-
-@pytest.mark.asyncio
-@pytest.mark.unit
-async def test_collect_phase7_requests_uses_submitted_text_as_evidence():
-    text = "Question zero: a specific, first-person reflection answer."
-    requests = await collect_llm_grading_requests(
-        _phase7_run_result(submitted_text=text)
-    )
-
-    assert len(requests) == len(PHASE7_LLM_TASKS)
-    assert text in requests[0].message
-    assert requests[0].task.evidence.source == "submitted_text"
-
-
-@pytest.mark.asyncio
-@pytest.mark.unit
-async def test_collect_phase7_requests_skips_when_deterministic_failed():
-    requests = await collect_llm_grading_requests(_phase7_run_result(is_valid=False))
-
-    assert requests == []
 
 
 @pytest.mark.unit

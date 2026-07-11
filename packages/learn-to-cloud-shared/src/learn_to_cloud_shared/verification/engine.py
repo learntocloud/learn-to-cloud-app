@@ -31,6 +31,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import FrozenModel, TaskResult, ValidationResult
+from learn_to_cloud_shared.verification.career_reflection import (
+    collect_career_reflection_evidence,
+    validate_career_reflection,
+)
 from learn_to_cloud_shared.verification.ci_status import verify_ci_status
 from learn_to_cloud_shared.verification.deployed_api import validate_deployed_api
 from learn_to_cloud_shared.verification.deployment_architecture import (
@@ -47,8 +51,13 @@ from learn_to_cloud_shared.verification.evidence import collect_repo_file_eviden
 from learn_to_cloud_shared.verification.grading_requests import (
     LLMGradingRequest,
     build_repo_rubric_message,
+    build_text_rubric_message,
 )
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
+from learn_to_cloud_shared.verification.security_scanning import (
+    collect_security_scanning_evidence,
+    validate_security_scanning,
+)
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
     LLMRubricGraderConfig,
@@ -60,6 +69,12 @@ from learn_to_cloud_shared.verification.tasks.phase3 import (
 )
 from learn_to_cloud_shared.verification.tasks.phase4 import (
     DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
+)
+from learn_to_cloud_shared.verification.tasks.phase6 import (
+    SECURITY_SCANNING_RUBRIC_TASK,
+)
+from learn_to_cloud_shared.verification.tasks.phase7 import (
+    CAREER_REFLECTION_RUBRIC_TASK,
 )
 from learn_to_cloud_shared.verification_job_executor import (
     PreparedVerificationJob,
@@ -143,6 +158,46 @@ class DevopsAnalysisCheckParams(FrozenModel):
     check: Literal["devops_analysis_check"] = "devops_analysis_check"
 
 
+class SecurityScanningGateParams(FrozenModel):
+    """Params for the Phase 6 ``security_scanning_gate`` (no config).
+
+    The gate runs the deterministic Dependabot/CodeQL checks against the fork.
+    """
+
+    check: Literal["security_scanning_gate"] = "security_scanning_gate"
+
+
+class SecurityScanningReviewParams(FrozenModel):
+    """Params for the Phase 6 ``security_scanning_review`` rubric step.
+
+    Bundles the fork's security-scanning config files for the LLM rubric
+    grader; carries the rubric ``task``.
+    """
+
+    check: Literal["security_scanning_review"] = "security_scanning_review"
+    task: VerificationTask
+
+
+class CareerReflectionGateParams(FrozenModel):
+    """Params for the Phase 7 ``career_reflection_gate`` (no config).
+
+    The gate only rejects empty submissions; the rubric does the real grading.
+    """
+
+    check: Literal["career_reflection_gate"] = "career_reflection_gate"
+
+
+class CareerReflectionReviewParams(FrozenModel):
+    """Params for the Phase 7 ``career_reflection_review`` text rubric step.
+
+    Bundles the learner's free-text reflection as evidence; carries the rubric
+    ``task``. Text-only, so the grading request uses the no-repo prompt.
+    """
+
+    check: Literal["career_reflection_review"] = "career_reflection_review"
+    task: VerificationTask
+
+
 StepParams = Annotated[
     LegacyValidateParams
     | CIStatusParams
@@ -150,7 +205,11 @@ StepParams = Annotated[
     | DeploymentArchitectureGateParams
     | DeploymentArchitectureReviewParams
     | DeployedApiCheckParams
-    | DevopsAnalysisCheckParams,
+    | DevopsAnalysisCheckParams
+    | SecurityScanningGateParams
+    | SecurityScanningReviewParams
+    | CareerReflectionGateParams
+    | CareerReflectionReviewParams,
     Field(discriminator="check"),
 ]
 
@@ -369,6 +428,91 @@ async def _check_devops_analysis(
     )
 
 
+@register_check("security_scanning_gate")
+async def _check_security_scanning_gate(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Deterministic Phase 6 gate: Dependabot or CodeQL configured on the fork."""
+    target = context.repository
+    if target is None or not target.repo:
+        return StepResult(
+            passed=False,
+            stop_on_fail=True,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message="Requirement configuration error: missing required_repo",
+                username_match=True,
+                repo_exists=False,
+            ),
+        )
+    result = await validate_security_scanning(
+        target.owner, target.repo, context.repo_files
+    )
+    return StepResult(
+        passed=result.is_valid,
+        stop_on_fail=True,
+        validation_result=result,
+    )
+
+
+@register_check("security_scanning_review")
+async def _check_security_scanning_review(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Bundle the fork's security-scanning config files for rubric grading."""
+    assert isinstance(params, SecurityScanningReviewParams)
+    target = context.repository
+    if target is None or not target.repo:
+        return StepResult(passed=True, stop_on_fail=False)
+    repo_files = context.repo_files or default_repo_files()
+    file_paths = await repo_files.tree(target.owner, target.repo)
+    bundle = await collect_security_scanning_evidence(
+        target.owner,
+        target.repo,
+        file_paths,
+        params.task,
+        repo_files=repo_files,
+    )
+    return StepResult(
+        passed=True,
+        stop_on_fail=False,
+        evidence=[bundle],
+        grading_task=params.task,
+    )
+
+
+@register_check("career_reflection_gate")
+async def _check_career_reflection_gate(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Deterministic Phase 7 gate: reject empty reflection submissions."""
+    result = validate_career_reflection(context.submitted_value)
+    return StepResult(
+        passed=result.is_valid,
+        stop_on_fail=True,
+        validation_result=result,
+    )
+
+
+@register_check("career_reflection_review")
+async def _check_career_reflection_review(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Bundle the learner's free-text reflection for text rubric grading."""
+    assert isinstance(params, CareerReflectionReviewParams)
+    bundle = collect_career_reflection_evidence(context.submitted_value, params.task)
+    return StepResult(
+        passed=True,
+        stop_on_fail=False,
+        evidence=[bundle],
+        grading_task=params.task,
+    )
+
+
 @register_check("deployment_architecture_gate")
 async def _check_deployment_architecture_gate(
     context: StepContext,
@@ -545,6 +689,54 @@ _DEVOPS_ANALYSIS_PROFILE = VerificationProfile(
 register_profile(SubmissionType.DEVOPS_ANALYSIS, _DEVOPS_ANALYSIS_PROFILE)
 
 
+_SECURITY_SCANNING_RUBRIC = SECURITY_SCANNING_RUBRIC_TASK.grader
+assert isinstance(_SECURITY_SCANNING_RUBRIC, LLMRubricGraderConfig)
+
+_SECURITY_SCANNING_PROFILE = VerificationProfile(
+    adapter=_profile_steps_adapter,
+    requires_username=True,
+    steps=(
+        Step(
+            check="security_scanning_gate",
+            params=SecurityScanningGateParams(),
+            task_id="security-scanning-gate",
+        ),
+        Step(
+            check="security_scanning_review",
+            params=SecurityScanningReviewParams(task=SECURITY_SCANNING_RUBRIC_TASK),
+            task_id=SECURITY_SCANNING_RUBRIC_TASK.id,
+        ),
+    ),
+    rubric=_SECURITY_SCANNING_RUBRIC,
+)
+
+register_profile(SubmissionType.SECURITY_SCANNING, _SECURITY_SCANNING_PROFILE)
+
+
+_CAREER_REFLECTION_RUBRIC = CAREER_REFLECTION_RUBRIC_TASK.grader
+assert isinstance(_CAREER_REFLECTION_RUBRIC, LLMRubricGraderConfig)
+
+_CAREER_REFLECTION_PROFILE = VerificationProfile(
+    adapter=_profile_steps_adapter,
+    requires_username=False,
+    steps=(
+        Step(
+            check="career_reflection_gate",
+            params=CareerReflectionGateParams(),
+            task_id="career-reflection-gate",
+        ),
+        Step(
+            check="career_reflection_review",
+            params=CareerReflectionReviewParams(task=CAREER_REFLECTION_RUBRIC_TASK),
+            task_id=CAREER_REFLECTION_RUBRIC_TASK.id,
+        ),
+    ),
+    rubric=_CAREER_REFLECTION_RUBRIC,
+)
+
+register_profile(SubmissionType.CAREER_REFLECTION, _CAREER_REFLECTION_PROFILE)
+
+
 def _resolve_descriptor(job: PreparedVerificationJob) -> ValidatorDescriptor | None:
     """Prefer a migrated profile, else the dispatcher's legacy descriptor."""
     profile = profile_for(job.requirement.submission_type)
@@ -595,25 +787,38 @@ def _grading_requests_for(
     Runs after aggregation so the prompt carries the final deterministic
     result. Empty when a gate failed before the rubric step ran, which is how
     a migrated profile signals "no grading needed" to the orchestrator.
+
+    A task whose evidence source is ``submitted_text`` grades free text with no
+    repository (Phase 7); every other task grades repository evidence and is
+    skipped when the job has no GitHub target.
     """
     target = job.target
-    if target is None or not target.repo:
-        return []
     requests: list[LLMGradingRequest] = []
     for result in step_results:
         task = result.grading_task
         if task is None:
             continue
         evidence = result.evidence[0].model_dump(mode="json") if result.evidence else {}
-        message = build_repo_rubric_message(
-            requirement_slug=job.requirement.slug,
-            requirement_name=job.requirement.name,
-            deterministic_result=deterministic_result,
-            owner=target.owner,
-            repo=target.repo,
-            task=task,
-            evidence=evidence,
-        )
+        if task.evidence.source == "submitted_text":
+            message = build_text_rubric_message(
+                requirement_slug=job.requirement.slug,
+                requirement_name=job.requirement.name,
+                deterministic_result=deterministic_result,
+                task=task,
+                evidence=evidence,
+            )
+        else:
+            if target is None or not target.repo:
+                continue
+            message = build_repo_rubric_message(
+                requirement_slug=job.requirement.slug,
+                requirement_name=job.requirement.name,
+                deterministic_result=deterministic_result,
+                owner=target.owner,
+                repo=target.repo,
+                task=task,
+                evidence=evidence,
+            )
         requests.append(
             LLMGradingRequest(
                 task=task,

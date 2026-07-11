@@ -31,9 +31,6 @@ from learn_to_cloud_shared.verification.llm_grading import (
 from learn_to_cloud_shared.verification.llm_grading import (
     apply_llm_grading_decisions as apply_llm_decisions,
 )
-from learn_to_cloud_shared.verification.llm_grading import (
-    collect_llm_grading_requests as collect_llm_requests,
-)
 from learn_to_cloud_shared.verification.engine import run_profile
 from learn_to_cloud_shared.verification_job_executor import (
     PreparedVerificationJob,
@@ -381,24 +378,16 @@ def _llm_grading_step(
 ):
     """Apply LLM rubric grading when the run produced grading requests.
 
-    Migrated profiles record their grading requests on the verify result
+    Every profile records its grading requests on the verify result
     (``grading_requests`` is a list, possibly empty); the orchestrator grades
-    exactly those. Legacy types leave it absent, so we fall back to the
-    transitional grading probe. When no requests result, the run result passes
-    through unchanged.
+    exactly those. Deterministic types record an empty list (or omit the key),
+    so grading is skipped and the run result passes through unchanged.
     """
-    recorded_requests: Sequence[object] | None = None
+    llm_requests: Sequence[object] = []
     if isinstance(run_result, Mapping):
         value = _activity_payload(run_result).get("grading_requests")
         if isinstance(value, list):
-            recorded_requests = value
-    if recorded_requests is None:
-        llm_requests = yield context.call_activity(
-            "collect_llm_grading_requests",
-            run_result,
-        )
-    else:
-        llm_requests = recorded_requests
+            llm_requests = value
     if not llm_requests:
         return run_result
 
@@ -557,19 +546,6 @@ async def execute_requirement_verification(
         result_payload = run_result.to_payload()
         _set_result_span_attributes(result_payload)
         return result_payload
-
-
-@app.activity_trigger(input_name="run_payload")
-async def collect_llm_grading_requests(
-    run_payload,
-    context: func.Context,
-) -> list[dict[str, object]]:
-    """Prepare durable LLM grading requests for the completed verifier output."""
-    with _attached_invocation_context(context):
-        run_result = VerificationRunResult.from_payload(_activity_payload(run_payload))
-        _set_prepared_job_span_attributes(run_result.job)
-        requests = await collect_llm_requests(run_result)
-        return [request.model_dump(mode="json") for request in requests]
 
 
 @app.activity_trigger(input_name="payload")
