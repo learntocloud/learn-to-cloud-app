@@ -9,7 +9,7 @@ A verification job is identified by the presence of its row in
    already has a linked Submission (Durable replay after a successful
    prior run), returns the same execution result without doing more
    work.
-2. ``run_verification`` runs the validator (no DB writes).
+2. ``run_profile`` runs the engine (no DB writes).
 3. ``persist_verification_result`` writes the ``Submission`` and links
    it to the job via ``VerificationJobRepository.link_submission``.
    Idempotent against retries via the ``ALREADY_LINKED`` short-circuit.
@@ -48,9 +48,6 @@ from learn_to_cloud_shared.submission_derivation import build_target
 from learn_to_cloud_shared.submission_values import (
     SubmittedValue,
     submission_value_from_columns,
-)
-from learn_to_cloud_shared.verification.dispatcher import (
-    validate_submission,
 )
 from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
@@ -450,35 +447,6 @@ async def _load_job_state(
     )
 
 
-async def run_verification(
-    job: PreparedVerificationJob,
-) -> VerificationRunResult:
-    """Run the requirement validator without writing database state."""
-    with tracer.start_as_current_span(
-        "run_verification",
-        attributes={
-            "verification.job_id": str(job.id),
-            "requirement.slug": job.requirement.slug,
-            "submission.type": job.requirement.submission_type.value,
-        },
-    ) as span:
-        validation_result = await validate_submission(
-            requirement=job.requirement,
-            submitted_value=job.typed_submitted_value.as_text,
-            target=job.target,
-            expected_username=job.github_username,
-        )
-        span.set_attribute("verification.is_valid", validation_result.is_valid)
-        span.set_attribute(
-            "verification.completed",
-            validation_result.verification_completed,
-        )
-        return VerificationRunResult(
-            job=job,
-            validation_result=validation_result,
-        )
-
-
 async def persist_verification_result(
     run_result: VerificationRunResult,
     *,
@@ -491,6 +459,9 @@ async def persist_verification_result(
     :class:`~learn_to_cloud_shared.repositories.verification_job_repository.LinkResult.ALREADY_LINKED`
     case from ``link_submission``.
     """
+    # Evidence bundles (file contents) are a between-activities transport only;
+    # drop them before the terminal write so they never reach Postgres.
+    run_result = run_result.without_evidence()
     job = run_result.job
     validation_result = run_result.validation_result
 
@@ -577,39 +548,3 @@ async def persist_verification_result(
             verification_completed=validation_result.verification_completed,
             message=_MESSAGE_BY_OUTCOME[outcome],
         )
-
-
-async def execute_verification_job(
-    job_id: UUID | str,
-    *,
-    session_maker: async_sessionmaker[AsyncSession],
-    prepared_input: PreparedVerificationJob,
-) -> VerificationJobExecutionResult:
-    """Run one persisted verification job end-to-end."""
-    normalized_job_id = _coerce_job_id(job_id)
-
-    with tracer.start_as_current_span(
-        "execute_verification_job",
-        attributes={"verification.job_id": str(normalized_job_id)},
-    ) as span:
-        preparation = await prepare_verification_job(
-            normalized_job_id,
-            session_maker=session_maker,
-            prepared_input=prepared_input,
-        )
-        if preparation.terminal_result is not None:
-            span.set_attribute(
-                "verification.status",
-                preparation.terminal_result.status,
-            )
-            return preparation.terminal_result
-        if preparation.job is None:
-            raise VerificationJobNotFoundError(str(normalized_job_id))
-
-        run_result = await run_verification(preparation.job)
-        result = await persist_verification_result(
-            run_result,
-            session_maker=session_maker,
-        )
-        span.set_attribute("verification.status", result.status)
-        return result

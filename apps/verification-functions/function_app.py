@@ -34,11 +34,11 @@ from learn_to_cloud_shared.verification.llm_grading import (
 from learn_to_cloud_shared.verification.llm_grading import (
     collect_llm_grading_requests as collect_llm_requests,
 )
+from learn_to_cloud_shared.verification.engine import run_profile
 from learn_to_cloud_shared.verification_job_executor import (
     PreparedVerificationJob,
     VerificationJobNotFoundError,
     VerificationRunResult,
-    run_verification,
 )
 from learn_to_cloud_shared.verification_job_executor import (
     persist_verification_result as persist_prepared_verification_result,
@@ -533,7 +533,16 @@ async def execute_requirement_verification(
             _activity_payload(job_payload)
         )
         _set_prepared_job_span_attributes(prepared_job)
-        run_result = await run_verification(prepared_job)
+        run_result = await run_profile(prepared_job)
+        span = otel_trace.get_current_span()
+        if span.is_recording():
+            span.set_attribute(
+                "verification.is_valid", run_result.validation_result.is_valid
+            )
+            span.set_attribute(
+                "verification.completed",
+                run_result.validation_result.verification_completed,
+            )
         result_payload = run_result.to_payload()
         _set_result_span_attributes(result_payload)
         return result_payload

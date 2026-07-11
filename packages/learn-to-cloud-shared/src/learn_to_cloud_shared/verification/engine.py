@@ -22,8 +22,11 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from typing import Literal
+from uuid import UUID
 
+from opentelemetry import trace
 from pydantic import Field
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.schemas import FrozenModel, TaskResult, ValidationResult
@@ -39,8 +42,14 @@ from learn_to_cloud_shared.verification.tasks.base import (
 )
 from learn_to_cloud_shared.verification_job_executor import (
     PreparedVerificationJob,
+    VerificationJobExecutionResult,
+    VerificationJobNotFoundError,
     VerificationRunResult,
+    persist_verification_result,
+    prepare_verification_job,
 )
+
+_tracer = trace.get_tracer(__name__)
 
 # ---------------------------------------------------------------------------
 # Step params: per-check models in a discriminated union keyed by ``check``.
@@ -248,3 +257,44 @@ async def run_profile(
         validation_result=_aggregate(step_results),
         evidence=bundles or None,
     )
+
+
+async def execute_verification_job(
+    job_id: UUID | str,
+    *,
+    session_maker: async_sessionmaker[AsyncSession],
+    prepared_input: PreparedVerificationJob,
+) -> VerificationJobExecutionResult:
+    """Run one persisted verification job end-to-end (prepare, run, persist).
+
+    A non-grading convenience over the individual primitives. Production
+    sequences the same steps (plus grading) as separate Durable activities;
+    this collapses them for callers that want a single deterministic run.
+    """
+    normalized_job_id = job_id if isinstance(job_id, UUID) else UUID(job_id)
+
+    with _tracer.start_as_current_span(
+        "execute_verification_job",
+        attributes={"verification.job_id": str(normalized_job_id)},
+    ) as span:
+        preparation = await prepare_verification_job(
+            normalized_job_id,
+            session_maker=session_maker,
+            prepared_input=prepared_input,
+        )
+        if preparation.terminal_result is not None:
+            span.set_attribute(
+                "verification.status",
+                preparation.terminal_result.status,
+            )
+            return preparation.terminal_result
+        if preparation.job is None:
+            raise VerificationJobNotFoundError(str(normalized_job_id))
+
+        run_result = await run_profile(preparation.job)
+        result = await persist_verification_result(
+            run_result,
+            session_maker=session_maker,
+        )
+        span.set_attribute("verification.status", result.status)
+        return result

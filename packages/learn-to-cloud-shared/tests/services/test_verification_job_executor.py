@@ -26,6 +26,10 @@ from learn_to_cloud_shared.schemas import (
     ValidationResult,
 )
 from learn_to_cloud_shared.submission_values import SubmittedValue
+from learn_to_cloud_shared.verification.engine import (
+    execute_verification_job,
+    run_profile,
+)
 from learn_to_cloud_shared.verification.execution import MAX_VALIDATION_MESSAGE_LENGTH
 from learn_to_cloud_shared.verification_job_executor import (
     VALIDATION_FAILED_ERROR_CODE,
@@ -34,10 +38,8 @@ from learn_to_cloud_shared.verification_job_executor import (
     PreparedVerificationJob,
     VerificationJobNotFoundError,
     VerificationRunResult,
-    execute_verification_job,
     persist_verification_result,
     prepare_verification_job,
-    run_verification,
 )
 
 pytestmark = pytest.mark.integration
@@ -183,10 +185,10 @@ async def test_split_verification_primitives_prepare_run_and_persist(
     assert preparation.job.to_payload()["id"] == str(job_id)
 
     with patch(
-        "learn_to_cloud_shared.verification_job_executor.validate_submission",
+        "learn_to_cloud_shared.verification.engine.validate_submission",
         validation,
     ):
-        run_result = await run_verification(preparation.job)
+        run_result = await run_profile(preparation.job)
 
     assert await _count_submissions(session_maker) == 0
     assert run_result.to_payload()["job"] == preparation.job.to_payload()
@@ -220,7 +222,7 @@ async def test_execute_verification_job_marks_success_and_links_submission(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor.validate_submission",
+            "learn_to_cloud_shared.verification.engine.validate_submission",
             validation,
         ),
     ):
@@ -262,7 +264,7 @@ async def test_execute_verification_job_marks_user_validation_failure(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor.validate_submission",
+            "learn_to_cloud_shared.verification.engine.validate_submission",
             validation,
         ),
     ):
@@ -301,7 +303,7 @@ async def test_execute_verification_job_marks_server_error(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor.validate_submission",
+            "learn_to_cloud_shared.verification.engine.validate_submission",
             validation,
         ),
     ):
@@ -339,7 +341,7 @@ async def test_execute_verification_job_truncates_persisted_error_messages(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor.validate_submission",
+            "learn_to_cloud_shared.verification.engine.validate_submission",
             validation,
         ),
     ):
@@ -401,7 +403,7 @@ async def test_execute_verification_job_is_idempotent_for_terminal_jobs(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor.validate_submission",
+            "learn_to_cloud_shared.verification.engine.validate_submission",
             validation,
         ),
     ):
