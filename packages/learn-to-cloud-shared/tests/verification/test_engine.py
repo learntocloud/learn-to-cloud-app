@@ -368,3 +368,98 @@ async def test_deployment_profile_gate_fails_when_deploy_script_missing():
 
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
+
+
+# ---------------------------------------------------------------------------
+# Phase 4/5 deterministic profiles: deployed API probe and DevOps workflow.
+# ---------------------------------------------------------------------------
+
+
+def _deployed_api_job() -> PreparedVerificationJob:
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        deployed_api_requirement,
+    )
+
+    return PreparedVerificationJob(
+        id=uuid4(),
+        user_id=1,
+        github_username=None,
+        requirement=deployed_api_requirement(slug="deployed-api"),
+        submitted_value="https://api.example.com",
+    )
+
+
+def _devops_job() -> PreparedVerificationJob:
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        devops_analysis_requirement,
+    )
+
+    return PreparedVerificationJob(
+        id=uuid4(),
+        user_id=1,
+        github_username="learner",
+        requirement=devops_analysis_requirement(
+            slug="devops-analysis",
+            required_repo="owner/devops-repo",
+        ),
+        submitted_value="https://github.com/learner/devops-repo",
+    )
+
+
+@pytest.mark.asyncio
+async def test_deployed_api_profile_passes_through_deterministic_result(monkeypatch):
+    async def fake_validate(base_url):
+        assert base_url == "https://api.example.com"
+        return ValidationResult(is_valid=True, message="API is healthy")
+
+    monkeypatch.setattr(engine_module, "validate_deployed_api", fake_validate)
+
+    result = await run_profile(_deployed_api_job())
+
+    assert result.validation_result.is_valid is True
+    assert result.validation_result.message == "API is healthy"
+    assert result.grading_requests == []
+    assert result.evidence is None
+
+
+@pytest.mark.asyncio
+async def test_deployed_api_profile_fails_when_probe_fails(monkeypatch):
+    async def fake_validate(base_url):
+        return ValidationResult(is_valid=False, message="API unreachable")
+
+    monkeypatch.setattr(engine_module, "validate_deployed_api", fake_validate)
+
+    result = await run_profile(_deployed_api_job())
+
+    assert result.validation_result.is_valid is False
+    assert result.grading_requests == []
+
+
+@pytest.mark.asyncio
+async def test_devops_profile_passes_through_deterministic_result(monkeypatch):
+    async def fake_workflow(owner, repo, repo_files=None):
+        assert owner == "learner"
+        assert repo == "devops-repo"
+        return ValidationResult(is_valid=True, message="DevOps checks passed")
+
+    monkeypatch.setattr(engine_module, "run_devops_workflow", fake_workflow)
+
+    result = await run_profile(_devops_job())
+
+    assert result.validation_result.is_valid is True
+    assert result.validation_result.message == "DevOps checks passed"
+    assert result.grading_requests == []
+    assert result.evidence is None
+
+
+@pytest.mark.asyncio
+async def test_devops_profile_fails_when_workflow_fails(monkeypatch):
+    async def fake_workflow(owner, repo, repo_files=None):
+        return ValidationResult(is_valid=False, message="Missing workflow file")
+
+    monkeypatch.setattr(engine_module, "run_devops_workflow", fake_workflow)
+
+    result = await run_profile(_devops_job())
+
+    assert result.validation_result.is_valid is False
+    assert result.grading_requests == []
