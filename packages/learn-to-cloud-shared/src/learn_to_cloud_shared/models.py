@@ -82,13 +82,13 @@ class SubmissionType(StrEnum):
 
     To add a new verification type:
     1. Add the enum value here
-    2. Add a validator function in the appropriate module:
-       - GitHub-based: api/services/github_hands_on_verification_service.py
-       - Or create a new module for complex verification types
-    3. Register a descriptor for it in
-       ``verification/dispatcher.py`` (``_VALIDATOR_REGISTRY``): the
-       descriptor declares the adapter callable, its execution mode, and
-       whether it needs a GitHub username or is repo-backed.
+    2. Add a validator function in the appropriate module under
+       ``verification/`` (or create a new module for complex types)
+    3. Register a :class:`VerificationProfile` for it in
+       ``verification/engine.py``: declare its ordered steps (each a
+       registered check plus typed params) and whether it needs a GitHub
+       username. A registry-exhaustiveness test enforces that every type has
+       a profile.
     4. Add optional fields to HandsOnRequirement schema if needed
     """
 

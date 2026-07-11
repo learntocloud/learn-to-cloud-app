@@ -11,10 +11,8 @@ Checks are registered by name in ``_CHECK_REGISTRY`` via
 :func:`register_check`. Adding a verification behavior becomes "register a
 check, declare a profile," not "touch an orchestrator and a validator."
 
-Transitional: submission types that have not been migrated to a declared
-profile run a single ``legacy_validate`` step backed by
-``validate_submission`` (the per-type dispatcher). That fallthrough and this
-note are removed once every type resolves to a real profile.
+Every submission type resolves to a :class:`VerificationProfile`; a
+registry-exhaustiveness test guarantees no type is left unmapped.
 """
 
 from __future__ import annotations
@@ -42,11 +40,6 @@ from learn_to_cloud_shared.verification.deployment_architecture import (
     validate_deployment_architecture,
 )
 from learn_to_cloud_shared.verification.devops_analysis import run_devops_workflow
-from learn_to_cloud_shared.verification.dispatcher import (
-    ValidatorDescriptor,
-    descriptor_for,
-    validate_submission,
-)
 from learn_to_cloud_shared.verification.evidence import collect_repo_file_evidence
 from learn_to_cloud_shared.verification.github_profile import (
     validate_profile_readme,
@@ -98,12 +91,6 @@ _tracer = trace.get_tracer(__name__)
 # ---------------------------------------------------------------------------
 # Step params: per-check models in a discriminated union keyed by ``check``.
 # ---------------------------------------------------------------------------
-
-
-class LegacyValidateParams(FrozenModel):
-    """Params for the transitional ``legacy_validate`` check (no config)."""
-
-    check: Literal["legacy_validate"] = "legacy_validate"
 
 
 class CIStatusParams(FrozenModel):
@@ -245,8 +232,7 @@ class NetworkingTokenCheckParams(FrozenModel):
 
 
 StepParams = Annotated[
-    LegacyValidateParams
-    | CIStatusParams
+    CIStatusParams
     | LLMRubricReviewParams
     | DeploymentArchitectureGateParams
     | DeploymentArchitectureReviewParams
@@ -287,11 +273,11 @@ class StepResult(FrozenModel):
 
     ``evidence`` is contributed to the run's bundle and made visible to later
     steps. ``stop_on_fail`` lets a failed gate short-circuit the remaining
-    steps. ``validation_result`` is the transitional passthrough used by the
-    ``legacy_validate`` step (and the ``github_ci_passing`` gate) to carry a
-    full dispatcher/gate result unchanged. ``grading_task`` marks that this
-    step requested LLM rubric grading; the engine turns it into a recorded
-    grading request once the deterministic result is aggregated.
+    steps. ``validation_result`` is the authoritative passthrough a
+    deterministic gate uses to carry its full result unchanged.
+    ``grading_task`` marks that this step requested LLM rubric grading; the
+    engine turns it into a recorded grading request once the deterministic
+    result is aggregated.
     """
 
     passed: bool
@@ -314,14 +300,16 @@ class StepContext:
 
 
 @dataclass(frozen=True)
-class VerificationProfile(ValidatorDescriptor):
-    """A submission type's declared workflow.
+class VerificationProfile:
+    """A submission type's declared verification workflow.
 
-    Extends the dispatcher's :class:`ValidatorDescriptor` with an ordered step
-    list and the terminal LLM step's persona/rubric. A profile with no steps
-    falls back to the transitional ``legacy_validate`` step.
+    An ordered list of :class:`Step`s plus the terminal LLM step's rubric and
+    optional persona. ``requires_username`` guards types whose steps need the
+    learner's GitHub username; :func:`run_profile` short-circuits when it is
+    missing.
     """
 
+    requires_username: bool
     steps: tuple[Step, ...] = ()
     system_prompt: str | None = None
     rubric: LLMRubricGraderConfig | None = None
@@ -350,30 +338,6 @@ def check_for(name: str) -> CheckFn:
         return _CHECK_REGISTRY[name]
     except KeyError:
         raise KeyError(f"No check registered for {name!r}") from None
-
-
-# ---------------------------------------------------------------------------
-# Transitional legacy check: delegate to the per-type dispatcher.
-# ---------------------------------------------------------------------------
-
-
-@register_check("legacy_validate")
-async def _check_legacy_validate(
-    context: StepContext,
-    params: StepParams,
-) -> StepResult:
-    """Run the per-type validator via the dispatcher (transitional)."""
-    result = await validate_submission(
-        requirement=context.job.requirement,
-        submitted_value=context.submitted_value,
-        target=context.repository,
-        expected_username=context.job.github_username,
-    )
-    return StepResult(
-        passed=result.is_valid,
-        stop_on_fail=True,
-        validation_result=result,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -703,26 +667,9 @@ async def _check_deployment_architecture_review(
     )
 
 
-_LEGACY_STEP = Step(
-    check="legacy_validate",
-    params=LegacyValidateParams(),
-    task_id="legacy_validate",
-)
-
-
 # ---------------------------------------------------------------------------
-# Profile registry: submission types that have migrated to declared steps.
+# Profile registry: every submission type maps to a declared profile.
 # ---------------------------------------------------------------------------
-
-
-async def _profile_steps_adapter(
-    requirement: object,
-    target: object,
-    submitted_value: str,
-    username: str,
-) -> ValidationResult:
-    """Placeholder adapter for profiles; they run declared steps, not this."""
-    raise RuntimeError("VerificationProfile runs declared steps, not an adapter")
 
 
 _PROFILE_REGISTRY: dict[SubmissionType, VerificationProfile] = {}
@@ -731,14 +678,14 @@ _PROFILE_REGISTRY: dict[SubmissionType, VerificationProfile] = {}
 def register_profile(
     submission_type: SubmissionType, profile: VerificationProfile
 ) -> None:
-    """Register a migrated profile for a submission type (raises on dupes)."""
+    """Register a profile for a submission type (raises on dupes)."""
     if submission_type in _PROFILE_REGISTRY:
         raise ValueError(f"Profile already registered: {submission_type}")
     _PROFILE_REGISTRY[submission_type] = profile
 
 
 def profile_for(submission_type: SubmissionType) -> VerificationProfile | None:
-    """Return the migrated profile for a submission type, if any."""
+    """Return the profile for a submission type, if any."""
     return _PROFILE_REGISTRY.get(submission_type)
 
 
@@ -746,7 +693,6 @@ _JOURNAL_API_RUBRIC = JOURNAL_API_FINAL_RUBRIC_TASK.grader
 assert isinstance(_JOURNAL_API_RUBRIC, LLMRubricGraderConfig)
 
 _JOURNAL_API_PROFILE = VerificationProfile(
-    adapter=_profile_steps_adapter,
     requires_username=True,
     steps=(
         Step(
@@ -773,7 +719,6 @@ _DEPLOYMENT_ARCHITECTURE_RUBRIC = DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK.grader
 assert isinstance(_DEPLOYMENT_ARCHITECTURE_RUBRIC, LLMRubricGraderConfig)
 
 _DEPLOYMENT_ARCHITECTURE_PROFILE = VerificationProfile(
-    adapter=_profile_steps_adapter,
     requires_username=True,
     steps=(
         Step(
@@ -798,7 +743,6 @@ register_profile(
 
 
 _DEPLOYED_API_PROFILE = VerificationProfile(
-    adapter=_profile_steps_adapter,
     requires_username=False,
     steps=(
         Step(
@@ -813,7 +757,6 @@ register_profile(SubmissionType.DEPLOYED_API, _DEPLOYED_API_PROFILE)
 
 
 _DEVOPS_ANALYSIS_PROFILE = VerificationProfile(
-    adapter=_profile_steps_adapter,
     requires_username=True,
     steps=(
         Step(
@@ -831,7 +774,6 @@ _SECURITY_SCANNING_RUBRIC = SECURITY_SCANNING_RUBRIC_TASK.grader
 assert isinstance(_SECURITY_SCANNING_RUBRIC, LLMRubricGraderConfig)
 
 _SECURITY_SCANNING_PROFILE = VerificationProfile(
-    adapter=_profile_steps_adapter,
     requires_username=True,
     steps=(
         Step(
@@ -855,7 +797,6 @@ _CAREER_REFLECTION_RUBRIC = CAREER_REFLECTION_RUBRIC_TASK.grader
 assert isinstance(_CAREER_REFLECTION_RUBRIC, LLMRubricGraderConfig)
 
 _CAREER_REFLECTION_PROFILE = VerificationProfile(
-    adapter=_profile_steps_adapter,
     requires_username=False,
     steps=(
         Step(
@@ -876,7 +817,6 @@ register_profile(SubmissionType.CAREER_REFLECTION, _CAREER_REFLECTION_PROFILE)
 
 
 _PROFILE_README_PROFILE = VerificationProfile(
-    adapter=_profile_steps_adapter,
     requires_username=True,
     steps=(
         Step(
@@ -891,7 +831,6 @@ register_profile(SubmissionType.PROFILE_README, _PROFILE_README_PROFILE)
 
 
 _REPO_FORK_PROFILE = VerificationProfile(
-    adapter=_profile_steps_adapter,
     requires_username=True,
     steps=(
         Step(
@@ -906,7 +845,6 @@ register_profile(SubmissionType.REPO_FORK, _REPO_FORK_PROFILE)
 
 
 _CTF_TOKEN_PROFILE = VerificationProfile(
-    adapter=_profile_steps_adapter,
     requires_username=True,
     steps=(
         Step(
@@ -921,7 +859,6 @@ register_profile(SubmissionType.CTF_TOKEN, _CTF_TOKEN_PROFILE)
 
 
 _NETWORKING_TOKEN_PROFILE = VerificationProfile(
-    adapter=_profile_steps_adapter,
     requires_username=True,
     steps=(
         Step(
@@ -935,26 +872,22 @@ _NETWORKING_TOKEN_PROFILE = VerificationProfile(
 register_profile(SubmissionType.NETWORKING_TOKEN, _NETWORKING_TOKEN_PROFILE)
 
 
-def _resolve_descriptor(job: PreparedVerificationJob) -> ValidatorDescriptor | None:
-    """Prefer a migrated profile, else the dispatcher's legacy descriptor."""
-    profile = profile_for(job.requirement.submission_type)
-    if profile is not None:
-        return profile
-    return descriptor_for(job.requirement.submission_type)
+def _resolve_profile(job: PreparedVerificationJob) -> VerificationProfile | None:
+    """Return the profile for this job's submission type, or None if unknown."""
+    return profile_for(job.requirement.submission_type)
 
 
-def _steps_for(descriptor: ValidatorDescriptor | None) -> tuple[Step, ...]:
-    """Resolve the step list, falling back to the transitional legacy step."""
-    if isinstance(descriptor, VerificationProfile) and descriptor.steps:
-        return descriptor.steps
-    return (_LEGACY_STEP,)
+def _steps_for(profile: VerificationProfile) -> tuple[Step, ...]:
+    """Return a profile's declared steps."""
+    return profile.steps
 
 
 def _aggregate(step_results: list[StepResult]) -> ValidationResult:
     """Fold step results into one ``ValidationResult``.
 
-    A ``validation_result`` passthrough (the legacy step) is authoritative and
-    returned unchanged. Migrated profiles aggregate from per-step task results.
+    A ``validation_result`` passthrough (a deterministic gate) is authoritative
+    and returned unchanged. Rubric profiles aggregate from per-step task
+    results.
     """
     for result in step_results:
         if result.validation_result is not None:
@@ -1038,18 +971,25 @@ async def run_profile(
     rest. Evidence bundles accumulate across steps, are visible to later steps
     via ``evidence_so_far``, and are carried on the returned run result.
 
-    Migrated profiles record their LLM grading requests on the result
-    (``grading_requests`` is a list, possibly empty); legacy types leave it
-    ``None`` so the orchestrator falls back to the grading probe.
+    Every registered profile records its LLM grading requests on the result
+    (``grading_requests`` is a list, possibly empty). An unregistered type
+    (which the exhaustiveness test forbids) returns a clean error result.
     """
-    descriptor = _resolve_descriptor(job)
-    steps = _steps_for(descriptor)
+    profile = _resolve_profile(job)
+    if profile is None:
+        return VerificationRunResult(
+            job=job,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message=(f"Unknown submission type: {job.requirement.submission_type}"),
+                username_match=False,
+                repo_exists=False,
+            ),
+            evidence=None,
+            grading_requests=[],
+        )
 
-    if (
-        descriptor is not None
-        and descriptor.requires_username
-        and not job.github_username
-    ):
+    if profile.requires_username and not job.github_username:
         return VerificationRunResult(
             job=job,
             validation_result=ValidationResult(
@@ -1058,11 +998,10 @@ async def run_profile(
                 username_match=False,
             ),
             evidence=None,
-            grading_requests=[]
-            if isinstance(descriptor, VerificationProfile)
-            else None,
+            grading_requests=[],
         )
 
+    steps = _steps_for(profile)
     context = StepContext(
         job=job,
         repository=job.target,
@@ -1085,11 +1024,7 @@ async def run_profile(
             break
 
     deterministic_result = _aggregate(step_results)
-    grading_requests: list[LLMGradingRequest] | None = None
-    if isinstance(descriptor, VerificationProfile):
-        grading_requests = _grading_requests_for(
-            job, deterministic_result, step_results
-        )
+    grading_requests = _grading_requests_for(job, deterministic_result, step_results)
 
     return VerificationRunResult(
         job=job,

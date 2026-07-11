@@ -10,7 +10,7 @@ from learn_to_cloud_shared.testing.requirement_factories import (
 )
 from learn_to_cloud_shared.verification import engine as engine_module
 from learn_to_cloud_shared.verification.engine import (
-    LegacyValidateParams,
+    CIStatusParams,
     Step,
     StepContext,
     StepResult,
@@ -37,39 +37,11 @@ def _job(requirement=None) -> PreparedVerificationJob:
 
 
 def _step(check: str, task_id: str) -> Step:
-    return Step(check=check, params=LegacyValidateParams(), task_id=task_id)
+    return Step(check=check, params=CIStatusParams(), task_id=task_id)
 
 
 def _profile(*steps: Step) -> VerificationProfile:
-    return VerificationProfile(
-        adapter=_unused_adapter,
-        requires_username=False,
-        steps=steps,
-    )
-
-
-async def _unused_adapter(requirement, target, submitted_value, username):
-    raise AssertionError("adapter should not be called by the engine")
-
-
-@pytest.mark.asyncio
-async def test_legacy_step_passes_dispatcher_result_through(monkeypatch):
-    sentinel = ValidationResult(
-        is_valid=True,
-        message="dispatcher said so",
-        task_results=[TaskResult(task_name="t", passed=True, feedback="f")],
-    )
-
-    async def fake_validate(**kwargs):
-        return sentinel
-
-    monkeypatch.setattr(engine_module, "validate_submission", fake_validate)
-    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
-
-    result = await run_profile(_job(repo_fork_requirement()))
-
-    assert result.validation_result is sentinel
-    assert result.evidence is None
+    return VerificationProfile(requires_username=False, steps=steps)
 
 
 @pytest.mark.asyncio
@@ -90,10 +62,9 @@ async def test_run_profile_uses_declared_steps(monkeypatch):
 
     monkeypatch.setattr(
         engine_module,
-        "descriptor_for",
+        "profile_for",
         lambda _t: _profile(_step("test_gate_pass", "gate")),
     )
-    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     result = await run_profile(_job())
 
@@ -120,10 +91,9 @@ async def test_failed_gate_short_circuits(monkeypatch):
 
     monkeypatch.setattr(
         engine_module,
-        "descriptor_for",
+        "profile_for",
         lambda _t: _profile(_step("hard_fail", "a"), _step("never_runs", "b")),
     )
-    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     result = await run_profile(_job())
 
@@ -147,10 +117,9 @@ async def test_stop_on_fail_false_continues(monkeypatch):
 
     monkeypatch.setattr(
         engine_module,
-        "descriptor_for",
+        "profile_for",
         lambda _t: _profile(_step("soft_fail", "a"), _step("after_soft", "b")),
     )
-    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     result = await run_profile(_job())
 
@@ -174,10 +143,9 @@ async def test_later_step_sees_prior_evidence(monkeypatch):
 
     monkeypatch.setattr(
         engine_module,
-        "descriptor_for",
+        "profile_for",
         lambda _t: _profile(_step("emit_evidence", "a"), _step("read_evidence", "b")),
     )
-    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     await run_profile(_job())
 
@@ -185,27 +153,20 @@ async def test_later_step_sees_prior_evidence(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_unregistered_descriptor_falls_back_to_legacy(monkeypatch):
-    called: dict[str, object] = {}
-
-    async def fake_validate(**kwargs):
-        called.update(kwargs)
-        return ValidationResult(is_valid=True, message="legacy ran")
-
-    monkeypatch.setattr(engine_module, "validate_submission", fake_validate)
-    monkeypatch.setattr(engine_module, "descriptor_for", lambda _t: None)
+async def test_unregistered_type_returns_unknown_result(monkeypatch):
     monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     result = await run_profile(_job())
 
-    assert result.validation_result.message == "legacy ran"
-    assert called["expected_username"] == "learner"
+    assert result.validation_result.is_valid is False
+    assert "Unknown submission type" in result.validation_result.message
+    assert result.grading_requests == []
 
 
 def test_register_check_rejects_duplicates():
     with pytest.raises(ValueError, match="already registered"):
 
-        @register_check("legacy_validate")
+        @register_check("github_ci_passing")
         async def _dupe(context, params):  # pragma: no cover - registration fails
             return StepResult(passed=True)
 
@@ -280,19 +241,6 @@ async def test_journal_profile_skips_grading_when_ci_fails(monkeypatch):
     assert result.validation_result.message == "CI is red"
     assert result.grading_requests == []
     assert result.evidence is None
-
-
-@pytest.mark.asyncio
-async def test_legacy_type_leaves_grading_requests_none(monkeypatch):
-    async def fake_validate(**kwargs):
-        return ValidationResult(is_valid=True, message="legacy ran")
-
-    monkeypatch.setattr(engine_module, "validate_submission", fake_validate)
-    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
-
-    result = await run_profile(_job(repo_fork_requirement()))
-
-    assert result.grading_requests is None
 
 
 # ---------------------------------------------------------------------------
@@ -693,3 +641,18 @@ async def test_profile_requiring_username_short_circuits_when_missing():
     assert result.validation_result.username_match is False
     assert "GitHub username is required" in result.validation_result.message
     assert result.grading_requests == []
+
+
+# ---------------------------------------------------------------------------
+# Registry exhaustiveness: every submission type must resolve to a profile so
+# no type silently falls through to an "unknown submission type" error.
+# ---------------------------------------------------------------------------
+
+
+def test_every_submission_type_has_a_registered_profile():
+    from learn_to_cloud_shared.models import SubmissionType
+    from learn_to_cloud_shared.verification.engine import profile_for
+
+    missing = [t for t in SubmissionType if profile_for(t) is None]
+
+    assert missing == [], f"submission types without a profile: {missing}"

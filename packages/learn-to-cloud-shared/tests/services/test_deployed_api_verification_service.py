@@ -682,41 +682,6 @@ class TestValidateDeployedApi:
 
 
 @pytest.mark.unit
-class TestValidateSubmissionIntegration:
-    """Tests that DEPLOYED_API routes to the verification service."""
-
-    @pytest.mark.asyncio
-    async def test_deployed_api_routes_to_verification(self):
-        """DEPLOYED_API should route to validate_deployed_api."""
-        from learn_to_cloud_shared.schemas import ValidationResult
-        from learn_to_cloud_shared.testing.requirement_factories import (
-            deployed_api_requirement,
-        )
-        from learn_to_cloud_shared.verification.dispatcher import validate_submission
-
-        requirement = deployed_api_requirement(
-            slug="deployed-journal-api",
-            name="Deployed API",
-            description="Test",
-        )
-
-        with patch(
-            "learn_to_cloud_shared.verification.dispatcher.validate_deployed_api",
-            autospec=True,
-        ) as mock:
-            mock.return_value = ValidationResult(is_valid=True, message="API verified!")
-
-            result = await validate_submission(
-                requirement=requirement,
-                submitted_value="https://api.example.com",
-                expected_username=None,  # Not required for deployed API
-            )
-
-            mock.assert_called_once_with("https://api.example.com")
-            assert result.is_valid is True
-
-
-@pytest.mark.unit
 class TestIsPrivateIp:
     """Tests for _is_private_ip helper."""
 

@@ -294,7 +294,7 @@ async def validate_security_scanning(
 ) -> ValidationResult:
     """Verify a learner's GitHub repo has security scanning enabled.
 
-    URL validation and ownership checks are handled by the dispatcher
+    URL validation and ownership checks are handled by the engine gate
     before this function is called.
 
     Flow:

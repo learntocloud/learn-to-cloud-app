@@ -7,7 +7,7 @@ Covers:
 Evidence is supplied through the ``RepoFiles`` seam with an in-memory
 adapter, so these tests exercise the grading rules without the network.
 
-URL validation and ownership checks are tested in the dispatcher tests.
+URL validation and ownership checks are exercised by the engine gate tests.
 """
 
 import httpx
