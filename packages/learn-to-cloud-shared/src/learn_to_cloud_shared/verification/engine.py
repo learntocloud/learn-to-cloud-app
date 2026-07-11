@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from opentelemetry import trace
@@ -29,16 +29,28 @@ from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.github_target import GitHubTarget
+from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import FrozenModel, TaskResult, ValidationResult
+from learn_to_cloud_shared.verification.ci_status import verify_ci_status
 from learn_to_cloud_shared.verification.dispatcher import (
     ValidatorDescriptor,
     descriptor_for,
     validate_submission,
 )
-from learn_to_cloud_shared.verification.repo_files import RepoFiles
+from learn_to_cloud_shared.verification.evidence import collect_repo_file_evidence
+from learn_to_cloud_shared.verification.grading_requests import (
+    LLMGradingRequest,
+    build_repo_rubric_message,
+)
+from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
     LLMRubricGraderConfig,
+    VerificationTask,
+)
+from learn_to_cloud_shared.verification.tasks.phase3 import (
+    JOURNAL_API_FINAL_RUBRIC_TASK,
+    JOURNAL_API_IMPORTANT_PATHS,
 )
 from learn_to_cloud_shared.verification_job_executor import (
     PreparedVerificationJob,
@@ -62,11 +74,29 @@ class LegacyValidateParams(FrozenModel):
     check: Literal["legacy_validate"] = "legacy_validate"
 
 
-# The per-check discriminated union. With one member today it is a plain
-# alias; as PR2+ register more checks (files_present, fetch_files,
-# llm_rubric_review, ...) this becomes
-# ``Annotated[LegacyValidateParams | ..., Field(discriminator="check")]``.
-StepParams = LegacyValidateParams
+class CIStatusParams(FrozenModel):
+    """Params for the ``github_ci_passing`` gate (workflow file is fixed)."""
+
+    check: Literal["github_ci_passing"] = "github_ci_passing"
+
+
+class LLMRubricReviewParams(FrozenModel):
+    """Params for the terminal ``llm_rubric_review`` step.
+
+    Carries the rubric ``task`` (criteria + grader) and the exact repository
+    ``evidence_paths`` to fetch. Fetching exact paths (no repo-tree listing)
+    keeps evidence deterministic and matches the prescribed capstone files.
+    """
+
+    check: Literal["llm_rubric_review"] = "llm_rubric_review"
+    task: VerificationTask
+    evidence_paths: tuple[str, ...]
+
+
+StepParams = Annotated[
+    LegacyValidateParams | CIStatusParams | LLMRubricReviewParams,
+    Field(discriminator="check"),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -93,8 +123,10 @@ class StepResult(FrozenModel):
     ``evidence`` is contributed to the run's bundle and made visible to later
     steps. ``stop_on_fail`` lets a failed gate short-circuit the remaining
     steps. ``validation_result`` is the transitional passthrough used by the
-    ``legacy_validate`` step to carry a full dispatcher result unchanged; it is
-    removed once every type is migrated to task-level results.
+    ``legacy_validate`` step (and the ``github_ci_passing`` gate) to carry a
+    full dispatcher/gate result unchanged. ``grading_task`` marks that this
+    step requested LLM rubric grading; the engine turns it into a recorded
+    grading request once the deterministic result is aggregated.
     """
 
     passed: bool
@@ -102,6 +134,7 @@ class StepResult(FrozenModel):
     evidence: list[EvidenceBundle] = Field(default_factory=list)
     stop_on_fail: bool = True
     validation_result: ValidationResult | None = None
+    grading_task: VerificationTask | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,11 +211,140 @@ async def _check_legacy_validate(
     )
 
 
+# ---------------------------------------------------------------------------
+# Reusable checks.
+# ---------------------------------------------------------------------------
+
+
+@register_check("github_ci_passing")
+async def _check_github_ci_passing(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Gate on a green CI run on the fork's ``main`` branch."""
+    target = context.repository
+    if target is None or not target.repo:
+        return StepResult(
+            passed=False,
+            stop_on_fail=True,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message="Requirement configuration error: missing required_repo",
+                username_match=True,
+                repo_exists=False,
+            ),
+        )
+    result = await verify_ci_status(target.owner, target.repo)
+    return StepResult(
+        passed=result.is_valid,
+        stop_on_fail=True,
+        validation_result=result,
+    )
+
+
+@register_check("llm_rubric_review")
+async def _check_llm_rubric_review(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Fetch exact-path evidence for a terminal LLM rubric review.
+
+    Never a gate: it gathers the bundle the LLM will grade and marks the task
+    for grading. The actual LLM call runs later in the separate durable
+    ``run_llm_grading`` activity, so this step stays pure of any model call.
+    """
+    assert isinstance(params, LLMRubricReviewParams)
+    target = context.repository
+    if target is None or not target.repo:
+        return StepResult(passed=True, stop_on_fail=False)
+    repo_files = context.repo_files or default_repo_files()
+    bundle = await collect_repo_file_evidence(
+        repo_files,
+        target.owner,
+        target.repo,
+        list(params.evidence_paths),
+        params.task,
+    )
+    return StepResult(
+        passed=True,
+        stop_on_fail=False,
+        evidence=[bundle],
+        grading_task=params.task,
+    )
+
+
 _LEGACY_STEP = Step(
     check="legacy_validate",
     params=LegacyValidateParams(),
     task_id="legacy_validate",
 )
+
+
+# ---------------------------------------------------------------------------
+# Profile registry: submission types that have migrated to declared steps.
+# ---------------------------------------------------------------------------
+
+
+async def _profile_steps_adapter(
+    requirement: object,
+    target: object,
+    submitted_value: str,
+    username: str,
+) -> ValidationResult:
+    """Placeholder adapter for profiles; they run declared steps, not this."""
+    raise RuntimeError("VerificationProfile runs declared steps, not an adapter")
+
+
+_PROFILE_REGISTRY: dict[SubmissionType, VerificationProfile] = {}
+
+
+def register_profile(
+    submission_type: SubmissionType, profile: VerificationProfile
+) -> None:
+    """Register a migrated profile for a submission type (raises on dupes)."""
+    if submission_type in _PROFILE_REGISTRY:
+        raise ValueError(f"Profile already registered: {submission_type}")
+    _PROFILE_REGISTRY[submission_type] = profile
+
+
+def profile_for(submission_type: SubmissionType) -> VerificationProfile | None:
+    """Return the migrated profile for a submission type, if any."""
+    return _PROFILE_REGISTRY.get(submission_type)
+
+
+_JOURNAL_API_RUBRIC = JOURNAL_API_FINAL_RUBRIC_TASK.grader
+assert isinstance(_JOURNAL_API_RUBRIC, LLMRubricGraderConfig)
+
+_JOURNAL_API_PROFILE = VerificationProfile(
+    adapter=_profile_steps_adapter,
+    requires_username=True,
+    steps=(
+        Step(
+            check="github_ci_passing",
+            params=CIStatusParams(),
+            task_id="journal-api-implementation-ci",
+        ),
+        Step(
+            check="llm_rubric_review",
+            params=LLMRubricReviewParams(
+                task=JOURNAL_API_FINAL_RUBRIC_TASK,
+                evidence_paths=JOURNAL_API_IMPORTANT_PATHS,
+            ),
+            task_id=JOURNAL_API_FINAL_RUBRIC_TASK.id,
+        ),
+    ),
+    rubric=_JOURNAL_API_RUBRIC,
+)
+
+register_profile(SubmissionType.JOURNAL_API_VERIFIER, _JOURNAL_API_PROFILE)
+
+
+def _resolve_descriptor(job: PreparedVerificationJob) -> ValidatorDescriptor | None:
+    """Prefer a migrated profile, else the dispatcher's legacy descriptor."""
+    profile = profile_for(job.requirement.submission_type)
+    if profile is not None:
+        return profile
+    return descriptor_for(job.requirement.submission_type)
 
 
 def _steps_for(descriptor: ValidatorDescriptor | None) -> tuple[Step, ...]:
@@ -217,6 +379,45 @@ def _aggregate(step_results: list[StepResult]) -> ValidationResult:
     )
 
 
+def _grading_requests_for(
+    job: PreparedVerificationJob,
+    deterministic_result: ValidationResult,
+    step_results: list[StepResult],
+) -> list[LLMGradingRequest]:
+    """Turn steps that requested grading into recorded grading requests.
+
+    Runs after aggregation so the prompt carries the final deterministic
+    result. Empty when a gate failed before the rubric step ran, which is how
+    a migrated profile signals "no grading needed" to the orchestrator.
+    """
+    target = job.target
+    if target is None or not target.repo:
+        return []
+    requests: list[LLMGradingRequest] = []
+    for result in step_results:
+        task = result.grading_task
+        if task is None:
+            continue
+        evidence = result.evidence[0].model_dump(mode="json") if result.evidence else {}
+        message = build_repo_rubric_message(
+            requirement_slug=job.requirement.slug,
+            requirement_name=job.requirement.name,
+            deterministic_result=deterministic_result,
+            owner=target.owner,
+            repo=target.repo,
+            task=task,
+            evidence=evidence,
+        )
+        requests.append(
+            LLMGradingRequest(
+                task=task,
+                message=message,
+                thread_id=f"{job.id}-{task.id}",
+            )
+        )
+    return requests
+
+
 async def run_profile(
     job: PreparedVerificationJob,
     *,
@@ -227,8 +428,12 @@ async def run_profile(
     Steps run in order; a failed gate with ``stop_on_fail`` short-circuits the
     rest. Evidence bundles accumulate across steps, are visible to later steps
     via ``evidence_so_far``, and are carried on the returned run result.
+
+    Migrated profiles record their LLM grading requests on the result
+    (``grading_requests`` is a list, possibly empty); legacy types leave it
+    ``None`` so the orchestrator falls back to the grading probe.
     """
-    descriptor = descriptor_for(job.requirement.submission_type)
+    descriptor = _resolve_descriptor(job)
     steps = _steps_for(descriptor)
 
     context = StepContext(
@@ -252,10 +457,18 @@ async def run_profile(
         if not result.passed and result.stop_on_fail:
             break
 
+    deterministic_result = _aggregate(step_results)
+    grading_requests: list[LLMGradingRequest] | None = None
+    if isinstance(descriptor, VerificationProfile):
+        grading_requests = _grading_requests_for(
+            job, deterministic_result, step_results
+        )
+
     return VerificationRunResult(
         job=job,
-        validation_result=_aggregate(step_results),
+        validation_result=deterministic_result,
         evidence=bundles or None,
+        grading_requests=grading_requests,
     )
 
 

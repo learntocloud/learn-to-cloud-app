@@ -72,6 +72,12 @@ async def synced_requirement(
     persisting submissions need the referenced requirement to exist,
     and ``get_requirement_by_slug`` only returns active rows so the test
     requirement must be alive in the curriculum.
+
+    Uses a still-legacy repo-backed type (security_scanning) so the executor's
+    generic plumbing is exercised through the transitional ``legacy_validate``
+    step, which these tests mock via ``validate_submission``. Migrated profiles
+    (e.g. journal_api_verifier) run declared steps instead and would bypass
+    that mock.
     """
     from learn_to_cloud_shared.testing.requirement_factories import (
         make_requirement,
@@ -89,7 +95,7 @@ async def synced_requirement(
                     CurriculumRequirement.slug,
                     CurriculumRequirement.submission_type,
                 )
-                .where(CurriculumRequirement.submission_type == "journal_api_verifier")
+                .where(CurriculumRequirement.submission_type == "security_scanning")
                 .limit(1)
             )
         ).one()
@@ -194,8 +200,8 @@ async def test_split_verification_primitives_prepare_run_and_persist(
     assert run_result.to_payload()["job"] == preparation.job.to_payload()
     assert run_result.job.target == GitHubTarget(
         owner="executoruser",
-        repo="journal-repo",
-        forked_from="owner/journal-repo",
+        repo="sec-repo",
+        forked_from="owner/sec-repo",
     )
     assert "repository" not in run_result.to_payload()
 
@@ -241,7 +247,7 @@ async def test_execute_verification_job_marks_success_and_links_submission(
     assert payload["code"] == VERIFICATION_SUCCEEDED_CODE
     assert payload["requirement_slug"] == synced_requirement.slug
     assert payload["requirement_name"] == "Verification Executor Test"
-    assert payload["submission_type"] == SubmissionType.JOURNAL_API_VERIFIER.value
+    assert payload["submission_type"] == SubmissionType.SECURITY_SCANNING.value
     assert payload["message"] == "Verification succeeded."
 
     assert await _get_job_link(session_maker, job_id) == result.submission_id

@@ -142,14 +142,6 @@ def test_apply_phase3_llm_decision_appends_feedback_when_passed():
 
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_collect_phase3_llm_requests_skips_when_ci_failed():
-    requests = await collect_llm_grading_requests(_phase3_run_result(is_valid=False))
-
-    assert requests == []
-
-
-@pytest.mark.asyncio
-@pytest.mark.unit
 async def test_collect_llm_requests_skips_when_target_missing():
     run_result = _run_result()
     without_username = VerificationRunResult(

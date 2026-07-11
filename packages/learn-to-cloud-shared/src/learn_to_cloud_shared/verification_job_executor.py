@@ -52,6 +52,7 @@ from learn_to_cloud_shared.submission_values import (
 from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
 )
+from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle
 
 tracer = trace.get_tracer(__name__)
@@ -214,11 +215,18 @@ class VerificationRunResult:
     round-tripped between activities but stripped before the terminal DB write
     (see :meth:`without_evidence`) so file contents never reach Postgres.
     Defaults to ``None`` for the legacy path that gathers no evidence.
+
+    ``grading_requests`` is the engine's recorded verdict on whether the
+    profile declares LLM grading: ``None`` means "not a migrated profile, ask
+    the legacy grading probe"; a list (possibly empty) means the profile
+    handled it and the orchestrator should grade exactly those requests. Like
+    ``evidence``, it is transport-only and stripped before persist.
     """
 
     job: PreparedVerificationJob
     validation_result: ValidationResult
     evidence: list[EvidenceBundle] | None = None
+    grading_requests: list[LLMGradingRequest] | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-serializable activity payload."""
@@ -228,6 +236,11 @@ class VerificationRunResult:
             "evidence": (
                 [bundle.model_dump(mode="json") for bundle in self.evidence]
                 if self.evidence is not None
+                else None
+            ),
+            "grading_requests": (
+                [request.model_dump(mode="json") for request in self.grading_requests]
+                if self.grading_requests is not None
                 else None
             ),
         }
@@ -241,19 +254,30 @@ class VerificationRunResult:
             if isinstance(raw_evidence, list)
             else None
         )
+        raw_requests = payload.get("grading_requests")
+        grading_requests = (
+            [LLMGradingRequest.model_validate(request) for request in raw_requests]
+            if isinstance(raw_requests, list)
+            else None
+        )
         return cls(
             job=PreparedVerificationJob.from_payload(_expect_mapping(payload["job"])),
             validation_result=ValidationResult.model_validate(
                 payload["validation_result"]
             ),
             evidence=evidence,
+            grading_requests=grading_requests,
         )
 
     def without_evidence(self) -> VerificationRunResult:
-        """Return a copy with evidence dropped, for the terminal DB write."""
-        if self.evidence is None:
+        """Return a copy with transport-only fields dropped, for the DB write.
+
+        Strips both ``evidence`` (file contents) and ``grading_requests``
+        (which embed evidence in their prompt) so neither reaches Postgres.
+        """
+        if self.evidence is None and self.grading_requests is None:
             return self
-        return replace(self, evidence=None)
+        return replace(self, evidence=None, grading_requests=None)
 
 
 @dataclass(frozen=True, slots=True)

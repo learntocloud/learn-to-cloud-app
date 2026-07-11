@@ -68,3 +68,54 @@ class TestVerificationRunResultEvidence:
     def test_without_evidence_is_noop_when_already_none(self) -> None:
         result = _run_result(None)
         assert result.without_evidence() is result
+
+
+def _grading_request():
+    from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
+    from learn_to_cloud_shared.verification.tasks.phase3 import (
+        JOURNAL_API_FINAL_RUBRIC_TASK,
+    )
+
+    return LLMGradingRequest(
+        task=JOURNAL_API_FINAL_RUBRIC_TASK,
+        message="grade this",
+        thread_id="job-task",
+    )
+
+
+@pytest.mark.unit
+class TestVerificationRunResultGradingRequests:
+    def test_defaults_to_none(self) -> None:
+        assert _run_result(None).grading_requests is None
+
+    def test_none_grading_requests_round_trips(self) -> None:
+        restored = VerificationRunResult.from_payload(_run_result(None).to_payload())
+        assert restored.grading_requests is None
+
+    def test_grading_requests_round_trip(self) -> None:
+        request = _grading_request()
+        result = VerificationRunResult(
+            job=_run_result(None).job,
+            validation_result=ValidationResult(is_valid=True, message="ok"),
+            grading_requests=[request],
+        )
+        restored = VerificationRunResult.from_payload(result.to_payload())
+        assert restored.grading_requests == [request]
+
+    def test_empty_grading_requests_round_trip(self) -> None:
+        result = VerificationRunResult(
+            job=_run_result(None).job,
+            validation_result=ValidationResult(is_valid=False, message="gate failed"),
+            grading_requests=[],
+        )
+        restored = VerificationRunResult.from_payload(result.to_payload())
+        assert restored.grading_requests == []
+
+    def test_without_evidence_strips_grading_requests(self) -> None:
+        result = VerificationRunResult(
+            job=_run_result(None).job,
+            validation_result=ValidationResult(is_valid=True, message="ok"),
+            grading_requests=[_grading_request()],
+        )
+        stripped = result.without_evidence()
+        assert stripped.grading_requests is None
