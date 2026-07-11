@@ -3,7 +3,7 @@
 For repo-backed requirements (fork, CI status, DevOps analysis,
 security scanning) the canonical URL is derived from the authenticated
 user's ``github_username`` plus the requirement's ``required_repo``.
-Profile-based types (``github_profile``, ``profile_readme``) derive
+Profile-based types (``profile_readme``) derive
 from ``github_username`` alone.  Keeping this logic on the server
 closes an injection vector (learners can no longer craft arbitrary
 URLs) and removes a fragile copy/paste step from the UI.
@@ -25,7 +25,6 @@ from learn_to_cloud_shared.verification.repo_utils import RepositoryRef
 # them before submitting.
 _DERIVABLE_TYPES: frozenset[SubmissionType] = frozenset(
     {
-        SubmissionType.GITHUB_PROFILE,
         SubmissionType.PROFILE_README,
         SubmissionType.REPO_FORK,
         SubmissionType.JOURNAL_API_VERIFIER,
@@ -111,9 +110,6 @@ def derive_submission_value(
             ``required_repo``).
     """
     sub_type = requirement.submission_type
-
-    if sub_type == SubmissionType.GITHUB_PROFILE:
-        return f"https://github.com/{github_username}"
 
     if sub_type == SubmissionType.PROFILE_README:
         return f"https://github.com/{github_username}/{github_username}"

@@ -8,7 +8,6 @@ from learn_to_cloud_shared.schemas import KNOWN_HANDS_ON_SUBMISSION_TYPES
 def test_known_submission_types_matches_union() -> None:
     """The derived constant must list exactly the union's submission types."""
     assert KNOWN_HANDS_ON_SUBMISSION_TYPES == {
-        "github_profile",
         "profile_readme",
         "repo_fork",
         "ctf_token",
@@ -21,5 +20,8 @@ def test_known_submission_types_matches_union() -> None:
         "deployment_architecture",
     }
     # A type the DB CHECK allows but the union doesn't know must be absent,
-    # so the content loader treats it as unknown (issue #603).
+    # so the content loader treats it as unknown (issue #603). 'github_profile'
+    # is retired from the app but still permitted by the CHECK for historical
+    # soft-deleted rows, so it must not appear here either.
     assert "ci_status" not in KNOWN_HANDS_ON_SUBMISSION_TYPES
+    assert "github_profile" not in KNOWN_HANDS_ON_SUBMISSION_TYPES

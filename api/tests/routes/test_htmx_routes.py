@@ -498,7 +498,7 @@ class TestHtmxSubmitVerification:
         submission = SimpleNamespace(
             id=42,
             requirement_slug="req-1",
-            submission_type=SimpleNamespace(value="github_profile"),
+            submission_type=SimpleNamespace(value="profile_readme"),
             verification_completed=True,
         )
         sync_result = SyncVerificationResult(
@@ -559,7 +559,7 @@ class TestHtmxSubmitVerification:
         submission = SimpleNamespace(
             id=43,
             requirement_slug="req-1",
-            submission_type=SimpleNamespace(value="github_profile"),
+            submission_type=SimpleNamespace(value="profile_readme"),
             verification_completed=True,
         )
         sync_result = SyncVerificationResult(

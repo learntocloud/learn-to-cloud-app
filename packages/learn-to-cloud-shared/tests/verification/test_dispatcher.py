@@ -18,7 +18,6 @@ from learn_to_cloud_shared.verification.dispatcher import (
 
 # The submission types that run inside the FastAPI request (phases 0-2).
 _EXPECTED_INLINE = {
-    SubmissionType.GITHUB_PROFILE,
     SubmissionType.PROFILE_README,
     SubmissionType.REPO_FORK,
     SubmissionType.CTF_TOKEN,

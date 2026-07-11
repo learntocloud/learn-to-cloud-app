@@ -92,11 +92,10 @@ class SubmissionType(StrEnum):
     4. Add optional fields to HandsOnRequirement schema if needed
     """
 
-    # Phase 0: GitHub profile setup
-    GITHUB_PROFILE = "github_profile"
-
-    # Phase 1: Profile README, repo fork, and CTF completion
+    # Phase 0: Profile README setup
     PROFILE_README = "profile_readme"
+
+    # Phase 1: repo fork and CTF completion
     REPO_FORK = "repo_fork"
     CTF_TOKEN = "ctf_token"
 
@@ -626,6 +625,9 @@ class CurriculumRequirement(TimestampMixin, Base):
     """
 
     __tablename__ = "requirements"
+    # 'github_profile' remains permitted below even though the app no longer
+    # produces it: soft-deleted historical requirement rows still carry that
+    # submission_type, so the constraint must keep accepting it.
     __table_args__ = (
         CheckConstraint(
             """

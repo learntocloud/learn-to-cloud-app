@@ -35,7 +35,6 @@ class TestIsDerivable:
     @pytest.mark.parametrize(
         "sub_type",
         [
-            SubmissionType.GITHUB_PROFILE,
             SubmissionType.PROFILE_README,
             SubmissionType.REPO_FORK,
             SubmissionType.JOURNAL_API_VERIFIER,
@@ -106,10 +105,6 @@ class TestRepositoryRefFromRequiredRepo:
 
 @pytest.mark.unit
 class TestDeriveSubmissionValue:
-    def test_github_profile(self):
-        req = _req(SubmissionType.GITHUB_PROFILE)
-        assert derive_submission_value(req, "octocat") == "https://github.com/octocat"
-
     def test_profile_readme(self):
         req = _req(SubmissionType.PROFILE_README)
         assert (
@@ -209,10 +204,10 @@ class TestDeriveSubmissionValue:
         tries to post a crafted URL, the server ignores it and rebuilds the
         canonical URL from their github_username.
         """
-        req = _req(SubmissionType.GITHUB_PROFILE)
+        req = _req(SubmissionType.PROFILE_README)
         assert (
             derive_submission_value(
                 req, "alice", user_input="https://evil.example.com/pwn"
             )
-            == "https://github.com/alice"
+            == "https://github.com/alice/alice"
         )

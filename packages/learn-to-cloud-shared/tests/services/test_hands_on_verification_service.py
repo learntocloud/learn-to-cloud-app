@@ -216,7 +216,6 @@ class TestValidateSubmissionUsernameRequirements:
     @pytest.mark.parametrize(
         "submission_type",
         [
-            SubmissionType.GITHUB_PROFILE,
             SubmissionType.PROFILE_README,
             SubmissionType.REPO_FORK,
             SubmissionType.CTF_TOKEN,
@@ -271,21 +270,21 @@ class TestValidateSubmissionUsernameRequirements:
 
 
 @pytest.mark.unit
-class TestDispatchGitHubProfile:
+class TestDispatchProfileReadme:
     @pytest.mark.asyncio
-    async def test_github_profile_routes_correctly(self):
-        requirement = _make_requirement(SubmissionType.GITHUB_PROFILE)
+    async def test_profile_readme_routes_correctly(self):
+        requirement = _make_requirement(SubmissionType.PROFILE_README)
         with patch(
-            "learn_to_cloud_shared.verification.dispatcher.validate_github_profile",
+            "learn_to_cloud_shared.verification.dispatcher.validate_profile_readme",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="Verified!")
             result = await validate_submission(
                 requirement=requirement,
-                submitted_value="https://github.com/testuser",
+                submitted_value="https://github.com/testuser/testuser",
                 expected_username="testuser",
             )
-        mock.assert_called_once_with("https://github.com/testuser", "testuser")
+        mock.assert_called_once_with("https://github.com/testuser/testuser", "testuser")
         assert result.is_valid is True
 
 

@@ -4,7 +4,6 @@ Tests cover:
 - parse_github_url URL parsing and normalization
 - _parse_retry_after header parsing
 - get_github_headers with and without token
-- validate_github_profile ownership and existence checks
 - validate_profile_readme URL, ownership, and repo name checks
 - validate_repo_fork URL, ownership, and fork verification
 
@@ -26,7 +25,6 @@ from learn_to_cloud_shared.verification.github_http import (
 from learn_to_cloud_shared.verification.github_metadata import InMemoryGitHubMetadata
 from learn_to_cloud_shared.verification.github_profile import (
     parse_github_url,
-    validate_github_profile,
     validate_profile_readme,
     validate_repo_fork,
 )
@@ -181,62 +179,6 @@ class TestParseGitHubUrl:
 
     def test_github_com_only_invalid(self):
         result = parse_github_url("https://github.com/")
-        assert result.is_valid is False
-
-
-# ---------------------------------------------------------------------------
-# validate_github_profile
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestValidateGitHubProfile:
-    @pytest.mark.asyncio
-    async def test_non_github_url_fails(self):
-        result = await validate_github_profile("https://linkedin.com/user", "testuser")
-        assert result.is_valid is False
-        assert result.username_match is False
-
-    @pytest.mark.asyncio
-    async def test_username_mismatch_fails(self):
-        result = await validate_github_profile(
-            "https://github.com/otheruser", "testuser"
-        )
-        assert result.is_valid is False
-        assert "does not match" in result.message
-
-    @pytest.mark.asyncio
-    async def test_profile_exists_succeeds(self):
-        metadata = InMemoryGitHubMetadata(existing_urls={"https://github.com/testuser"})
-        result = await validate_github_profile(
-            "https://github.com/testuser", "testuser", metadata
-        )
-        assert result.is_valid is True
-        assert result.username_match is True
-
-    @pytest.mark.asyncio
-    async def test_profile_not_found_fails(self):
-        metadata = InMemoryGitHubMetadata(existing_urls=set())
-        result = await validate_github_profile(
-            "https://github.com/testuser", "testuser", metadata
-        )
-        assert result.is_valid is False
-        assert result.username_match is True
-
-    @pytest.mark.asyncio
-    async def test_server_error_propagated(self):
-        metadata = InMemoryGitHubMetadata(
-            url_error=GitHubServerError("GitHub service temporarily unavailable")
-        )
-        result = await validate_github_profile(
-            "https://github.com/testuser", "testuser", metadata
-        )
-        assert result.is_valid is False
-        assert result.verification_completed is False
-
-    @pytest.mark.asyncio
-    async def test_empty_username_in_url_fails(self):
-        result = await validate_github_profile("https://github.com/", "testuser")
         assert result.is_valid is False
 
 

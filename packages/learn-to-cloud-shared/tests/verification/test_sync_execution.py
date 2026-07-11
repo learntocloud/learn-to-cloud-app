@@ -49,7 +49,7 @@ def session_maker(test_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 
 async def _make_requirement_in_db(
     session_maker: async_sessionmaker[AsyncSession],
-    submission_type: SubmissionType = SubmissionType.GITHUB_PROFILE,
+    submission_type: SubmissionType = SubmissionType.PROFILE_README,
 ) -> HandsOnRequirement:
     """Sync the real curriculum and return a HandsOnRequirement whose
     UUID is present in the ``requirements`` table.

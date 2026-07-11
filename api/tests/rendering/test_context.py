@@ -251,13 +251,13 @@ def _make_requirement(
 
 @pytest.mark.unit
 class TestBuildRequirementCardContext:
-    def test_derivable_github_profile_populates_derived_url(self):
-        req = _make_requirement(SubmissionType.GITHUB_PROFILE)
+    def test_derivable_profile_readme_populates_derived_url(self):
+        req = _make_requirement(SubmissionType.PROFILE_README)
         ctx = build_requirement_card_context(
             requirement=req,
             github_username="alice",
         )
-        assert ctx["derived_url"] == "https://github.com/alice"
+        assert ctx["derived_url"] == "https://github.com/alice/alice"
 
     def test_derivable_journal_api_verifier_uses_required_repo(self):
         req = _make_requirement(

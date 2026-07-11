@@ -41,7 +41,6 @@ from learn_to_cloud_shared.verification.deployment_architecture import (
 )
 from learn_to_cloud_shared.verification.devops_analysis import run_devops_workflow
 from learn_to_cloud_shared.verification.github_profile import (
-    validate_github_profile,
     validate_profile_readme,
     validate_repo_fork,
 )
@@ -155,12 +154,6 @@ class ValidatorDescriptor:
     repo_backed: bool
 
 
-async def _adapt_github_profile(
-    requirement: HandsOnRequirement, submitted_value: str, username: str
-) -> ValidationResult:
-    return await validate_github_profile(submitted_value, username)
-
-
 async def _adapt_profile_readme(
     requirement: HandsOnRequirement, submitted_value: str, username: str
 ) -> ValidationResult:
@@ -236,12 +229,6 @@ async def _adapt_deployment_architecture(
 # Lookups use ``.get(...)`` so an unregistered type surfaces as the explicit
 # "Unknown submission type" result instead of raising.
 _VALIDATOR_REGISTRY: dict[SubmissionType, ValidatorDescriptor] = {
-    SubmissionType.GITHUB_PROFILE: ValidatorDescriptor(
-        adapter=_adapt_github_profile,
-        execution_mode=ExecutionMode.INLINE,
-        requires_username=True,
-        repo_backed=False,
-    ),
     SubmissionType.PROFILE_README: ValidatorDescriptor(
         adapter=_adapt_profile_readme,
         execution_mode=ExecutionMode.INLINE,

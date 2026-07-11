@@ -1,8 +1,7 @@
 """GitHub-specific validation utilities for hands-on verification.
 
 This module handles all GitHub-specific validations including:
-- GitHub profile verification (Phase 0)
-- Profile README verification (Phase 1)
+- Profile README verification (Phase 0)
 - Repository fork verification (Phase 1)
 
 For URL parsing, see ``repo_utils.parse_github_url``.
@@ -34,7 +33,6 @@ __all__ = [
     "default_github_metadata",
     "github_error_to_validation_result",
     "parse_github_url",
-    "validate_github_profile",
     "validate_profile_readme",
     "validate_repo_fork",
 ]
@@ -149,60 +147,6 @@ async def check_repo_is_fork_of(
             message=f"Unexpected error: {e!s}",
             verification_completed=False,
         )
-
-
-async def validate_github_profile(
-    github_url: str,
-    expected_username: str,
-    metadata: GitHubMetadata | None = None,
-) -> ValidationResult:
-    """Validate a GitHub profile URL submission.
-
-    The URL should be like: https://github.com/username
-    And the username should match the expected_username (case-insensitive).
-    """
-    parsed = parse_github_url(github_url)
-
-    if not parsed.is_valid or not parsed.username:
-        return ValidationResult(
-            is_valid=False,
-            message=parsed.error or "Could not extract username from URL",
-            username_match=False,
-            repo_exists=False,
-        )
-
-    username = parsed.username
-    username_match = username.lower() == expected_username.lower()
-
-    if not username_match:
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"GitHub username '{username}' does not match "
-                f"your account username '{expected_username}'"
-            ),
-            username_match=False,
-            repo_exists=False,
-        )
-
-    profile_url = f"https://github.com/{username}"
-    result = await check_github_url_exists(profile_url, metadata)
-
-    if not result.is_valid:
-        return result.model_copy(
-            update={
-                "message": f"Could not find GitHub profile. {result.message}",
-                "username_match": True,
-                "repo_exists": False,
-            }
-        )
-
-    return ValidationResult(
-        is_valid=True,
-        message=f"GitHub profile verified for @{username}",
-        username_match=True,
-        repo_exists=True,
-    )
 
 
 async def validate_profile_readme(

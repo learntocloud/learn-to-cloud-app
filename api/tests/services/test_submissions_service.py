@@ -341,7 +341,7 @@ class TestSyncDispatchBranch:
     async def test_sync_type_runs_in_process_and_returns_sync_result(self):
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
-            submission_type=SubmissionType.GITHUB_PROFILE,
+            submission_type=SubmissionType.PROFILE_README,
         )
         sentinel_result = MagicMock(name="SubmissionResult")
 
