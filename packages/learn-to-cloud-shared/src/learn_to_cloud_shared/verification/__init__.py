@@ -3,7 +3,7 @@
 Runs inside the Durable Function verify step. Submodules:
     dispatcher        - Routes submissions to the matching validator
     events            - In-process event bus for async verification results
-    github_profile    - GitHub profile/README/fork verification
+    github_profile    - Profile README/fork verification
     ci_status         - CI test-pass check
     token_base        - HMAC token verification for CTF + Networking Lab
     devops_analysis   - DevOps artifact analysis

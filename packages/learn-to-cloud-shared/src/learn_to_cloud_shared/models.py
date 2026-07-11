@@ -92,11 +92,10 @@ class SubmissionType(StrEnum):
     4. Add optional fields to HandsOnRequirement schema if needed
     """
 
-    # Phase 0: GitHub profile setup
-    GITHUB_PROFILE = "github_profile"
-
-    # Phase 1: Profile README, repo fork, and CTF completion
+    # Phase 0: Profile README
     PROFILE_README = "profile_readme"
+
+    # Phase 1: repo fork and CTF completion
     REPO_FORK = "repo_fork"
     CTF_TOKEN = "ctf_token"
 
@@ -607,6 +606,10 @@ class CurriculumRequirement(TimestampMixin, Base):
 
     __tablename__ = "requirements"
     __table_args__ = (
+        # 'github_profile' is a retired submission type kept in this list on
+        # purpose: soft-deleted historical rows still carry it, so tightening the
+        # constraint would require deleting data. The type is gone from the
+        # SubmissionType enum and the tolerant content loader skips it.
         CheckConstraint(
             """
             (

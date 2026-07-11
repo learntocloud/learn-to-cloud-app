@@ -35,7 +35,6 @@ class TestIsDerivable:
     @pytest.mark.parametrize(
         "sub_type",
         [
-            SubmissionType.GITHUB_PROFILE,
             SubmissionType.PROFILE_README,
             SubmissionType.REPO_FORK,
             SubmissionType.JOURNAL_API_VERIFIER,
@@ -78,15 +77,6 @@ class TestForkNameFromRequiredRepo:
 
 @pytest.mark.unit
 class TestBuildTarget:
-    def test_github_profile_builds_profile_target(self):
-        from learn_to_cloud_shared.submission_derivation import build_target
-
-        target = build_target(_req(SubmissionType.GITHUB_PROFILE), "alice")
-        assert target is not None
-        assert target.owner == "alice"
-        assert target.repo is None
-        assert target.forked_from is None
-
     def test_profile_readme_builds_self_repo_target(self):
         from learn_to_cloud_shared.submission_derivation import build_target
 
@@ -113,15 +103,11 @@ class TestBuildTarget:
     def test_missing_username_returns_none(self):
         from learn_to_cloud_shared.submission_derivation import build_target
 
-        assert build_target(_req(SubmissionType.GITHUB_PROFILE), None) is None
+        assert build_target(_req(SubmissionType.PROFILE_README), None) is None
 
 
 @pytest.mark.unit
 class TestDeriveSubmissionValue:
-    def test_github_profile(self):
-        req = _req(SubmissionType.GITHUB_PROFILE)
-        assert derive_submission_value(req, "octocat") == "https://github.com/octocat"
-
     def test_profile_readme(self):
         req = _req(SubmissionType.PROFILE_README)
         assert (
@@ -221,10 +207,10 @@ class TestDeriveSubmissionValue:
         tries to post a crafted URL, the server ignores it and rebuilds the
         canonical URL from their github_username.
         """
-        req = _req(SubmissionType.GITHUB_PROFILE)
+        req = _req(SubmissionType.PROFILE_README)
         assert (
             derive_submission_value(
                 req, "alice", user_input="https://evil.example.com/pwn"
             )
-            == "https://github.com/alice"
+            == "https://github.com/alice/alice"
         )

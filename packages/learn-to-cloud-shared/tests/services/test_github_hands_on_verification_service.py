@@ -3,7 +3,6 @@
 Tests cover:
 - _parse_retry_after header parsing
 - get_github_headers with and without token
-- validate_github_profile existence check against a constructed target
 - validate_profile_readme existence check against a constructed target
 - validate_repo_fork lineage check against a constructed target
 
@@ -25,7 +24,6 @@ from learn_to_cloud_shared.verification.github_http import (
 )
 from learn_to_cloud_shared.verification.github_metadata import InMemoryGitHubMetadata
 from learn_to_cloud_shared.verification.github_profile import (
-    validate_github_profile,
     validate_profile_readme,
     validate_repo_fork,
 )
@@ -82,37 +80,6 @@ class TestGetGitHubHeaders:
         ):
             headers = get_github_headers()
         assert "Authorization" not in headers
-
-
-# ---------------------------------------------------------------------------
-# validate_github_profile
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestValidateGitHubProfile:
-    @pytest.mark.asyncio
-    async def test_profile_exists_succeeds(self):
-        metadata = InMemoryGitHubMetadata(existing_urls={"https://github.com/testuser"})
-        result = await validate_github_profile(GitHubTarget(owner="testuser"), metadata)
-        assert result.is_valid is True
-        assert result.username_match is True
-
-    @pytest.mark.asyncio
-    async def test_profile_not_found_fails(self):
-        metadata = InMemoryGitHubMetadata(existing_urls=set())
-        result = await validate_github_profile(GitHubTarget(owner="testuser"), metadata)
-        assert result.is_valid is False
-        assert result.username_match is True
-
-    @pytest.mark.asyncio
-    async def test_server_error_propagated(self):
-        metadata = InMemoryGitHubMetadata(
-            url_error=GitHubServerError("GitHub service temporarily unavailable")
-        )
-        result = await validate_github_profile(GitHubTarget(owner="testuser"), metadata)
-        assert result.is_valid is False
-        assert result.verification_completed is False
 
 
 # ---------------------------------------------------------------------------

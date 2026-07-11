@@ -341,7 +341,7 @@ class TestCreateVerificationJob:
         """Types that used to run inline (phases 0-2) now create a job too."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
-            submission_type=SubmissionType.GITHUB_PROFILE,
+            submission_type=SubmissionType.PROFILE_README,
         )
         mock_job = MagicMock()
 

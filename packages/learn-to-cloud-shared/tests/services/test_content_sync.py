@@ -66,12 +66,12 @@ def _make_topic(uuid_str: str, slug: str, order: int = 0) -> Topic:
 
 
 def _make_requirement(uuid_str: str, req_id: str) -> object:
-    """Build a GithubProfileRequirement via the adapter."""
+    """Build a ProfileReadmeRequirement via the adapter."""
     return HandsOnRequirementAdapter.validate_python(
         {
             "uuid": uuid_str,
             "slug": req_id,
-            "submission_type": "github_profile",
+            "submission_type": "profile_readme",
             "name": f"Requirement {req_id}",
             "description": "Test requirement",
         }
@@ -84,7 +84,7 @@ def _make_phase(
     phase_int_id: int = 0,
     topic: Topic | None = None,
     requirement_uuid: str | None = None,
-    requirement_id: str = "github-profile",
+    requirement_id: str = "profile-readme",
 ) -> Phase:
     req = None
     if requirement_uuid:
@@ -323,9 +323,9 @@ async def test_submission_type_change_is_refused(
     different_type_req = HandsOnRequirementAdapter.validate_python(
         {
             "uuid": req_uuid,
-            "slug": "github-profile",
+            "slug": "profile-readme",
             "submission_type": "repo_fork",
-            "name": "Requirement github-profile",
+            "name": "Requirement profile-readme",
             "description": "Test requirement",
             "type_config": {"required_repo": "owner/repo"},
         }
@@ -340,7 +340,7 @@ async def test_submission_type_change_is_refused(
         topic_slugs=[topic.slug],
         topics=[topic],
         hands_on_verification=PhaseHandsOnVerificationOverview(
-            requirement_slugs=["github-profile"],
+            requirement_slugs=["profile-readme"],
             requirements=[different_type_req],
         ),
     )

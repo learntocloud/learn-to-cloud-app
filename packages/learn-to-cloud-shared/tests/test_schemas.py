@@ -8,7 +8,6 @@ from learn_to_cloud_shared.schemas import KNOWN_HANDS_ON_SUBMISSION_TYPES
 def test_known_submission_types_matches_union() -> None:
     """The derived constant must list exactly the union's submission types."""
     assert KNOWN_HANDS_ON_SUBMISSION_TYPES == {
-        "github_profile",
         "profile_readme",
         "repo_fork",
         "ctf_token",

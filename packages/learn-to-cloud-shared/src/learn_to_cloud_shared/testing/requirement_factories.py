@@ -38,7 +38,6 @@ from learn_to_cloud_shared.schemas import (
     DeploymentArchitectureRequirement,
     DevopsAnalysisConfig,
     DevopsAnalysisRequirement,
-    GithubProfileRequirement,
     JournalApiVerifierConfig,
     JournalApiVerifierRequirement,
     NetworkingTokenConfig,
@@ -49,21 +48,6 @@ from learn_to_cloud_shared.schemas import (
     SecurityScanningConfig,
     SecurityScanningRequirement,
 )
-
-
-def github_profile_requirement(
-    *,
-    slug: str = "github-profile",
-    name: str = "Test GitHub profile requirement",
-    description: str = "Test description",
-) -> GithubProfileRequirement:
-    return GithubProfileRequirement(
-        uuid=uuid4(),
-        slug=slug,
-        submission_type=SubmissionType.GITHUB_PROFILE,
-        name=name,
-        description=description,
-    )
 
 
 def profile_readme_requirement(
@@ -267,10 +251,6 @@ def make_requirement(
     responsible for passing the right combinations.
     """
     match submission_type:
-        case SubmissionType.GITHUB_PROFILE:
-            return github_profile_requirement(
-                slug=slug, name=name, description=description
-            )
         case SubmissionType.PROFILE_README:
             return profile_readme_requirement(
                 slug=slug, name=name, description=description

@@ -11,7 +11,7 @@ from learn_to_cloud_shared.testing.requirement_factories import (
     career_reflection_requirement,
     ctf_token_requirement,
     deployed_api_requirement,
-    github_profile_requirement,
+    profile_readme_requirement,
 )
 
 
@@ -19,7 +19,7 @@ from learn_to_cloud_shared.testing.requirement_factories import (
 @pytest.mark.parametrize(
     ("submission_type", "expected"),
     [
-        (SubmissionType.GITHUB_PROFILE, SubmissionValueKind.GITHUB_URL),
+        (SubmissionType.PROFILE_README, SubmissionValueKind.GITHUB_URL),
         (SubmissionType.JOURNAL_API_VERIFIER, SubmissionValueKind.GITHUB_URL),
         (SubmissionType.CTF_TOKEN, SubmissionValueKind.TOKEN),
         (SubmissionType.DEPLOYED_API, SubmissionValueKind.DEPLOYED_URL),
@@ -39,7 +39,7 @@ def test_value_kind_for_submission_type(
 @pytest.mark.unit
 def test_github_url_value_uses_github_column() -> None:
     value = SubmittedValue.from_raw(
-        github_profile_requirement(),
+        profile_readme_requirement(),
         " https://github.com/user ",
     )
 
@@ -122,7 +122,7 @@ def test_deployed_url_value_uses_deployed_url_column() -> None:
 )
 def test_github_url_requires_github_url(raw_value: str) -> None:
     with pytest.raises(ValueError, match="GitHub URL"):
-        SubmittedValue.from_raw(github_profile_requirement(), raw_value)
+        SubmittedValue.from_raw(profile_readme_requirement(), raw_value)
 
 
 @pytest.mark.unit
