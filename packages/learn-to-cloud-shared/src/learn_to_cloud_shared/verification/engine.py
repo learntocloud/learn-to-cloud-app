@@ -48,6 +48,10 @@ from learn_to_cloud_shared.verification.dispatcher import (
     validate_submission,
 )
 from learn_to_cloud_shared.verification.evidence import collect_repo_file_evidence
+from learn_to_cloud_shared.verification.github_profile import (
+    validate_profile_readme,
+    validate_repo_fork,
+)
 from learn_to_cloud_shared.verification.grading_requests import (
     LLMGradingRequest,
     build_repo_rubric_message,
@@ -75,6 +79,10 @@ from learn_to_cloud_shared.verification.tasks.phase6 import (
 )
 from learn_to_cloud_shared.verification.tasks.phase7 import (
     CAREER_REFLECTION_RUBRIC_TASK,
+)
+from learn_to_cloud_shared.verification.token_base import (
+    verify_ctf_token,
+    verify_networking_token,
 )
 from learn_to_cloud_shared.verification_job_executor import (
     PreparedVerificationJob,
@@ -198,6 +206,44 @@ class CareerReflectionReviewParams(FrozenModel):
     task: VerificationTask
 
 
+class ProfileReadmeCheckParams(FrozenModel):
+    """Params for the deterministic Phase 0 ``profile_readme_check`` (no config).
+
+    The check confirms the learner's ``<username>/<username>`` profile README
+    repo resolves; the target is built from the username, so it carries no data.
+    """
+
+    check: Literal["profile_readme_check"] = "profile_readme_check"
+
+
+class RepoForkCheckParams(FrozenModel):
+    """Params for the deterministic Phase 1/2 ``repo_fork_check`` (no config).
+
+    The check confirms the learner's repo is a fork of the required upstream;
+    fork identity and upstream come from the target, so it carries no data.
+    """
+
+    check: Literal["repo_fork_check"] = "repo_fork_check"
+
+
+class CtfTokenCheckParams(FrozenModel):
+    """Params for the deterministic Phase 1 ``ctf_token_check`` (no config).
+
+    The check verifies the submitted CTF token against the learner's username.
+    """
+
+    check: Literal["ctf_token_check"] = "ctf_token_check"
+
+
+class NetworkingTokenCheckParams(FrozenModel):
+    """Params for the deterministic Phase 2 ``networking_token_check`` (no config).
+
+    The check verifies the submitted networking token against the username.
+    """
+
+    check: Literal["networking_token_check"] = "networking_token_check"
+
+
 StepParams = Annotated[
     LegacyValidateParams
     | CIStatusParams
@@ -209,7 +255,11 @@ StepParams = Annotated[
     | SecurityScanningGateParams
     | SecurityScanningReviewParams
     | CareerReflectionGateParams
-    | CareerReflectionReviewParams,
+    | CareerReflectionReviewParams
+    | ProfileReadmeCheckParams
+    | RepoForkCheckParams
+    | CtfTokenCheckParams
+    | NetworkingTokenCheckParams,
     Field(discriminator="check"),
 ]
 
@@ -513,6 +563,94 @@ async def _check_career_reflection_review(
     )
 
 
+@register_check("profile_readme_check")
+async def _check_profile_readme(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Deterministic Phase 0 gate: the profile README repo resolves."""
+    target = context.repository
+    if target is None:
+        return StepResult(
+            passed=False,
+            stop_on_fail=True,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message=(
+                    "Requirement configuration error: could not resolve GitHub target"
+                ),
+                username_match=True,
+                repo_exists=False,
+            ),
+        )
+    result = await validate_profile_readme(target)
+    return StepResult(
+        passed=result.is_valid,
+        stop_on_fail=True,
+        validation_result=result,
+    )
+
+
+@register_check("repo_fork_check")
+async def _check_repo_fork(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Deterministic Phase 1/2 gate: the learner's repo forks the upstream."""
+    target = context.repository
+    if target is None:
+        return StepResult(
+            passed=False,
+            stop_on_fail=True,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message=(
+                    "Requirement configuration error: could not resolve GitHub target"
+                ),
+                username_match=True,
+                repo_exists=False,
+            ),
+        )
+    result = await validate_repo_fork(target)
+    return StepResult(
+        passed=result.is_valid,
+        stop_on_fail=True,
+        validation_result=result,
+    )
+
+
+@register_check("ctf_token_check")
+async def _check_ctf_token(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Deterministic Phase 1 gate: verify the submitted CTF token."""
+    result = verify_ctf_token(
+        context.submitted_value, context.job.github_username or ""
+    )
+    return StepResult(
+        passed=result.is_valid,
+        stop_on_fail=True,
+        validation_result=result,
+    )
+
+
+@register_check("networking_token_check")
+async def _check_networking_token(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Deterministic Phase 2 gate: verify the submitted networking token."""
+    result = verify_networking_token(
+        context.submitted_value, context.job.github_username or ""
+    )
+    return StepResult(
+        passed=result.is_valid,
+        stop_on_fail=True,
+        validation_result=result,
+    )
+
+
 @register_check("deployment_architecture_gate")
 async def _check_deployment_architecture_gate(
     context: StepContext,
@@ -737,6 +875,66 @@ _CAREER_REFLECTION_PROFILE = VerificationProfile(
 register_profile(SubmissionType.CAREER_REFLECTION, _CAREER_REFLECTION_PROFILE)
 
 
+_PROFILE_README_PROFILE = VerificationProfile(
+    adapter=_profile_steps_adapter,
+    requires_username=True,
+    steps=(
+        Step(
+            check="profile_readme_check",
+            params=ProfileReadmeCheckParams(),
+            task_id="profile-readme-check",
+        ),
+    ),
+)
+
+register_profile(SubmissionType.PROFILE_README, _PROFILE_README_PROFILE)
+
+
+_REPO_FORK_PROFILE = VerificationProfile(
+    adapter=_profile_steps_adapter,
+    requires_username=True,
+    steps=(
+        Step(
+            check="repo_fork_check",
+            params=RepoForkCheckParams(),
+            task_id="repo-fork-check",
+        ),
+    ),
+)
+
+register_profile(SubmissionType.REPO_FORK, _REPO_FORK_PROFILE)
+
+
+_CTF_TOKEN_PROFILE = VerificationProfile(
+    adapter=_profile_steps_adapter,
+    requires_username=True,
+    steps=(
+        Step(
+            check="ctf_token_check",
+            params=CtfTokenCheckParams(),
+            task_id="ctf-token-check",
+        ),
+    ),
+)
+
+register_profile(SubmissionType.CTF_TOKEN, _CTF_TOKEN_PROFILE)
+
+
+_NETWORKING_TOKEN_PROFILE = VerificationProfile(
+    adapter=_profile_steps_adapter,
+    requires_username=True,
+    steps=(
+        Step(
+            check="networking_token_check",
+            params=NetworkingTokenCheckParams(),
+            task_id="networking-token-check",
+        ),
+    ),
+)
+
+register_profile(SubmissionType.NETWORKING_TOKEN, _NETWORKING_TOKEN_PROFILE)
+
+
 def _resolve_descriptor(job: PreparedVerificationJob) -> ValidatorDescriptor | None:
     """Prefer a migrated profile, else the dispatcher's legacy descriptor."""
     profile = profile_for(job.requirement.submission_type)
@@ -846,6 +1044,24 @@ async def run_profile(
     """
     descriptor = _resolve_descriptor(job)
     steps = _steps_for(descriptor)
+
+    if (
+        descriptor is not None
+        and descriptor.requires_username
+        and not job.github_username
+    ):
+        return VerificationRunResult(
+            job=job,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message="GitHub username is required for this verification",
+                username_match=False,
+            ),
+            evidence=None,
+            grading_requests=[]
+            if isinstance(descriptor, VerificationProfile)
+            else None,
+        )
 
     context = StepContext(
         job=job,

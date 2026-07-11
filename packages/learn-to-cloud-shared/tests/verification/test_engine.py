@@ -64,6 +64,7 @@ async def test_legacy_step_passes_dispatcher_result_through(monkeypatch):
         return sentinel
 
     monkeypatch.setattr(engine_module, "validate_submission", fake_validate)
+    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     result = await run_profile(_job(repo_fork_requirement()))
 
@@ -92,6 +93,7 @@ async def test_run_profile_uses_declared_steps(monkeypatch):
         "descriptor_for",
         lambda _t: _profile(_step("test_gate_pass", "gate")),
     )
+    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     result = await run_profile(_job())
 
@@ -121,6 +123,7 @@ async def test_failed_gate_short_circuits(monkeypatch):
         "descriptor_for",
         lambda _t: _profile(_step("hard_fail", "a"), _step("never_runs", "b")),
     )
+    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     result = await run_profile(_job())
 
@@ -147,6 +150,7 @@ async def test_stop_on_fail_false_continues(monkeypatch):
         "descriptor_for",
         lambda _t: _profile(_step("soft_fail", "a"), _step("after_soft", "b")),
     )
+    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     result = await run_profile(_job())
 
@@ -173,6 +177,7 @@ async def test_later_step_sees_prior_evidence(monkeypatch):
         "descriptor_for",
         lambda _t: _profile(_step("emit_evidence", "a"), _step("read_evidence", "b")),
     )
+    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     await run_profile(_job())
 
@@ -189,6 +194,7 @@ async def test_unregistered_descriptor_falls_back_to_legacy(monkeypatch):
 
     monkeypatch.setattr(engine_module, "validate_submission", fake_validate)
     monkeypatch.setattr(engine_module, "descriptor_for", lambda _t: None)
+    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     result = await run_profile(_job())
 
@@ -282,6 +288,7 @@ async def test_legacy_type_leaves_grading_requests_none(monkeypatch):
         return ValidationResult(is_valid=True, message="legacy ran")
 
     monkeypatch.setattr(engine_module, "validate_submission", fake_validate)
+    monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
     result = await run_profile(_job(repo_fork_requirement()))
 
@@ -571,3 +578,118 @@ async def test_career_profile_skips_grading_when_gate_fails(monkeypatch):
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
     assert result.evidence is None
+
+
+# ---------------------------------------------------------------------------
+# Phase 0-2 gate-only profiles: profile README, repo fork, CTF and networking
+# tokens. All are deterministic (no grading) and require a GitHub username.
+# ---------------------------------------------------------------------------
+
+
+def _phase02_job(requirement, submitted_value, github_username="learner"):
+    return PreparedVerificationJob(
+        id=uuid4(),
+        user_id=1,
+        github_username=github_username,
+        requirement=requirement,
+        submitted_value=submitted_value,
+    )
+
+
+@pytest.mark.asyncio
+async def test_profile_readme_profile_passes_through_validator(monkeypatch):
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        profile_readme_requirement,
+    )
+
+    sentinel = ValidationResult(is_valid=True, message="Profile README validated")
+
+    async def fake_readme(target, metadata=None):
+        return sentinel
+
+    monkeypatch.setattr(engine_module, "validate_profile_readme", fake_readme)
+
+    job = _phase02_job(
+        profile_readme_requirement(),
+        "https://github.com/learner/learner",
+    )
+    result = await run_profile(job)
+
+    assert result.validation_result is sentinel
+    assert result.grading_requests == []
+    assert result.evidence is None
+
+
+@pytest.mark.asyncio
+async def test_repo_fork_profile_passes_through_validator(monkeypatch):
+    sentinel = ValidationResult(is_valid=True, message="Repository fork validated")
+
+    async def fake_fork(target, metadata=None):
+        return sentinel
+
+    monkeypatch.setattr(engine_module, "validate_repo_fork", fake_fork)
+
+    job = _phase02_job(
+        repo_fork_requirement(),
+        "https://github.com/learner/test-repo",
+    )
+    result = await run_profile(job)
+
+    assert result.validation_result is sentinel
+    assert result.grading_requests == []
+
+
+@pytest.mark.asyncio
+async def test_ctf_token_profile_passes_through_validator(monkeypatch):
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        ctf_token_requirement,
+    )
+
+    captured: dict[str, str] = {}
+
+    def fake_ctf(token, username):
+        captured["token"] = token
+        captured["username"] = username
+        return ValidationResult(is_valid=True, message="CTF token valid")
+
+    monkeypatch.setattr(engine_module, "verify_ctf_token", fake_ctf)
+
+    job = _phase02_job(ctf_token_requirement(), "the-token")
+    result = await run_profile(job)
+
+    assert result.validation_result.is_valid is True
+    assert result.grading_requests == []
+    assert captured == {"token": "the-token", "username": "learner"}
+
+
+@pytest.mark.asyncio
+async def test_networking_token_profile_passes_through_validator(monkeypatch):
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        networking_token_requirement,
+    )
+
+    def fake_net(token, username):
+        return ValidationResult(is_valid=False, message="Networking token invalid")
+
+    monkeypatch.setattr(engine_module, "verify_networking_token", fake_net)
+
+    job = _phase02_job(networking_token_requirement(), "bad-token")
+    result = await run_profile(job)
+
+    assert result.validation_result.is_valid is False
+    assert result.grading_requests == []
+
+
+@pytest.mark.asyncio
+async def test_profile_requiring_username_short_circuits_when_missing():
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        ctf_token_requirement,
+    )
+
+    job = _phase02_job(ctf_token_requirement(), "the-token", github_username=None)
+    result = await run_profile(job)
+
+    assert result.validation_result.is_valid is False
+    assert result.validation_result.username_match is False
+    assert "GitHub username is required" in result.validation_result.message
+    assert result.grading_requests == []

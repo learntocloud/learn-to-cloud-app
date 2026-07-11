@@ -73,11 +73,10 @@ async def synced_requirement(
     and ``get_requirement_by_slug`` only returns active rows so the test
     requirement must be alive in the curriculum.
 
-    Uses a still-legacy repo-backed type (repo_fork) so the executor's
-    generic plumbing is exercised through the transitional ``legacy_validate``
-    step, which these tests mock via ``validate_submission``. Migrated profiles
-    (e.g. journal_api_verifier) run declared steps instead and would bypass
-    that mock.
+    Uses repo_fork so the executor's generic prepare/run/persist plumbing is
+    exercised through a gate-only profile. These tests control the outcome by
+    mocking the gate's validator ``validate_repo_fork`` (every submission type
+    now runs a declared profile, so there is no legacy validator to mock).
     """
     from learn_to_cloud_shared.testing.requirement_factories import (
         make_requirement,
@@ -191,7 +190,7 @@ async def test_split_verification_primitives_prepare_run_and_persist(
     assert preparation.job.to_payload()["id"] == str(job_id)
 
     with patch(
-        "learn_to_cloud_shared.verification.engine.validate_submission",
+        "learn_to_cloud_shared.verification.engine.validate_repo_fork",
         validation,
     ):
         run_result = await run_profile(preparation.job)
@@ -228,7 +227,7 @@ async def test_execute_verification_job_marks_success_and_links_submission(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification.engine.validate_submission",
+            "learn_to_cloud_shared.verification.engine.validate_repo_fork",
             validation,
         ),
     ):
@@ -270,7 +269,7 @@ async def test_execute_verification_job_marks_user_validation_failure(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification.engine.validate_submission",
+            "learn_to_cloud_shared.verification.engine.validate_repo_fork",
             validation,
         ),
     ):
@@ -309,7 +308,7 @@ async def test_execute_verification_job_marks_server_error(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification.engine.validate_submission",
+            "learn_to_cloud_shared.verification.engine.validate_repo_fork",
             validation,
         ),
     ):
@@ -347,7 +346,7 @@ async def test_execute_verification_job_truncates_persisted_error_messages(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification.engine.validate_submission",
+            "learn_to_cloud_shared.verification.engine.validate_repo_fork",
             validation,
         ),
     ):
@@ -409,7 +408,7 @@ async def test_execute_verification_job_is_idempotent_for_terminal_jobs(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification.engine.validate_submission",
+            "learn_to_cloud_shared.verification.engine.validate_repo_fork",
             validation,
         ),
     ):
