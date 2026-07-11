@@ -32,10 +32,12 @@ from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import FrozenModel, TaskResult, ValidationResult
 from learn_to_cloud_shared.verification.ci_status import verify_ci_status
+from learn_to_cloud_shared.verification.deployed_api import validate_deployed_api
 from learn_to_cloud_shared.verification.deployment_architecture import (
     collect_deployment_architecture_evidence,
     validate_deployment_architecture,
 )
+from learn_to_cloud_shared.verification.devops_analysis import run_devops_workflow
 from learn_to_cloud_shared.verification.dispatcher import (
     ValidatorDescriptor,
     descriptor_for,
@@ -121,12 +123,34 @@ class DeploymentArchitectureReviewParams(FrozenModel):
     task: VerificationTask
 
 
+class DeployedApiCheckParams(FrozenModel):
+    """Params for the deterministic ``deployed_api_check`` (no config).
+
+    The check probes the submitted base URL's health surface; the target URL
+    is the submitted value, so it carries no data.
+    """
+
+    check: Literal["deployed_api_check"] = "deployed_api_check"
+
+
+class DevopsAnalysisCheckParams(FrozenModel):
+    """Params for the deterministic ``devops_analysis_check`` (no config).
+
+    The check runs the Phase 5 DevOps workflow against the fork resolved from
+    the requirement plus the learner's username, so it carries no data.
+    """
+
+    check: Literal["devops_analysis_check"] = "devops_analysis_check"
+
+
 StepParams = Annotated[
     LegacyValidateParams
     | CIStatusParams
     | LLMRubricReviewParams
     | DeploymentArchitectureGateParams
-    | DeploymentArchitectureReviewParams,
+    | DeploymentArchitectureReviewParams
+    | DeployedApiCheckParams
+    | DevopsAnalysisCheckParams,
     Field(discriminator="check"),
 ]
 
@@ -305,6 +329,46 @@ async def _check_llm_rubric_review(
     )
 
 
+@register_check("deployed_api_check")
+async def _check_deployed_api(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Deterministic Phase 4 gate: probe the submitted API base URL."""
+    result = await validate_deployed_api(context.submitted_value)
+    return StepResult(
+        passed=result.is_valid,
+        stop_on_fail=True,
+        validation_result=result,
+    )
+
+
+@register_check("devops_analysis_check")
+async def _check_devops_analysis(
+    context: StepContext,
+    params: StepParams,
+) -> StepResult:
+    """Deterministic Phase 5 gate: run the DevOps workflow on the fork."""
+    target = context.repository
+    if target is None or not target.repo:
+        return StepResult(
+            passed=False,
+            stop_on_fail=True,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message="Requirement configuration error: missing required_repo",
+                username_match=True,
+                repo_exists=False,
+            ),
+        )
+    result = await run_devops_workflow(target.owner, target.repo, context.repo_files)
+    return StepResult(
+        passed=result.is_valid,
+        stop_on_fail=True,
+        validation_result=result,
+    )
+
+
 @register_check("deployment_architecture_gate")
 async def _check_deployment_architecture_gate(
     context: StepContext,
@@ -449,6 +513,36 @@ _DEPLOYMENT_ARCHITECTURE_PROFILE = VerificationProfile(
 register_profile(
     SubmissionType.DEPLOYMENT_ARCHITECTURE, _DEPLOYMENT_ARCHITECTURE_PROFILE
 )
+
+
+_DEPLOYED_API_PROFILE = VerificationProfile(
+    adapter=_profile_steps_adapter,
+    requires_username=False,
+    steps=(
+        Step(
+            check="deployed_api_check",
+            params=DeployedApiCheckParams(),
+            task_id="deployed-api-check",
+        ),
+    ),
+)
+
+register_profile(SubmissionType.DEPLOYED_API, _DEPLOYED_API_PROFILE)
+
+
+_DEVOPS_ANALYSIS_PROFILE = VerificationProfile(
+    adapter=_profile_steps_adapter,
+    requires_username=True,
+    steps=(
+        Step(
+            check="devops_analysis_check",
+            params=DevopsAnalysisCheckParams(),
+            task_id="devops-analysis-check",
+        ),
+    ),
+)
+
+register_profile(SubmissionType.DEVOPS_ANALYSIS, _DEVOPS_ANALYSIS_PROFILE)
 
 
 def _resolve_descriptor(job: PreparedVerificationJob) -> ValidatorDescriptor | None:
