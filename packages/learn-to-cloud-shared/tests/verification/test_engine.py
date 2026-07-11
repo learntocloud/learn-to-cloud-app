@@ -287,3 +287,84 @@ async def test_legacy_type_leaves_grading_requests_none(monkeypatch):
     result = await run_profile(_job(career_reflection_requirement()))
 
     assert result.grading_requests is None
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 deployment architecture profile: gate + deploy.sh/description rubric.
+# ---------------------------------------------------------------------------
+
+
+def _deployment_job(description: str) -> PreparedVerificationJob:
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        deployment_architecture_requirement,
+    )
+
+    return PreparedVerificationJob(
+        id=uuid4(),
+        user_id=1,
+        github_username="learner",
+        requirement=deployment_architecture_requirement(
+            slug="deployment-architecture",
+            required_repo="owner/journal-starter",
+        ),
+        submitted_value=description,
+    )
+
+
+@pytest.mark.asyncio
+async def test_deployment_profile_bundles_script_and_description():
+    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+    from learn_to_cloud_shared.verification.tasks.phase4 import (
+        DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
+    )
+
+    description = (
+        "My two-tier deployment provisions a public API tier and a private "
+        "database tier in an isolated subnet, all created idempotently by "
+        "deploy.sh with restricted inbound rules and TLS termination for the "
+        "API. Traffic flows from the internet to the load balancer, then to "
+        "the API compute, and only the API can reach the private database."
+    )
+    repo_files = InMemoryRepoFiles({"deploy.sh": "#!/bin/bash\naz group create\n"})
+
+    result = await run_profile(_deployment_job(description), repo_files=repo_files)
+
+    assert result.validation_result.is_valid is True
+    assert result.grading_requests is not None
+    assert len(result.grading_requests) == 1
+    request = result.grading_requests[0]
+    assert request.task.id == DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK.id
+    assert "deploy.sh" in request.message
+    assert description in request.message
+
+
+@pytest.mark.asyncio
+async def test_deployment_profile_gate_fails_when_description_too_short():
+    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+
+    repo_files = InMemoryRepoFiles({"deploy.sh": "#!/bin/bash\n"})
+
+    result = await run_profile(_deployment_job("too short"), repo_files=repo_files)
+
+    assert result.validation_result.is_valid is False
+    assert result.grading_requests == []
+    assert result.evidence is None
+
+
+@pytest.mark.asyncio
+async def test_deployment_profile_gate_fails_when_deploy_script_missing():
+    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+
+    description = (
+        "My two-tier deployment provisions a public API tier and a private "
+        "database tier in an isolated subnet, all created idempotently by a "
+        "script with restricted inbound rules and TLS termination for the "
+        "API. Traffic flows from the internet to the load balancer, then to "
+        "the API compute, and only the API can reach the private database."
+    )
+    repo_files = InMemoryRepoFiles({"README.md": "no script here"})
+
+    result = await run_profile(_deployment_job(description), repo_files=repo_files)
+
+    assert result.validation_result.is_valid is False
+    assert result.grading_requests == []

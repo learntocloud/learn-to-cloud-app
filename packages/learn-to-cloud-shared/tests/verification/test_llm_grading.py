@@ -17,7 +17,6 @@ from learn_to_cloud_shared.verification.llm_grading import (
 )
 from learn_to_cloud_shared.verification.tasks import (
     PHASE3_LLM_TASKS,
-    PHASE4_LLM_TASKS,
     PHASE6_LLM_TASKS,
     PHASE7_LLM_TASKS,
     LLMGradingDecision,
@@ -211,84 +210,6 @@ def test_llm_grading_content_filtered_result_asks_learner_to_rephrase():
     assert updated.validation_result.verification_completed is False
     assert "content safety filter" in updated.validation_result.message
     assert "rewrite your answers" in updated.validation_result.message
-
-
-def _phase4_run_result(
-    is_valid: bool = True,
-    github_username: str = "learner",
-    description: str = (
-        "My two-tier deployment: a public API tier and a private database tier "
-        "in an isolated subnet, provisioned idempotently by deploy.sh."
-    ),
-) -> VerificationRunResult:
-    from learn_to_cloud_shared.testing.requirement_factories import (
-        deployment_architecture_requirement,
-    )
-
-    requirement = deployment_architecture_requirement(
-        slug="deployment-architecture",
-        required_repo="learntocloud/journal-starter",
-    )
-    return VerificationRunResult(
-        job=PreparedVerificationJob(
-            id=uuid4(),
-            user_id=1,
-            github_username=github_username,
-            requirement=requirement,
-            submitted_value=description,
-        ),
-        validation_result=ValidationResult(
-            is_valid=is_valid,
-            message="Description received and deploy script found.",
-        ),
-    )
-
-
-@pytest.mark.asyncio
-@pytest.mark.unit
-async def test_collect_phase4_requests_bundles_script_and_description():
-    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
-
-    description = (
-        "My two-tier deployment provisions a public API and a private database."
-    )
-    run_result = _phase4_run_result(description=description)
-    repo_files = InMemoryRepoFiles({"deploy.sh": "#!/bin/bash\naz group create\n"})
-
-    requests = await collect_llm_grading_requests(run_result, repo_files=repo_files)
-
-    assert len(requests) == len(PHASE4_LLM_TASKS)
-    assert "deploy.sh" in requests[0].message
-    assert description in requests[0].message
-    assert requests[0].task.evidence.source == "repo_files"
-
-
-@pytest.mark.asyncio
-@pytest.mark.unit
-async def test_collect_phase4_requests_skips_when_gate_failed():
-    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
-
-    repo_files = InMemoryRepoFiles({"deploy.sh": "#!/bin/bash\n"})
-
-    requests = await collect_llm_grading_requests(
-        _phase4_run_result(is_valid=False), repo_files=repo_files
-    )
-
-    assert requests == []
-
-
-@pytest.mark.asyncio
-@pytest.mark.unit
-async def test_collect_phase4_requests_skips_when_username_missing():
-    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
-
-    repo_files = InMemoryRepoFiles({"deploy.sh": "#!/bin/bash\n"})
-
-    requests = await collect_llm_grading_requests(
-        _phase4_run_result(github_username=""), repo_files=repo_files
-    )
-
-    assert requests == []
 
 
 def _phase7_run_result(
