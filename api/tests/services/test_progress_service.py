@@ -172,8 +172,8 @@ class TestPhaseProgressToData:
 class TestFetchUserProgress:
     @pytest.mark.asyncio
     async def test_queries_db_and_returns_progress(self):
+        from learn_to_cloud_shared.requirements import RequirementIndex
         from learn_to_cloud_shared.schemas import PhaseOverview
-        from learn_to_cloud_shared.verification.requirements import RequirementIndex
 
         phase_overview = (
             PhaseOverview(uuid=uuid4(), name="Phase 0", slug="phase0", order=0),

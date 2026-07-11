@@ -22,17 +22,17 @@ from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
+from learn_to_cloud_shared.requirements import get_requirement_by_slug
 from learn_to_cloud_shared.schemas import (
     CareerReflectionRequirement,
     DeploymentArchitectureRequirement,
     SubmissionData,
 )
-from learn_to_cloud_shared.submission_values import submission_value_from_columns
-from learn_to_cloud_shared.verification.requirements import get_requirement_by_slug
-from learn_to_cloud_shared.verification.url_derivation import (
+from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
     is_derivable,
 )
+from learn_to_cloud_shared.submission_values import submission_value_from_columns
 from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 

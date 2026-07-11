@@ -1,18 +1,22 @@
-"""Shared utilities for verification services.
+"""GitHub URL parsing and repository-identity resolution.
 
-GitHub URL parsing, ownership validation, and the base
-VerificationError exception.
+Parses GitHub URLs into their components, extracts owner/repo pairs, and
+resolves the ``RepositoryRef`` identity for a validated submission value.
+Also defines ``VerificationError``, the base exception for verification
+failures.
 """
 
 from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Mapping
-from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from learn_to_cloud_shared.schemas import ParsedGitHubUrl, ValidationResult
+from learn_to_cloud_shared.schemas import (
+    ParsedGitHubUrl,
+    RepositoryRef,
+    ValidationResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,32 +101,6 @@ def extract_repo_info(repo_url: str) -> tuple[str, str]:
     if not parsed.is_valid or not parsed.repo_name:
         raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
     return parsed.username, parsed.repo_name
-
-
-@dataclass(frozen=True, slots=True)
-class RepositoryRef:
-    """A resolved GitHub repository identity (``owner`` + repo ``name``).
-
-    Carried across the Durable verification pipeline so the repo identity is
-    parsed once from the validated submission value and reused by later steps
-    instead of being re-derived.
-    """
-
-    owner: str
-    repo: str
-
-    def to_payload(self) -> dict[str, str]:
-        """Return a JSON-serializable activity payload."""
-        return {"owner": self.owner, "repo": self.repo}
-
-    @classmethod
-    def from_payload(cls, payload: Mapping[str, object]) -> RepositoryRef:
-        """Rehydrate a repository reference from a Durable activity payload."""
-        owner = payload.get("owner")
-        repo = payload.get("repo")
-        if not isinstance(owner, str) or not isinstance(repo, str):
-            raise TypeError("RepositoryRef payload requires string 'owner' and 'repo'")
-        return cls(owner=owner, repo=repo)
 
 
 def resolve_repository(submitted_value: str) -> RepositoryRef | ValidationResult:

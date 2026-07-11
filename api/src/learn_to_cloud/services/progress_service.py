@@ -24,6 +24,7 @@ from learn_to_cloud_shared.repositories.progress_repository import (
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
 )
+from learn_to_cloud_shared.requirements import load_requirement_index
 from learn_to_cloud_shared.schemas import (
     Phase,
     PhaseOverview,
@@ -33,7 +34,6 @@ from learn_to_cloud_shared.schemas import (
     TopicProgressData,
     UserProgress,
 )
-from learn_to_cloud_shared.verification.requirements import load_requirement_index
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)

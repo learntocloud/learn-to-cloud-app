@@ -20,10 +20,13 @@ from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
-from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
+from learn_to_cloud_shared.schemas import (
+    HandsOnRequirement,
+    RepositoryRef,
+    ValidationResult,
+)
 from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.verification.execution import MAX_VALIDATION_MESSAGE_LENGTH
-from learn_to_cloud_shared.verification.repo_utils import RepositoryRef
 from learn_to_cloud_shared.verification_job_executor import (
     VALIDATION_FAILED_ERROR_CODE,
     VERIFICATION_INCOMPLETE_ERROR_CODE,

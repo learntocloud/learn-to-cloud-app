@@ -1,27 +1,28 @@
-"""Hands-on verification orchestration module.
+"""Per-submission-type validator registry and routing.
 
-This module provides the central orchestration for Phase 0 through Phase 6
-hands-on verification:
-- Routes submissions to appropriate validators
-- Supports GitHub profile, profile README, repo fork, CTF token, networking token,
-  code analysis, and evidence URL validations
+Runs inside the Durable Function verify step. ``validate_submission`` is
+the single entry point: it looks up the submission type in
+``_VALIDATOR_REGISTRY``, enforces the GitHub-username guard, dispatches to
+the matching validator through a uniform adapter, records verification
+metrics and spans, and returns a ``ValidationResult``.
 
-Phase requirements are defined in phase_requirements.py.
+Supported types include GitHub profile, profile README, repo fork, CTF
+token, networking token, deployed API, DevOps analysis, security
+scanning, career reflection, and deployment architecture.
 
-EXTENSIBILITY:
 To add a new verification type:
-1. Add the SubmissionType enum value in models.py
-2. Add optional fields to HandsOnRequirement in schemas.py if needed
+1. Add the ``SubmissionType`` enum value in models.py.
+2. Add optional fields to ``HandsOnRequirement`` in schemas.py if needed.
 3. Create a validator function (here or in a new module):
-   - async def validate_<type>(url: str, ...) -> ValidationResult
-4. Register a ValidatorDescriptor for it in _VALIDATOR_REGISTRY below:
-   declare its adapter callable, whether it needs a GitHub username, and
-   whether it is repo-backed.
+   ``async def validate_<type>(url: str, ...) -> ValidationResult``.
+4. Register a ``ValidatorDescriptor`` in ``_VALIDATOR_REGISTRY`` below,
+   declaring its adapter, whether it needs a GitHub username, and whether
+   it is repo-backed.
 
-For GitHub-specific validations, see github_profile.py
-For CTF token validation, see ctf.py
-For CI-based code verification, see ci_status.py
-For phase requirements, see requirements.py
+For GitHub-specific validations, see github_profile.py.
+For CTF and networking token validation, see token_base.py.
+For CI-based code verification, see ci_status.py.
+For requirement definitions, see requirements.py.
 """
 
 from collections.abc import Awaitable, Callable

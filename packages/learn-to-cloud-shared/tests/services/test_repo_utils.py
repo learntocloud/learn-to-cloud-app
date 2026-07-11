@@ -7,9 +7,8 @@ Tests cover:
 
 import pytest
 
-from learn_to_cloud_shared.schemas import ValidationResult
+from learn_to_cloud_shared.schemas import RepositoryRef, ValidationResult
 from learn_to_cloud_shared.verification.repo_utils import (
-    RepositoryRef,
     extract_repo_info,
     resolve_repository,
 )

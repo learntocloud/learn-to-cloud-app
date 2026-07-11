@@ -16,13 +16,13 @@ from uuid import uuid4
 import pytest
 from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
 from learn_to_cloud_shared.models import CurriculumStep, StepProgress, User
+from learn_to_cloud_shared.requirements import load_requirement_index
 from learn_to_cloud_shared.schemas import (
     PhaseOverview,
     PhaseProgress,
     PhaseProgressData,
     UserProgress,
 )
-from learn_to_cloud_shared.verification.requirements import load_requirement_index
 from sqlalchemy import event, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession

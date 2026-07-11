@@ -1,4 +1,4 @@
-"""Unit tests for services.verification.url_derivation.
+"""Unit tests for submission_derivation.
 
 Covers derive_submission_value for all submission types and the
 is_derivable / fork_name_from_required_repo helpers.
@@ -8,7 +8,7 @@ import pytest
 
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import HandsOnRequirement
-from learn_to_cloud_shared.verification.url_derivation import (
+from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
     fork_name_from_required_repo,
     is_derivable,
@@ -79,7 +79,7 @@ class TestForkNameFromRequiredRepo:
 @pytest.mark.unit
 class TestRepositoryRefFromRequiredRepo:
     def test_derives_fork_owner_and_repo(self):
-        from learn_to_cloud_shared.verification.url_derivation import (
+        from learn_to_cloud_shared.submission_derivation import (
             repository_ref_from_required_repo,
         )
 
@@ -88,7 +88,7 @@ class TestRepositoryRefFromRequiredRepo:
         assert ref.repo == "journal-starter"
 
     def test_empty_username_raises(self):
-        from learn_to_cloud_shared.verification.url_derivation import (
+        from learn_to_cloud_shared.submission_derivation import (
             repository_ref_from_required_repo,
         )
 
@@ -96,7 +96,7 @@ class TestRepositoryRefFromRequiredRepo:
             repository_ref_from_required_repo("", "learntocloud/journal-starter")
 
     def test_missing_slash_raises(self):
-        from learn_to_cloud_shared.verification.url_derivation import (
+        from learn_to_cloud_shared.submission_derivation import (
             repository_ref_from_required_repo,
         )
 
