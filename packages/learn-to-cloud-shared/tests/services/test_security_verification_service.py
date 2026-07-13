@@ -1,21 +1,23 @@
-"""Tests for security_verification_service (Phase 6).
+"""Tests for Phase 6 security-scanning evidence collection.
 
-Covers:
-- 404 / not-public repo handling
-- Dependabot and CodeQL detection
+The deterministic verdict now lives in the ``codeql_status`` gate (see
+``test_codeql_status.py``). This module only covers the evidence bundle the
+LLM rubric grades: it gathers the committed CodeQL workflow plus any
+Dependabot config from fixed paths, tolerating missing files.
 
-Evidence is supplied through the ``RepoFiles`` seam with an in-memory
-adapter, so these tests exercise the grading rules without the network.
-
-URL validation and ownership checks are exercised by the engine gate tests.
+Evidence is supplied through the ``RepoFiles`` seam with an in-memory adapter,
+so these tests run without the network.
 """
 
-import httpx
 import pytest
 
 from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
 from learn_to_cloud_shared.verification.security_scanning import (
-    validate_security_scanning,
+    collect_security_scanning_evidence,
+)
+from learn_to_cloud_shared.verification.tasks.phase6 import (
+    CODEQL_WORKFLOW_PATH,
+    SECURITY_SCANNING_RUBRIC_TASK,
 )
 
 _TEST_OWNER = "testuser"
@@ -28,66 +30,36 @@ _CODEQL_WORKFLOW = (
 )
 
 
-# ---------------------------------------------------------------------------
-# 404 / not-public repo
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.unit
-class TestValidateSecurityScanning404:
-    """Repo-not-found handling."""
+class TestCollectSecurityScanningEvidence:
+    """Evidence collection over the fixed Phase 6 paths."""
 
-    @pytest.mark.asyncio
-    async def test_404_returns_not_found(self):
-        mock_response = httpx.Response(
-            status_code=404, request=httpx.Request("GET", "https://api.github.com")
-        )
+    async def test_collects_codeql_and_dependabot(self):
         repo_files = InMemoryRepoFiles(
-            tree_error=httpx.HTTPStatusError(
-                "Not Found", request=mock_response.request, response=mock_response
-            )
+            {
+                CODEQL_WORKFLOW_PATH: _CODEQL_WORKFLOW,
+                ".github/dependabot.yml": _VALID_DEPENDABOT,
+            }
         )
-        result = await validate_security_scanning(
+        bundle = await collect_security_scanning_evidence(
             _TEST_OWNER, _TEST_REPO, repo_files=repo_files
         )
-        assert result.is_valid is False
-        assert "not found" in result.message.lower()
-        assert result.username_match is True
+        paths = {item.path for item in bundle.items}
+        assert CODEQL_WORKFLOW_PATH in paths
+        assert ".github/dependabot.yml" in paths
+        assert bundle.task_id == SECURITY_SCANNING_RUBRIC_TASK.id
 
-
-# ---------------------------------------------------------------------------
-# Dependabot and CodeQL detection
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestValidateSecurityScanningDetection:
-    """Detection of security scanning configuration."""
-
-    @pytest.mark.asyncio
-    async def test_dependabot_only_passes(self):
-        repo_files = InMemoryRepoFiles({".github/dependabot.yml": _VALID_DEPENDABOT})
-        result = await validate_security_scanning(
+    async def test_missing_dependabot_is_skipped(self):
+        repo_files = InMemoryRepoFiles({CODEQL_WORKFLOW_PATH: _CODEQL_WORKFLOW})
+        bundle = await collect_security_scanning_evidence(
             _TEST_OWNER, _TEST_REPO, repo_files=repo_files
         )
-        assert result.is_valid is True
+        paths = {item.path for item in bundle.items}
+        assert paths == {CODEQL_WORKFLOW_PATH}
 
-    @pytest.mark.asyncio
-    async def test_codeql_only_passes(self):
-        repo_files = InMemoryRepoFiles(
-            {".github/workflows/codeql.yml": _CODEQL_WORKFLOW}
-        )
-        result = await validate_security_scanning(
-            _TEST_OWNER, _TEST_REPO, repo_files=repo_files
-        )
-        assert result.is_valid is True
-
-    @pytest.mark.asyncio
-    async def test_no_scanning_fails(self):
+    async def test_empty_repo_yields_no_items(self):
         repo_files = InMemoryRepoFiles({"README.md": "# project\n"})
-        result = await validate_security_scanning(
+        bundle = await collect_security_scanning_evidence(
             _TEST_OWNER, _TEST_REPO, repo_files=repo_files
         )
-        assert result.is_valid is False
-        assert result.task_results is not None
-        assert all(not t.passed for t in result.task_results)
+        assert bundle.items == []

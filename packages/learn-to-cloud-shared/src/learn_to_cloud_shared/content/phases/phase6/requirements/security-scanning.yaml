@@ -3,6 +3,6 @@ uuid: 2f9a6c38-28f5-474b-9578-a71734f112b2
 slug: security-scanning
 submission_type: security_scanning
 name: Enable Security Scanning
-description: Verify your fork has Dependabot or CodeQL scanning enabled so automated checks can confirm it is configured.
+description: Enable GitHub CodeQL code scanning (advanced setup) for Python on your fork, commit the workflow as .github/workflows/codeql.yml, and make sure it runs green on your main branch. Automated checks confirm the latest CodeQL run passed on your current code. Dependabot is recommended as an extra layer.
 type_config:
   required_repo: learntocloud/journal-starter

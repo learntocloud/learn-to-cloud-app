@@ -33,7 +33,6 @@ from learn_to_cloud_shared.verification.tasks.phase5 import (
 from learn_to_cloud_shared.verification.tasks.phase6 import (
     PHASE6_LLM_TASKS,
     PHASE6_REQUIREMENT_SLUG,
-    PHASE6_TASKS,
     SECURITY_SCANNING_RUBRIC_TASK,
 )
 from learn_to_cloud_shared.verification.tasks.phase7 import (
@@ -65,7 +64,6 @@ __all__ = [
     "PHASE5_TASKS",
     "PHASE6_REQUIREMENT_SLUG",
     "PHASE6_LLM_TASKS",
-    "PHASE6_TASKS",
     "CAREER_REFLECTION_RUBRIC_TASK",
     "PHASE7_REQUIREMENT_SLUG",
     "PHASE7_LLM_TASKS",

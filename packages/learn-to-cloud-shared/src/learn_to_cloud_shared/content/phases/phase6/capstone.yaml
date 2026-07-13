@@ -101,11 +101,12 @@ learning_steps:
   title: Enable security scanning on your repository
   description: Enable automated security scanning on your GitHub repository to catch vulnerabilities in your code and dependencies.
   checklist:
-  - "**Enable Dependabot** — Settings → Code security and analysis → Enable Dependabot alerts and security updates"
-  - "**Enable CodeQL** (optional) — Add a CodeQL analysis workflow in `.github/workflows/`"
-  - "**Review findings** — Check the Security tab for any alerts"
-  - "**Triage** — Fix critical/high severity findings, dismiss false positives with a reason"
-  done_when: Dependabot is enabled, you've reviewed any alerts, and critical findings are addressed.
+  - "**Enable CodeQL advanced setup** — Security tab → Code scanning → CodeQL → Advanced. This commits a workflow to `.github/workflows/codeql.yml`"
+  - "**Target Python** — Set the workflow language to `python` and keep the push, pull_request, and schedule triggers"
+  - "**Enable Actions and run it** — Make sure GitHub Actions is enabled on your fork and the CodeQL workflow runs green on `main`"
+  - "**Enable Dependabot** (recommended) — Settings → Code security and analysis → Enable Dependabot alerts and security updates"
+  - "**Review findings** — Check the Security tab for any alerts and triage critical/high severity ones"
+  done_when: The CodeQL workflow is committed as `.github/workflows/codeql.yml`, targets Python, and its latest run is green on your `main` branch.
   slug: phase6-capstone-practice-enable-security-scanning-on
 
 - uuid: 831a7907-14bc-4a99-b03d-d7dc1fc4d742
