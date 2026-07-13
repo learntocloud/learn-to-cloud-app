@@ -10,14 +10,14 @@ from learn_to_cloud_shared.verification.tasks import (
     PHASE3_LLM_TASKS,
     PHASE5_TASKS,
     PHASE6_LLM_TASKS,
-    PHASE6_TASKS,
     PHASE7_LLM_TASKS,
 )
 from learn_to_cloud_shared.verification.tasks.base import (
+    EvidencePolicy,
     FilePresenceGraderConfig,
     IndicatorGraderConfig,
     LLMRubricGraderConfig,
-    require_file_presence_grader,
+    VerificationTask,
     require_indicator_grader,
     require_llm_rubric_grader,
 )
@@ -32,16 +32,13 @@ from learn_to_cloud_shared.verification.tasks.phase7 import PHASE7_REQUIREMENT_S
 @pytest.mark.unit
 def test_phase_task_ids_are_stable_and_unique():
     """Task identifiers are stable API/telemetry keys."""
-    tasks = [*PHASE5_TASKS, *PHASE6_TASKS]
-    ids = [task.id for task in tasks]
+    ids = [task.id for task in PHASE5_TASKS]
 
     assert ids == [
         "dockerfile",
         "cicd-pipeline",
         "terraform-iac",
         "kubernetes-manifests",
-        "dependabot",
-        "codeql",
     ]
     assert len(ids) == len(set(ids))
 
@@ -55,16 +52,6 @@ def test_phase5_tasks_use_indicator_graders():
         assert task.evidence.path_patterns
         assert task.evidence.required_files
         assert isinstance(require_indicator_grader(task), IndicatorGraderConfig)
-
-
-@pytest.mark.unit
-def test_phase6_tasks_use_file_presence_graders():
-    for task in PHASE6_TASKS:
-        assert task.phase_id == 6
-        assert task.requirement_slug == PHASE6_REQUIREMENT_SLUG
-        assert task.evidence.source == "repo_files"
-        assert task.evidence.path_patterns
-        assert isinstance(require_file_presence_grader(task), FilePresenceGraderConfig)
 
 
 @pytest.mark.unit
@@ -88,6 +75,7 @@ def test_phase6_llm_tasks_use_rubric_graders():
     assert task.phase_id == 6
     assert task.requirement_slug == PHASE6_REQUIREMENT_SLUG
     assert task.evidence.source == "repo_files"
+    assert ".github/workflows/codeql.yml" in task.evidence.path_patterns
     assert isinstance(require_llm_rubric_grader(task), LLMRubricGraderConfig)
 
 
@@ -126,7 +114,22 @@ def test_indicator_grader_returns_normalized_result():
 
 @pytest.mark.unit
 def test_file_presence_grader_returns_normalized_result():
-    task = PHASE6_TASKS[0]
+    task = VerificationTask(
+        id="dependabot",
+        phase_id=6,
+        requirement_slug=PHASE6_REQUIREMENT_SLUG,
+        name="Dependabot Configuration",
+        criteria=["MUST include a .github/dependabot.yml file"],
+        evidence=EvidencePolicy(
+            source="repo_files",
+            path_patterns=[".github/dependabot.yml"],
+            max_files=1,
+        ),
+        grader=FilePresenceGraderConfig(
+            required_any=[".github/dependabot.yml"],
+            content_indicators=["version", "updates"],
+        ),
+    )
 
     result = grade_file_presence_task(
         task,

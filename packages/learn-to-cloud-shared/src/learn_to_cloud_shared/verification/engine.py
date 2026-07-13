@@ -34,6 +34,7 @@ from learn_to_cloud_shared.verification.career_reflection import (
     validate_career_reflection,
 )
 from learn_to_cloud_shared.verification.ci_status import verify_ci_status
+from learn_to_cloud_shared.verification.codeql_status import verify_codeql_status
 from learn_to_cloud_shared.verification.deployed_api import validate_deployed_api
 from learn_to_cloud_shared.verification.deployment_architecture import (
     collect_deployment_architecture_evidence,
@@ -53,7 +54,6 @@ from learn_to_cloud_shared.verification.grading_requests import (
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.security_scanning import (
     collect_security_scanning_evidence,
-    validate_security_scanning,
 )
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
@@ -153,13 +153,15 @@ class DevopsAnalysisCheckParams(FrozenModel):
     check: Literal["devops_analysis_check"] = "devops_analysis_check"
 
 
-class SecurityScanningGateParams(FrozenModel):
-    """Params for the Phase 6 ``security_scanning_gate`` (no config).
+class CodeQLStatusParams(FrozenModel):
+    """Params for the Phase 6 ``codeql_status`` gate (no config).
 
-    The gate runs the deterministic Dependabot/CodeQL checks against the fork.
+    The gate verifies the fork's CodeQL workflow ran green on the current
+    ``main`` HEAD; the target is resolved from the requirement plus username,
+    so it carries no data.
     """
 
-    check: Literal["security_scanning_gate"] = "security_scanning_gate"
+    check: Literal["codeql_status"] = "codeql_status"
 
 
 class SecurityScanningReviewParams(FrozenModel):
@@ -238,7 +240,7 @@ StepParams = Annotated[
     | DeploymentArchitectureReviewParams
     | DeployedApiCheckParams
     | DevopsAnalysisCheckParams
-    | SecurityScanningGateParams
+    | CodeQLStatusParams
     | SecurityScanningReviewParams
     | CareerReflectionGateParams
     | CareerReflectionReviewParams
@@ -442,12 +444,12 @@ async def _check_devops_analysis(
     )
 
 
-@register_check("security_scanning_gate")
-async def _check_security_scanning_gate(
+@register_check("codeql_status")
+async def _check_codeql_status(
     context: StepContext,
     params: StepParams,
 ) -> StepResult:
-    """Deterministic Phase 6 gate: Dependabot or CodeQL configured on the fork."""
+    """Deterministic Phase 6 gate: CodeQL green on the fork's current main HEAD."""
     target = context.repository
     if target is None or not target.repo:
         return StepResult(
@@ -460,9 +462,7 @@ async def _check_security_scanning_gate(
                 repo_exists=False,
             ),
         )
-    result = await validate_security_scanning(
-        target.owner, target.repo, context.repo_files
-    )
+    result = await verify_codeql_status(target.owner, target.repo)
     return StepResult(
         passed=result.is_valid,
         stop_on_fail=True,
@@ -481,11 +481,9 @@ async def _check_security_scanning_review(
     if target is None or not target.repo:
         return StepResult(passed=True, stop_on_fail=False)
     repo_files = context.repo_files or default_repo_files()
-    file_paths = await repo_files.tree(target.owner, target.repo)
     bundle = await collect_security_scanning_evidence(
         target.owner,
         target.repo,
-        file_paths,
         params.task,
         repo_files=repo_files,
     )
@@ -777,9 +775,9 @@ _SECURITY_SCANNING_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
         Step(
-            check="security_scanning_gate",
-            params=SecurityScanningGateParams(),
-            task_id="security-scanning-gate",
+            check="codeql_status",
+            params=CodeQLStatusParams(),
+            task_id="codeql-status-gate",
         ),
         Step(
             check="security_scanning_review",

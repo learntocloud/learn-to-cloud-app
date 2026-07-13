@@ -463,12 +463,12 @@ async def test_security_profile_records_grading_request_when_gate_passes(monkeyp
         SECURITY_SCANNING_RUBRIC_TASK,
     )
 
-    async def fake_gate(owner, repo, repo_files=None):
-        return ValidationResult(is_valid=True, message="Dependabot configured")
+    async def fake_gate(owner, repo):
+        return ValidationResult(is_valid=True, message="CodeQL green on main")
 
-    monkeypatch.setattr(engine_module, "validate_security_scanning", fake_gate)
+    monkeypatch.setattr(engine_module, "verify_codeql_status", fake_gate)
     repo_files = InMemoryRepoFiles(
-        {".github/dependabot.yml": "version: 2\nupdates: []\n"}
+        {".github/workflows/codeql.yml": "name: CodeQL\non: [push]\n"}
     )
 
     result = await run_profile(_security_job(), repo_files=repo_files)
@@ -483,10 +483,10 @@ async def test_security_profile_records_grading_request_when_gate_passes(monkeyp
 async def test_security_profile_skips_grading_when_gate_fails(monkeypatch):
     from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
 
-    async def fake_gate(owner, repo, repo_files=None):
-        return ValidationResult(is_valid=False, message="No scanning found")
+    async def fake_gate(owner, repo):
+        return ValidationResult(is_valid=False, message="No CodeQL runs found")
 
-    monkeypatch.setattr(engine_module, "validate_security_scanning", fake_gate)
+    monkeypatch.setattr(engine_module, "verify_codeql_status", fake_gate)
 
     result = await run_profile(_security_job(), repo_files=InMemoryRepoFiles({}))
 
@@ -656,3 +656,28 @@ def test_every_submission_type_has_a_registered_profile():
     missing = [t for t in SubmissionType if profile_for(t) is None]
 
     assert missing == [], f"submission types without a profile: {missing}"
+
+
+# ---------------------------------------------------------------------------
+# Every registered profile step must round-trip through the StepParams
+# discriminated union and reference a registered check. This fails in CI (not
+# only in the Functions host) if a new check is added without a StepParams
+# union arm, e.g. the Phase 6 ``codeql_status`` gate.
+# ---------------------------------------------------------------------------
+
+
+def test_every_registered_profile_step_is_valid():
+    from learn_to_cloud_shared.verification.engine import (
+        _CHECK_REGISTRY,
+        _PROFILE_REGISTRY,
+    )
+
+    for submission_type, profile in _PROFILE_REGISTRY.items():
+        for step in profile.steps:
+            assert step.check in _CHECK_REGISTRY, (
+                f"{submission_type}: step check '{step.check}' is not registered"
+            )
+            # Re-validating the dumped step forces the discriminated union to
+            # resolve the params type; a missing union arm raises here.
+            rebuilt = Step.model_validate(step.model_dump())
+            assert rebuilt.params.check == step.check

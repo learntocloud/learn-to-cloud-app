@@ -95,7 +95,7 @@ learning_steps:
   action: 'Practice:'
   title: GitHub Security Scanning
   url: https://docs.github.com/code-security/tutorials
-  description: Enable at least one scanning tool on your journal-starter repository. Dependabot monitors your dependencies for known vulnerabilities — enable it by adding a .github/dependabot.yml file. CodeQL analyzes your code for security issues — enable it via the Security tab or by adding a workflow to .github/workflows/. This is what the phase verification checks.
+  description: 'Enable GitHub CodeQL code scanning on your journal-starter fork. Use **advanced setup** (not default setup): from the Security tab choose CodeQL advanced setup, which commits a workflow to `.github/workflows/codeql.yml`. Set the language to **Python**, keep the push, pull_request, and schedule triggers, and enable GitHub Actions on your fork so the workflow runs. Make sure the latest run is green on `main`. This is what the phase verification checks: it confirms a successful CodeQL run for your most recent commit on `main`. Dependabot (a `.github/dependabot.yml` file) is recommended as defense-in-depth but is not required.'
   slug: phase6-topic4-practice-github-security-scanning
 - uuid: 68bbb198-ba76-47c4-abc5-2d386d377bce
   order: 6

@@ -99,13 +99,15 @@ learning_steps:
   order: 7
   action: 'Practice:'
   title: Enable security scanning on your repository
-  description: Enable automated security scanning on your GitHub repository to catch vulnerabilities in your code and dependencies.
+  description: Enable automated security scanning on your GitHub repository to catch vulnerabilities in your code and dependencies. Use CodeQL [advanced setup](https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/configuring-advanced-setup-for-code-scanning), which commits the workflow to your repo as `.github/workflows/codeql.yml` so it can be verified.
+  url: https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/configuring-advanced-setup-for-code-scanning
   checklist:
-  - "**Enable Dependabot** — Settings → Code security and analysis → Enable Dependabot alerts and security updates"
-  - "**Enable CodeQL** (optional) — Add a CodeQL analysis workflow in `.github/workflows/`"
-  - "**Review findings** — Check the Security tab for any alerts"
-  - "**Triage** — Fix critical/high severity findings, dismiss false positives with a reason"
-  done_when: Dependabot is enabled, you've reviewed any alerts, and critical findings are addressed.
+  - "**Enable CodeQL advanced setup**, following the [advanced setup guide](https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/configuring-advanced-setup-for-code-scanning). This commits `.github/workflows/codeql.yml` to your fork"
+  - "**Target Python**: per [customizing your advanced setup](https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning), set the workflow language to `python` and keep the push, pull_request, and schedule triggers"
+  - "**Enable Actions and confirm a green run**: make sure Actions is on for your fork (see [managing Actions settings](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository)) so the CodeQL workflow runs on `main`"
+  - "**Enable Dependabot** (recommended): follow [configuring Dependabot alerts](https://docs.github.com/en/code-security/dependabot/dependabot-alerts/configuring-dependabot-alerts) for defense-in-depth"
+  - "**Review findings**: triage any critical or high severity [code scanning alerts](https://docs.github.com/en/code-security/code-scanning/managing-code-scanning-alerts/about-code-scanning-alerts)"
+  done_when: The CodeQL workflow is committed as `.github/workflows/codeql.yml`, targets Python, and its latest run is green on your `main` branch.
   slug: phase6-capstone-practice-enable-security-scanning-on
 
 - uuid: 831a7907-14bc-4a99-b03d-d7dc1fc4d742

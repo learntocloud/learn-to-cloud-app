@@ -1,40 +1,22 @@
-"""Security scanning verification service.
+"""Security scanning evidence collection (Phase 6).
 
-This module provides Phase 6 verification: checking that learners have enabled
-security scanning (Dependabot and/or CodeQL) on their GitHub repository.
+Phase 6 verification is split into two steps (see ``engine.py``):
 
-Approach:
-  1. Parse and validate the submitted GitHub URL
-  2. Verify the repo owner matches the learner's GitHub username
-  3. Fetch the repo file tree via GitHub API
-  4. Check for Dependabot config and/or CodeQL workflow files
-  5. If workflow files exist, fetch them to confirm CodeQL action usage
-  6. Return per-check pass/fail results
+  * a deterministic gate (``codeql_status``) that proves CodeQL ran green on
+    the current ``main`` HEAD, and
+  * an LLM rubric review that grades the committed workflow's *quality* and
+    confirms it targets Python.
 
-Verification is purely file-based.
+This module supplies the evidence for the review step: it fetches the fixed
+CodeQL workflow file plus any Dependabot config from the default branch. The
+old file-presence verdict logic is gone; the gate is the source of truth for
+"did scanning run and pass".
 """
 
 from __future__ import annotations
 
-import asyncio
-
-import httpx
-import yaml
-from opentelemetry import trace
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential_jitter,
-)
-
-from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
-from learn_to_cloud_shared.verification.errors import VerificationError
 from learn_to_cloud_shared.verification.evidence import (
     collect_repo_file_evidence,
-)
-from learn_to_cloud_shared.verification.github_http import (
-    RETRIABLE_EXCEPTIONS,
 )
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.tasks.base import (
@@ -42,288 +24,29 @@ from learn_to_cloud_shared.verification.tasks.base import (
     VerificationTask,
 )
 from learn_to_cloud_shared.verification.tasks.phase6 import (
-    CODEQL_ACTION_PATTERN,
-    CODEQL_TASK,
+    CODEQL_WORKFLOW_PATH,
     DEPENDABOT_CONFIG_PATHS,
-    DEPENDABOT_TASK,
     SECURITY_SCANNING_RUBRIC_TASK,
 )
 
-
-class SecurityVerificationError(VerificationError):
-    """Raised when Phase 6 security scanning verification fails."""
-
-
-async def _check_dependabot(
-    repo_files: RepoFiles, owner: str, repo: str, file_paths: list[str]
-) -> TaskResult:
-    """Check for a valid Dependabot configuration file in the repo tree.
-
-    Verifies both file existence and content: the file must contain
-    a ``version`` key and at least one ``updates`` entry.
-    """
-    found = [p for p in file_paths if p in DEPENDABOT_CONFIG_PATHS]
-
-    if not found:
-        return TaskResult(
-            task_name=DEPENDABOT_TASK.name,
-            passed=False,
-            feedback=(
-                "No Dependabot config found. Add a .github/dependabot.yml file "
-                "to enable automated dependency updates."
-            ),
-        )
-
-    content = await _fetch_workflow_content(repo_files, owner, repo, found[0])
-    if not content:
-        return TaskResult(
-            task_name=DEPENDABOT_TASK.name,
-            passed=False,
-            feedback=(
-                f"Found {found[0]} but could not read its content. "
-                "Make sure the repository is public."
-            ),
-        )
-
-    try:
-        parsed = yaml.safe_load(content)
-    except yaml.YAMLError:
-        parsed = None
-
-    has_version = isinstance(parsed, dict) and "version" in parsed
-    updates = parsed.get("updates") if isinstance(parsed, dict) else None
-    has_updates = isinstance(updates, list) and len(updates) > 0
-
-    if has_version and has_updates:
-        return TaskResult(
-            task_name=DEPENDABOT_TASK.name,
-            passed=True,
-            feedback=f"Found valid Dependabot config: {found[0]}",
-        )
-
-    missing = []
-    if not has_version:
-        missing.append("version")
-    if not has_updates:
-        missing.append("updates")
-
-    return TaskResult(
-        task_name=DEPENDABOT_TASK.name,
-        passed=False,
-        feedback=(
-            f"Found {found[0]} but it is missing required keys: "
-            f"{', '.join(missing)}. A valid Dependabot config needs a "
-            "'version' key and at least one 'updates' entry."
-        ),
-    )
-
-
-def _find_codeql_workflow_candidates(file_paths: list[str]) -> list[str]:
-    """Find workflow files that may contain CodeQL configuration.
-
-    Returns workflow paths that either:
-    - Have 'codeql' in the filename
-    - Are any .yml/.yaml file in .github/workflows/ (to check content)
-    """
-    codeql_by_name: list[str] = []
-    other_workflows: list[str] = []
-
-    for path in file_paths:
-        if not path.startswith(".github/workflows/"):
-            continue
-        if not (path.endswith((".yml", ".yaml"))):
-            continue
-
-        filename = path.rsplit("/", 1)[-1].lower()
-        if "codeql" in filename:
-            codeql_by_name.append(path)
-        else:
-            other_workflows.append(path)
-
-    # Prioritise files with codeql in name, then check others
-    return codeql_by_name + other_workflows
-
-
-async def _fetch_workflow_content(
-    repo_files: RepoFiles, owner: str, repo: str, path: str
-) -> str | None:
-    """Fetch a single workflow file's raw content from GitHub."""
-    return await repo_files.file(owner, repo, path)
-
-
-async def _check_codeql(
-    repo_files: RepoFiles, owner: str, repo: str, file_paths: list[str]
-) -> TaskResult:
-    """Check for CodeQL workflow in the repository.
-
-    First checks filenames for 'codeql', then fetches workflow content
-    to look for the github/codeql-action action reference.
-    """
-    candidates = _find_codeql_workflow_candidates(file_paths)
-
-    if not candidates:
-        return TaskResult(
-            task_name=CODEQL_TASK.name,
-            passed=False,
-            feedback=(
-                "No CodeQL workflow found. Add a CodeQL analysis workflow "
-                "in .github/workflows/ using the github/codeql-action action."
-            ),
-        )
-
-    # Check files with 'codeql' in the name first — they're most likely matches
-    codeql_named = [c for c in candidates if "codeql" in c.rsplit("/", 1)[-1].lower()]
-    if codeql_named:
-        # Fetch to confirm it actually uses the CodeQL action
-        content = await _fetch_workflow_content(
-            repo_files, owner, repo, codeql_named[0]
-        )
-        if content and CODEQL_ACTION_PATTERN in content:
-            return TaskResult(
-                task_name=CODEQL_TASK.name,
-                passed=True,
-                feedback=f"Found CodeQL workflow: {codeql_named[0]}",
-            )
-
-    # Check remaining workflow files for CodeQL action usage
-    to_check = [c for c in candidates if c not in codeql_named][
-        : CODEQL_TASK.evidence.max_files
-    ]
-
-    fetch_tasks = [
-        _fetch_workflow_content(repo_files, owner, repo, path) for path in to_check
-    ]
-    results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
-
-    for path, result in zip(to_check, results, strict=True):
-        if isinstance(result, BaseException) or result is None:
-            continue
-        if CODEQL_ACTION_PATTERN in result:
-            return TaskResult(
-                task_name=CODEQL_TASK.name,
-                passed=True,
-                feedback=f"Found CodeQL action in workflow: {path}",
-            )
-
-    return TaskResult(
-        task_name=CODEQL_TASK.name,
-        passed=False,
-        feedback=(
-            "No workflow using github/codeql-action found. Add a CodeQL "
-            "analysis workflow to enable code scanning."
-        ),
-    )
+# Fixed paths graded by the rubric: the committed CodeQL workflow plus optional
+# Dependabot config. Missing files are skipped by ``collect_repo_file_evidence``.
+SECURITY_SCANNING_EVIDENCE_PATHS = [CODEQL_WORKFLOW_PATH, *DEPENDABOT_CONFIG_PATHS]
 
 
 async def collect_security_scanning_evidence(
     owner: str,
     repo: str,
-    file_paths: list[str],
     task: VerificationTask = SECURITY_SCANNING_RUBRIC_TASK,
     repo_files: RepoFiles | None = None,
 ) -> EvidenceBundle:
-    """Collect bounded Phase 6 repository evidence for rubric grading."""
-    repo_files = repo_files or default_repo_files()
-    codeql_candidates = set(_find_codeql_workflow_candidates(file_paths))
-    candidate_paths = [
-        path
-        for path in file_paths
-        if path in DEPENDABOT_CONFIG_PATHS or path in codeql_candidates
-    ]
-    unique_paths = list(dict.fromkeys(candidate_paths))[: task.evidence.max_files]
-    return await collect_repo_file_evidence(repo_files, owner, repo, unique_paths, task)
+    """Collect bounded Phase 6 repository evidence for rubric grading.
 
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential_jitter(initial=0.5, max=10),
-    retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
-    reraise=True,
-)
-async def _verify_security_scanning(
-    repo_files: RepoFiles, owner: str, repo: str, file_paths: list[str]
-) -> ValidationResult:
-    """Internal: run security scanning checks with retry."""
-    dependabot_result = await _check_dependabot(repo_files, owner, repo, file_paths)
-    codeql_result = await _check_codeql(repo_files, owner, repo, file_paths)
-
-    task_results = [dependabot_result, codeql_result]
-    any_passed = dependabot_result.passed or codeql_result.passed
-    all_passed = dependabot_result.passed and codeql_result.passed
-
-    passed_count = sum(1 for t in task_results if t.passed)
-
-    span = trace.get_current_span()
-    span.set_attribute("security.dependabot", dependabot_result.passed)
-    span.set_attribute("security.codeql", codeql_result.passed)
-    span.set_attribute("security.passed_count", passed_count)
-
-    if all_passed:
-        message = (
-            "Both Dependabot and CodeQL scanning are configured. "
-            "Your repository has comprehensive security scanning enabled."
-        )
-    elif any_passed:
-        passed_name = (
-            dependabot_result.task_name
-            if dependabot_result.passed
-            else codeql_result.task_name
-        )
-        message = (
-            f"{passed_name} is configured. Security scanning verified! "
-            "Consider enabling the other scanner for more comprehensive coverage."
-        )
-    else:
-        message = (
-            "No security scanning found. Enable Dependabot "
-            "(.github/dependabot.yml) or CodeQL (.github/workflows/) "
-            "on your repository and try again."
-        )
-
-    return ValidationResult(
-        is_valid=any_passed,
-        message=message,
-        task_results=task_results,
-    )
-
-
-async def validate_security_scanning(
-    owner: str,
-    repo: str,
-    repo_files: RepoFiles | None = None,
-) -> ValidationResult:
-    """Verify a learner's GitHub repo has security scanning enabled.
-
-    URL validation and ownership checks are handled by the engine gate
-    before this function is called.
-
-    Flow:
-      1. Fetch the repo file tree
-      2. Check for Dependabot config and/or CodeQL workflows
-      3. Return per-check results (pass if at least one is found)
-
-    Args:
-        owner: Repository owner (GitHub username).
-        repo: Repository name.
-        repo_files: Read access to the repository; defaults to live GitHub.
-
-    Returns:
-        ValidationResult with is_valid=True if at least one security feature
-        is found, and detailed task_results for feedback.
+    Fetches the fixed CodeQL workflow (``.github/workflows/codeql.yml``) and
+    any Dependabot config from the default branch. Files that do not exist are
+    skipped, so a repo without Dependabot simply yields the workflow alone.
     """
     repo_files = repo_files or default_repo_files()
-    try:
-        all_files = await repo_files.tree(owner, repo)
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 404:
-            return ValidationResult(
-                is_valid=False,
-                message=(
-                    f"Repository '{owner}/{repo}' not found. "
-                    "Make sure the repository is public."
-                ),
-                username_match=True,
-            )
-        raise
-
-    return await _verify_security_scanning(repo_files, owner, repo, all_files)
+    return await collect_repo_file_evidence(
+        repo_files, owner, repo, SECURITY_SCANNING_EVIDENCE_PATHS, task
+    )
