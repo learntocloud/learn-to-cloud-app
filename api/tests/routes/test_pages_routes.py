@@ -208,7 +208,7 @@ class TestPhasePage:
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.build_phase_topics",
-                return_value=([], {}),
+                return_value=[],
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_submission_context",

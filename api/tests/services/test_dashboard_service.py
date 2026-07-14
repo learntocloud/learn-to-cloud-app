@@ -10,7 +10,7 @@ Tests cover:
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -165,7 +165,8 @@ class TestGetDashboardDataUnauthenticated:
 class TestGetDashboardDataAuthenticated:
     @pytest.mark.asyncio
     async def test_partial_progress_has_continue_phase(self):
-        """User with incomplete phase 0 gets continue_phase pointing to phase 0."""
+        """User with incomplete phase 0 gets continue_phase pointing at the
+        destination resolve_continue_destination computes for that phase."""
         phases = (_make_phase(0), _make_phase(1))
         user_progress = UserProgress(
             user_id=42,
@@ -200,12 +201,65 @@ class TestGetDashboardDataAuthenticated:
                 autospec=True,
                 return_value=progress_data,
             ),
+            patch(
+                "learn_to_cloud.services.dashboard_service.get_phase_by_slug",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.services.dashboard_service.resolve_continue_destination",
+                new_callable=AsyncMock,
+                return_value="/phase/0/first-topic",
+            ),
         ):
             result = await get_dashboard_data(db=AsyncMock(), user_id=42)
 
         assert result.continue_phase is not None
-        assert result.continue_phase.phase_id == 0
-        assert result.continue_phase.slug == "phase0"
+        assert result.continue_phase.destination_url == "/phase/0/first-topic"
+        assert result.continue_phase.label == "Phase 0: Phase 0"
+
+    @pytest.mark.asyncio
+    async def test_continue_phase_falls_back_to_bare_link_when_phase_lookup_fails(self):
+        """A missing catalog lookup falls back to the plain phase link."""
+        phases = (_make_phase(0),)
+        user_progress = UserProgress(
+            user_id=42,
+            phases={0: _make_phase_progress(0, steps_completed=2, steps_required=5)},
+            total_phases=1,
+        )
+        progress_data = PhaseProgressData(
+            learning=LearningProgress(steps_completed=2, steps_required=5),
+            verification=VerificationProgress(
+                requirements_verified=0, requirements_required=1
+            ),
+            is_complete=False,
+            status="in_progress",
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.services.dashboard_service.get_curriculum_overview",
+                autospec=True,
+                return_value=phases,
+            ),
+            patch(
+                "learn_to_cloud.services.dashboard_service.fetch_user_progress",
+                autospec=True,
+                return_value=user_progress,
+            ),
+            patch(
+                "learn_to_cloud.services.dashboard_service.phase_progress_to_data",
+                autospec=True,
+                return_value=progress_data,
+            ),
+            patch(
+                "learn_to_cloud.services.dashboard_service.get_phase_by_slug",
+                return_value=None,
+            ),
+        ):
+            result = await get_dashboard_data(db=AsyncMock(), user_id=42)
+
+        assert result.continue_phase is not None
+        assert result.continue_phase.destination_url == "/phase/0"
 
     @pytest.mark.asyncio
     async def test_program_complete_no_continue_phase(self):
@@ -291,6 +345,15 @@ class TestGetDashboardDataAuthenticated:
                 "learn_to_cloud.services.dashboard_service.phase_progress_to_data",
                 autospec=True,
                 return_value=progress_data,
+            ),
+            patch(
+                "learn_to_cloud.services.dashboard_service.get_phase_by_slug",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.services.dashboard_service.resolve_continue_destination",
+                new_callable=AsyncMock,
+                return_value="/phase/0/first-topic",
             ),
         ):
             result = await get_dashboard_data(db=AsyncMock(), user_id=42)
@@ -383,8 +446,11 @@ class TestGetDashboardDataQueryCount:
         # check across every current requirement, and the legacy
         # submissions fallback query -- unavoidable here since this user
         # has only attempted one of several current requirements, so most
-        # remain "unattempted" and the fallback check always runs). See
-        # progress_reads.py for the exact breakdown; the important
-        # invariant is that this count is fixed, not proportional to the
-        # number of steps/requirements in the curriculum.
-        assert len(statements) == 5
+        # remain "unattempted" and the fallback check always runs), plus 2
+        # more for resolving the "Continue" destination's first-unchecked
+        # step within the current phase (authoritative + legacy fallback
+        # again, scoped to that one phase's steps). See progress_reads.py
+        # for the exact breakdown; the important invariant is that this
+        # count is fixed, not proportional to the number of steps/
+        # requirements in the curriculum.
+        assert len(statements) == 7

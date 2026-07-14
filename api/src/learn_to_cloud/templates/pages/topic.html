@@ -16,7 +16,13 @@
 {% endif %}
 
 {% if user and progress %}
-{% with progress=progress, progress_id='topic-progress' %}
+{% with
+    value=progress.percentage,
+    label=progress.completed ~ '/' ~ progress.total ~ ' steps checked',
+    complete=(progress.completed == progress.total and progress.total > 0),
+    aria_label='Learning steps checked: ' ~ progress.completed ~ ' of ' ~ progress.total,
+    id='topic-progress'
+%}
 {% include "partials/progress_bar.html" %}
 {% endwith %}
 {% endif %}

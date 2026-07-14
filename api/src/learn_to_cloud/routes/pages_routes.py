@@ -31,6 +31,7 @@ from learn_to_cloud.rendering.context import (
     build_progress_dict,
     build_requirement_card_context,
     build_topic_nav,
+    feedback_tasks_and_passed,
 )
 from learn_to_cloud.services.dashboard_service import get_dashboard_data
 from learn_to_cloud.services.progress_service import fetch_phase_progress
@@ -122,7 +123,7 @@ async def phase_page(
         )
 
     detail = await fetch_phase_progress(db, user_id, phase)
-    topics, progress = build_phase_topics(phase, detail)
+    topics = build_phase_topics(phase, detail)
 
     requirements = []
     hands_on = phase.hands_on_verification
@@ -161,17 +162,26 @@ async def phase_page(
         if attempt.requirement_uuid in requirements_by_uuid
     }
 
-    # Pre-compute per-requirement derived URLs so the Jinja template never
-    # builds GitHub URLs. Uses the same helper as the HTMX submit route to
-    # guarantee a single source of truth.
+    # Pre-compute one verification-card context per requirement -- derived
+    # URL, card state, and banner text all in one place, so the template
+    # never re-derives a card's flags from raw submission fields (also the
+    # single source of truth the locked and unlocked branches both read).
     github_username = user.github_username if user else None
-    derived_urls_by_req: dict[str, str | None] = {}
+    card_contexts_by_req: dict[str, dict] = {}
     for req in requirements:
-        card_ctx = build_requirement_card_context(
+        feedback_tasks, feedback_passed = feedback_tasks_and_passed(
+            feedback_by_req.get(req.slug)
+        )
+        active_job = active_jobs_by_req.get(req.slug)
+        card_contexts_by_req[req.slug] = build_requirement_card_context(
             requirement=req,
             github_username=github_username,
+            submission=submissions_by_req.get(req.slug),
+            feedback_tasks=feedback_tasks,
+            feedback_passed=feedback_passed,
+            processing=active_job is not None,
+            verification_status_token=verification_status_tokens_by_req.get(req.slug),
         )
-        derived_urls_by_req[req.slug] = card_ctx["derived_url"]
 
     # Sequential phase gating — check if prerequisite phase is complete
     verification_locked, prerequisite_phase_id = await is_phase_verification_locked(
@@ -187,12 +197,8 @@ async def phase_page(
             phase=phase,
             topics=topics,
             requirements=requirements,
-            submissions_by_req=submissions_by_req,
-            feedback_by_req=feedback_by_req,
-            active_jobs_by_req=active_jobs_by_req,
-            verification_status_tokens_by_req=verification_status_tokens_by_req,
-            derived_urls_by_req=derived_urls_by_req,
-            progress=progress,
+            card_contexts_by_req=card_contexts_by_req,
+            phase_progress=detail,
             verification_locked=verification_locked,
             prerequisite_phase_id=prerequisite_phase_id,
         ),

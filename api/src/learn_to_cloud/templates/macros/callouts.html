@@ -33,7 +33,7 @@ Macros:
 } %}
 
 {% macro banner(message, variant="error", report=false, report_title="", report_context="") %}
-<div class="mt-3 rounded-md p-3 {{ _BANNER_CLASSES[variant] }}">
+<div class="mt-3 rounded-md p-3 {{ _BANNER_CLASSES[variant] }}" role="status" aria-live="polite">
     <p class="text-sm">{{ message }}</p>
     {% if report %}
     <a

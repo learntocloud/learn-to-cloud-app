@@ -1,14 +1,25 @@
+{# Requirement verification card. One ``card_state`` (from
+   build_requirement_card_context) drives the whole card instead of a
+   scattered combination of submission/processing/server_error flags:
+   'checking' | 'passed' | 'failed' | 'unavailable' | 'not_started'.
+
+   Required context (all provided by build_requirement_card_context):
+     requirement, submission, feedback_tasks, feedback_passed, card_state,
+     server_error, server_error_message, server_error_retryable,
+     error_banner, processing, verification_status_token,
+     verification_status_delay_seconds, derived_url
+#}
 {% from "macros/badges.html" import status_pill %}
 {% from "macros/callouts.html" import banner %}
 <div id="requirement-{{ requirement.slug }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
     <div class="flex items-center justify-between mb-2">
         <h4 class="font-medium text-gray-900 dark:text-gray-100">{{ requirement.name }}</h4>
-        {% if submission and submission.is_validated %}
+        {% if card_state == 'passed' %}
         {{ status_pill("✓ Verified", "success") }}
-        {% elif submission and not submission.is_validated and server_error %}
-        {{ status_pill("⚠ Service Error", "warning") }}
-        {% elif submission and not submission.is_validated %}
-        {{ status_pill("✗ Failed", "error") }}
+        {% elif card_state == 'unavailable' %}
+        {{ status_pill("⚠ Service unavailable", "warning") }}
+        {% elif card_state == 'failed' %}
+        {{ status_pill("Needs work", "error") }}
         {% endif %}
     </div>
 
@@ -16,7 +27,7 @@
     <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ requirement.description }}</p>
     {% endif %}
 
-    {% if processing and verification_status_token %}
+    {% if card_state == 'checking' and verification_status_token %}
     {# Verification in progress — poll the Durable status proxy until terminal. #}
     <div
         hx-get="/htmx/verification/jobs/status?token={{ verification_status_token | urlencode }}"
@@ -24,17 +35,19 @@
         hx-target="#requirement-{{ requirement.slug }}"
         hx-swap="outerHTML"
         class="flex items-center gap-3 py-3"
+        role="status"
+        aria-live="polite"
     >
-        <div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+        <div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full" aria-hidden="true"></div>
         <span class="text-sm text-gray-600 dark:text-gray-400">
             Analyzing your code... this usually takes 30–60 seconds.
         </span>
     </div>
-    {% elif processing %}
-    <div class="text-amber-600 dark:text-amber-400 text-sm p-2">
+    {% elif card_state == 'checking' %}
+    <div class="text-amber-600 dark:text-amber-400 text-sm p-2" role="status">
         Verification is running. Refresh the page to check for results.
     </div>
-    {% elif not submission or not submission.is_validated %}
+    {% elif card_state != 'passed' %}
     {% set is_reflection = requirement.submission_type == 'career_reflection' %}
     {% set is_architecture = requirement.submission_type == 'deployment_architecture' %}
     <form
@@ -153,8 +166,10 @@
     </form>
     {% endif %}
 
-    {% set _failure_reportable = submission is not none and not submission.is_validated and not submission.verification_completed %}
-    {% if server_error %}
+    {% if card_state == 'unavailable' %}
+    {# System/retryable fault -- not the learner's doing, so always worth
+       reporting and never blamed on them (covers both server_error and
+       cancelled outcomes). #}
     {{ banner(
         (server_error_message or 'The verification service encountered an error.')
         + (' This attempt was not counted against your rate limit, so you can try again immediately.'
@@ -165,15 +180,13 @@
         report_title='Verification error: ' ~ requirement.name,
         report_context='requirement=' ~ requirement.slug
     ) }}
-    {% endif %}
-
-    {% if error_banner %}
+    {% elif error_banner %}
+    {# A real learner-facing outcome: either a pre-submit validation issue,
+       or the rubric's reason a completed attempt didn't pass. #}
     {{ banner(
         error_banner,
         'error',
-        report=_failure_reportable,
-        report_title='Verification error: ' ~ requirement.name,
-        report_context='requirement=' ~ requirement.slug
+        report=false
     ) }}
     {% endif %}
 

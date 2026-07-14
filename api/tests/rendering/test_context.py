@@ -2,11 +2,12 @@
 
 Tests cover:
 - build_progress_dict percentage calculation
-- build_feedback_tasks_from_results object conversion
 - build_phase_topics merges topics with progress
 - build_topic_nav prev/next navigation
+- build_requirement_card_context card_state derivation
 """
 
+from typing import Literal
 from uuid import uuid4
 
 import pytest
@@ -17,14 +18,12 @@ from learn_to_cloud_shared.schemas import (
     LearningStep,
     Phase,
     PhaseProgress,
-    TaskResult,
     Topic,
     TopicProgressData,
     VerificationProgress,
 )
 
 from learn_to_cloud.rendering.context import (
-    build_feedback_tasks_from_results,
     build_phase_topics,
     build_progress_dict,
     build_requirement_card_context,
@@ -64,35 +63,6 @@ class TestBuildProgressDict:
 
 
 # ---------------------------------------------------------------------------
-# build_feedback_tasks_from_results
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestBuildFeedbackTasksFromResults:
-    def test_with_results(self):
-        results = [
-            TaskResult(task_name="Task A", passed=True, feedback="Good"),
-            TaskResult(task_name="Task B", passed=False, feedback="Fix this"),
-        ]
-        tasks, passed = build_feedback_tasks_from_results(results)
-        assert len(tasks) == 2
-        assert passed == 1
-        assert tasks[0]["name"] == "Task A"
-        assert tasks[1]["message"] == "Fix this"
-
-    def test_none_input(self):
-        tasks, passed = build_feedback_tasks_from_results(None)
-        assert tasks == []
-        assert passed == 0
-
-    def test_empty_list(self):
-        tasks, passed = build_feedback_tasks_from_results([])
-        assert tasks == []
-        assert passed == 0
-
-
-# ---------------------------------------------------------------------------
 # build_phase_topics
 # ---------------------------------------------------------------------------
 
@@ -123,13 +93,11 @@ class TestBuildPhaseTopics:
                 ),
             },
         )
-        topics, progress = build_phase_topics(phase, detail)
+        topics = build_phase_topics(phase, detail)
         assert len(topics) == 1
         assert topics[0]["name"] == "Basics"
         assert topics[0]["slug"] == "basics"
         assert topics[0]["progress"]["completed"] == 1
-        assert progress["percentage"] == pytest.approx(33.3, abs=0.1)
-        assert progress["is_complete"] is False
 
     def test_topic_without_progress(self):
         topic = _make_topic("phase0-t1", "basics")
@@ -148,36 +116,29 @@ class TestBuildPhaseTopics:
             ),
             topic_progress={},
         )
-        topics, _ = build_phase_topics(phase, detail)
+        topics = build_phase_topics(phase, detail)
         assert topics[0]["progress"] is None
 
-    def test_progress_is_complete_when_all_done(self):
-        topic = _make_topic("phase0-t1", "basics", "Basics")
+    def test_topic_order_matches_phase_topic_order(self):
+        first = _make_topic("phase0-t1", "first", "First")
+        second = _make_topic("phase0-t2", "second", "Second")
         phase = Phase(
             uuid=uuid4(),
             name="P0",
             slug="phase0",
             order=0,
-            topics=[topic],
+            topics=[first, second],
         )
         detail = PhaseProgress(
             phase_id=0,
-            learning=LearningProgress(steps_completed=3, steps_required=3),
+            learning=LearningProgress(steps_completed=1, steps_required=6),
             verification=VerificationProgress(
-                requirements_verified=1, requirements_required=1
+                requirements_verified=0, requirements_required=0
             ),
-            topic_progress={
-                topic.uuid: TopicProgressData(
-                    steps_completed=3,
-                    steps_total=3,
-                    percentage=100.0,
-                    status="completed",
-                ),
-            },
+            topic_progress={},
         )
-        _, progress = build_phase_topics(phase, detail)
-        assert progress["percentage"] == 100
-        assert progress["is_complete"] is True
+        topics = build_phase_topics(phase, detail)
+        assert [t["slug"] for t in topics] == ["first", "second"]
 
 
 # ---------------------------------------------------------------------------
@@ -305,3 +266,111 @@ class TestBuildRequirementCardContext:
                     "type_config": {},
                 }
             )
+
+
+# ---------------------------------------------------------------------------
+# build_requirement_card_context — card_state derivation
+# ---------------------------------------------------------------------------
+
+
+def _make_submission(
+    *,
+    is_validated: bool,
+    verification_completed: bool = False,
+    validation_message: str | None = None,
+    source: Literal["attempt", "legacy"] = "attempt",
+):
+    from datetime import UTC, datetime
+
+    from learn_to_cloud_shared.schemas import SubmissionData
+
+    return SubmissionData(
+        id=uuid4(),
+        submitted_value="https://github.com/alice/repo",
+        is_validated=is_validated,
+        verification_completed=verification_completed,
+        validation_message=validation_message,
+        created_at=datetime(2024, 1, 1, tzinfo=UTC),
+        source=source,
+    )
+
+
+@pytest.mark.unit
+class TestBuildRequirementCardContextCardState:
+    def test_processing_is_checking_regardless_of_submission(self):
+        req = _make_requirement(SubmissionType.CTF_TOKEN)
+        ctx = build_requirement_card_context(
+            requirement=req, github_username="alice", processing=True
+        )
+        assert ctx["card_state"] == "checking"
+
+    def test_no_submission_is_not_started(self):
+        req = _make_requirement(SubmissionType.CTF_TOKEN)
+        ctx = build_requirement_card_context(requirement=req, github_username="alice")
+        assert ctx["card_state"] == "not_started"
+        assert ctx["error_banner"] is None
+
+    def test_validated_submission_is_passed(self):
+        req = _make_requirement(SubmissionType.CTF_TOKEN)
+        submission = _make_submission(is_validated=True, verification_completed=True)
+        ctx = build_requirement_card_context(
+            requirement=req, github_username="alice", submission=submission
+        )
+        assert ctx["card_state"] == "passed"
+
+    def test_learner_failure_is_failed_with_validation_message(self):
+        req = _make_requirement(SubmissionType.CTF_TOKEN)
+        submission = _make_submission(
+            is_validated=False,
+            verification_completed=True,
+            validation_message="Token did not match.",
+        )
+        ctx = build_requirement_card_context(
+            requirement=req, github_username="alice", submission=submission
+        )
+        assert ctx["card_state"] == "failed"
+        assert ctx["error_banner"] == "Token did not match."
+        assert ctx["server_error"] is False
+
+    def test_persisted_system_fault_is_unavailable_not_failed(self):
+        """A terminal server_error/cancelled outcome, read back from storage.
+
+        Regression: previously the phase page hardcoded ``server_error=False``
+        for every persisted card, so this state rendered identically to a
+        real learner failure.
+        """
+        req = _make_requirement(SubmissionType.CTF_TOKEN)
+        submission = _make_submission(is_validated=False, verification_completed=False)
+        ctx = build_requirement_card_context(
+            requirement=req, github_username="alice", submission=submission
+        )
+        assert ctx["card_state"] == "unavailable"
+        assert ctx["server_error"] is True
+        assert ctx["server_error_message"]
+        # No red inline banner text -- the amber service banner covers it.
+        assert ctx["error_banner"] is None
+
+    def test_legacy_fallback_submission_maps_same_as_attempt(self):
+        """A legacy-sourced submission uses the same is_validated-driven state."""
+        req = _make_requirement(SubmissionType.CTF_TOKEN)
+        submission = _make_submission(
+            is_validated=True, verification_completed=True, source="legacy"
+        )
+        ctx = build_requirement_card_context(
+            requirement=req, github_username="alice", submission=submission
+        )
+        assert ctx["card_state"] == "passed"
+
+    def test_explicit_server_error_overrides_missing_submission(self):
+        """The live submit/poll flow can force 'unavailable' with no row yet."""
+        req = _make_requirement(SubmissionType.CTF_TOKEN)
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username="alice",
+            server_error=True,
+            server_error_message="Verification could not be started.",
+            server_error_retryable=False,
+        )
+        assert ctx["card_state"] == "unavailable"
+        assert ctx["server_error_message"] == "Verification could not be started."
+        assert ctx["server_error_retryable"] is False

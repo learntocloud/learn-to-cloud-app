@@ -1,0 +1,19 @@
+{# Compact "already verified" requirement row with optional expandable
+   feedback explaining why it passed. Shared by the locked and unlocked
+   branches of pages/phase.html so there's exactly one verified-row markup.
+
+   Required context:
+     card  – a build_requirement_card_context() dict with card_state == 'passed'
+#}
+<div id="requirement-{{ card.requirement.slug }}">
+    <div class="flex items-center gap-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-2.5">
+        <span class="text-green-600 dark:text-green-400" aria-hidden="true">✓</span>
+        <span class="text-sm font-medium text-green-800 dark:text-green-200">{{ card.requirement.name }}</span>
+        <span class="sr-only">— Verified</span>
+    </div>
+    {% if card.feedback_tasks %}
+    {% with feedback_tasks=card.feedback_tasks, feedback_passed=card.feedback_passed, requirement_slug=card.requirement.slug %}
+    {% include "partials/verification_feedback.html" %}
+    {% endwith %}
+    {% endif %}
+</div>

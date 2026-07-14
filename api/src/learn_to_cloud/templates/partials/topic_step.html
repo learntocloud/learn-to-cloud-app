@@ -21,7 +21,17 @@ markdown and the template owns the rendering call.
     class="rounded-xl border {% if is_completed %}border-green-200 bg-green-50/40 dark:border-green-800/50 dark:bg-green-900/10{% else %}border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50{% endif %} shadow-sm transition-colors"
     x-data="{ expanded: {{ 'false' if is_completed else 'true' }} }"
 >
-    <div class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none" @click="expanded = !expanded">
+    <div
+        class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none{% if has_body %} focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset{% endif %}"
+        {% if has_body %}
+        role="button"
+        tabindex="0"
+        :aria-expanded="expanded"
+        @keydown.enter.prevent="expanded = !expanded"
+        @keydown.space.prevent="expanded = !expanded"
+        {% endif %}
+        @click="expanded = !expanded"
+    >
         {% if user %}
         <input
             type="checkbox"
@@ -37,6 +47,8 @@ markdown and the template owns the rendering call.
             hx-swap="outerHTML"
             hx-disabled-elt="this"
             @click.stop
+            @keydown.space.stop
+            @keydown.enter.stop
         >
         {% else %}
         <div class="h-5 w-5 rounded border-2 border-gray-300 dark:border-gray-600 flex-shrink-0"></div>
