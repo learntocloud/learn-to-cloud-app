@@ -130,6 +130,31 @@ class SubmissionValueKind(StrEnum):
     TEXT = "text"
 
 
+class VerificationAttemptOutcome(StrEnum):
+    """Terminal result of a verification attempt.
+
+    ``NULL`` (absent) marks an active, in-flight attempt; the values here
+    are only ever set once the attempt reaches a terminal state.
+    """
+
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    SERVER_ERROR = "server_error"
+    CANCELLED = "cancelled"
+
+
+class VerificationSnapshotSource(StrEnum):
+    """Provenance of an attempt's requirement snapshot.
+
+    ``submitted`` attempts carry the requirement definition captured at
+    submission time; ``reconstructed`` attempts were built by a backfill
+    from legacy rows and may honestly lack the original artifact metadata.
+    """
+
+    SUBMITTED = "submitted"
+    RECONSTRUCTED = "reconstructed"
+
+
 class Submission(TimestampMixin, Base):
     """Tracks validated submissions for hands-on verification.
 
@@ -454,6 +479,159 @@ class StepProgress(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="step_progress")
+
+
+class LearnerStepCompletion(Base):
+    """Curriculum-decoupled record of a learner completing a step.
+
+    Expand-only companion to :class:`StepProgress`. Keyed on
+    ``step_uuid`` with no FK to the curriculum tables so a step whose
+    definition is later soft-deleted or renumbered never blocks writes.
+    While legacy API revisions remain the writers of ``step_progress``,
+    a temporary database trigger mirrors inserts and deletes here; the
+    explicit new-table writes land in a later PR.
+    """
+
+    __tablename__ = "learner_step_completions"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    step_uuid: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+    )
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+    )
+
+    user: Mapped["User"] = relationship()
+
+
+class VerificationAttempt(TimestampMixin, Base):
+    """One verification attempt, keyed by its Durable orchestration id.
+
+    ``id`` doubles as the Durable Functions instance id (matching the
+    legacy ``verification_jobs`` contract). ``requirement_uuid`` carries
+    no FK to the curriculum tables so history survives curriculum
+    churn. An attempt is *active* while ``outcome`` is ``NULL`` and
+    *terminal* once an outcome and ``completed_at`` are set together.
+
+    Expand-only: this table is populated by backfill and (later)
+    dual-writes; active runtime readers/writers are unchanged in this PR.
+    """
+
+    __tablename__ = "verification_attempts"
+    __table_args__ = (
+        CheckConstraint(
+            "submission_value_kind IN ('github_url', 'token', 'deployed_url', 'text')",
+            name="ck_verification_attempts_value_kind",
+        ),
+        CheckConstraint(
+            "length(btrim(submitted_value)) > 0",
+            name="ck_verification_attempts_submitted_value_nonempty",
+        ),
+        CheckConstraint(
+            "outcome IS NULL OR outcome IN "
+            "('succeeded', 'failed', 'server_error', 'cancelled')",
+            name="ck_verification_attempts_outcome",
+        ),
+        CheckConstraint(
+            "(outcome IS NULL) = (completed_at IS NULL)",
+            name="ck_verification_attempts_outcome_completed_at",
+        ),
+        CheckConstraint(
+            "snapshot_source IN ('submitted', 'reconstructed')",
+            name="ck_verification_attempts_snapshot_source",
+        ),
+        # New ``submitted`` attempts must carry a real requirement snapshot
+        # and its hash. ``reconstructed`` migrated history may honestly
+        # leave the artifact metadata NULL.
+        CheckConstraint(
+            "snapshot_source = 'reconstructed' OR ("
+            "requirement_snapshot IS NOT NULL "
+            "AND requirement_snapshot_hash IS NOT NULL)",
+            name="ck_verification_attempts_submitted_snapshot_present",
+        ),
+        Index(
+            "uq_verification_attempts_active_user_req",
+            "user_id",
+            "requirement_uuid",
+            unique=True,
+            postgresql_where=text("outcome IS NULL"),
+        ),
+        Index(
+            "ix_verification_attempts_succeeded_user_req",
+            "user_id",
+            "requirement_uuid",
+            postgresql_where=text("outcome = 'succeeded'"),
+        ),
+        Index(
+            "ix_verification_attempts_user_req_created",
+            "user_id",
+            "requirement_uuid",
+            text("created_at DESC"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    requirement_uuid: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        nullable=False,
+    )
+
+    # Identity / snapshot of the curriculum artifact and requirement.
+    # Text/BigInteger throughout to satisfy squawk's prefer-text-field and
+    # prefer-bigint-over-int safety rules for new columns.
+    artifact_schema_version: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True
+    )
+    curriculum_version: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    requirement_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    requirement_snapshot_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    snapshot_source: Mapped[str] = mapped_column(Text, nullable=False)
+    payload_version: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    # Submitted identity / value.
+    github_username_snapshot: Mapped[str | None] = mapped_column(Text, nullable=True)
+    submission_value_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    submitted_value: Mapped[str] = mapped_column(Text, nullable=False)
+    cloud_provider: Mapped[str | None] = mapped_column(Text, nullable=True)
+    traceparent: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Lifecycle / result.
+    outcome: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    feedback_json: Mapped[list[dict] | None] = mapped_column(JSONB, nullable=True)
+    validation_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    terminal_source: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Temporary migration provenance, retained until the final contract PR.
+    legacy_job_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True
+    )
+    legacy_submission_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    user: Mapped["User"] = relationship()
 
 
 # ---------------------------------------------------------------------------
