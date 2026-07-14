@@ -3,8 +3,9 @@
 Tests cover:
 - compute_topic_progress status derivation and stale-step filtering
 - phase_progress_to_data status mapping
-- fetch_user_progress DB assembly
-- fetch_phase_progress per-topic breakdown
+- fetch_user_progress DB assembly (authoritative + narrow legacy fallback)
+- fetch_phase_progress per-topic breakdown, including zero-requirement phases
+- both-measures phase completion (learning AND verification)
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -12,10 +13,12 @@ from uuid import uuid4
 
 import pytest
 from learn_to_cloud_shared.schemas import (
+    LearningProgress,
     LearningStep,
     Phase,
     PhaseProgress,
     Topic,
+    VerificationProgress,
 )
 
 from learn_to_cloud.services.progress_service import (
@@ -116,51 +119,111 @@ class TestComputeTopicProgress:
 # ---------------------------------------------------------------------------
 
 
+def _phase_progress(
+    *,
+    steps_completed: int = 0,
+    steps_required: int = 5,
+    requirements_verified: int = 0,
+    requirements_required: int = 1,
+) -> PhaseProgress:
+    return PhaseProgress(
+        phase_id=0,
+        learning=LearningProgress(
+            steps_completed=steps_completed, steps_required=steps_required
+        ),
+        verification=VerificationProgress(
+            requirements_verified=requirements_verified,
+            requirements_required=requirements_required,
+        ),
+    )
+
+
 @pytest.mark.unit
 class TestPhaseProgressToData:
     def test_completed_status(self):
-        progress = PhaseProgress(
-            phase_id=0,
+        progress = _phase_progress(
             steps_completed=5,
             steps_required=5,
-            hands_on_validated=1,
-            hands_on_required=1,
+            requirements_verified=1,
+            requirements_required=1,
         )
         data = phase_progress_to_data(progress)
         assert data.status == "completed"
+        assert data.is_complete is True
 
     def test_in_progress_from_steps(self):
-        progress = PhaseProgress(
-            phase_id=0,
+        progress = _phase_progress(
             steps_completed=2,
             steps_required=5,
-            hands_on_validated=0,
-            hands_on_required=1,
+            requirements_verified=0,
+            requirements_required=1,
         )
         data = phase_progress_to_data(progress)
         assert data.status == "in_progress"
 
-    def test_in_progress_from_hands_on_only(self):
-        progress = PhaseProgress(
-            phase_id=0,
+    def test_in_progress_from_verification_only(self):
+        progress = _phase_progress(
             steps_completed=0,
             steps_required=5,
-            hands_on_validated=1,
-            hands_on_required=2,
+            requirements_verified=1,
+            requirements_required=2,
         )
         data = phase_progress_to_data(progress)
         assert data.status == "in_progress"
 
     def test_not_started(self):
-        progress = PhaseProgress(
-            phase_id=0,
+        progress = _phase_progress(
             steps_completed=0,
             steps_required=5,
-            hands_on_validated=0,
-            hands_on_required=1,
+            requirements_verified=0,
+            requirements_required=1,
         )
         data = phase_progress_to_data(progress)
         assert data.status == "not_started"
+
+    def test_not_complete_when_only_learning_done(self):
+        """Both measures must be complete -- learning alone isn't enough."""
+        progress = _phase_progress(
+            steps_completed=5,
+            steps_required=5,
+            requirements_verified=0,
+            requirements_required=1,
+        )
+        assert progress.is_complete is False
+        assert progress.status == "in_progress"
+
+    def test_not_complete_when_only_verification_done(self):
+        """Both measures must be complete -- verification alone isn't enough."""
+        progress = _phase_progress(
+            steps_completed=0,
+            steps_required=5,
+            requirements_verified=1,
+            requirements_required=1,
+        )
+        assert progress.is_complete is False
+        assert progress.status == "in_progress"
+
+    def test_zero_requirements_is_verification_complete(self):
+        """A phase with zero requirements is verification-complete by definition."""
+        progress = _phase_progress(
+            steps_completed=5,
+            steps_required=5,
+            requirements_verified=0,
+            requirements_required=0,
+        )
+        assert progress.verification.is_complete is True
+        assert progress.is_complete is True
+
+    def test_zero_steps_is_learning_complete(self):
+        """A phase with zero steps is learning-complete by definition."""
+        progress = _phase_progress(
+            steps_completed=0,
+            steps_required=0,
+            requirements_verified=1,
+            requirements_required=1,
+        )
+        assert progress.learning.is_complete is True
+        assert progress.is_complete is True
 
 
 # ---------------------------------------------------------------------------
@@ -181,6 +244,7 @@ class TestFetchUserProgress:
         step_uuid = uuid4()
         fake_catalog = MagicMock(
             active_step_uuids=frozenset({step_uuid}),
+            active_requirement_uuids=frozenset(),
             phase_order_by_step_uuid={step_uuid: 0},
             phase_order_by_requirement_uuid={},
         )
@@ -203,33 +267,29 @@ class TestFetchUserProgress:
                 return_value=fake_catalog,
             ),
             patch(
-                "learn_to_cloud.services.progress_service.SubmissionRepository",
-                autospec=True,
-            ) as MockSubRepo,
+                "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
+                new=AsyncMock(return_value=({step_uuid}, set())),
+            ),
             patch(
-                "learn_to_cloud.services.progress_service.StepProgressRepository",
-                autospec=True,
-            ) as MockStepRepo,
+                "learn_to_cloud.services.progress_service.resolve_succeeded_requirement_uuids",
+                new=AsyncMock(return_value=(set(), set())),
+            ),
         ):
-            MockSubRepo.return_value.get_validated_requirement_uuids = AsyncMock(
-                return_value=set()
-            )
-            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
-                return_value={step_uuid}
-            )
             result = await fetch_user_progress(AsyncMock(), user_id=1)
             assert result.user_id == 1
-            assert result.phases[0].steps_completed == 1
-            assert result.phases[0].steps_required == 3
+            assert result.phases[0].learning.steps_completed == 1
+            assert result.phases[0].learning.steps_required == 3
 
     @pytest.mark.asyncio
-    async def test_groups_hands_on_validations_by_phase_and_ignores_stale_uuids(self):
-        """Validated/completed UUIDs no longer in the catalog are dropped.
+    async def test_groups_completions_by_phase_and_ignores_stale_uuids(self):
+        """Completed/succeeded UUIDs no longer in the catalog are dropped.
 
-        Simulates a retired step and a retired requirement (validated by
-        the user in the past, but absent from ``phase_order_by_*_uuid``
-        because the content was since removed) alongside one current
-        step and one current requirement, each in a different phase.
+        Simulates a retired step and a retired requirement (completed by
+        the user in the past, but the resolver still returns them because
+        the repository query itself only filters on candidate UUIDs the
+        caller passed in) alongside one current step and one current
+        requirement, each in a different phase. A UUID absent from
+        ``phase_order_by_*_uuid`` must not inflate any phase's progress.
         """
         from learn_to_cloud_shared.requirements import RequirementIndex
         from learn_to_cloud_shared.schemas import PhaseOverview
@@ -244,6 +304,7 @@ class TestFetchUserProgress:
         stale_req_uuid = uuid4()
         fake_catalog = MagicMock(
             active_step_uuids=frozenset({current_step_uuid}),
+            active_requirement_uuids=frozenset({current_req_uuid}),
             phase_order_by_step_uuid={current_step_uuid: 0},
             phase_order_by_requirement_uuid={current_req_uuid: 1},
         )
@@ -266,26 +327,73 @@ class TestFetchUserProgress:
                 return_value=fake_catalog,
             ),
             patch(
-                "learn_to_cloud.services.progress_service.SubmissionRepository",
-                autospec=True,
-            ) as MockSubRepo,
+                "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
+                new=AsyncMock(
+                    return_value=({current_step_uuid, stale_step_uuid}, set())
+                ),
+            ),
             patch(
-                "learn_to_cloud.services.progress_service.StepProgressRepository",
-                autospec=True,
-            ) as MockStepRepo,
+                "learn_to_cloud.services.progress_service.resolve_succeeded_requirement_uuids",
+                new=AsyncMock(return_value=({current_req_uuid, stale_req_uuid}, set())),
+            ),
         ):
-            MockSubRepo.return_value.get_validated_requirement_uuids = AsyncMock(
-                return_value={current_req_uuid, stale_req_uuid}
-            )
-            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
-                return_value={current_step_uuid, stale_step_uuid}
-            )
             result = await fetch_user_progress(AsyncMock(), user_id=1)
 
         # Only UUIDs mapped by the catalog count toward a phase; stale
         # step/requirement UUIDs (not in phase_order_by_*_uuid) drop out.
-        assert result.phases[0].steps_completed == 1
-        assert result.phases[1].hands_on_validated == 1
+        assert result.phases[0].learning.steps_completed == 1
+        assert result.phases[1].verification.requirements_verified == 1
+
+    @pytest.mark.asyncio
+    async def test_legacy_fallback_counts_surface_on_typed_models(self):
+        """Fallback-only UUIDs are both counted and flagged for observability."""
+        from learn_to_cloud_shared.requirements import RequirementIndex
+        from learn_to_cloud_shared.schemas import PhaseOverview
+
+        phase_overview = (
+            PhaseOverview(uuid=uuid4(), name="Phase 0", slug="phase0", order=0),
+        )
+        step_uuid = uuid4()
+        req_uuid = uuid4()
+        fake_catalog = MagicMock(
+            active_step_uuids=frozenset({step_uuid}),
+            active_requirement_uuids=frozenset({req_uuid}),
+            phase_order_by_step_uuid={step_uuid: 0},
+            phase_order_by_requirement_uuid={req_uuid: 0},
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.services.progress_service.get_curriculum_overview",
+                return_value=phase_overview,
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.get_required_step_counts_by_phase",
+                return_value={0: 1},
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.load_requirement_index",
+                return_value=RequirementIndex.from_requirements_by_phase_order({0: []}),
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.get_curriculum_catalog",
+                return_value=fake_catalog,
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
+                new=AsyncMock(return_value=({step_uuid}, {step_uuid})),
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.resolve_succeeded_requirement_uuids",
+                new=AsyncMock(return_value=({req_uuid}, {req_uuid})),
+            ),
+        ):
+            result = await fetch_user_progress(AsyncMock(), user_id=1)
+
+        assert result.phases[0].learning.steps_completed == 1
+        assert result.phases[0].learning.legacy_fallback_steps == 1
+        assert result.phases[0].verification.requirements_verified == 1
+        assert result.phases[0].verification.legacy_fallback_requirements == 1
 
 
 # ---------------------------------------------------------------------------
@@ -302,20 +410,20 @@ class TestFetchPhaseProgress:
         completed_uuids = {s.uuid for s in topic.learning_steps}
 
         with patch(
-            "learn_to_cloud.services.progress_service.StepProgressRepository",
-            autospec=True,
-        ) as MockStepRepo:
-            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
-                return_value=completed_uuids
-            )
+            "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
+            new=AsyncMock(return_value=(completed_uuids, set())),
+        ):
             result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
 
-        assert result.steps_completed == 2
-        assert result.percentage == 100.0
+        assert result.learning.steps_completed == 2
+        assert result.learning.percentage == 100.0
+        # No hands-on verification configured -> verification-complete by
+        # definition, so the phase is fully complete.
+        assert result.is_complete is True
 
     @pytest.mark.asyncio
-    async def test_percentage_includes_hands_on(self):
-        """All steps done but hands-on incomplete should not be 100%."""
+    async def test_not_complete_when_verification_pending(self):
+        """All steps done but verification pending must not be complete."""
         from learn_to_cloud_shared.schemas import PhaseHandsOnVerificationOverview
         from learn_to_cloud_shared.testing.requirement_factories import (
             journal_api_verifier_requirement,
@@ -335,32 +443,26 @@ class TestFetchPhaseProgress:
 
         with (
             patch(
-                "learn_to_cloud.services.progress_service.StepProgressRepository",
-                autospec=True,
-            ) as MockStepRepo,
+                "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
+                new=AsyncMock(return_value=(completed_uuids, set())),
+            ),
             patch(
-                "learn_to_cloud.services.progress_service.SubmissionRepository",
-                autospec=True,
-            ) as MockSubRepo,
+                "learn_to_cloud.services.progress_service.resolve_succeeded_requirement_uuids",
+                new=AsyncMock(return_value=(set(), set())),
+            ),
         ):
-            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
-                return_value=completed_uuids
-            )
-            MockSubRepo.return_value.count_validated_for_requirements = AsyncMock(
-                return_value=0
-            )
             result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
 
-        # 2 steps done + 0 hands-on out of 2 steps + 1 hands-on = 2/3 ~ 67%
-        assert result.steps_completed == 2
-        assert result.hands_on_validated == 0
-        assert result.hands_on_required == 1
-        assert result.percentage == pytest.approx(66.7, abs=0.1)
+        assert result.learning.steps_completed == 2
+        assert result.learning.is_complete is True
+        assert result.verification.requirements_verified == 0
+        assert result.verification.requirements_required == 1
+        assert result.verification.is_complete is False
         assert result.is_complete is False
 
     @pytest.mark.asyncio
     async def test_is_complete_when_all_done(self):
-        """All steps and hands-on done means 100% and is_complete."""
+        """All steps and verification done means both-measures complete."""
         from learn_to_cloud_shared.schemas import PhaseHandsOnVerificationOverview
         from learn_to_cloud_shared.testing.requirement_factories import (
             journal_api_verifier_requirement,
@@ -380,24 +482,35 @@ class TestFetchPhaseProgress:
 
         with (
             patch(
-                "learn_to_cloud.services.progress_service.StepProgressRepository",
-                autospec=True,
-            ) as MockStepRepo,
+                "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
+                new=AsyncMock(return_value=(completed_uuids, set())),
+            ),
             patch(
-                "learn_to_cloud.services.progress_service.SubmissionRepository",
-                autospec=True,
-            ) as MockSubRepo,
+                "learn_to_cloud.services.progress_service.resolve_succeeded_requirement_uuids",
+                new=AsyncMock(return_value=({req.uuid}, set())),
+            ),
         ):
-            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
-                return_value=completed_uuids
-            )
-            MockSubRepo.return_value.count_validated_for_requirements = AsyncMock(
-                return_value=1
-            )
             result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
 
-        assert result.steps_completed == 2
-        assert result.hands_on_validated == 1
-        assert result.hands_on_required == 1
-        assert result.percentage == 100.0
+        assert result.learning.steps_completed == 2
+        assert result.verification.requirements_verified == 1
+        assert result.verification.requirements_required == 1
         assert result.is_complete is True
+
+    @pytest.mark.asyncio
+    async def test_zero_requirement_phase_is_verification_complete(self):
+        """A phase with no hands-on verification never blocks on it."""
+        topic = _make_topic(steps=["s1"])
+        phase = _make_phase(0, topics=[topic])
+
+        with patch(
+            "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
+            new=AsyncMock(return_value=(set(), set())),
+        ):
+            result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
+
+        assert result.verification.requirements_required == 0
+        assert result.verification.is_complete is True
+        # Learning still pending -> phase overall not complete.
+        assert result.learning.is_complete is False
+        assert result.is_complete is False

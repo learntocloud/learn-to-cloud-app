@@ -1,7 +1,7 @@
 """Repository for the authoritative ``learner_step_completions`` table.
 
 Coexists with :class:`~learn_to_cloud_shared.repositories.progress_repository.
-StepProgressRepository` during the PR5/PR6 migration window: callers now
+StepProgressRepository` during the PR5/PR6 migration window: callers
 explicitly dual-write here alongside ``step_progress``, while a temporary
 database trigger (migration 0049) also mirrors any remaining legacy-only
 ``step_progress`` writer into this table. Both the explicit writes and the
@@ -9,16 +9,18 @@ trigger use ``ON CONFLICT DO NOTHING`` / a plain ``DELETE``, so whichever one
 runs first in a transaction makes the other a no-op -- order between them
 does not matter for correctness.
 
-Reads stay on ``step_progress`` until PR6 cuts progress calculation over to
-this table, so no read methods are added here yet.
+PR6 cuts progress reads over to this table as the authoritative source;
+callers add a narrow ``step_progress`` fallback for steps not yet mirrored
+here (see ``progress_service``).
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,6 +32,29 @@ class LearnerStepCompletionRepository:
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+
+    async def get_completed_step_uuids(
+        self,
+        user_id: int,
+        step_uuids: Iterable[UUID],
+    ) -> set[UUID]:
+        """Return which of the given step UUIDs the user has completed.
+
+        Mirrors ``StepProgressRepository.get_completed_step_uuids`` against
+        the authoritative table. Returning an empty set for an empty input
+        avoids a round-trip with an empty IN-list.
+        """
+        uuids = list(step_uuids)
+        if not uuids:
+            return set()
+
+        result = await self.db.execute(
+            select(LearnerStepCompletion.step_uuid).where(
+                LearnerStepCompletion.user_id == user_id,
+                LearnerStepCompletion.step_uuid.in_(uuids),
+            )
+        )
+        return {row[0] for row in result.all()}
 
     async def create_if_not_exists(
         self,

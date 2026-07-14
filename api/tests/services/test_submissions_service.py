@@ -1,20 +1,24 @@
-"""Tests for submissions_service verification job pre-validation.
+"""Tests for submissions_service verification job pre-validation and the
+phase submission card context.
 
 Tests cover:
-- Already-validated short-circuit
-- Sequential phase gating
+- Already-validated short-circuit (authoritative + legacy fallback)
+- Sequential phase gating (authoritative + legacy fallback)
+- get_phase_submission_context: authoritative-attempt cards, every terminal
+  outcome, active-attempt suppression, and legacy-only fallback
 """
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import cast
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 from learn_to_cloud_shared.models import SubmissionType, SubmissionValueKind
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
+    AttemptCardProjection,
 )
 from learn_to_cloud_shared.requirements import RequirementIndex
 from learn_to_cloud_shared.schemas import HandsOnRequirement, Phase
@@ -84,9 +88,9 @@ def _mock_session_maker():
     """Create a mock async_sessionmaker for testing.
 
     Returns a callable that produces async context managers yielding
-    an AsyncMock session. Since tests patch SubmissionRepository,
-    the actual session object is irrelevant -- it just needs to support
-    the async-with protocol and have a .commit() coroutine.
+    an AsyncMock session. Since tests patch the repository layer, the
+    actual session object is irrelevant -- it just needs to support the
+    async-with protocol and have a .commit() coroutine.
     """
 
     @asynccontextmanager
@@ -144,6 +148,30 @@ def _build_index(
     )
 
 
+def _gating_mock(
+    requirement_uuid,
+    *,
+    already_validated: bool = False,
+    prereq_satisfied: bool = True,
+):
+    """Build an ``are_all_requirements_succeeded`` stand-in for gating tests.
+
+    The real ``_check_submission_preconditions`` calls the shared
+    ``are_all_requirements_succeeded`` helper twice with different UUID
+    lists (the single requirement being submitted, then any prerequisite
+    phase's requirements) -- this dispatches on the exact single-UUID list
+    so both call sites can be controlled independently in one mock.
+    """
+
+    async def _fn(_db, _user_id, uuids):
+        uuids = list(uuids)
+        if uuids == [requirement_uuid]:
+            return already_validated
+        return prereq_satisfied
+
+    return AsyncMock(side_effect=_fn)
+
+
 @pytest.mark.unit
 class TestSubmissionValidationErrors:
     """Tests for error handling in create_verification_attempt."""
@@ -172,6 +200,8 @@ class TestSubmissionValidationErrors:
 class TestAlreadyValidatedShortCircuit:
     @pytest.mark.asyncio
     async def test_already_validated_raises_error(self):
+        """Authoritative-or-legacy succeeded (via ``are_all_requirements_succeeded``)
+        short-circuits before any attempt is created."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
@@ -181,16 +211,14 @@ class TestAlreadyValidatedShortCircuit:
                 return_value=_build_index(mock_requirement),
             ),
             patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=_gating_mock(mock_requirement.uuid, already_validated=True),
+            ),
+            patch(
+                "learn_to_cloud.services.submissions_service.VerificationAttemptRepository",
                 autospec=True,
-            ) as mock_repo_class,
+            ) as mock_attempt_repo_class,
         ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(
-                return_value=MagicMock(is_validated=True)
-            )
-            mock_repo_class.return_value = mock_repo
-
             with pytest.raises(AlreadyValidatedError):
                 await create_verification_attempt(
                     session_maker=mock_session_maker,
@@ -200,11 +228,13 @@ class TestAlreadyValidatedShortCircuit:
                     github_username="user",
                 )
 
+        mock_attempt_repo_class.assert_not_called()
+
     @pytest.mark.asyncio
     async def test_already_validated_attempt_raises_error(self):
         """A succeeded attempt discovered under the advisory lock (a race
         with a concurrent finalize) also raises AlreadyValidatedError, even
-        though the earlier submissions-table check passed."""
+        though the earlier precondition check passed."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
@@ -214,19 +244,15 @@ class TestAlreadyValidatedShortCircuit:
                 return_value=_build_index(mock_requirement),
             ),
             patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=_gating_mock(mock_requirement.uuid, already_validated=False),
+            ),
             patch(
                 "learn_to_cloud.services.submissions_service."
                 "VerificationAttemptRepository",
                 autospec=True,
             ) as mock_attempt_repo_class,
         ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo_class.return_value = mock_repo
-
             mock_attempt_repo = MagicMock()
             mock_attempt_repo.create_or_get_active = AsyncMock(
                 side_effect=AttemptAlreadyValidatedError("already succeeded")
@@ -253,9 +279,9 @@ class TestAlreadyValidatedShortCircuit:
                 return_value=_build_index(mock_requirement),
             ),
             patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=_gating_mock(mock_requirement.uuid, already_validated=False),
+            ),
             patch(
                 "learn_to_cloud.services.submissions_service."
                 "VerificationAttemptRepository",
@@ -266,12 +292,6 @@ class TestAlreadyValidatedShortCircuit:
                 autospec=True,
             ) as mock_job_repo_class,
         ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(
-                return_value=_make_mock_submission()
-            )
-            mock_repo_class.return_value = mock_repo
-
             mock_attempt = _mock_attempt()
             mock_attempt_repo = MagicMock()
             mock_attempt_repo.create_or_get_active = AsyncMock(
@@ -317,15 +337,14 @@ class TestSequentialPhaseGating:
                 ),
             ),
             patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=_gating_mock(
+                    mock_requirement.uuid,
+                    already_validated=False,
+                    prereq_satisfied=False,
+                ),
+            ),
         ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.are_all_requirements_validated = AsyncMock(return_value=False)
-            mock_repo_class.return_value = mock_repo
-
             with pytest.raises(PriorPhaseNotCompleteError) as exc_info:
                 await create_verification_attempt(
                     session_maker=mock_session_maker,
@@ -356,9 +375,13 @@ class TestSequentialPhaseGating:
                 ),
             ),
             patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=_gating_mock(
+                    mock_requirement.uuid,
+                    already_validated=False,
+                    prereq_satisfied=True,
+                ),
+            ),
             patch(
                 "learn_to_cloud.services.submissions_service."
                 "VerificationAttemptRepository",
@@ -369,11 +392,6 @@ class TestSequentialPhaseGating:
                 autospec=True,
             ) as mock_job_repo_class,
         ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.are_all_requirements_validated = AsyncMock(return_value=True)
-            mock_repo_class.return_value = mock_repo
-
             mock_attempt = _mock_attempt()
             mock_attempt_repo = MagicMock()
             mock_attempt_repo.create_or_get_active = AsyncMock(
@@ -416,9 +434,9 @@ class TestCreateVerificationAttempt:
                 return_value=_build_index(mock_requirement),
             ),
             patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=_gating_mock(mock_requirement.uuid, already_validated=False),
+            ),
             patch(
                 "learn_to_cloud.services.submissions_service."
                 "VerificationAttemptRepository",
@@ -435,10 +453,6 @@ class TestCreateVerificationAttempt:
                 ),
             ),
         ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo_class.return_value = mock_repo
-
             mock_attempt_repo = MagicMock()
             mock_attempt_repo.create_or_get_active = AsyncMock(
                 return_value=(mock_attempt, True)
@@ -485,9 +499,9 @@ class TestCreateVerificationAttempt:
                 return_value=_build_index(mock_requirement),
             ),
             patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=_gating_mock(mock_requirement.uuid, already_validated=False),
+            ),
             patch(
                 "learn_to_cloud.services.submissions_service."
                 "VerificationAttemptRepository",
@@ -498,10 +512,6 @@ class TestCreateVerificationAttempt:
                 autospec=True,
             ) as mock_job_repo_class,
         ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo_class.return_value = mock_repo
-
             mock_attempt_repo = MagicMock()
             mock_attempt_repo.create_or_get_active = AsyncMock(
                 return_value=(mock_attempt, True)
@@ -541,9 +551,9 @@ class TestCreateVerificationAttempt:
                 return_value=_build_index(mock_requirement),
             ),
             patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=_gating_mock(mock_requirement.uuid, already_validated=False),
+            ),
             patch(
                 "learn_to_cloud.services.submissions_service."
                 "VerificationAttemptRepository",
@@ -554,10 +564,6 @@ class TestCreateVerificationAttempt:
                 autospec=True,
             ) as mock_job_repo_class,
         ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo_class.return_value = mock_repo
-
             mock_attempt_repo = MagicMock()
             mock_attempt_repo.create_or_get_active = AsyncMock(
                 return_value=(mock_attempt, False)
@@ -593,21 +599,15 @@ class TestCreateVerificationAttempt:
                 return_value=_build_index(mock_requirement),
             ),
             patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=_gating_mock(mock_requirement.uuid, already_validated=True),
+            ),
             patch(
                 "learn_to_cloud.services.submissions_service."
                 "VerificationAttemptRepository",
                 autospec=True,
             ) as mock_attempt_repo_class,
         ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(
-                return_value=MagicMock(is_validated=True)
-            )
-            mock_repo_class.return_value = mock_repo
-
             with pytest.raises(AlreadyValidatedError):
                 await create_verification_attempt(
                     session_maker=mock_session_maker,
@@ -642,16 +642,65 @@ def _phase_with_requirement(req: HandsOnRequirement) -> Phase:
     )
 
 
+def _make_attempt_projection(
+    req: HandsOnRequirement,
+    *,
+    outcome: str,
+    feedback_json: list[dict] | None = None,
+    validation_message: str | None = None,
+) -> AttemptCardProjection:
+    now = datetime.now(UTC)
+    return AttemptCardProjection(
+        id=uuid4(),
+        requirement_uuid=req.uuid,
+        submission_value_kind=SubmissionValueKind.GITHUB_URL.value,
+        submitted_value="https://github.com/user/repo",
+        github_username_snapshot="user",
+        cloud_provider=None,
+        outcome=outcome,
+        feedback_json=feedback_json,
+        validation_message=validation_message,
+        completed_at=now,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def _patch_attempt_repo(
+    *,
+    latest_terminal: list[AttemptCardProjection] | None = None,
+    attempted_uuids: set | None = None,
+):
+    """Patch VerificationAttemptRepository for get_phase_submission_context tests."""
+    return patch(
+        "learn_to_cloud.services.submissions_service.VerificationAttemptRepository",
+        autospec=True,
+        return_value=MagicMock(
+            get_latest_terminal_for_requirements=AsyncMock(
+                return_value=latest_terminal or []
+            ),
+            get_requirement_uuids_with_any_attempt=AsyncMock(
+                return_value=attempted_uuids
+                if attempted_uuids is not None
+                else {p.requirement_uuid for p in (latest_terminal or [])}
+            ),
+        ),
+    )
+
+
 @pytest.mark.unit
 class TestGetPhaseSubmissionContext:
     @pytest.mark.asyncio
-    async def test_empty_submissions(self):
+    async def test_empty_when_no_attempts_and_no_legacy_submissions(self):
         req = _make_mock_requirement()
         phase = _phase_with_requirement(req)
-        with patch(
-            "learn_to_cloud.services.submissions_service.SubmissionRepository",
-            autospec=True,
-        ) as MockRepo:
+        with (
+            _patch_attempt_repo(latest_terminal=[], attempted_uuids=set()),
+            patch(
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
+                autospec=True,
+            ) as MockRepo,
+        ):
             MockRepo.return_value.get_latest_for_requirements = AsyncMock(
                 return_value=[]
             )
@@ -662,28 +711,150 @@ class TestGetPhaseSubmissionContext:
         assert result.feedback_by_req == {}
 
     @pytest.mark.asyncio
-    async def test_submission_without_feedback(self):
+    async def test_succeeded_attempt_renders_as_validated(self):
+        """A ``succeeded`` attempt is the authoritative source for the card."""
+        req = _make_mock_requirement()
+        phase = _phase_with_requirement(req)
+        attempt = _make_attempt_projection(req, outcome="succeeded")
+
+        with _patch_attempt_repo(latest_terminal=[attempt]):
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase=phase
+            )
+
+        assert req.slug in result.submissions_by_req
+        sub = result.submissions_by_req[req.slug]
+        assert sub.is_validated is True
+        assert sub.verification_completed is True
+        assert sub.source == "attempt"
+
+    @pytest.mark.asyncio
+    async def test_failed_attempt_renders_as_not_validated_but_completed(self):
+        req = _make_mock_requirement()
+        phase = _phase_with_requirement(req)
+        attempt = _make_attempt_projection(
+            req, outcome="failed", validation_message="Repo not found."
+        )
+
+        with _patch_attempt_repo(latest_terminal=[attempt]):
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase=phase
+            )
+
+        sub = result.submissions_by_req[req.slug]
+        assert sub.is_validated is False
+        assert sub.verification_completed is True
+        assert sub.validation_message == "Repo not found."
+
+    @pytest.mark.asyncio
+    async def test_server_error_attempt_does_not_count_as_completed(self):
+        """A server-side fault never completed verification -- doesn't count
+        against the learner, distinct from a real ``failed`` outcome."""
+        req = _make_mock_requirement()
+        phase = _phase_with_requirement(req)
+        attempt = _make_attempt_projection(req, outcome="server_error")
+
+        with _patch_attempt_repo(latest_terminal=[attempt]):
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase=phase
+            )
+
+        sub = result.submissions_by_req[req.slug]
+        assert sub.is_validated is False
+        assert sub.verification_completed is False
+
+    @pytest.mark.asyncio
+    async def test_cancelled_attempt_does_not_count_as_completed(self):
+        req = _make_mock_requirement()
+        phase = _phase_with_requirement(req)
+        attempt = _make_attempt_projection(req, outcome="cancelled")
+
+        with _patch_attempt_repo(latest_terminal=[attempt]):
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase=phase
+            )
+
+        sub = result.submissions_by_req[req.slug]
+        assert sub.is_validated is False
+        assert sub.verification_completed is False
+
+    @pytest.mark.asyncio
+    async def test_active_attempt_suppresses_card_without_legacy_fallback(self):
+        """An active (still-processing) attempt means "no terminal card yet",
+        and must NOT fall back to legacy data even if a legacy row exists --
+        an authoritative attempt (any state) always wins over legacy."""
+        req = _make_mock_requirement()
+        phase = _phase_with_requirement(req)
+
+        with (
+            _patch_attempt_repo(latest_terminal=[], attempted_uuids={req.uuid}),
+            patch(
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
+                autospec=True,
+            ) as MockRepo,
+        ):
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase=phase
+            )
+
+        assert result.submissions_by_req == {}
+        MockRepo.return_value.get_latest_for_requirements.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_legacy_fallback_used_only_when_no_attempt_exists(self):
+        """Zero attempt rows for a requirement is the only case that
+        consults the legacy ``submissions`` table."""
         req = _make_mock_requirement()
         phase = _phase_with_requirement(req)
         mock_sub = _make_mock_submission(is_validated=True)
         mock_sub.requirement_uuid = req.uuid
         mock_sub.feedback_json = None
-        with patch(
-            "learn_to_cloud.services.submissions_service.SubmissionRepository",
-            autospec=True,
-        ) as MockRepo:
+
+        with (
+            _patch_attempt_repo(latest_terminal=[], attempted_uuids=set()),
+            patch(
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
+                autospec=True,
+            ) as MockRepo,
+        ):
             MockRepo.return_value.get_latest_for_requirements = AsyncMock(
                 return_value=[mock_sub]
             )
             result = await get_phase_submission_context(
                 AsyncMock(), user_id=1, phase=phase
             )
+
         assert req.slug in result.submissions_by_req
-        assert result.feedback_by_req == {}
+        sub = result.submissions_by_req[req.slug]
+        assert sub.source == "legacy"
+        assert sub.is_validated is True
+
+    @pytest.mark.asyncio
+    async def test_authoritative_attempt_wins_over_legacy_when_both_exist(self):
+        """A requirement with an attempt row is never re-checked against
+        legacy data, even if a (stale) legacy row also exists."""
+        req = _make_mock_requirement()
+        phase = _phase_with_requirement(req)
+        attempt = _make_attempt_projection(req, outcome="succeeded")
+
+        with (
+            _patch_attempt_repo(latest_terminal=[attempt], attempted_uuids={req.uuid}),
+            patch(
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
+                autospec=True,
+            ) as MockRepo,
+        ):
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase=phase
+            )
+
+        assert result.submissions_by_req[req.slug].source == "attempt"
+        MockRepo.return_value.get_latest_for_requirements.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_passing_submission_with_feedback_renders_for_pass(self):
-        """#425: rubric feedback persists for passing submissions too."""
+        """#425: rubric feedback persists for passing submissions too --
+        exercised here via the legacy fallback path."""
         req = _make_mock_requirement()
         phase = _phase_with_requirement(req)
         mock_sub = _make_mock_submission(is_validated=True, verification_completed=True)
@@ -702,10 +873,13 @@ class TestGetPhaseSubmissionContext:
                 "next_steps": "",
             },
         ]
-        with patch(
-            "learn_to_cloud.services.submissions_service.SubmissionRepository",
-            autospec=True,
-        ) as MockRepo:
+        with (
+            _patch_attempt_repo(latest_terminal=[], attempted_uuids=set()),
+            patch(
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
+                autospec=True,
+            ) as MockRepo,
+        ):
             MockRepo.return_value.get_latest_for_requirements = AsyncMock(
                 return_value=[mock_sub]
             )
@@ -718,30 +892,30 @@ class TestGetPhaseSubmissionContext:
         tasks = cast(list[dict[str, object]], feedback["tasks"])
         assert len(tasks) == 2
         assert all(t["passed"] is True for t in tasks)
+
+    @pytest.mark.asyncio
+    async def test_attempt_feedback_renders_for_pass(self):
+        """Rubric feedback surfaces from an authoritative attempt too."""
         req = _make_mock_requirement()
         phase = _phase_with_requirement(req)
-        mock_sub = _make_mock_submission(
-            is_validated=False, verification_completed=True
+        attempt = _make_attempt_projection(
+            req,
+            outcome="failed",
+            feedback_json=[
+                {
+                    "task_name": "A",
+                    "passed": True,
+                    "feedback": "ok",
+                    "next_steps": "review the rubric",
+                }
+            ],
         )
-        mock_sub.requirement_uuid = req.uuid
-        mock_sub.feedback_json = [
-            {
-                "task_name": "A",
-                "passed": True,
-                "feedback": "ok",
-                "next_steps": "review the rubric",
-            }
-        ]
-        with patch(
-            "learn_to_cloud.services.submissions_service.SubmissionRepository",
-            autospec=True,
-        ) as MockRepo:
-            MockRepo.return_value.get_latest_for_requirements = AsyncMock(
-                return_value=[mock_sub]
-            )
+
+        with _patch_attempt_repo(latest_terminal=[attempt]):
             result = await get_phase_submission_context(
                 AsyncMock(), user_id=1, phase=phase
             )
+
         assert req.slug in result.feedback_by_req
         feedback = result.feedback_by_req[req.slug]
         assert feedback["passed"] == 1
@@ -796,26 +970,19 @@ class TestRunSubmitSmokeCheck:
                 return_value=_build_index(mock_requirement),
             ),
             patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=_gating_mock(mock_requirement.uuid, already_validated=False),
+            ) as mock_gate,
             patch(
                 "learn_to_cloud.services.submissions_service.VerificationJobRepository",
                 autospec=True,
             ) as mock_job_repo_class,
         ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.are_all_requirements_validated = AsyncMock(return_value=True)
-            mock_repo_class.return_value = mock_repo
-
             result = await run_submit_smoke_check(mock_session_maker)
 
         assert result["requirement_slug"] == mock_requirement.slug
         # Reads use the synthetic, non-existent user id.
-        mock_repo.get_by_user_and_requirement.assert_awaited_once_with(
-            SMOKE_USER_ID, mock_requirement.uuid
-        )
+        mock_gate.assert_awaited_once_with(ANY, SMOKE_USER_ID, [mock_requirement.uuid])
         # The canary never creates a verification job (no writes).
         mock_job_repo_class.assert_not_called()
 
@@ -831,15 +998,11 @@ class TestRunSubmitSmokeCheck:
                 return_value=_build_index(mock_requirement),
             ),
             patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=AsyncMock(
+                    side_effect=RuntimeError("column submissions.foo does not exist")
+                ),
+            ),
         ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(
-                side_effect=RuntimeError("column submissions.foo does not exist")
-            )
-            mock_repo_class.return_value = mock_repo
-
             with pytest.raises(RuntimeError):
                 await run_submit_smoke_check(mock_session_maker)

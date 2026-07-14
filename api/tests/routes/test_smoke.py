@@ -28,9 +28,11 @@ from httpx import ASGITransport, AsyncClient
 from learn_to_cloud_shared.core.database import get_db, get_db_readonly
 from learn_to_cloud_shared.schemas import (
     DashboardData,
+    LearningProgress,
     PhaseProgress,
     PhaseProgressData,
     PhaseSummaryData,
+    VerificationProgress,
 )
 
 from learn_to_cloud.core.auth import optional_auth, require_auth
@@ -62,16 +64,17 @@ def _fake_dashboard() -> DashboardData:
                 name="Phase 1",
                 slug="phase1",
                 progress=PhaseProgressData(
-                    steps_completed=0,
-                    steps_required=10,
-                    hands_on_validated=0,
-                    hands_on_required=2,
-                    percentage=0.0,
+                    learning=LearningProgress(steps_completed=0, steps_required=10),
+                    verification=VerificationProgress(
+                        requirements_verified=0, requirements_required=2
+                    ),
+                    is_complete=False,
                     status="not_started",
                 ),
             ),
         ],
-        overall_percentage=0.0,
+        learning_percentage=0.0,
+        verification_percentage=0.0,
         phases_completed=0,
         total_phases=7,
         is_program_complete=False,
@@ -271,10 +274,10 @@ class TestAuthPageSmoke:
         # Build a PhaseProgress with empty topic progress
         detail = PhaseProgress(
             phase_id=1,
-            steps_completed=0,
-            steps_required=0,
-            hands_on_validated=0,
-            hands_on_required=0,
+            learning=LearningProgress(steps_completed=0, steps_required=0),
+            verification=VerificationProgress(
+                requirements_verified=0, requirements_required=0
+            ),
             topic_progress={},
         )
 
@@ -296,7 +299,7 @@ class TestAuthPageSmoke:
                 return_value=mock_sub_context,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.VerificationJobRepository",
+                "learn_to_cloud.routes.pages_routes.VerificationAttemptRepository",
                 return_value=MagicMock(
                     get_active_for_requirements=AsyncMock(return_value=[])
                 ),
@@ -353,10 +356,10 @@ class TestAuthPageSmoke:
 
         detail = PhaseProgress(
             phase_id=1,
-            steps_completed=0,
-            steps_required=0,
-            hands_on_validated=1,
-            hands_on_required=1,
+            learning=LearningProgress(steps_completed=0, steps_required=0),
+            verification=VerificationProgress(
+                requirements_verified=1, requirements_required=1
+            ),
             topic_progress={},
         )
 
@@ -374,7 +377,7 @@ class TestAuthPageSmoke:
                 return_value=mock_sub_context,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.VerificationJobRepository",
+                "learn_to_cloud.routes.pages_routes.VerificationAttemptRepository",
                 return_value=MagicMock(
                     get_active_for_requirements=AsyncMock(return_value=[])
                 ),

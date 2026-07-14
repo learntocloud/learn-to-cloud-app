@@ -8,9 +8,16 @@ from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.github_target import GitHubTarget
-from learn_to_cloud_shared.models import Submission, SubmissionType
+from learn_to_cloud_shared.models import (
+    Submission,
+    SubmissionType,
+    VerificationAttemptOutcome,
+)
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
+)
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    AttemptCardProjection,
 )
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
@@ -75,6 +82,12 @@ def to_submission_data(submission: Submission) -> SubmissionData:
     ``requirement_slug`` / ``submission_type`` / ``phase_id`` fields from
     both the table and the schema -- callers that need them work off
     the in-memory ``HandsOnRequirement`` directly.
+
+    PR6 of the verification/progress refactor uses this only for the
+    narrow legacy submission-card fallback (see
+    ``learn_to_cloud.services.submissions_service.get_phase_submission_context``);
+    ``source`` is set to ``"legacy"`` so callers/templates can see the
+    provenance.
     """
     return SubmissionData(
         id=submission.id,
@@ -88,6 +101,44 @@ def to_submission_data(submission: Submission) -> SubmissionData:
         cloud_provider=submission.cloud_provider,
         created_at=submission.created_at,
         updated_at=submission.updated_at,
+        source="legacy",
+    )
+
+
+def attempt_to_submission_data(attempt: AttemptCardProjection) -> SubmissionData:
+    """Project a terminal ``VerificationAttempt`` into a ``SubmissionData`` DTO.
+
+    The authoritative counterpart to :func:`to_submission_data`, used once
+    ``verification_attempts`` becomes the primary submission-card source
+    (PR6). Maps the attempt's terminal ``outcome`` onto the same
+    ``is_validated`` / ``verification_completed`` pair the legacy
+    ``submissions`` table used:
+
+    - ``succeeded`` -> validated, verification completed;
+    - ``failed`` -> not validated, verification completed (a real learner
+      failure);
+    - ``server_error`` / ``cancelled`` -> not validated, verification did
+      **not** complete (our-side fault, doesn't count against the learner).
+    """
+    outcome = VerificationAttemptOutcome(attempt.outcome)
+    is_validated = outcome is VerificationAttemptOutcome.SUCCEEDED
+    verification_completed = outcome in (
+        VerificationAttemptOutcome.SUCCEEDED,
+        VerificationAttemptOutcome.FAILED,
+    )
+    return SubmissionData(
+        id=attempt.id,
+        submitted_value=attempt.submitted_value,
+        extracted_username=attempt.github_username_snapshot,
+        is_validated=is_validated,
+        validated_at=attempt.completed_at if is_validated else None,
+        verification_completed=verification_completed,
+        feedback_json=attempt.feedback_json,
+        validation_message=(attempt.validation_message if not is_validated else None),
+        cloud_provider=attempt.cloud_provider,
+        created_at=attempt.created_at,
+        updated_at=attempt.updated_at,
+        source="attempt",
     )
 
 

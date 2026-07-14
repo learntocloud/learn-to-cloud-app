@@ -92,3 +92,40 @@ class TestDelete:
         repo = LearnerStepCompletionRepository(db_session)
         deleted = await repo.delete(user_id=USER_ID, step_uuid=uuid4())
         assert deleted == 0
+
+
+class TestGetCompletedStepUuids:
+    async def test_returns_only_completed_and_requested(
+        self, db_session: AsyncSession, user
+    ):
+        completed, other_completed, uncompleted = uuid4(), uuid4(), uuid4()
+        repo = LearnerStepCompletionRepository(db_session)
+        await repo.create_if_not_exists(user_id=USER_ID, step_uuid=completed)
+        await repo.create_if_not_exists(user_id=USER_ID, step_uuid=other_completed)
+        await db_session.flush()
+
+        result = await repo.get_completed_step_uuids(USER_ID, [completed, uncompleted])
+
+        assert result == {completed}
+
+    async def test_empty_candidate_list_returns_empty_set_without_query(
+        self, db_session: AsyncSession, user
+    ):
+        repo = LearnerStepCompletionRepository(db_session)
+        assert await repo.get_completed_step_uuids(USER_ID, []) == set()
+
+    async def test_ignores_other_users_completions(
+        self, db_session: AsyncSession, user
+    ):
+        other_user_id = 71002
+        await UserRepository(db_session).upsert(
+            other_user_id, github_username="otheruser"
+        )
+        step_uuid = uuid4()
+        repo = LearnerStepCompletionRepository(db_session)
+        await repo.create_if_not_exists(user_id=other_user_id, step_uuid=step_uuid)
+        await db_session.flush()
+
+        result = await repo.get_completed_step_uuids(USER_ID, [step_uuid])
+
+        assert result == set()

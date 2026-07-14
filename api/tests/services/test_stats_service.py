@@ -11,6 +11,8 @@ from learn_to_cloud_shared.models import (
     CurriculumRequirement,
     SubmissionValueKind,
     User,
+    VerificationAttempt,
+    utcnow,
 )
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
@@ -57,6 +59,7 @@ async def _reqs_by_phase(db: AsyncSession) -> dict[int, list[tuple]]:
 
 
 async def _validate(db: AsyncSession, user_id: int, reqs: list[tuple]) -> None:
+    """Legacy-only completion path: a ``submissions`` row, no attempt row."""
     repo = SubmissionRepository(db)
     for uuid, kind in reqs:
         await repo.create(
@@ -66,6 +69,25 @@ async def _validate(db: AsyncSession, user_id: int, reqs: list[tuple]) -> None:
             extracted_username=None,
             is_validated=True,
         )
+
+
+async def _succeed_via_attempts(
+    db: AsyncSession, user_id: int, reqs: list[tuple]
+) -> None:
+    """Authoritative completion path: a succeeded ``verification_attempts`` row."""
+    for uuid, kind in reqs:
+        db.add(
+            VerificationAttempt(
+                user_id=user_id,
+                requirement_uuid=uuid,
+                snapshot_source="reconstructed",
+                submission_value_kind=kind,
+                submitted_value=_value_for_kind(kind, f"u{user_id}").as_text,
+                outcome="succeeded",
+                completed_at=utcnow(),
+            )
+        )
+    await db.flush()
 
 
 class TestGetStatsPageData:
@@ -131,3 +153,69 @@ class TestGetStatsPageData:
             stats = await get_stats_page_data(db_session)
 
         assert stats.graduates == []
+
+    async def test_authoritative_verification_attempts_count_as_completions(
+        self, db_session: AsyncSession
+    ):
+        """A succeeded ``verification_attempts`` row (no legacy submission at
+        all) is enough to count -- ``verification_attempts`` is now the
+        primary source, not merely a fallback."""
+        clear_cache()
+        await sync_curriculum_to_db(db_session)
+        reqs_by_phase = await _reqs_by_phase(db_session)
+        counts = get_requirement_counts_by_phase()
+        completable = sorted(o for o, c in counts.items() if c > 0)
+
+        db_session.add(User(id=60004, github_username="attemptgrad"))
+        await db_session.flush()
+
+        for order in completable:
+            await _succeed_via_attempts(db_session, 60004, reqs_by_phase[order])
+
+        with patch(
+            "learn_to_cloud.services.stats_service.get_latest_curriculum_commits",
+            new=AsyncMock(return_value=[]),
+        ):
+            stats = await get_stats_page_data(db_session)
+
+        usernames = {m.github_username for m in stats.graduates}
+        assert "attemptgrad" in usernames
+
+    async def test_mixed_authoritative_and_legacy_completion_within_one_phase(
+        self, db_session: AsyncSession
+    ):
+        """A phase can be completed via a mix of attempts and legacy rows.
+
+        One requirement succeeds via ``verification_attempts`` (authoritative)
+        and another via a legacy ``submissions`` row for the same user/phase
+        -- both count toward that phase's completion threshold.
+        """
+        clear_cache()
+        await sync_curriculum_to_db(db_session)
+        reqs_by_phase = await _reqs_by_phase(db_session)
+        multi_phase = next(
+            order for order, reqs in reqs_by_phase.items() if len(reqs) > 1
+        )
+
+        db_session.add(User(id=60005, github_username="mixedcompleter"))
+        await db_session.flush()
+
+        reqs = reqs_by_phase[multi_phase]
+        await _succeed_via_attempts(db_session, 60005, reqs[:1])
+        await _validate(db_session, 60005, reqs[1:])
+        await db_session.flush()
+
+        counts = get_requirement_counts_by_phase()
+        completable = sorted(o for o, c in counts.items() if c > 0)
+        assert multi_phase in completable
+
+        with patch(
+            "learn_to_cloud.services.stats_service.get_latest_curriculum_commits",
+            new=AsyncMock(return_value=[]),
+        ):
+            stats = await get_stats_page_data(db_session)
+
+        phase_level = next(
+            lvl for lvl in stats.funnel if f"Phase {multi_phase}:" in lvl.label
+        )
+        assert phase_level.count >= 1

@@ -414,3 +414,243 @@ async def test_delete_active_refuses_claimed_attempt(
         status = await VerificationAttemptRepository(db).get_status(attempt_id)
     assert status is not None
     assert status.started_at is not None
+
+
+# ---------------------------------------------------------------------------
+# PR6 progress/gating/card/stats reads
+# ---------------------------------------------------------------------------
+
+
+async def test_get_succeeded_requirement_uuids_only_counts_succeeded(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    succeeded_req = uuid4()
+    failed_req = uuid4()
+    await _insert_attempt(
+        session_maker, requirement_uuid=succeeded_req, outcome="succeeded"
+    )
+    await _insert_attempt(session_maker, requirement_uuid=failed_req, outcome="failed")
+
+    async with session_maker() as db:
+        result = await VerificationAttemptRepository(
+            db
+        ).get_succeeded_requirement_uuids(USER_ID)
+
+    assert result == {succeeded_req}
+
+
+async def test_count_succeeded_for_requirements_filters_to_candidates(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    succeeded_req = uuid4()
+    other_succeeded_req = uuid4()
+    await _insert_attempt(
+        session_maker, requirement_uuid=succeeded_req, outcome="succeeded"
+    )
+    await _insert_attempt(
+        session_maker, requirement_uuid=other_succeeded_req, outcome="succeeded"
+    )
+
+    async with session_maker() as db:
+        count = await VerificationAttemptRepository(
+            db
+        ).count_succeeded_for_requirements(USER_ID, [succeeded_req])
+    assert count == 1
+
+
+async def test_count_succeeded_for_requirements_empty_input_returns_zero(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    async with session_maker() as db:
+        count = await VerificationAttemptRepository(
+            db
+        ).count_succeeded_for_requirements(USER_ID, [])
+    assert count == 0
+
+
+async def test_are_all_requirements_succeeded_true_when_all_succeeded(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    a, b = uuid4(), uuid4()
+    await _insert_attempt(session_maker, requirement_uuid=a, outcome="succeeded")
+    await _insert_attempt(session_maker, requirement_uuid=b, outcome="succeeded")
+    async with session_maker() as db:
+        assert await VerificationAttemptRepository(db).are_all_requirements_succeeded(
+            USER_ID, [a, b]
+        )
+
+
+async def test_are_all_requirements_succeeded_false_when_one_missing(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    a, b = uuid4(), uuid4()
+    await _insert_attempt(session_maker, requirement_uuid=a, outcome="succeeded")
+    async with session_maker() as db:
+        assert not await VerificationAttemptRepository(
+            db
+        ).are_all_requirements_succeeded(USER_ID, [a, b])
+
+
+async def test_are_all_requirements_succeeded_empty_list_is_true(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    async with session_maker() as db:
+        assert await VerificationAttemptRepository(db).are_all_requirements_succeeded(
+            USER_ID, []
+        )
+
+
+async def test_get_requirement_uuids_with_any_attempt_includes_active_and_terminal(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    active_req = uuid4()
+    terminal_req = uuid4()
+    no_attempt_req = uuid4()
+    await _insert_attempt(session_maker, requirement_uuid=active_req)
+    await _insert_attempt(
+        session_maker, requirement_uuid=terminal_req, outcome="failed"
+    )
+    async with session_maker() as db:
+        result = await VerificationAttemptRepository(
+            db
+        ).get_requirement_uuids_with_any_attempt(
+            USER_ID, [active_req, terminal_req, no_attempt_req]
+        )
+    assert result == {active_req, terminal_req}
+
+
+async def test_get_requirement_uuids_with_any_attempt_empty_input(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    async with session_maker() as db:
+        result = await VerificationAttemptRepository(
+            db
+        ).get_requirement_uuids_with_any_attempt(USER_ID, [])
+    assert result == set()
+
+
+async def test_get_active_for_requirements_excludes_terminal(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    active_req = uuid4()
+    terminal_req = uuid4()
+    active_id = await _insert_attempt(session_maker, requirement_uuid=active_req)
+    await _insert_attempt(
+        session_maker, requirement_uuid=terminal_req, outcome="succeeded"
+    )
+    async with session_maker() as db:
+        rows = await VerificationAttemptRepository(db).get_active_for_requirements(
+            USER_ID, [active_req, terminal_req]
+        )
+    assert {row.requirement_uuid for row in rows} == {active_req}
+    assert rows[0].id == active_id
+
+
+async def test_get_latest_terminal_for_requirements_returns_newest_and_skips_active(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    req = uuid4()
+    now = utcnow()
+    await _insert_attempt(
+        session_maker,
+        requirement_uuid=req,
+        created_at=now - timedelta(hours=2),
+        outcome="failed",
+    )
+    latest_id = await _insert_attempt(
+        session_maker,
+        requirement_uuid=req,
+        created_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+    # A newer *active* attempt for the same requirement must not shadow the
+    # latest terminal one -- active attempts are excluded from this read.
+    await _insert_attempt(session_maker, requirement_uuid=req, created_at=now)
+
+    async with session_maker() as db:
+        rows = await VerificationAttemptRepository(
+            db
+        ).get_latest_terminal_for_requirements(USER_ID, [req])
+
+    assert len(rows) == 1
+    assert rows[0].id == latest_id
+    assert rows[0].outcome == "succeeded"
+
+
+async def test_get_latest_terminal_for_requirements_empty_input(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    async with session_maker() as db:
+        rows = await VerificationAttemptRepository(
+            db
+        ).get_latest_terminal_for_requirements(USER_ID, [])
+    assert rows == []
+
+
+class TestListPhaseCompletions:
+    async def test_succeeded_attempt_counts_as_completion(
+        self, session_maker: async_sessionmaker[AsyncSession], user: int
+    ) -> None:
+        req = uuid4()
+        await _insert_attempt(session_maker, requirement_uuid=req, outcome="succeeded")
+
+        async with session_maker() as db:
+            completions = await VerificationAttemptRepository(
+                db
+            ).list_phase_completions({0: 1}, {req: 0})
+
+        assert (0, USER_ID) in completions
+
+    async def test_failed_attempt_does_not_count(
+        self, session_maker: async_sessionmaker[AsyncSession], user: int
+    ) -> None:
+        req = uuid4()
+        await _insert_attempt(session_maker, requirement_uuid=req, outcome="failed")
+
+        async with session_maker() as db:
+            completions = await VerificationAttemptRepository(
+                db
+            ).list_phase_completions({0: 1}, {req: 0})
+
+        assert (0, USER_ID) not in completions
+
+    async def test_partial_completion_excluded(
+        self, session_maker: async_sessionmaker[AsyncSession], user: int
+    ) -> None:
+        req_a, req_b = uuid4(), uuid4()
+        await _insert_attempt(
+            session_maker, requirement_uuid=req_a, outcome="succeeded"
+        )
+        # req_b never attempted -- phase 0 needs both to complete.
+
+        async with session_maker() as db:
+            completions = await VerificationAttemptRepository(
+                db
+            ).list_phase_completions({0: 2}, {req_a: 0, req_b: 0})
+
+        assert (0, USER_ID) not in completions
+
+    async def test_empty_counts_returns_empty(
+        self, session_maker: async_sessionmaker[AsyncSession], user: int
+    ) -> None:
+        async with session_maker() as db:
+            assert (
+                await VerificationAttemptRepository(db).list_phase_completions({}, {})
+                == []
+            )
+
+    async def test_stale_requirement_uuid_is_ignored(
+        self, session_maker: async_sessionmaker[AsyncSession], user: int
+    ) -> None:
+        """A succeeded attempt for a requirement UUID absent from the phase
+        map (as if the catalog no longer knows about it) must not produce a
+        phantom completion."""
+        req = uuid4()
+        await _insert_attempt(session_maker, requirement_uuid=req, outcome="succeeded")
+
+        async with session_maker() as db:
+            completions = await VerificationAttemptRepository(
+                db
+            ).list_phase_completions({0: 1}, {})
+
+        assert (0, USER_ID) not in completions

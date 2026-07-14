@@ -19,9 +19,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from learn_to_cloud_shared.content_service import get_requirements_by_phase_order
-from learn_to_cloud_shared.repositories.submission_repository import (
-    SubmissionRepository,
-)
+from learn_to_cloud_shared.progress_reads import are_all_requirements_succeeded
 from learn_to_cloud_shared.schemas import HandsOnRequirement
 
 if TYPE_CHECKING:
@@ -119,8 +117,7 @@ async def is_phase_verification_locked(
     if not prereq_req_uuids:
         return False, None
 
-    repo = SubmissionRepository(db)
-    all_done = await repo.are_all_requirements_validated(user_id, prereq_req_uuids)
+    all_done = await are_all_requirements_succeeded(db, user_id, prereq_req_uuids)
     if all_done:
         return False, None
 

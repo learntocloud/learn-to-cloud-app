@@ -9,19 +9,42 @@ reconciler can never overwrite a result that is already terminal.
 Reads are deliberately narrow: prepare/reconcile only select the columns the
 Functions role is granted, matching the column-level privileges the bridge
 migration installs.
+
+PR6 of the verification/progress refactor adds a second family of reads --
+progress, sequential gating, the submission card, and stats -- that run
+under the API's normal role and treat this table as the authoritative source
+of verification state (``outcome == 'succeeded'`` is the only "verified"
+signal). Those callers add a narrow legacy ``submissions`` fallback for
+(user, requirement) pairs not yet mirrored here; see ``progress_service``,
+``requirements.is_phase_verification_locked``, and
+``submissions_service.get_phase_submission_context``.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import (
+    Integer,
+    Uuid,
+    and_,
+    column,
+    delete,
+    exists,
+    func,
+    select,
+    text,
+    union,
+    update,
+    values,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.models import (
+    Submission,
     VerificationAttempt,
     VerificationAttemptOutcome,
     VerificationSnapshotSource,
@@ -91,6 +114,36 @@ class AttemptMirrorState:
     feedback_json: list[dict] | None
     validation_message: str | None
     legacy_job_id: UUID | None
+
+
+@dataclass(frozen=True, slots=True)
+class ActiveAttemptRow:
+    """Minimal projection of an in-flight (``outcome IS NULL``) attempt.
+
+    Used to render the "verification in progress" card state -- replaces
+    the legacy ``VerificationJob`` active-row read for that purpose.
+    """
+
+    id: UUID
+    requirement_uuid: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class AttemptCardProjection:
+    """Latest terminal attempt for one requirement, for card rendering."""
+
+    id: UUID
+    requirement_uuid: UUID
+    submission_value_kind: str
+    submitted_value: str
+    github_username_snapshot: str | None
+    cloud_provider: str | None
+    outcome: str
+    feedback_json: list[dict] | None
+    validation_message: str | None
+    completed_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -499,3 +552,256 @@ class VerificationAttemptRepository:
         if existing is None:
             raise AttemptAlreadyGoneError(str(attempt_id))
         return FinalizeResult(won=False, state=existing)
+
+    # ------------------------------------------------------------------
+    # PR6: progress/gating/card reads. These treat ``verification_attempts``
+    # as authoritative -- only ``outcome == 'succeeded'`` counts as verified,
+    # matching the plan's unified verification semantics. Callers add a
+    # narrow legacy fallback (see ``progress_service`` / ``requirements``)
+    # for the rare (user, requirement) pair not yet mirrored here.
+    # ------------------------------------------------------------------
+
+    async def get_succeeded_requirement_uuids(self, user_id: int) -> set[UUID]:
+        """Return every requirement UUID with at least one succeeded attempt.
+
+        Mirrors ``SubmissionRepository.get_validated_requirement_uuids``
+        against the authoritative table; callers intersect the result with
+        the catalog's current requirement UUIDs.
+        """
+        result = await self.db.execute(
+            select(func.distinct(VerificationAttempt.requirement_uuid)).where(
+                VerificationAttempt.user_id == user_id,
+                VerificationAttempt.outcome
+                == VerificationAttemptOutcome.SUCCEEDED.value,
+            )
+        )
+        return set(result.scalars().all())
+
+    async def count_succeeded_for_requirements(
+        self, user_id: int, requirement_uuids: Iterable[UUID]
+    ) -> int:
+        """Count how many of the given requirement UUIDs have succeeded.
+
+        Filters against a specific set of UUIDs (from current content) so a
+        retired requirement never inflates the count.
+        """
+        uuids = list(requirement_uuids)
+        if not uuids:
+            return 0
+        result = await self.db.execute(
+            select(
+                func.count(func.distinct(VerificationAttempt.requirement_uuid))
+            ).where(
+                VerificationAttempt.user_id == user_id,
+                VerificationAttempt.requirement_uuid.in_(uuids),
+                VerificationAttempt.outcome
+                == VerificationAttemptOutcome.SUCCEEDED.value,
+            )
+        )
+        return result.scalar_one() or 0
+
+    async def are_all_requirements_succeeded(
+        self, user_id: int, requirement_uuids: Iterable[UUID]
+    ) -> bool:
+        """Check if the user has a succeeded attempt for ALL given requirements.
+
+        Used for sequential phase gating -- ensures prior-phase verification
+        is fully complete before allowing the next phase's submissions.
+        """
+        uuids = list(requirement_uuids)
+        if not uuids:
+            return True
+        succeeded = await self.count_succeeded_for_requirements(user_id, uuids)
+        return succeeded >= len(uuids)
+
+    async def get_requirement_uuids_with_any_attempt(
+        self, user_id: int, requirement_uuids: Iterable[UUID]
+    ) -> set[UUID]:
+        """Requirement UUIDs that already have at least one attempt row.
+
+        An authoritative attempt -- active or terminal -- always wins over
+        legacy data, so callers use this to scope the legacy submission-card
+        fallback to only the requirements with zero attempt history at all.
+        """
+        uuids = list(requirement_uuids)
+        if not uuids:
+            return set()
+        result = await self.db.execute(
+            select(func.distinct(VerificationAttempt.requirement_uuid)).where(
+                VerificationAttempt.user_id == user_id,
+                VerificationAttempt.requirement_uuid.in_(uuids),
+            )
+        )
+        return set(result.scalars().all())
+
+    async def get_active_for_requirements(
+        self, user_id: int, requirement_uuids: Iterable[UUID]
+    ) -> list[ActiveAttemptRow]:
+        """Get active (``outcome IS NULL``) attempts across a set of requirements.
+
+        Replaces the legacy ``VerificationJobRepository.get_active_for_requirements``
+        read for the phase page's "verification in progress" indicator --
+        ``VerificationAttempt.id`` is the same UUID used as the Durable
+        instance id and the status-token job id.
+        """
+        uuids = list(requirement_uuids)
+        if not uuids:
+            return []
+        result = await self.db.execute(
+            select(VerificationAttempt.id, VerificationAttempt.requirement_uuid).where(
+                VerificationAttempt.user_id == user_id,
+                VerificationAttempt.requirement_uuid.in_(uuids),
+                VerificationAttempt.outcome.is_(None),
+            )
+        )
+        return [
+            ActiveAttemptRow(id=row.id, requirement_uuid=row.requirement_uuid)
+            for row in result.all()
+        ]
+
+    async def get_latest_terminal_for_requirements(
+        self, user_id: int, requirement_uuids: Iterable[UUID]
+    ) -> list[AttemptCardProjection]:
+        """Get the latest *terminal* attempt per requirement_uuid for a user.
+
+        Active attempts are deliberately excluded -- the phase page renders
+        those separately as the "in progress" spinner state (see
+        :meth:`get_active_for_requirements`); this feeds the requirement
+        card's persisted result (succeeded/failed/server_error/cancelled)
+        shown alongside or instead of that spinner.
+        """
+        uuids = list(requirement_uuids)
+        if not uuids:
+            return []
+
+        latest_sq = (
+            select(
+                VerificationAttempt.requirement_uuid,
+                func.max(VerificationAttempt.created_at).label("max_created_at"),
+            )
+            .where(
+                VerificationAttempt.user_id == user_id,
+                VerificationAttempt.requirement_uuid.in_(uuids),
+                VerificationAttempt.outcome.is_not(None),
+            )
+            .group_by(VerificationAttempt.requirement_uuid)
+            .subquery()
+        )
+        result = await self.db.execute(
+            select(
+                VerificationAttempt.id,
+                VerificationAttempt.requirement_uuid,
+                VerificationAttempt.submission_value_kind,
+                VerificationAttempt.submitted_value,
+                VerificationAttempt.github_username_snapshot,
+                VerificationAttempt.cloud_provider,
+                VerificationAttempt.outcome,
+                VerificationAttempt.feedback_json,
+                VerificationAttempt.validation_message,
+                VerificationAttempt.completed_at,
+                VerificationAttempt.created_at,
+                VerificationAttempt.updated_at,
+            )
+            .join(
+                latest_sq,
+                and_(
+                    VerificationAttempt.requirement_uuid
+                    == latest_sq.c.requirement_uuid,
+                    VerificationAttempt.created_at == latest_sq.c.max_created_at,
+                ),
+            )
+            .where(VerificationAttempt.user_id == user_id)
+        )
+        return [
+            AttemptCardProjection(
+                id=row.id,
+                requirement_uuid=row.requirement_uuid,
+                submission_value_kind=row.submission_value_kind,
+                submitted_value=row.submitted_value,
+                github_username_snapshot=row.github_username_snapshot,
+                cloud_provider=row.cloud_provider,
+                outcome=row.outcome,
+                feedback_json=row.feedback_json,
+                validation_message=row.validation_message,
+                completed_at=row.completed_at,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+            for row in result.all()
+        ]
+
+    async def list_phase_completions(
+        self,
+        requirement_counts_by_phase: dict[int, int],
+        phase_order_by_requirement_uuid: Mapping[UUID, int],
+    ) -> list[tuple[int, int]]:
+        """List ``(phase_order, user_id)`` for fully phase-verified users.
+
+        Mirrors ``SubmissionRepository.list_phase_completions`` (see that
+        docstring for the ``VALUES``-relation shape that avoids a
+        curriculum-table join) but sources succeeded ``verification_attempts``
+        as the primary signal. Also folds in legacy ``submissions.is_validated``
+        rows via a single ``UNION`` -- a narrow safety net only when the
+        (user, requirement) pair has no attempt row at all. Reconciliation is
+        expected to have already run before this reader is enabled, so this is
+        a fallback for the rare gap, not the primary path.
+        """
+        completable = {
+            order: total
+            for order, total in requirement_counts_by_phase.items()
+            if total > 0
+        }
+        if not completable:
+            return []
+
+        requirement_phase_rows = [
+            (req_uuid, order)
+            for req_uuid, order in phase_order_by_requirement_uuid.items()
+            if order in completable
+        ]
+        if not requirement_phase_rows:
+            return []
+
+        requirement_phase_map = values(
+            column("requirement_uuid", Uuid(as_uuid=True)),
+            column("phase_order", Integer),
+            name="requirement_phase_map",
+        ).data(requirement_phase_rows)
+
+        succeeded_attempts = select(
+            VerificationAttempt.user_id, VerificationAttempt.requirement_uuid
+        ).where(
+            VerificationAttempt.outcome == VerificationAttemptOutcome.SUCCEEDED.value
+        )
+        validated_legacy = select(
+            Submission.user_id, Submission.requirement_uuid
+        ).where(
+            Submission.is_validated.is_(True),
+            ~exists().where(
+                VerificationAttempt.user_id == Submission.user_id,
+                VerificationAttempt.requirement_uuid == Submission.requirement_uuid,
+            ),
+        )
+        succeeded = union(succeeded_attempts, validated_legacy).subquery("succeeded")
+
+        result = await self.db.execute(
+            select(
+                requirement_phase_map.c.phase_order,
+                succeeded.c.user_id,
+                func.count(func.distinct(succeeded.c.requirement_uuid)).label(
+                    "validated"
+                ),
+            )
+            .select_from(succeeded)
+            .join(
+                requirement_phase_map,
+                succeeded.c.requirement_uuid
+                == requirement_phase_map.c.requirement_uuid,
+            )
+            .group_by(requirement_phase_map.c.phase_order, succeeded.c.user_id)
+        )
+        return [
+            (order, user_id)
+            for order, user_id, validated in result.all()
+            if validated >= completable[order]
+        ]
