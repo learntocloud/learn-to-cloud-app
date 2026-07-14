@@ -13,18 +13,21 @@ migration installs.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.models import (
     VerificationAttempt,
     VerificationAttemptOutcome,
+    VerificationSnapshotSource,
     utcnow,
 )
+from learn_to_cloud_shared.submission_values import SubmittedValue
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,11 +110,138 @@ class AttemptAlreadyGoneError(Exception):
     """The attempt row disappeared between reads (should not happen in prod)."""
 
 
+class AttemptAlreadyValidatedError(Exception):
+    """A succeeded attempt already exists for this (user, requirement)."""
+
+
 class VerificationAttemptRepository:
-    """Data access for verification attempts, scoped to the Functions role."""
+    """Data access for verification attempts.
+
+    Most methods here run under the Functions role's narrowed column
+    grants (see migration 0051). :meth:`create_or_get_active` and
+    :meth:`delete_active` are the API-side submission-creation path and run
+    under the API's normal (unrestricted) role instead.
+    """
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+
+    async def create_or_get_active(
+        self,
+        *,
+        id: UUID,
+        user_id: int,
+        requirement_uuid: UUID,
+        artifact_schema_version: int,
+        curriculum_version: int,
+        content_hash: str,
+        requirement_snapshot: Mapping[str, object],
+        requirement_snapshot_hash: str,
+        payload_version: int,
+        github_username_snapshot: str | None,
+        submitted_value: SubmittedValue,
+        cloud_provider: str | None,
+        traceparent: str | None,
+        legacy_job_id: UUID,
+    ) -> tuple[VerificationAttempt, bool]:
+        """Create a new attempt, or return the active one, under an advisory lock.
+
+        Takes a transaction-scoped advisory lock keyed on ``(user_id,
+        requirement_uuid)`` before checking anything, so two concurrent
+        submits for the same requirement can never interleave their reads
+        and writes. With the lock held, this rechecks both an existing
+        *succeeded* attempt (closing the race between a concurrent
+        successful finalization and a new submit) and an existing *active*
+        attempt (the one-active-attempt invariant) before inserting a
+        brand-new row. The lock releases automatically when the caller
+        commits or rolls back the transaction.
+        """
+        await self._acquire_submission_lock(user_id, requirement_uuid)
+
+        succeeded = await self.db.execute(
+            select(VerificationAttempt.id)
+            .where(
+                VerificationAttempt.user_id == user_id,
+                VerificationAttempt.requirement_uuid == requirement_uuid,
+                VerificationAttempt.outcome
+                == VerificationAttemptOutcome.SUCCEEDED.value,
+            )
+            .limit(1)
+        )
+        if succeeded.scalar_one_or_none() is not None:
+            raise AttemptAlreadyValidatedError(
+                f"user {user_id} already has a succeeded attempt for "
+                f"requirement {requirement_uuid}"
+            )
+
+        active = await self.db.execute(
+            select(VerificationAttempt)
+            .where(
+                VerificationAttempt.user_id == user_id,
+                VerificationAttempt.requirement_uuid == requirement_uuid,
+                VerificationAttempt.outcome.is_(None),
+            )
+            .limit(1)
+        )
+        existing = active.scalar_one_or_none()
+        if existing is not None:
+            return existing, False
+
+        attempt = VerificationAttempt(
+            id=id,
+            user_id=user_id,
+            requirement_uuid=requirement_uuid,
+            artifact_schema_version=artifact_schema_version,
+            curriculum_version=curriculum_version,
+            content_hash=content_hash,
+            requirement_snapshot=dict(requirement_snapshot),
+            requirement_snapshot_hash=requirement_snapshot_hash,
+            snapshot_source=VerificationSnapshotSource.SUBMITTED.value,
+            payload_version=payload_version,
+            github_username_snapshot=github_username_snapshot,
+            cloud_provider=cloud_provider,
+            traceparent=traceparent,
+            legacy_job_id=legacy_job_id,
+            submission_value_kind=submitted_value.kind.value,
+            submitted_value=submitted_value.as_text,
+        )
+        self.db.add(attempt)
+        await self.db.flush()
+        return attempt, True
+
+    async def delete_active(self, attempt_id: UUID) -> bool:
+        """Delete an attempt that never started, freeing its active slot.
+
+        Used only when the API's own Durable start call fails before
+        reaching Functions (a config error, or a transport error before the
+        request landed) -- the attempt never ran, so nothing about it is
+        worth retaining. The lifecycle guards preserve rows already claimed
+        by Functions or terminalized by an authoritative writer.
+        """
+        stmt = delete(VerificationAttempt).where(
+            VerificationAttempt.id == attempt_id,
+            VerificationAttempt.outcome.is_(None),
+            VerificationAttempt.started_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return (getattr(result, "rowcount", 0) or 0) > 0
+
+    async def _acquire_submission_lock(
+        self, user_id: int, requirement_uuid: UUID
+    ) -> None:
+        """Take a transaction-scoped advisory lock for one (user, requirement).
+
+        ``hashtextextended`` folds the composite key into the single
+        64-bit value ``pg_advisory_xact_lock`` takes, so the lock target is
+        deterministic and collision-resistant without a second, session-level
+        unlock call to remember -- Postgres releases a ``_xact_lock``
+        automatically at commit or rollback.
+        """
+        lock_key = f"verification_attempt:{user_id}:{requirement_uuid}"
+        await self.db.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
+            {"lock_key": lock_key},
+        )
 
     async def get_prepare_state(self, attempt_id: UUID) -> AttemptPrepareState | None:
         """Load the identity + submitted snapshot for one attempt."""

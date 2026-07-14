@@ -1,7 +1,7 @@
 """Submissions service for hands-on verification submissions.
 
 This module handles:
-- Verification job creation with pre-validation
+- Verification attempt creation with pre-validation
 - Data transformation helpers used by other services (e.g. progress)
 - Already-validated short-circuit (skip re-verification for passed requirements)
 
@@ -11,11 +11,15 @@ Routes should delegate submission business logic to this module.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from learn_to_cloud_shared.models import VerificationJob
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
+)
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    AttemptAlreadyValidatedError,
+    VerificationAttemptRepository,
 )
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
@@ -35,6 +39,12 @@ from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.verification.execution import (
     to_submission_data,
 )
+from learn_to_cloud_shared.verification_attempt_snapshot import (
+    ATTEMPT_PAYLOAD_VERSION,
+    build_requirement_snapshot,
+    compute_snapshot_hash,
+)
+from opentelemetry.propagate import inject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
@@ -135,19 +145,25 @@ class _PreValidationContext:
 
 
 @dataclass(frozen=True, slots=True)
-class VerificationJobSubmission:
-    """Result of creating or reusing a verification job (async Durable path).
+class VerificationAttemptSubmission:
+    """Result of creating or reusing a verification attempt (async Durable path).
 
-    Carries the validated requirement (and the github_username used at
-    submit time) so the route can build a complete
-    ``PreparedVerificationJob`` payload for the Durable starter without
-    re-deriving anything from the request.
+    ``attempt_id`` is shared with the compatibility ``verification_jobs`` row
+    created in the same transaction, so the caller can key the Durable start
+    call, status polling, and any failure cleanup off one id -- Functions
+    loads everything else (identity, requirement snapshot, submitted value)
+    straight from the attempt row.
     """
 
-    job: VerificationJob
+    attempt_id: UUID
     created: bool
-    requirement: HandsOnRequirement
-    github_username: str | None
+
+
+def _current_traceparent() -> str | None:
+    """Return the active W3C trace parent when telemetry is available."""
+    carrier: dict[str, str] = {}
+    inject(carrier)
+    return carrier.get("traceparent")
 
 
 async def _check_submission_preconditions(
@@ -206,19 +222,26 @@ async def _check_submission_preconditions(
     )
 
 
-async def create_verification_job(
+async def create_verification_attempt(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_slug: str,
     submitted_value: str,
     github_username: str | None,
-) -> VerificationJobSubmission:
-    """Validate request preconditions and create the Durable verification job.
+) -> VerificationAttemptSubmission:
+    """Validate request preconditions and create the unified verification attempt.
 
-    Every submission type runs through Durable Functions: this validates the
-    request, creates (or reuses) the ``VerificationJob`` row, and returns a
-    :class:`VerificationJobSubmission` for the caller to start the
-    orchestration.
+    Every submission type runs through Durable Functions. This validates the
+    request, then -- inside one transaction, guarded by a transaction-scoped
+    Postgres advisory lock on ``(user_id, requirement_uuid)`` -- creates (or
+    reuses) the authoritative ``VerificationAttempt`` row plus its
+    compatibility ``VerificationJob`` row, sharing one UUID, so old API
+    readers stay valid while the attempt row becomes the source of truth.
+
+    The advisory lock serializes concurrent submits for the same
+    requirement so two racing requests can never both pass the
+    active/succeeded checks and create two active attempts; it releases
+    automatically when the transaction commits below.
     """
     ctx = await _check_submission_preconditions(
         session_maker,
@@ -231,21 +254,49 @@ async def create_verification_job(
     except ValueError as exc:
         raise InvalidSubmittedValueError(str(exc)) from exc
 
+    catalog = get_curriculum_catalog()
+    requirement_snapshot = build_requirement_snapshot(ctx.requirement)
+    requirement_snapshot_hash = compute_snapshot_hash(requirement_snapshot)
+    attempt_id = uuid4()
+    traceparent = _current_traceparent()
+
     async with session_maker() as write_session:
-        repo = VerificationJobRepository(write_session)
-        job, created = await repo.create_or_get_active(
-            user_id=user_id,
-            requirement_uuid=ctx.requirement.uuid,
-            submitted_value=typed_value,
-        )
+        attempt_repo = VerificationAttemptRepository(write_session)
+        try:
+            attempt, created = await attempt_repo.create_or_get_active(
+                id=attempt_id,
+                user_id=user_id,
+                requirement_uuid=ctx.requirement.uuid,
+                artifact_schema_version=catalog.artifact_schema_version,
+                curriculum_version=catalog.curriculum_version,
+                content_hash=catalog.content_hash,
+                requirement_snapshot=requirement_snapshot,
+                requirement_snapshot_hash=requirement_snapshot_hash,
+                payload_version=ATTEMPT_PAYLOAD_VERSION,
+                github_username_snapshot=github_username,
+                submitted_value=typed_value,
+                cloud_provider=None,
+                traceparent=traceparent,
+                legacy_job_id=attempt_id,
+            )
+        except AttemptAlreadyValidatedError as exc:
+            raise AlreadyValidatedError(
+                "You have already completed this requirement."
+            ) from exc
+
+        if created:
+            await VerificationJobRepository(write_session).create(
+                id=attempt.id,
+                user_id=user_id,
+                requirement_uuid=ctx.requirement.uuid,
+                submitted_value=typed_value,
+                extracted_username=github_username,
+                traceparent=traceparent,
+            )
+
         await write_session.commit()
 
-    return VerificationJobSubmission(
-        job=job,
-        created=created,
-        requirement=ctx.requirement,
-        github_username=github_username,
-    )
+    return VerificationAttemptSubmission(attempt_id=attempt.id, created=created)
 
 
 # Synthetic user id for the read-only smoke check. It is never a real
@@ -260,8 +311,8 @@ async def run_submit_smoke_check(
     """Exercise the verification submit read path without writing anything.
 
     Runs the same requirement loading, submissions read, phase gating, and
-    typed-value parsing that :func:`create_verification_job` performs for a
-    real submission, but against a synthetic user and an early phase, and
+    typed-value parsing that :func:`create_verification_attempt` performs for
+    a real submission, but against a synthetic user and an early phase, and
     stops before persisting anything.
 
     The goal is to catch a schema-versus-code mismatch (the class of bug

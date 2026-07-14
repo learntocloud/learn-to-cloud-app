@@ -53,11 +53,17 @@ class VerificationJobRepository:
         extracted_username: str | None = None,
         cloud_provider: str | None = None,
         traceparent: str | None = None,
+        id: UUID | None = None,
     ) -> VerificationJob:
-        """Create a verification job and let DB constraints enforce uniqueness."""
+        """Create a verification job and let DB constraints enforce uniqueness.
+
+        ``id`` lets a caller share the id of an already-created
+        ``verification_attempts`` row (the unified-attempt submission path);
+        omit it to generate a fresh id (the legacy job-only path).
+        """
         value_columns = submitted_value.to_columns()
         job = VerificationJob(
-            id=uuid4(),
+            id=id or uuid4(),
             user_id=user_id,
             requirement_uuid=requirement_uuid,
             **value_columns,

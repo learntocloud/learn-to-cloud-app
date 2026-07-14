@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+from uuid import UUID
 
 import httpx
 from azure.core.exceptions import AzureError
@@ -40,31 +41,20 @@ class DurableStatusResult:
     custom_status: object | None = None
 
 
-async def start_verification_orchestration(
-    prepared: PreparedVerificationJob,
+async def _post_start_request(
+    url: str,
+    *,
+    headers: dict[str, str],
+    timeout: float,
+    body: dict[str, Any] | None,
 ) -> DurableStartResult:
-    """Start the Durable orchestration for a persisted verification job.
-
-    Posts the full :class:`PreparedVerificationJob` payload to the
-    Functions starter so the orchestration has everything it needs to
-    run without reading curriculum tables. The Functions side still
-    validates the immutable fields (``user_id``, ``requirement_uuid``,
-    ``submitted_value``) against the ``verification_jobs`` row before
-    starting -- the payload is trusted only for the requirement
-    *definition* and ``github_username`` snapshot.
-    """
-    settings = get_web_settings()
-    base_url, token_scope = _verification_endpoint_config(settings)
-
-    headers = await _verification_auth_headers(token_scope)
-
-    url = f"{base_url}/api/verification/jobs/{prepared.id}/start"
-    body: dict[str, Any] = prepared.to_payload()
-
-    timeout = settings.http.external_api_timeout
+    """POST a Durable starter request and parse its ``{"id": ...}`` response."""
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(url, headers=headers, json=body)
+            if body is None:
+                response = await client.post(url, headers=headers)
+            else:
+                response = await client.post(url, headers=headers, json=body)
     except httpx.HTTPError as exc:
         raise DurableVerificationStartError("Durable starter request failed.") from exc
 
@@ -87,6 +77,59 @@ async def start_verification_orchestration(
         )
 
     return DurableStartResult(instance_id=instance_id)
+
+
+async def start_verification_orchestration(
+    prepared: PreparedVerificationJob,
+) -> DurableStartResult:
+    """Start the legacy Durable orchestration for a persisted verification job.
+
+    Posts the full :class:`PreparedVerificationJob` payload to the
+    Functions starter so the orchestration has everything it needs to
+    run without reading curriculum tables. The Functions side still
+    validates the immutable fields (``user_id``, ``requirement_uuid``,
+    ``submitted_value``) against the ``verification_jobs`` row before
+    starting -- the payload is trusted only for the requirement
+    *definition* and ``github_username`` snapshot.
+
+    New submissions no longer call this -- see
+    :func:`start_verification_attempt_orchestration`. This stays registered
+    for any in-flight legacy instances until PR8 (legacy-drain).
+    """
+    settings = get_web_settings()
+    base_url, token_scope = _verification_endpoint_config(settings)
+    headers = await _verification_auth_headers(token_scope)
+
+    url = f"{base_url}/api/verification/jobs/{prepared.id}/start"
+    return await _post_start_request(
+        url,
+        headers=headers,
+        timeout=settings.http.external_api_timeout,
+        body=prepared.to_payload(),
+    )
+
+
+async def start_verification_attempt_orchestration(
+    attempt_id: UUID,
+) -> DurableStartResult:
+    """Start the versioned Durable attempt orchestration for a persisted attempt.
+
+    Posts no body: the Functions starter loads identity, the requirement
+    snapshot, and the submitted value straight from the ``verification_attempts``
+    row (see the PR4 bridge), so the API never sends -- and the narrowed
+    Functions role never needs to trust -- a second copy of any of that.
+    """
+    settings = get_web_settings()
+    base_url, token_scope = _verification_endpoint_config(settings)
+    headers = await _verification_auth_headers(token_scope)
+
+    url = f"{base_url}/api/verification/attempts/{attempt_id}/start"
+    return await _post_start_request(
+        url,
+        headers=headers,
+        timeout=settings.http.external_api_timeout,
+        body=None,
+    )
 
 
 async def get_verification_orchestration_status(

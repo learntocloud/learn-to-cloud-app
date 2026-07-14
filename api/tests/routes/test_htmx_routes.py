@@ -13,13 +13,11 @@ Testing approach:
 """
 
 from types import SimpleNamespace
-from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 from fastapi.responses import HTMLResponse
-from learn_to_cloud_shared.models import SubmissionValueKind, VerificationJob
 
 from learn_to_cloud.core.auth import AuthenticatedUser
 from learn_to_cloud.routes.htmx_routes import (
@@ -37,37 +35,14 @@ from learn_to_cloud.services.durable_verification_client import (
 )
 from learn_to_cloud.services.steps_service import StepValidationError
 from learn_to_cloud.services.submissions_service import (
-    VerificationJobSubmission,
+    VerificationAttemptSubmission,
 )
 from learn_to_cloud.services.users_service import UserNotFoundError
 from learn_to_cloud.services.verification_status_tokens import VerificationStatusToken
 
 
-def _async_requirement():
-    """A real HandsOnRequirement for tests that need to build a
-    PreparedVerificationJob payload alongside a VerificationJobSubmission."""
-    from learn_to_cloud_shared.testing.requirement_factories import (
-        journal_api_verifier_requirement,
-    )
-
-    return journal_api_verifier_requirement(
-        slug="journal-api-implementation",
-        name="Journal API",
-        description="Test",
-    )
-
-
-def _mock_job(value: str = "https://github.com/user/repo") -> SimpleNamespace:
-    return SimpleNamespace(
-        id=uuid4(),
-        orchestration_instance_id=None,
-        submitted_value=value,
-        submission_value_kind=SubmissionValueKind.GITHUB_URL.value,
-        github_url=value,
-        token_value=None,
-        deployed_url=None,
-        text_value=None,
-    )
+def _mock_attempt_submission(*, created: bool = True) -> VerificationAttemptSubmission:
+    return VerificationAttemptSubmission(attempt_id=uuid4(), created=created)
 
 
 def _mock_request(*, session: dict | None = None) -> MagicMock:
@@ -217,26 +192,20 @@ class TestHtmxUncompleteStep:
 class TestHtmxSubmitVerification:
     """Tests for POST /htmx/github/submit.
 
-    The route is thin: derive URL, persist a job, start Durable, return spinner.
+    The route is thin: derive value, persist an attempt, start Durable,
+    return spinner.
     """
 
     async def test_submit_success_returns_processing_card(self):
         """Successful submission starts Durable and returns processing card."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = _mock_job()
-        job_submission = SimpleNamespace(
-            job=job,
-            created=True,
-            requirement=_async_requirement(),
-            github_username="user",
-        )
-        start_result = SimpleNamespace(instance_id=str(job.id))
+        attempt_submission = _mock_attempt_submission(created=True)
+        start_result = SimpleNamespace(instance_id=str(attempt_submission.attempt_id))
         write_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
             write_session
         )
-        repo = MagicMock()
 
         with (
             patch(
@@ -249,19 +218,16 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
                 new_callable=AsyncMock,
-                return_value=job_submission,
-            ) as mock_create_job,
+                return_value=attempt_submission,
+            ) as mock_create_attempt,
             patch(
-                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                "learn_to_cloud.routes.htmx_routes."
+                "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 return_value=start_result,
             ) as mock_start,
-            patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
-                return_value=repo,
-            ),
         ):
             result = await htmx_submit_verification(
                 request,
@@ -272,8 +238,8 @@ class TestHtmxSubmitVerification:
 
         # Should return a processing card, not a final result
         assert result is not None
-        mock_create_job.assert_awaited_once()
-        mock_start.assert_awaited_once()
+        mock_create_attempt.assert_awaited_once()
+        mock_start.assert_awaited_once_with(attempt_submission.attempt_id)
 
     async def test_submit_unexpected_error_renders_server_error(self):
         """Unexpected exceptions render a server error card."""
@@ -291,7 +257,7 @@ class TestHtmxSubmitVerification:
                 return_value="test",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("boom"),
             ),
@@ -306,25 +272,22 @@ class TestHtmxSubmitVerification:
         # Should render a server error card, not crash
         assert result is not None
 
-    async def test_durable_start_failure_deletes_job(self):
-        """When Durable's start_new fails, the route deletes the just-
-        created job row instead of marking it server_error. Frees the
-        partial unique index so the user can retry immediately."""
+    async def test_durable_start_failure_deletes_attempt_and_job(self):
+        """When Durable's start_new call fails before reaching Functions, the
+        route deletes both the just-created attempt and legacy job rows
+        instead of marking either terminal. Frees the partial unique
+        indexes so the user can retry immediately."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = _mock_job()
-        async_result = VerificationJobSubmission(
-            job=cast(VerificationJob, job),
-            created=True,
-            requirement=_async_requirement(),
-            github_username="user",
-        )
+        attempt_submission = _mock_attempt_submission(created=True)
         write_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
             write_session
         )
-        repo = MagicMock()
-        repo.delete_active = AsyncMock(return_value=True)
+        attempt_repo = MagicMock()
+        attempt_repo.delete_active = AsyncMock(return_value=True)
+        job_repo = MagicMock()
+        job_repo.delete_active = AsyncMock(return_value=True)
 
         with (
             patch(
@@ -337,18 +300,23 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
                 new_callable=AsyncMock,
-                return_value=async_result,
+                return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                "learn_to_cloud.routes.htmx_routes."
+                "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 side_effect=DurableVerificationStartError("boom"),
             ),
             patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                return_value=attempt_repo,
+            ),
+            patch(
                 "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
-                return_value=repo,
+                return_value=job_repo,
             ),
         ):
             result = await htmx_submit_verification(
@@ -359,7 +327,10 @@ class TestHtmxSubmitVerification:
             )
 
         assert isinstance(result, HTMLResponse)
-        repo.delete_active.assert_awaited_once_with(job.id)
+        attempt_repo.delete_active.assert_awaited_once_with(
+            attempt_submission.attempt_id
+        )
+        job_repo.delete_active.assert_awaited_once_with(attempt_submission.attempt_id)
         write_session.commit.assert_awaited_once()
 
     async def test_durable_config_error_does_not_invite_immediate_retry(
@@ -369,19 +340,15 @@ class TestHtmxSubmitVerification:
         helps. The banner must not tell the user to try again immediately."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = _mock_job()
-        async_result = VerificationJobSubmission(
-            job=cast(VerificationJob, job),
-            created=True,
-            requirement=_async_requirement(),
-            github_username="user",
-        )
+        attempt_submission = _mock_attempt_submission(created=True)
         write_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
             write_session
         )
-        repo = MagicMock()
-        repo.delete_active = AsyncMock(return_value=True)
+        attempt_repo = MagicMock()
+        attempt_repo.delete_active = AsyncMock(return_value=True)
+        job_repo = MagicMock()
+        job_repo.delete_active = AsyncMock(return_value=True)
 
         with (
             patch(
@@ -394,18 +361,23 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
                 new_callable=AsyncMock,
-                return_value=async_result,
+                return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                "learn_to_cloud.routes.htmx_routes."
+                "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 side_effect=DurableVerificationConfigError("not configured"),
             ),
             patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                return_value=attempt_repo,
+            ),
+            patch(
                 "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
-                return_value=repo,
+                return_value=job_repo,
             ),
         ):
             result = await htmx_submit_verification(
@@ -417,7 +389,10 @@ class TestHtmxSubmitVerification:
 
         assert isinstance(result, HTMLResponse)
         # The in-flight slot is still freed so a later (post-fix) retry works.
-        repo.delete_active.assert_awaited_once_with(job.id)
+        attempt_repo.delete_active.assert_awaited_once_with(
+            attempt_submission.attempt_id
+        )
+        job_repo.delete_active.assert_awaited_once_with(attempt_submission.attempt_id)
         _, _, context = _patch_templates.TemplateResponse.call_args.args
         assert context["server_error"] is True
         assert context["server_error_retryable"] is False
@@ -433,19 +408,15 @@ class TestHtmxSubmitVerification:
         """A transient start error should still mark the banner retryable."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = _mock_job()
-        async_result = VerificationJobSubmission(
-            job=cast(VerificationJob, job),
-            created=True,
-            requirement=_async_requirement(),
-            github_username="user",
-        )
+        attempt_submission = _mock_attempt_submission(created=True)
         write_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
             write_session
         )
-        repo = MagicMock()
-        repo.delete_active = AsyncMock(return_value=True)
+        attempt_repo = MagicMock()
+        attempt_repo.delete_active = AsyncMock(return_value=False)
+        job_repo = MagicMock()
+        job_repo.delete_active = AsyncMock(return_value=True)
 
         with (
             patch(
@@ -458,18 +429,23 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
                 new_callable=AsyncMock,
-                return_value=async_result,
+                return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                "learn_to_cloud.routes.htmx_routes."
+                "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 side_effect=DurableVerificationStartError("boom"),
             ),
             patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                return_value=attempt_repo,
+            ),
+            patch(
                 "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
-                return_value=repo,
+                return_value=job_repo,
             ),
         ):
             await htmx_submit_verification(
@@ -482,25 +458,22 @@ class TestHtmxSubmitVerification:
         _, _, context = _patch_templates.TemplateResponse.call_args.args
         assert context["server_error"] is True
         assert context["server_error_retryable"] is True
+        attempt_repo.delete_active.assert_awaited_once_with(
+            attempt_submission.attempt_id
+        )
+        job_repo.delete_active.assert_not_awaited()
 
     async def test_async_submit_still_returns_processing_card(self):
         """Regression: async submissions must keep using the
-        VerificationJobSubmission spinner-and-poll path."""
+        VerificationAttemptSubmission spinner-and-poll path."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = _mock_job()
-        async_result = VerificationJobSubmission(
-            job=cast(VerificationJob, job),
-            created=True,
-            requirement=_async_requirement(),
-            github_username="user",
-        )
-        start_result = SimpleNamespace(instance_id=str(job.id))
+        attempt_submission = _mock_attempt_submission(created=True)
+        start_result = SimpleNamespace(instance_id=str(attempt_submission.attempt_id))
         write_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
             write_session
         )
-        repo = MagicMock()
 
         with (
             patch(
@@ -513,19 +486,16 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
                 new_callable=AsyncMock,
-                return_value=async_result,
+                return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                "learn_to_cloud.routes.htmx_routes."
+                "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 return_value=start_result,
             ) as mock_start,
-            patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
-                return_value=repo,
-            ),
         ):
             result = await htmx_submit_verification(
                 request,
@@ -535,11 +505,7 @@ class TestHtmxSubmitVerification:
             )
 
         assert isinstance(result, HTMLResponse)
-        mock_start.assert_awaited_once()
-        await_args = mock_start.await_args
-        assert await_args is not None
-        (call_arg,) = await_args.args
-        assert call_arg.id == job.id
+        mock_start.assert_awaited_once_with(attempt_submission.attempt_id)
 
     async def test_deployment_architecture_long_description_reaches_derive(self):
         """A >2048-char architecture description must not be truncated by the
@@ -558,14 +524,8 @@ class TestHtmxSubmitVerification:
 
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = _mock_job()
-        async_result = VerificationJobSubmission(
-            job=cast(VerificationJob, job),
-            created=True,
-            requirement=requirement,
-            github_username="user",
-        )
-        start_result = SimpleNamespace(instance_id=str(job.id))
+        attempt_submission = _mock_attempt_submission(created=True)
+        start_result = SimpleNamespace(instance_id=str(attempt_submission.attempt_id))
         write_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
             write_session
@@ -582,19 +542,16 @@ class TestHtmxSubmitVerification:
                 return_value=long_description,
             ) as mock_derive,
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
                 new_callable=AsyncMock,
-                return_value=async_result,
+                return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                "learn_to_cloud.routes.htmx_routes."
+                "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 return_value=start_result,
             ) as mock_start,
-            patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
-                return_value=MagicMock(),
-            ),
         ):
             result = await htmx_submit_verification(
                 request,
@@ -626,7 +583,7 @@ class TestHtmxSubmitVerification:
                 return_value=requirement,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
                 new_callable=AsyncMock,
             ) as mock_create,
         ):
@@ -641,20 +598,14 @@ class TestHtmxSubmitVerification:
         mock_create.assert_not_awaited()
 
     async def test_duplicate_submit_skips_durable_start(self):
-        """When ``create_verification_job`` returns ``created=False``
-        (concurrent submit raced into the same job row), the route does
-        NOT call ``start_verification_orchestration`` — the original
-        submit already kicked off Durable, and calling start_new again
-        with the same instance id would error."""
+        """When ``create_verification_attempt`` returns ``created=False``
+        (concurrent submit raced into the same attempt), the route does
+        NOT call ``start_verification_attempt_orchestration`` — the
+        original submit already kicked off Durable, and calling start_new
+        again with the same instance id would error."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = _mock_job()
-        async_result = VerificationJobSubmission(
-            job=cast(VerificationJob, job),
-            created=False,
-            requirement=_async_requirement(),
-            github_username="user",
-        )
+        attempt_submission = _mock_attempt_submission(created=False)
 
         with (
             patch(
@@ -667,12 +618,13 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
                 new_callable=AsyncMock,
-                return_value=async_result,
+                return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                "learn_to_cloud.routes.htmx_routes."
+                "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
             ) as mock_start,
         ):

@@ -552,6 +552,59 @@ def test_mirror_trigger_insert_delete_and_idempotent(alembic_runner, alembic_eng
 
 
 @pytest.mark.migration_chain
+def test_explicit_dual_write_is_safe_alongside_mirror_trigger(
+    alembic_runner, alembic_engine
+):
+    """PR5's explicit dual-write (learner_step_completions insert, then the
+    legacy step_progress insert) must coexist with the 0049 mirror trigger:
+    the trigger's own INSERT/DELETE against learner_step_completions is
+    ``ON CONFLICT DO NOTHING`` / a plain ``DELETE``, so it becomes a no-op
+    once the explicit write already landed -- regardless of write order."""
+    alembic_runner.migrate_up_to(_BEFORE)
+    _seed(alembic_engine)
+    alembic_runner.migrate_up_one()
+
+    new_step = _extra_step(alembic_engine)
+
+    # Explicit authoritative write first (what LearnerStepCompletionRepository
+    # does), then the legacy write the trigger mirrors from.
+    with alembic_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO learner_step_completions "
+                "(user_id, step_uuid, completed_at) "
+                "VALUES (1001, :s, :t) "
+                "ON CONFLICT (user_id, step_uuid) DO NOTHING"
+            ),
+            {"s": new_step, "t": _NOW},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO step_progress (user_id, step_uuid, completed_at) "
+                "VALUES (1001, :s, :t)"
+            ),
+            {"s": new_step, "t": _NOW},
+        )
+    # No unique-violation from the trigger's own insert, and no duplicate row.
+    assert _completion_count(alembic_engine, new_step) == 1
+
+    # Explicit delete first, then the legacy delete the trigger mirrors from.
+    with alembic_engine.begin() as conn:
+        conn.execute(
+            text(
+                "DELETE FROM learner_step_completions "
+                "WHERE user_id = 1001 AND step_uuid = :s"
+            ),
+            {"s": new_step},
+        )
+        conn.execute(
+            text("DELETE FROM step_progress WHERE user_id = 1001 AND step_uuid = :s"),
+            {"s": new_step},
+        )
+    assert _completion_count(alembic_engine, new_step) == 0
+
+
+@pytest.mark.migration_chain
 def test_active_uniqueness_preflight_aborts(alembic_runner, alembic_engine):
     alembic_runner.migrate_up_to(_BEFORE)
     ids = _seed(alembic_engine)

@@ -19,6 +19,9 @@ from uuid import UUID
 from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse
 from learn_to_cloud_shared.core.database import DbSession
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    VerificationAttemptRepository,
+)
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
@@ -32,8 +35,6 @@ from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
     is_derivable,
 )
-from learn_to_cloud_shared.submission_values import submission_value_from_columns
-from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 if TYPE_CHECKING:
@@ -52,7 +53,7 @@ from learn_to_cloud.services.durable_verification_client import (
     DurableVerificationStartError,
     DurableVerificationStatusError,
     get_verification_orchestration_status,
-    start_verification_orchestration,
+    start_verification_attempt_orchestration,
 )
 from learn_to_cloud.services.steps_service import (
     StepValidationError,
@@ -64,8 +65,8 @@ from learn_to_cloud.services.submissions_service import (
     InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
-    VerificationJobSubmission,
-    create_verification_job,
+    VerificationAttemptSubmission,
+    create_verification_attempt,
 )
 from learn_to_cloud.services.users_service import (
     UserNotFoundError,
@@ -320,9 +321,10 @@ async def htmx_submit_verification(
     """Submit a hands-on verification.
 
     Every submission type runs through Durable Functions:
-    :func:`create_verification_job` validates the request and creates a
-    ``VerificationJob``; we start the Durable orchestration and return a
-    spinner card that polls for status.
+    :func:`create_verification_attempt` validates the request and creates a
+    ``VerificationAttempt`` (plus its compatibility ``VerificationJob``); we
+    start the versioned attempt orchestration and return a spinner card that
+    polls for status.
     """
     user_id = current_user.user_id
     github_username = current_user.github_username
@@ -393,9 +395,9 @@ async def htmx_submit_verification(
     else:
         derived_value = submitted_value
 
-    # ── Create the Durable verification job ────────────────────────────
+    # ── Create the unified verification attempt ─────────────────────────
     try:
-        job_submission = await create_verification_job(
+        attempt_submission = await create_verification_attempt(
             session_maker=session_maker,
             user_id=user_id,
             requirement_slug=requirement_slug,
@@ -422,57 +424,52 @@ async def htmx_submit_verification(
             ),
         )
 
-    return await _start_async_job_and_render(
+    return await _start_async_attempt_and_render(
         session_maker=session_maker,
         user_id=user_id,
         requirement_slug=requirement_slug,
-        job_submission=job_submission,
+        attempt_submission=attempt_submission,
         render_card=_render_card,
     )
 
 
-async def _start_async_job_and_render(
+async def _start_async_attempt_and_render(
     *,
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_slug: str,
-    job_submission: VerificationJobSubmission,
+    attempt_submission: VerificationAttemptSubmission,
     render_card: Callable[..., HTMLResponse],
 ) -> HTMLResponse:
-    """Start a Durable orchestration for an async job and render the spinner.
+    """Start the Durable attempt orchestration and render the spinner.
 
-    Builds the full :class:`PreparedVerificationJob` payload from the
-    validated requirement + github_username carried on
-    ``job_submission`` and posts it to the Functions starter. Functions
-    validates the immutable fields against the ``verification_jobs``
-    row before starting; the payload is trusted for the requirement
-    definition + username snapshot so Functions never needs to read
-    curriculum or users tables.
+    Posts no body -- the PR4 attempt starter loads identity, the
+    requirement snapshot, and the submitted value straight from the
+    ``verification_attempts`` row keyed by ``attempt_submission.attempt_id``,
+    which is shared with the compatibility ``verification_jobs`` row created
+    in the same transaction.
 
     On the rare concurrent-submit case (``created=False``) the original
     submit already kicked off Durable; we skip the start call and let
-    the poller discover the existing instance via ``job.id``. If that
+    the poller discover the existing instance via the shared id. If that
     original start never actually succeeded, the poller will see a 404
     from Durable and surface the error so the user can retry.
 
-    On Durable start failure deletes the just-created row so the
-    partial unique index doesn't block the user's retry.
+    On a Durable start-call failure that never reached Functions (config
+    error, or a transport error before the request landed), deletes the
+    just-created attempt and legacy job rows so neither blocks the user's
+    retry -- nothing ran, so there is nothing worth retaining.
     """
     try:
-        if job_submission.created:
-            prepared = PreparedVerificationJob(
-                id=job_submission.job.id,
-                user_id=user_id,
-                github_username=job_submission.github_username,
-                requirement=job_submission.requirement,
-                submitted_value=submission_value_from_columns(job_submission.job),
+        if attempt_submission.created:
+            await start_verification_attempt_orchestration(
+                attempt_submission.attempt_id
             )
-            await start_verification_orchestration(prepared)
 
         status_token = create_verification_status_token(
             user_id=user_id,
-            job_id=job_submission.job.id,
-            instance_id=str(job_submission.job.id),
+            job_id=attempt_submission.attempt_id,
+            instance_id=str(attempt_submission.attempt_id),
             requirement_slug=requirement_slug,
         )
 
@@ -500,13 +497,19 @@ async def _start_async_job_and_render(
                 ),
             },
         )
-        # Delete the just-created row so the partial unique index doesn't
-        # block the user's retry. Durable owns terminal-state messaging
-        # now; we just need to free the in-flight slot.
+        # Only an unclaimed attempt is safe to remove. A timeout can happen
+        # after Functions has claimed and started it, in which case the row
+        # must remain for the orchestration to finalize.
         async with session_maker() as write_session:
-            await VerificationJobRepository(write_session).delete_active(
-                job_submission.job.id,
+            attempt_deleted = await VerificationAttemptRepository(
+                write_session
+            ).delete_active(
+                attempt_submission.attempt_id,
             )
+            if attempt_deleted:
+                await VerificationJobRepository(write_session).delete_active(
+                    attempt_submission.attempt_id,
+                )
             await write_session.commit()
         # A config error means the verification service is misconfigured on our
         # side, so retrying will never help. A start error is usually a
