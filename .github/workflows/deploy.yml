@@ -187,6 +187,34 @@ jobs:
             exit 1
           fi
 
+      - name: Verify generated curriculum.json artifact is up to date
+        working-directory: packages/learn-to-cloud-shared
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          artifact_path=src/learn_to_cloud_shared/content/curriculum.json
+          repo_artifact_path=packages/learn-to-cloud-shared/$artifact_path
+          prior_sha="${PR_BASE_SHA:-${PUSH_BEFORE_SHA:-}}"
+          previous_artifact_args=()
+
+          # workflow_dispatch and a branch's first push have no meaningful
+          # prior SHA (before-SHA is all zeros) -- skip the version check.
+          if [ -n "$prior_sha" ] && [ "$prior_sha" != "0000000000000000000000000000000000000000" ]; then
+            previous_artifact="$RUNNER_TEMP/previous-curriculum.json"
+            if git show "${prior_sha}:${repo_artifact_path}" > "$previous_artifact" 2>/dev/null; then
+              previous_artifact_args=(--previous-artifact "$previous_artifact")
+            fi
+          fi
+
+          uv run python scripts/compile_curriculum.py "${previous_artifact_args[@]}"
+          if ! git diff --exit-code "$artifact_path"; then
+            echo "::error::curriculum.json drifted from the authored YAML." >&2
+            echo "Run 'cd packages/learn-to-cloud-shared && uv run python scripts/compile_curriculum.py' and commit the result." >&2
+            exit 1
+          fi
+
       - name: Verify single migration head (no branches)
         working-directory: api
         run: |

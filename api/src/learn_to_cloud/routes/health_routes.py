@@ -7,6 +7,7 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.core.database import check_db_connection
 from learn_to_cloud_shared.schemas import HealthResponse
 from sqlalchemy import text
@@ -48,8 +49,20 @@ async def _get_db_alembic_head(engine: AsyncEngine) -> str | None:
 
 @router.get("/health", summary="Health check")
 async def health() -> HealthResponse:
-    """Health check endpoint."""
-    return HealthResponse(status="healthy", service="learn-to-cloud-api")
+    """Health check endpoint.
+
+    Includes the compiled curriculum artifact's identity (schema
+    version, authored version, content hash) -- loaded once per process
+    and guaranteed present because startup fails fast if it can't load.
+    """
+    catalog = get_curriculum_catalog()
+    return HealthResponse(
+        status="healthy",
+        service="learn-to-cloud-api",
+        curriculum_version=catalog.curriculum_version,
+        artifact_schema_version=catalog.artifact_schema_version,
+        content_hash=catalog.content_hash,
+    )
 
 
 @router.get(
@@ -115,7 +128,14 @@ async def ready(request: Request) -> HealthResponse:
                     extra={"db_head": db_head, "code_head": code_head},
                 )
 
-    return HealthResponse(status="ready", service="learn-to-cloud-api")
+    catalog = get_curriculum_catalog()
+    return HealthResponse(
+        status="ready",
+        service="learn-to-cloud-api",
+        curriculum_version=catalog.curriculum_version,
+        artifact_schema_version=catalog.artifact_schema_version,
+        content_hash=catalog.content_hash,
+    )
 
 
 @router.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)

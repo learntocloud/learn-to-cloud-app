@@ -1,0 +1,8 @@
+# Authoritative curriculum content version (issue: curriculum artifact compiler).
+#
+# Bump this integer any time authored curriculum content changes in a way
+# that should be reflected in a new compiled artifact (phases, topics,
+# steps, objectives, or requirements). The compiler enforces that this
+# value strictly increases relative to the previously committed
+# curriculum.json artifact -- it will refuse to compile otherwise.
+curriculum_version: 1

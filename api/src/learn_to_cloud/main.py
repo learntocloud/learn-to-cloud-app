@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.core.azure_auth import close_credential
 from learn_to_cloud_shared.core.config import get_web_settings
 from learn_to_cloud_shared.core.database import (
@@ -117,6 +118,20 @@ async def lifespan(app: fastapi.FastAPI):
     app.state.session_maker = create_session_maker(app.state.engine)
     # Parsing migration scripts is cheap once, not on every /ready poll.
     app.state.alembic_code_head = get_code_alembic_head()
+
+    # Fail fast (unlike the alembic head above, a bad/missing curriculum
+    # artifact is not tolerated) so a broken deploy never starts serving.
+    app.state.curriculum_catalog = get_curriculum_catalog()
+    logger.info(
+        "init.curriculum_loaded",
+        extra={
+            "curriculum_version": app.state.curriculum_catalog.curriculum_version,
+            "artifact_schema_version": (
+                app.state.curriculum_catalog.artifact_schema_version
+            ),
+            "content_hash": app.state.curriculum_catalog.content_hash,
+        },
+    )
 
     app.state.init_done = False
     app.state.init_error = None
