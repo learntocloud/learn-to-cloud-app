@@ -73,7 +73,7 @@ async def home_page(
 ) -> HTMLResponse:
     """Home page with phase overview."""
     user = await _get_user_or_none(db, user_id)
-    phases = await get_curriculum_overview(db)
+    phases = get_curriculum_overview()
 
     return templates.TemplateResponse(
         request,
@@ -90,7 +90,7 @@ async def curriculum_page(
 ) -> HTMLResponse:
     """Full curriculum overview with all phases and topics."""
     user = await _get_user_or_none(db, user_id)
-    phases = await get_curriculum_overview(db)
+    phases = get_curriculum_overview()
 
     return templates.TemplateResponse(
         request,
@@ -112,7 +112,7 @@ async def phase_page(
 ) -> HTMLResponse:
     """Single phase detail with topics and verification (requires auth)."""
     user = await _get_user_or_none(db, user_id)
-    phase = await get_phase_by_slug(db, f"phase{phase_id}")
+    phase = get_phase_by_slug(f"phase{phase_id}")
     if phase is None:
         return templates.TemplateResponse(
             request,
@@ -211,7 +211,7 @@ async def topic_page(
     """Single topic with learning steps (requires auth)."""
     user = await _get_user_or_none(db, user_id)
     phase_slug = f"phase{phase_id}"
-    phase = await get_phase_by_slug(db, phase_slug)
+    phase = get_phase_by_slug(phase_slug)
     topic = None
     if phase is not None:
         topic = next((t for t in phase.topics if t.slug == topic_slug), None)

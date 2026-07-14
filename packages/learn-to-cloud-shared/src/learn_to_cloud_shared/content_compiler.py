@@ -28,9 +28,9 @@ The artifact is:
   except the hash field itself), letting any consumer verify the
   artifact wasn't corrupted or hand-edited.
 
-This module does not affect runtime curriculum reads -- those still go
-through ``content_service`` (DB-backed). See ``content_catalog.py`` for
-the process-level reader of the compiled artifact.
+This module does not affect runtime curriculum reads directly -- those
+go through ``content_service``, which reads the compiled artifact via
+``content_catalog.py`` (the process-level reader of this artifact).
 """
 
 from __future__ import annotations

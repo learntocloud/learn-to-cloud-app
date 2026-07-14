@@ -146,7 +146,6 @@ class TestSubmissionValidationErrors:
         with (
             patch(
                 "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
                 return_value=_build_index(None),
             ),
             pytest.raises(RequirementNotFoundError),
@@ -170,7 +169,6 @@ class TestAlreadyValidatedShortCircuit:
         with (
             patch(
                 "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
                 return_value=_build_index(mock_requirement),
             ),
             patch(
@@ -201,7 +199,6 @@ class TestAlreadyValidatedShortCircuit:
         with (
             patch(
                 "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
                 return_value=_build_index(mock_requirement),
             ),
             patch(
@@ -251,7 +248,6 @@ class TestSequentialPhaseGating:
         with (
             patch(
                 "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
                 return_value=_build_index(
                     mock_requirement,
                     phase_id=4,
@@ -291,7 +287,6 @@ class TestSequentialPhaseGating:
         with (
             patch(
                 "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
                 return_value=_build_index(
                     mock_requirement,
                     phase_id=4,
@@ -348,7 +343,6 @@ class TestCreateVerificationJob:
         with (
             patch(
                 "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
                 return_value=_build_index(mock_requirement),
             ),
             patch(
@@ -394,7 +388,6 @@ class TestCreateVerificationJob:
         with (
             patch(
                 "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
                 return_value=_build_index(mock_requirement),
             ),
             patch(
@@ -439,7 +432,6 @@ class TestCreateVerificationJob:
         with (
             patch(
                 "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
                 return_value=_build_index(mock_requirement),
             ),
             patch(
@@ -642,7 +634,6 @@ class TestRunSubmitSmokeCheck:
         with (
             patch(
                 "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
                 return_value=_build_index(mock_requirement),
             ),
             patch(
@@ -678,7 +669,6 @@ class TestRunSubmitSmokeCheck:
         with (
             patch(
                 "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
                 return_value=_build_index(mock_requirement),
             ),
             patch(

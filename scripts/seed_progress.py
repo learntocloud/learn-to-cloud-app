@@ -1,7 +1,8 @@
 """Seed all progress data for a user so they can test full completion.
 
-Reads curriculum from the DB (synced from YAML at deploy time) and writes
-step_progress + submissions rows so the user shows as fully complete.
+Reads curriculum from the packaged catalog artifact and writes
+step_progress + submissions rows (FK'd to the curriculum tables synced
+from YAML at deploy time) so the user shows as fully complete.
 
 Usage: uv run --directory api python ../scripts/seed_progress.py <github_username>
 """
@@ -13,7 +14,7 @@ from datetime import UTC, datetime
 
 from learn_to_cloud_shared.content_service import get_all_phases
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 
 database_url = os.environ.get(
     "DATABASE__URL", "postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud"
@@ -22,14 +23,12 @@ database_url = os.environ.get(
 
 async def main(github_username: str) -> None:
     engine = create_async_engine(database_url)
-    session_maker = async_sessionmaker(engine, expire_on_commit=False)
     try:
-        async with session_maker() as session:
-            phases = await get_all_phases(session)
+        phases = get_all_phases()
         if not phases:
-            print("ERROR: No curriculum loaded from DB. Run the sync job first.")
+            print("ERROR: No curriculum in the packaged catalog artifact.")
             sys.exit(1)
-        print(f"Loaded {len(phases)} phases from curriculum DB")
+        print(f"Loaded {len(phases)} phases from the curriculum catalog")
 
         async with engine.begin() as conn:
             row = (

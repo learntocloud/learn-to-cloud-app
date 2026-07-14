@@ -45,7 +45,6 @@ class TestCompleteStep:
         with (
             patch(
                 "learn_to_cloud.services.steps_service.get_topic_containing_step",
-                new_callable=AsyncMock,
                 return_value=(topic, step),
             ),
             patch(
@@ -69,7 +68,6 @@ class TestCompleteStep:
     async def test_unknown_step_raises(self):
         with patch(
             "learn_to_cloud.services.steps_service.get_topic_containing_step",
-            new_callable=AsyncMock,
             return_value=None,
         ):
             with pytest.raises(StepNotFoundError):
@@ -86,7 +84,6 @@ class TestUncompleteStep:
         with (
             patch(
                 "learn_to_cloud.services.steps_service.get_topic_containing_step",
-                new_callable=AsyncMock,
                 return_value=(topic, step),
             ),
             patch(

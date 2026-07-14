@@ -32,15 +32,14 @@ class StepNotFoundError(StepValidationError):
         super().__init__(f"Unknown step_uuid: {step_uuid}")
 
 
-async def _find_step(db: AsyncSession, step_uuid: UUID) -> tuple["Topic", LearningStep]:
+def _find_step(step_uuid: UUID) -> tuple["Topic", LearningStep]:
     """Resolve a step UUID to its parent topic + step model.
 
-    Scoped to one topic's subtree (a single indexed lookup plus a
-    handful of sibling steps), not the entire curriculum tree. Raises
-    :class:`StepNotFoundError` for unknown/soft-deleted UUIDs, keeping
+    In-memory catalog lookup, not the entire curriculum tree walked per
+    call. Raises :class:`StepNotFoundError` for unknown UUIDs, keeping
     the surface uniform with the verification request paths.
     """
-    result = await get_topic_containing_step(db, step_uuid)
+    result = get_topic_containing_step(step_uuid)
     if result is None:
         raise StepNotFoundError(step_uuid)
     return result
@@ -72,7 +71,7 @@ async def complete_step(
     that topic) tuple so the HTMX caller can re-render the step partial
     and the topic progress bar without re-loading the curriculum.
     """
-    topic, step = await _find_step(db, step_uuid)
+    topic, step = _find_step(step_uuid)
 
     step_repo = StepProgressRepository(db)
     step_progress = await step_repo.create_if_not_exists(
@@ -125,7 +124,7 @@ async def uncomplete_step(
     Raises:
         StepNotFoundError: If step_uuid doesn't exist in active content.
     """
-    topic, step = await _find_step(db, step_uuid)
+    topic, step = _find_step(step_uuid)
 
     step_repo = StepProgressRepository(db)
     deleted = await step_repo.delete_step(user_id, step.uuid)

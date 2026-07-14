@@ -7,7 +7,7 @@ Tests cover:
 - fetch_phase_progress per-topic breakdown
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -178,22 +178,29 @@ class TestFetchUserProgress:
         phase_overview = (
             PhaseOverview(uuid=uuid4(), name="Phase 0", slug="phase0", order=0),
         )
+        step_uuid = uuid4()
+        fake_catalog = MagicMock(
+            active_step_uuids=frozenset({step_uuid}),
+            phase_order_by_step_uuid={step_uuid: 0},
+            phase_order_by_requirement_uuid={},
+        )
 
         with (
             patch(
                 "learn_to_cloud.services.progress_service.get_curriculum_overview",
-                new_callable=AsyncMock,
                 return_value=phase_overview,
             ),
             patch(
                 "learn_to_cloud.services.progress_service.get_required_step_counts_by_phase",
-                new_callable=AsyncMock,
                 return_value={0: 3},
             ),
             patch(
                 "learn_to_cloud.services.progress_service.load_requirement_index",
-                new_callable=AsyncMock,
                 return_value=RequirementIndex(),
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.get_curriculum_catalog",
+                return_value=fake_catalog,
             ),
             patch(
                 "learn_to_cloud.services.progress_service.SubmissionRepository",
@@ -204,16 +211,81 @@ class TestFetchUserProgress:
                 autospec=True,
             ) as MockStepRepo,
         ):
-            MockSubRepo.return_value.count_validated_by_phase_for_user = AsyncMock(
-                return_value={}
+            MockSubRepo.return_value.get_validated_requirement_uuids = AsyncMock(
+                return_value=set()
             )
-            MockStepRepo.return_value.count_completed_steps_by_phase_for_user = (
-                AsyncMock(return_value={0: 1})
+            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
+                return_value={step_uuid}
             )
             result = await fetch_user_progress(AsyncMock(), user_id=1)
             assert result.user_id == 1
             assert result.phases[0].steps_completed == 1
             assert result.phases[0].steps_required == 3
+
+    @pytest.mark.asyncio
+    async def test_groups_hands_on_validations_by_phase_and_ignores_stale_uuids(self):
+        """Validated/completed UUIDs no longer in the catalog are dropped.
+
+        Simulates a retired step and a retired requirement (validated by
+        the user in the past, but absent from ``phase_order_by_*_uuid``
+        because the content was since removed) alongside one current
+        step and one current requirement, each in a different phase.
+        """
+        from learn_to_cloud_shared.requirements import RequirementIndex
+        from learn_to_cloud_shared.schemas import PhaseOverview
+
+        phase_overview = (
+            PhaseOverview(uuid=uuid4(), name="Phase 0", slug="phase0", order=0),
+            PhaseOverview(uuid=uuid4(), name="Phase 1", slug="phase1", order=1),
+        )
+        current_step_uuid = uuid4()
+        stale_step_uuid = uuid4()
+        current_req_uuid = uuid4()
+        stale_req_uuid = uuid4()
+        fake_catalog = MagicMock(
+            active_step_uuids=frozenset({current_step_uuid}),
+            phase_order_by_step_uuid={current_step_uuid: 0},
+            phase_order_by_requirement_uuid={current_req_uuid: 1},
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.services.progress_service.get_curriculum_overview",
+                return_value=phase_overview,
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.get_required_step_counts_by_phase",
+                return_value={0: 1, 1: 0},
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.load_requirement_index",
+                return_value=RequirementIndex(),
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.get_curriculum_catalog",
+                return_value=fake_catalog,
+            ),
+            patch(
+                "learn_to_cloud.services.progress_service.SubmissionRepository",
+                autospec=True,
+            ) as MockSubRepo,
+            patch(
+                "learn_to_cloud.services.progress_service.StepProgressRepository",
+                autospec=True,
+            ) as MockStepRepo,
+        ):
+            MockSubRepo.return_value.get_validated_requirement_uuids = AsyncMock(
+                return_value={current_req_uuid, stale_req_uuid}
+            )
+            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
+                return_value={current_step_uuid, stale_step_uuid}
+            )
+            result = await fetch_user_progress(AsyncMock(), user_id=1)
+
+        # Only UUIDs mapped by the catalog count toward a phase; stale
+        # step/requirement UUIDs (not in phase_order_by_*_uuid) drop out.
+        assert result.phases[0].steps_completed == 1
+        assert result.phases[1].hands_on_validated == 1
 
 
 # ---------------------------------------------------------------------------

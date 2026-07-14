@@ -6,18 +6,13 @@ speak UUIDs; callers translate to/from the human-readable requirement
 ids at the boundary (templates and DTOs).
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import Integer, Uuid, column, func, select, values
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud_shared.models import (
-    CurriculumPhase,
-    CurriculumRequirement,
-    Submission,
-    utcnow,
-)
+from learn_to_cloud_shared.models import Submission, utcnow
 from learn_to_cloud_shared.submission_values import SubmittedValue
 
 
@@ -179,39 +174,10 @@ class SubmissionRepository:
         )
         return result.scalar_one() or 0
 
-    async def count_validated_by_phase_for_user(self, user_id: int) -> dict[int, int]:
-        """Count validated requirements per phase, in one aggregate query.
-
-        Joins ``submissions -> requirements -> phases`` and groups by
-        ``phases.order``, so dashboard-wide progress totals don't
-        require loading the curriculum tree or any per-phase UUID sets.
-        """
-        result = await self.db.execute(
-            select(
-                CurriculumPhase.order,
-                func.count(func.distinct(Submission.requirement_uuid)),
-            )
-            .select_from(Submission)
-            .join(
-                CurriculumRequirement,
-                Submission.requirement_uuid == CurriculumRequirement.uuid,
-            )
-            .join(
-                CurriculumPhase,
-                CurriculumRequirement.phase_uuid == CurriculumPhase.uuid,
-            )
-            .where(
-                Submission.user_id == user_id,
-                Submission.is_validated.is_(True),
-                CurriculumRequirement.deleted_at.is_(None),
-                CurriculumPhase.deleted_at.is_(None),
-            )
-            .group_by(CurriculumPhase.order)
-        )
-        return {order: count for order, count in result.all()}
-
     async def list_phase_completions(
-        self, requirement_counts_by_phase: dict[int, int]
+        self,
+        requirement_counts_by_phase: dict[int, int],
+        phase_order_by_requirement_uuid: Mapping[UUID, int],
     ) -> list[tuple[int, int]]:
         """List ``(phase_order, user_id)`` for fully-completed phases.
 
@@ -222,10 +188,14 @@ class SubmissionRepository:
         completion threshold; phases absent from that map or with a
         non-positive total are treated as not completable and excluded.
 
-        Single aggregate over ``submissions -> requirements -> phases``:
-        groups by phase + user and keeps only groups whose distinct
-        validated requirement count matches the phase total. Drives both
-        the ``/stats`` phase funnel counts and the completer lists.
+        ``phase_order_by_requirement_uuid`` (from the packaged curriculum
+        catalog) supplies the requirement-to-phase mapping as a small
+        in-memory ``VALUES`` relation, so this stays a single aggregate
+        query over ``submissions`` without joining the ``requirements``/
+        ``phases`` tables: groups by phase + user and keeps only groups
+        whose distinct validated requirement count matches the phase
+        total. Drives both the ``/stats`` phase funnel counts and the
+        completer lists.
         """
         completable = {
             order: total
@@ -235,9 +205,23 @@ class SubmissionRepository:
         if not completable:
             return []
 
+        requirement_phase_rows = [
+            (req_uuid, order)
+            for req_uuid, order in phase_order_by_requirement_uuid.items()
+            if order in completable
+        ]
+        if not requirement_phase_rows:
+            return []
+
+        requirement_phase_map = values(
+            column("requirement_uuid", Uuid(as_uuid=True)),
+            column("phase_order", Integer),
+            name="requirement_phase_map",
+        ).data(requirement_phase_rows)
+
         result = await self.db.execute(
             select(
-                CurriculumPhase.order,
+                requirement_phase_map.c.phase_order,
                 Submission.user_id,
                 func.count(func.distinct(Submission.requirement_uuid)).label(
                     "validated"
@@ -245,20 +229,11 @@ class SubmissionRepository:
             )
             .select_from(Submission)
             .join(
-                CurriculumRequirement,
-                Submission.requirement_uuid == CurriculumRequirement.uuid,
+                requirement_phase_map,
+                Submission.requirement_uuid == requirement_phase_map.c.requirement_uuid,
             )
-            .join(
-                CurriculumPhase,
-                CurriculumRequirement.phase_uuid == CurriculumPhase.uuid,
-            )
-            .where(
-                Submission.is_validated.is_(True),
-                CurriculumRequirement.deleted_at.is_(None),
-                CurriculumPhase.deleted_at.is_(None),
-                CurriculumPhase.order.in_(completable.keys()),
-            )
-            .group_by(CurriculumPhase.order, Submission.user_id)
+            .where(Submission.is_validated.is_(True))
+            .group_by(requirement_phase_map.c.phase_order, Submission.user_id)
         )
         return [
             (order, user_id)

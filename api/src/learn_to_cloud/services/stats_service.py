@@ -12,6 +12,7 @@ GitHub helper.
 
 import logging
 
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.content_service import (
     get_curriculum_overview,
     get_requirement_counts_by_phase,
@@ -33,12 +34,15 @@ logger = logging.getLogger(__name__)
 
 async def get_stats_page_data(db: AsyncSession) -> StatsPageData:
     """Build the full /stats payload."""
-    phases = await get_curriculum_overview(db)
+    phases = get_curriculum_overview()
     phase_names = {phase.order: phase.name for phase in phases}
 
-    requirement_counts = await get_requirement_counts_by_phase(db)
+    requirement_counts = get_requirement_counts_by_phase()
+    phase_order_by_requirement_uuid = (
+        get_curriculum_catalog().phase_order_by_requirement_uuid
+    )
     completions = await SubmissionRepository(db).list_phase_completions(
-        requirement_counts
+        requirement_counts, phase_order_by_requirement_uuid
     )
 
     # Group completions into a per-phase set of completer ids.

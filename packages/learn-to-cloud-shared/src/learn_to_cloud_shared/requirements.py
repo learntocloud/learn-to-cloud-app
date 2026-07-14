@@ -1,10 +1,10 @@
 """Phase hands-on requirements lookup helpers.
 
-Backed by the DB curriculum (see ``content_service``). Each convenience
-helper loads the lightweight requirement index (requirements + phases
-only, not the full curriculum tree) and builds a ``RequirementIndex``;
-hot paths that need several lookups should load the index once and
-reuse it to avoid redundant queries.
+Backed by the packaged curriculum catalog (see ``content_service``).
+Each convenience helper loads the requirement index (requirements
+grouped by phase order) and builds a ``RequirementIndex``; this is a
+synchronous, in-memory lookup, so hot paths can call it as often as
+needed without worrying about redundant queries.
 
 Phases here are keyed by ``phase.order`` (the int 0..7), matching the
 URL contract and the numeric phase id. Slugs (``"phase0"`` etc.) are
@@ -66,31 +66,16 @@ class RequirementIndex:
         return [req.uuid for req in self.requirements_for_phase(phase_order)]
 
 
-async def load_requirement_index(
-    db: AsyncSession,
-    *,
-    phase_order_by_uuid: dict[UUID, int] | None = None,
-) -> RequirementIndex:
-    """Load the lightweight requirement index (requirements+phases only).
-
-    Does not load the curriculum tree -- only the ``requirements`` and
-    ``phases`` tables (~18 rows in production), since callers here only
-    ever need UUIDs, slugs, and gating/validation metadata. Pass
-    ``phase_order_by_uuid`` when the caller already has one to skip a
-    redundant phases query.
-    """
+def load_requirement_index() -> RequirementIndex:
+    """Load the requirement index (requirements grouped by phase order)."""
     return RequirementIndex.from_requirements_by_phase_order(
-        await get_requirements_by_phase_order(
-            db, phase_order_by_uuid=phase_order_by_uuid
-        )
+        get_requirements_by_phase_order()
     )
 
 
-async def get_requirement_by_slug(
-    db: AsyncSession, requirement_slug: str
-) -> HandsOnRequirement | None:
+def get_requirement_by_slug(requirement_slug: str) -> HandsOnRequirement | None:
     """Get a specific requirement by its slug."""
-    idx = await load_requirement_index(db)
+    idx = load_requirement_index()
     return idx.by_slug.get(requirement_slug)
 
 
@@ -130,9 +115,7 @@ async def is_phase_verification_locked(
     if prereq is None:
         return False, None
 
-    prereq_req_uuids = (await load_requirement_index(db)).requirement_uuids_for_phase(
-        prereq
-    )
+    prereq_req_uuids = load_requirement_index().requirement_uuids_for_phase(prereq)
     if not prereq_req_uuids:
         return False, None
 

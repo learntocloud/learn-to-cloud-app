@@ -105,18 +105,11 @@ async def _patched_content():
         for phase in yaml_phases
     )
 
-    async def _curriculum_overview(_db):
+    def _curriculum_overview():
         return yaml_overview
 
-    async def _phase_by_slug(_db, slug):
+    def _phase_by_slug(slug):
         return next((p for p in yaml_phases if p.slug == slug), None)
-
-    async def _topic_by_id(_db, topic_id):
-        for phase in yaml_phases:
-            for topic in phase.topics:
-                if topic.slug == topic_id:
-                    return topic
-        return None
 
     with (
         patch(

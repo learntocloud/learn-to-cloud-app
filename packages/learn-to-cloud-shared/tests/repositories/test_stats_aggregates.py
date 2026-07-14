@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.content_service import get_requirement_counts_by_phase
 from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
 from learn_to_cloud_shared.content_yaml_loader import clear_cache
@@ -94,9 +95,12 @@ class TestListPhaseCompletions:
         await _validate_all(db_session, user_id, reqs_by_phase[single_phase])
         await db_session.flush()
 
-        counts = await get_requirement_counts_by_phase(db_session)
+        counts = get_requirement_counts_by_phase()
+        phase_order_by_requirement_uuid = (
+            get_curriculum_catalog().phase_order_by_requirement_uuid
+        )
         completions = await SubmissionRepository(db_session).list_phase_completions(
-            counts
+            counts, phase_order_by_requirement_uuid
         )
 
         assert (single_phase, user_id) in completions
@@ -113,16 +117,19 @@ class TestListPhaseCompletions:
         await _validate_all(db_session, user_id, reqs_by_phase[multi_phase][:1])
         await db_session.flush()
 
-        counts = await get_requirement_counts_by_phase(db_session)
+        counts = get_requirement_counts_by_phase()
+        phase_order_by_requirement_uuid = (
+            get_curriculum_catalog().phase_order_by_requirement_uuid
+        )
         completions = await SubmissionRepository(db_session).list_phase_completions(
-            counts
+            counts, phase_order_by_requirement_uuid
         )
 
         assert (multi_phase, user_id) not in completions
 
     async def test_empty_counts_returns_empty(self, db_session: AsyncSession):
         repo = SubmissionRepository(db_session)
-        assert await repo.list_phase_completions({}) == []
+        assert await repo.list_phase_completions({}, {}) == []
 
     async def test_deleted_requirements_do_not_inflate_threshold(
         self, db_session: AsyncSession, reqs_by_phase
@@ -139,9 +146,47 @@ class TestListPhaseCompletions:
         await _validate_all(db_session, user_id, reqs_by_phase[multi_phase])
         await db_session.flush()
 
-        counts = await get_requirement_counts_by_phase(db_session)
+        counts = get_requirement_counts_by_phase()
+        phase_order_by_requirement_uuid = (
+            get_curriculum_catalog().phase_order_by_requirement_uuid
+        )
         completions = await SubmissionRepository(db_session).list_phase_completions(
-            counts
+            counts, phase_order_by_requirement_uuid
         )
 
         assert (multi_phase, user_id) in completions
+
+    async def test_stale_requirement_uuid_is_ignored(
+        self, db_session: AsyncSession, reqs_by_phase
+    ):
+        """A validated submission for a retired requirement UUID (no longer
+        in the catalog's ``phase_order_by_requirement_uuid`` map) must not
+        produce a phantom completion or otherwise blow up the aggregate.
+
+        Simulates retirement by validating a single-requirement phase
+        normally, then dropping that same requirement's UUID from the
+        phase-order map passed to ``list_phase_completions`` (as if the
+        catalog no longer knows about it). The join is inner, so an
+        unmapped UUID simply can't match any row -- the user must no
+        longer show up as a completer for that phase.
+        """
+        single_phase = next(
+            order for order, reqs in reqs_by_phase.items() if len(reqs) == 1
+        )
+        user_id = 50004
+        await UserRepository(db_session).upsert(user_id, github_username="stalecase")
+        await _validate_all(db_session, user_id, reqs_by_phase[single_phase])
+        await db_session.flush()
+
+        retired_req_uuid = reqs_by_phase[single_phase][0][0]
+        counts = get_requirement_counts_by_phase()
+        phase_order_by_requirement_uuid = dict(
+            get_curriculum_catalog().phase_order_by_requirement_uuid
+        )
+        del phase_order_by_requirement_uuid[retired_req_uuid]
+
+        completions = await SubmissionRepository(db_session).list_phase_completions(
+            counts, phase_order_by_requirement_uuid
+        )
+
+        assert (single_phase, user_id) not in completions
