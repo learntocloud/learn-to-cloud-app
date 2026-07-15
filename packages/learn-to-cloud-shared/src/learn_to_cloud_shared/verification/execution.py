@@ -94,20 +94,7 @@ def to_submission_data(submission: Submission) -> SubmissionData:
 
 
 def attempt_to_submission_data(attempt: AttemptCardProjection) -> SubmissionData:
-    """Project a terminal ``VerificationAttempt`` into a ``SubmissionData`` DTO.
-
-    The authoritative counterpart to :func:`to_submission_data`, used once
-    ``verification_attempts`` becomes the primary submission-card source
-    (PR6). Maps the attempt's terminal ``outcome`` onto the same
-    ``is_validated`` / ``verification_completed`` pair the legacy
-    ``submissions`` table used:
-
-    - ``succeeded`` -> validated, verification completed;
-    - ``failed`` -> not validated, verification completed (a real learner
-      failure);
-    - ``server_error`` / ``cancelled`` -> not validated, verification did
-      **not** complete (our-side fault, doesn't count against the learner).
-    """
+    """Project a terminal verification attempt into its response model."""
     outcome = VerificationAttemptOutcome(attempt.outcome)
     is_validated = outcome is VerificationAttemptOutcome.SUCCEEDED
     verification_completed = outcome in (
