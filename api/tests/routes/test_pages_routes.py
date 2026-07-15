@@ -84,7 +84,6 @@ class TestHomePage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
-                new_callable=AsyncMock,
                 return_value=phases,
             ),
             patch(
@@ -112,7 +111,6 @@ class TestHomePage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
-                new_callable=AsyncMock,
                 return_value=phases,
             ),
             patch(
@@ -140,7 +138,6 @@ class TestCurriculumPage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
-                new_callable=AsyncMock,
                 return_value=phases,
             ),
             patch(
@@ -168,7 +165,6 @@ class TestPhasePage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                new_callable=AsyncMock,
                 return_value=None,
             ),
             patch(
@@ -198,7 +194,6 @@ class TestPhasePage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                new_callable=AsyncMock,
                 return_value=phase,
             ),
             patch(
@@ -253,7 +248,6 @@ class TestTopicPage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                new_callable=AsyncMock,
                 return_value=None,
             ),
             patch(
@@ -278,7 +272,6 @@ class TestTopicPage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                new_callable=AsyncMock,
                 return_value=phase,
             ),
             patch(
@@ -304,7 +297,6 @@ class TestTopicPage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                new_callable=AsyncMock,
                 return_value=phase,
             ),
             patch(

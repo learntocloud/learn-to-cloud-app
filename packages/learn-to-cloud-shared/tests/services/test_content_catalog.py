@@ -147,6 +147,8 @@ class TestCurriculumCatalogIndices:
         step = topic.learning_steps[0]
         assert catalog.steps_by_uuid[step.uuid] is step
         assert step in catalog.steps_by_phase_slug[phase0.slug]
+        assert catalog.topic_by_step_uuid[step.uuid] is topic
+        assert catalog.phase_order_by_step_uuid[step.uuid] == phase0.order
 
     def test_requirement_lookup_by_uuid_slug_and_phase(
         self, catalog: CurriculumCatalog
@@ -156,6 +158,7 @@ class TestCurriculumCatalogIndices:
         assert catalog.requirements_by_uuid[req.uuid] is req
         assert catalog.requirements_by_slug[req.slug] is req
         assert req in catalog.requirements_by_phase_slug[phase.slug]
+        assert catalog.phase_order_by_requirement_uuid[req.uuid] == phase.order
 
     def test_active_uuid_sets_and_counts(self, catalog: CurriculumCatalog):
         assert catalog.phase_count == len(catalog.phases)
@@ -180,9 +183,12 @@ class TestCurriculumCatalogImmutability:
             "topics_by_phase_and_slug",
             "steps_by_uuid",
             "steps_by_phase_slug",
+            "topic_by_step_uuid",
+            "phase_order_by_step_uuid",
             "requirements_by_uuid",
             "requirements_by_slug",
             "requirements_by_phase_slug",
+            "phase_order_by_requirement_uuid",
         ],
     )
     def test_mapping_fields_reject_item_assignment(

@@ -75,7 +75,7 @@ class TestGetStatsPageData:
         clear_cache()
         await sync_curriculum_to_db(db_session)
         reqs_by_phase = await _reqs_by_phase(db_session)
-        counts = await get_requirement_counts_by_phase(db_session)
+        counts = get_requirement_counts_by_phase()
         completable = sorted(o for o, c in counts.items() if c > 0)
 
         # graduate: validates every requirement in every completable phase.

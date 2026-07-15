@@ -46,7 +46,7 @@ async def get_dashboard_data(
     Returns phase list, overall stats, and continue-phase pointer.
     For unauthenticated users, returns phases only with zeroed stats.
     """
-    phases = await get_curriculum_overview(db)
+    phases = get_curriculum_overview()
 
     if user_id is None:
         return DashboardData(

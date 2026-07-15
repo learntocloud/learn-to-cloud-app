@@ -171,14 +171,13 @@ def _status_error_response(message: str, *, status_code: int = 400) -> HTMLRespo
 
 async def _render_processing_card(
     request: Request,
-    db: DbSession,
     current_user: AuthenticatedUser,
     token_data: VerificationStatusToken,
     token: str,
     *,
     delay_seconds: int,
 ) -> HTMLResponse:
-    requirement = await get_requirement_by_slug(db, token_data.requirement_slug)
+    requirement = get_requirement_by_slug(token_data.requirement_slug)
     if requirement is None:
         return HTMLResponse(_reload_verification_html())
 
@@ -312,7 +311,6 @@ async def htmx_uncomplete_step(
 @limiter.limit("10/minute")
 async def htmx_submit_verification(
     request: Request,
-    db: DbSession,
     current_user: CurrentUser,
     requirement_slug: Annotated[str, Form(max_length=100)],
     submitted_value: Annotated[str, Form(max_length=2048)] = "",
@@ -329,7 +327,7 @@ async def htmx_submit_verification(
     user_id = current_user.user_id
     github_username = current_user.github_username
 
-    requirement = await get_requirement_by_slug(db, requirement_slug)
+    requirement = get_requirement_by_slug(requirement_slug)
 
     session_maker = request.app.state.session_maker
 
@@ -528,7 +526,6 @@ async def _start_async_job_and_render(
 @router.get("/verification/jobs/status", response_class=HTMLResponse)
 async def htmx_verification_job_status(
     request: Request,
-    db: DbSession,
     token: Annotated[str, Query(max_length=4096)],
     current_user: CurrentUser,
 ) -> HTMLResponse:
@@ -579,7 +576,6 @@ async def htmx_verification_job_status(
     if status in _ACTIVE_DURABLE_STATUSES:
         return await _render_processing_card(
             request,
-            db,
             current_user,
             token_data,
             token,
@@ -591,7 +587,7 @@ async def htmx_verification_job_status(
         if not deleted:
             return HTMLResponse(_reload_verification_html())
 
-        requirement = await get_requirement_by_slug(db, token_data.requirement_slug)
+        requirement = get_requirement_by_slug(token_data.requirement_slug)
         if requirement is None:
             return HTMLResponse(_reload_verification_html())
 

@@ -7,13 +7,15 @@ Progress is a derived value, not stored state:
 Data sources:
 - Step completions: ``step_progress`` table (canonical)
 - Hands-on validations: ``submissions`` table (canonical)
-- Curriculum shape: DB-backed via ``content_service`` (synced from YAML
-  at deploy time)
+- Curriculum shape: packaged catalog via ``content_service`` (in-memory,
+  no DB reads)
 """
 
 import logging
+from collections import defaultdict
 from uuid import UUID
 
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.content_service import (
     get_curriculum_overview,
     get_required_step_counts_by_phase,
@@ -64,12 +66,13 @@ async def fetch_user_progress(
     *,
     phase_overview: tuple[PhaseOverview, ...] | None = None,
 ) -> UserProgress:
-    """Fetch complete progress data for a user, via SQL aggregate queries.
+    """Fetch complete progress data for a user, via two learner-state queries.
 
-    Computes per-phase totals with GROUP BY queries instead of loading
-    the full curriculum tree and walking it in Python. Only the
-    canonical phase list (order + name, shape B) is needed to know
-    which phases exist at all.
+    Reads only ``step_progress``/``submissions`` UUIDs for this user (no
+    curriculum-table joins), then groups them by phase order in Python
+    using the packaged catalog's ``phase_order_by_step_uuid`` /
+    ``phase_order_by_requirement_uuid`` maps. A stale/retired UUID (not
+    in the catalog) is simply absent from those maps and drops out.
 
     Args:
         db: Database session.
@@ -80,21 +83,29 @@ async def fetch_user_progress(
     Returns a UserProgress object with all phase completion data.
     """
     if phase_overview is None:
-        phase_overview = await get_curriculum_overview(db)
+        phase_overview = get_curriculum_overview()
 
-    phase_order_by_uuid = {phase.uuid: phase.order for phase in phase_overview}
-    req_index = await load_requirement_index(
-        db, phase_order_by_uuid=phase_order_by_uuid
-    )
-    required_steps_by_phase = await get_required_step_counts_by_phase(db)
+    req_index = load_requirement_index()
+    required_steps_by_phase = get_required_step_counts_by_phase()
+    catalog = get_curriculum_catalog()
 
     sub_repo = SubmissionRepository(db)
-    validated_by_phase = await sub_repo.count_validated_by_phase_for_user(user_id)
+    validated_req_uuids = await sub_repo.get_validated_requirement_uuids(user_id)
+    validated_by_phase: dict[int, int] = defaultdict(int)
+    for req_uuid in validated_req_uuids:
+        phase_order = catalog.phase_order_by_requirement_uuid.get(req_uuid)
+        if phase_order is not None:
+            validated_by_phase[phase_order] += 1
 
     step_repo = StepProgressRepository(db)
-    completed_steps_by_phase = await step_repo.count_completed_steps_by_phase_for_user(
-        user_id
+    completed_step_uuids = await step_repo.get_completed_step_uuids(
+        user_id, catalog.active_step_uuids
     )
+    completed_steps_by_phase: dict[int, int] = defaultdict(int)
+    for step_uuid in completed_step_uuids:
+        phase_order = catalog.phase_order_by_step_uuid.get(step_uuid)
+        if phase_order is not None:
+            completed_steps_by_phase[phase_order] += 1
 
     phase_progress_map: dict[int, PhaseProgress] = {}
     for phase in phase_overview:

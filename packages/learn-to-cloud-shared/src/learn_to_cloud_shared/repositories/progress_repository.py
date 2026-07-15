@@ -9,16 +9,11 @@ the human-readable step IDs when needed.
 from collections.abc import Iterable
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud_shared.models import (
-    CurriculumPhase,
-    CurriculumStep,
-    CurriculumTopic,
-    StepProgress,
-)
+from learn_to_cloud_shared.models import StepProgress
 
 
 class StepProgressRepository:
@@ -35,9 +30,10 @@ class StepProgressRepository:
         """Return which of the given step UUIDs the user has completed.
 
         Caller passes the candidate UUIDs (typically a topic's
-        ``learning_steps[].uuid``); only intersecting completions come
-        back. Returning an empty set for an empty input avoids a
-        round-trip with an empty IN-list.
+        ``learning_steps[].uuid``, or the catalog's full
+        ``active_step_uuids`` for whole-curriculum progress); only
+        intersecting completions come back. Returning an empty set for
+        an empty input avoids a round-trip with an empty IN-list.
         """
         uuids = list(step_uuids)
         if not uuids:
@@ -88,28 +84,3 @@ class StepProgressRepository:
             )
         )
         return getattr(result, "rowcount", 0) or 0
-
-    async def count_completed_steps_by_phase_for_user(
-        self, user_id: int
-    ) -> dict[int, int]:
-        """Count completed steps per phase, in one aggregate query.
-
-        Joins ``step_progress -> steps -> topics -> phases`` and groups
-        by ``phases.order``, so dashboard-wide progress totals don't
-        require loading the curriculum tree or per-topic UUID sets.
-        """
-        result = await self.db.execute(
-            select(CurriculumPhase.order, func.count(StepProgress.step_uuid))
-            .select_from(StepProgress)
-            .join(CurriculumStep, StepProgress.step_uuid == CurriculumStep.uuid)
-            .join(CurriculumTopic, CurriculumStep.topic_uuid == CurriculumTopic.uuid)
-            .join(CurriculumPhase, CurriculumTopic.phase_uuid == CurriculumPhase.uuid)
-            .where(
-                StepProgress.user_id == user_id,
-                CurriculumStep.deleted_at.is_(None),
-                CurriculumTopic.deleted_at.is_(None),
-                CurriculumPhase.deleted_at.is_(None),
-            )
-            .group_by(CurriculumPhase.order)
-        )
-        return {order: count for order, count in result.all()}

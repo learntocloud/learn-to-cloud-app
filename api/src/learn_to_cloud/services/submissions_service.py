@@ -160,20 +160,21 @@ async def _check_submission_preconditions(
 
     Validates requirement existence, already-validated status, and phase gating.
 
-    Opens a short-lived DB session for reads, then releases it before returning.
+    Opens a short-lived DB session for the learner-state reads (existing
+    submission, prior-phase validation), then releases it before returning.
     """
+    index = load_requirement_index()
+    requirement = index.by_slug.get(requirement_slug)
+    if not requirement:
+        raise RequirementNotFoundError(f"Requirement not found: {requirement_slug}")
+
+    phase_order = index.phase_order_by_req_slug.get(requirement_slug)
+    if phase_order is None:
+        raise RequirementNotFoundError(
+            f"Requirement not mapped to a phase: {requirement_slug}"
+        )
+
     async with session_maker() as read_session:
-        index = await load_requirement_index(read_session)
-        requirement = index.by_slug.get(requirement_slug)
-        if not requirement:
-            raise RequirementNotFoundError(f"Requirement not found: {requirement_slug}")
-
-        phase_order = index.phase_order_by_req_slug.get(requirement_slug)
-        if phase_order is None:
-            raise RequirementNotFoundError(
-                f"Requirement not mapped to a phase: {requirement_slug}"
-            )
-
         submission_repo = SubmissionRepository(read_session)
 
         existing = await submission_repo.get_by_user_and_requirement(
@@ -271,8 +272,7 @@ async def run_submit_smoke_check(
 
     Returns the slug it exercised so callers can log what was checked.
     """
-    async with session_maker() as read_session:
-        index = await load_requirement_index(read_session)
+    index = load_requirement_index()
 
     requirement = _pick_smoke_requirement(index)
 

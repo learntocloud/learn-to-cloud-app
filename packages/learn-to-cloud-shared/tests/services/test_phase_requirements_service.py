@@ -79,27 +79,23 @@ class TestRequirementIndex:
 
 
 @pytest.mark.unit
-class TestAsyncRequirementLookups:
-    @pytest.mark.asyncio
-    async def test_get_requirement_by_slug_found(self):
+class TestSyncRequirementLookups:
+    def test_get_requirement_by_slug_found(self):
         by_phase_order = _make_requirements_by_phase_order(3, ["req-a"])
         with patch(
             "learn_to_cloud_shared.requirements.get_requirements_by_phase_order",
-            new_callable=AsyncMock,
             return_value=by_phase_order,
         ):
-            req = await get_requirement_by_slug(AsyncMock(), "req-a")
+            req = get_requirement_by_slug("req-a")
         assert req is not None
         assert req.slug == "req-a"
 
-    @pytest.mark.asyncio
-    async def test_get_requirement_by_slug_not_found(self):
+    def test_get_requirement_by_slug_not_found(self):
         with patch(
             "learn_to_cloud_shared.requirements.get_requirements_by_phase_order",
-            new_callable=AsyncMock,
             return_value={},
         ):
-            assert await get_requirement_by_slug(AsyncMock(), "nonexistent") is None
+            assert get_requirement_by_slug("nonexistent") is None
 
 
 @pytest.mark.unit
@@ -120,7 +116,6 @@ class TestIsPhaseVerificationLocked:
         with (
             patch(
                 "learn_to_cloud_shared.requirements.get_requirements_by_phase_order",
-                new_callable=AsyncMock,
                 return_value=by_phase_order,
             ),
             patch(
@@ -146,7 +141,6 @@ class TestIsPhaseVerificationLocked:
         with (
             patch(
                 "learn_to_cloud_shared.requirements.get_requirements_by_phase_order",
-                new_callable=AsyncMock,
                 return_value=by_phase_order,
             ),
             patch(

@@ -334,7 +334,7 @@ class TestGetDashboardDataQueryCount:
         db_session.add(user)
         await db_session.flush()
 
-        req_index = await load_requirement_index(db_session)
+        req_index = load_requirement_index()
         first_phase_order = min(req_index.by_phase_order)
         reqs = req_index.requirements_for_phase(first_phase_order)
         if reqs:
@@ -380,7 +380,8 @@ class TestGetDashboardDataQueryCount:
             result = await get_dashboard_data(db_session, user_id=user.id)
 
         assert result.total_phases > 0
-        # Small, fixed number of aggregate/overview queries -- not one row
-        # scan per step. See progress_service.fetch_user_progress /
-        # dashboard_service.get_dashboard_data for the exact breakdown.
-        assert len(statements) == 6
+        # Small, fixed number of learner-state aggregate queries -- curriculum
+        # shape comes from the in-memory catalog now, so this counts only the
+        # two SQL aggregates over step_progress/submissions. See
+        # progress_service.fetch_user_progress for the exact breakdown.
+        assert len(statements) == 2

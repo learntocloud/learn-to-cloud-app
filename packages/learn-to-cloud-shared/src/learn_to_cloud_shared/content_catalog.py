@@ -2,15 +2,15 @@
 
 Loads the packaged ``curriculum.json`` artifact (see
 ``content_compiler.py``) once per process and builds indexed lookups
-over it (by UUID, by slug, by phase). This is separate from -- and does
-not replace -- the DB-backed runtime reads in ``content_service``. It
-exists so the API can fail fast at startup if the packaged artifact is
-missing, stale, or corrupted, and so callers that only need curriculum
-identity or structural metadata don't have to touch the database.
+over it (by UUID, by slug, by phase). This is the production reader for
+request-serving curriculum reads (see ``content_service``); it exists so
+the API can fail fast at startup if the packaged artifact is missing,
+stale, or corrupted, and so callers never touch the database just to
+read curriculum shape.
 
-Do not wire this into request-serving curriculum reads yet -- the DB
-loader remains the production reader until a follow-up PR switches it
-over.
+The PostgreSQL curriculum tables (populated by ``content_sync.py`` at
+deploy time) and ``content_db_loader.py`` remain in place as a
+compatibility shadow, but no request path reads them anymore.
 """
 
 from __future__ import annotations
@@ -74,6 +74,18 @@ class CurriculumCatalog:
     steps_by_phase_slug: Mapping[str, tuple[LearningStep, ...]] = field(
         default_factory=lambda: _EMPTY_MAPPING
     )
+    #: Resolves a step UUID straight to its owning topic (with sibling
+    #: steps), so callers don't walk every topic to find the one that
+    #: contains a given step.
+    topic_by_step_uuid: Mapping[UUID, Topic] = field(
+        default_factory=lambda: _EMPTY_MAPPING
+    )
+    #: Resolves a step UUID straight to its owning phase's order, so
+    #: per-user progress aggregation can group learner-state UUIDs by
+    #: phase without a curriculum-table join.
+    phase_order_by_step_uuid: Mapping[UUID, int] = field(
+        default_factory=lambda: _EMPTY_MAPPING
+    )
     requirements_by_uuid: Mapping[UUID, HandsOnRequirement] = field(
         default_factory=lambda: _EMPTY_MAPPING
     )
@@ -81,6 +93,11 @@ class CurriculumCatalog:
         default_factory=lambda: _EMPTY_MAPPING
     )
     requirements_by_phase_slug: Mapping[str, tuple[HandsOnRequirement, ...]] = field(
+        default_factory=lambda: _EMPTY_MAPPING
+    )
+    #: Resolves a requirement UUID straight to its owning phase's order,
+    #: the cross-user stats mirror of ``phase_order_by_step_uuid``.
+    phase_order_by_requirement_uuid: Mapping[UUID, int] = field(
         default_factory=lambda: _EMPTY_MAPPING
     )
     active_phase_uuids: frozenset[UUID] = field(default_factory=frozenset)
@@ -120,9 +137,12 @@ class CurriculumCatalog:
         topics_by_phase_and_slug: dict[tuple[str, str], Topic] = {}
         steps_by_uuid: dict[UUID, LearningStep] = {}
         steps_by_phase_slug: dict[str, list[LearningStep]] = {}
+        topic_by_step_uuid: dict[UUID, Topic] = {}
+        phase_order_by_step_uuid: dict[UUID, int] = {}
         requirements_by_uuid: dict[UUID, HandsOnRequirement] = {}
         requirements_by_slug: dict[str, HandsOnRequirement] = {}
         requirements_by_phase_slug: dict[str, list[HandsOnRequirement]] = {}
+        phase_order_by_requirement_uuid: dict[UUID, int] = {}
 
         for phase in phases:
             phases_by_slug[phase.slug] = phase
@@ -136,12 +156,15 @@ class CurriculumCatalog:
                 for step in topic.learning_steps:
                     steps_by_uuid[step.uuid] = step
                     steps_by_phase_slug[phase.slug].append(step)
+                    topic_by_step_uuid[step.uuid] = topic
+                    phase_order_by_step_uuid[step.uuid] = phase.order
 
             if phase.hands_on_verification:
                 for req in phase.hands_on_verification.requirements:
                     requirements_by_uuid[req.uuid] = req
                     requirements_by_slug[req.slug] = req
                     requirements_by_phase_slug[phase.slug].append(req)
+                    phase_order_by_requirement_uuid[req.uuid] = phase.order
 
         return cls(
             artifact_schema_version=artifact_schema_version,
@@ -156,10 +179,15 @@ class CurriculumCatalog:
             steps_by_phase_slug=MappingProxyType(
                 {slug: tuple(steps) for slug, steps in steps_by_phase_slug.items()}
             ),
+            topic_by_step_uuid=MappingProxyType(topic_by_step_uuid),
+            phase_order_by_step_uuid=MappingProxyType(phase_order_by_step_uuid),
             requirements_by_uuid=MappingProxyType(requirements_by_uuid),
             requirements_by_slug=MappingProxyType(requirements_by_slug),
             requirements_by_phase_slug=MappingProxyType(
                 {slug: tuple(reqs) for slug, reqs in requirements_by_phase_slug.items()}
+            ),
+            phase_order_by_requirement_uuid=MappingProxyType(
+                phase_order_by_requirement_uuid
             ),
             active_phase_uuids=frozenset(p.uuid for p in phases),
             active_topic_uuids=frozenset(topics_by_uuid),
