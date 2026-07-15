@@ -1,9 +1,4 @@
-"""Integration tests for LearnerStepCompletionRepository.
-
-Unlike ``StepProgressRepository``, this table has no FK to the curriculum
-(``steps.uuid``), so tests use arbitrary UUIDs instead of syncing the real
-curriculum.
-"""
+"""Integration tests for curriculum-independent learner completions."""
 
 from uuid import uuid4
 

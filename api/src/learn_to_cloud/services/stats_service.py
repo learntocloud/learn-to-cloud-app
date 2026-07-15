@@ -9,11 +9,8 @@ phase N are a subset of phase N-1), so the funnel is monotone and
 The latest-commit panel is fetched (and cached) separately via the shared
 GitHub helper.
 
-PR6 of the verification/progress refactor sources completions from
-``verification_attempts`` (``outcome='succeeded'``) instead of the legacy
-``submissions.is_validated`` flag; stats stay verification-only (no step
-counting). ``list_phase_completions`` includes a narrow legacy union for
-records not yet mirrored -- see its docstring.
+Completions come from succeeded ``verification_attempts``; stats stay
+verification-only and do not count learning steps.
 """
 
 import logging

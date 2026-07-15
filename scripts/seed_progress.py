@@ -1,8 +1,4 @@
-"""Seed all progress data for a user so they can test full completion.
-
-Reads curriculum from the packaged catalog artifact and writes
-step_progress + submissions rows (FK'd to the curriculum tables synced
-from YAML at deploy time) so the user shows as fully complete.
+"""Seed authoritative learner progress for local UI testing.
 
 Usage: uv run --directory api python ../scripts/seed_progress.py <github_username>
 """
@@ -11,25 +7,22 @@ import asyncio
 import os
 import sys
 from datetime import UTC, datetime
+from uuid import uuid4
 
-from learn_to_cloud_shared.content_service import get_all_phases
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
+from learn_to_cloud_shared.submission_values import value_kind_for_submission_type
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 database_url = os.environ.get(
-    "DATABASE__URL", "postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud"
+    "DATABASE__URL", "******db:5432/learn_to_cloud"
 )
 
 
 async def main(github_username: str) -> None:
+    catalog = get_curriculum_catalog()
     engine = create_async_engine(database_url)
     try:
-        phases = get_all_phases()
-        if not phases:
-            print("ERROR: No curriculum in the packaged catalog artifact.")
-            sys.exit(1)
-        print(f"Loaded {len(phases)} phases from the curriculum catalog")
-
         async with engine.begin() as conn:
             row = (
                 await conn.execute(
@@ -41,111 +34,74 @@ async def main(github_username: str) -> None:
                 )
             ).first()
             if row is None:
-                print(f"ERROR: User '{github_username}' not found in the database.")
-                print("Make sure you've logged in at least once via the app.")
+                print(f"ERROR: User '{github_username}' not found.")
                 sys.exit(1)
 
             user_id = row.id
-            print(f"Found user: {github_username} (id={user_id})")
-
             now = datetime.now(UTC)
 
-            deleted = await conn.execute(
-                text("DELETE FROM step_progress WHERE user_id = :user_id"),
+            await conn.execute(
+                text(
+                    "DELETE FROM learner_step_completions WHERE user_id = :user_id"
+                ),
                 {"user_id": user_id},
             )
-            print(f"Cleaned existing step_progress: {deleted.rowcount}")
+            for step_uuid in catalog.active_step_uuids:
+                await conn.execute(
+                    text(
+                        """
+                        INSERT INTO learner_step_completions
+                            (user_id, step_uuid, completed_at)
+                        VALUES (:user_id, :step_uuid, :completed_at)
+                        """
+                    ),
+                    {
+                        "user_id": user_id,
+                        "step_uuid": step_uuid,
+                        "completed_at": now,
+                    },
+                )
 
-            step_count = 0
-            for phase in phases:
-                for topic in phase.topics:
-                    for step in topic.learning_steps:
-                        await conn.execute(
-                            text(
-                                """
-                                INSERT INTO step_progress (
-                                    user_id, step_uuid, completed_at
-                                )
-                                VALUES (:user_id, :step_uuid, :completed_at)
-                                ON CONFLICT (user_id, step_uuid) DO NOTHING
-                                """
-                            ),
-                            {
-                                "user_id": user_id,
-                                "step_uuid": step.uuid,
-                                "completed_at": now,
-                            },
+            await conn.execute(
+                text("DELETE FROM verification_attempts WHERE user_id = :user_id"),
+                {"user_id": user_id},
+            )
+            for requirement_uuid in catalog.active_requirement_uuids:
+                requirement = catalog.requirements_by_uuid[requirement_uuid]
+                await conn.execute(
+                    text(
+                        """
+                        INSERT INTO verification_attempts (
+                            id, user_id, requirement_uuid, snapshot_source,
+                            submission_value_kind, submitted_value, outcome,
+                            started_at, completed_at, error_code, terminal_source,
+                            created_at, updated_at
                         )
-                        step_count += 1
-            print(f"Inserted {step_count} step_progress records")
+                        VALUES (
+                            :id, :user_id, :requirement_uuid, 'reconstructed',
+                            :value_kind, :submitted_value, 'succeeded',
+                            :now, :now, 'verification_succeeded', 'local_seed',
+                            :now, :now
+                        )
+                        """
+                    ),
+                    {
+                        "id": uuid4(),
+                        "user_id": user_id,
+                        "requirement_uuid": requirement_uuid,
+                        "value_kind": value_kind_for_submission_type(
+                            requirement.submission_type
+                        ).value,
+                        "submitted_value": "seeded-local-progress",
+                        "now": now,
+                    },
+                )
 
-            sub_count = 0
-            for phase in phases:
-                if phase.hands_on_verification is None:
-                    continue
-                for req in phase.hands_on_verification.requirements:
-                    sub_type = str(req.submission_type)
-                    required_repo = getattr(req, "required_repo", None)
-                    # Generate realistic submitted_value per submission type
-                    if sub_type == "github_profile":
-                        submitted_value = f"https://github.com/{github_username}"
-                    elif sub_type == "profile_readme":
-                        submitted_value = (
-                            f"https://github.com/{github_username}/{github_username}"
-                        )
-                    elif sub_type == "repo_fork" and required_repo:
-                        repo_name = required_repo.split("/")[-1]
-                        submitted_value = (
-                            f"https://github.com/{github_username}/{repo_name}"
-                        )
-                    elif sub_type in (
-                        "devops_analysis",
-                        "security_scanning",
-                        "journal_api_verifier",
-                    ):
-                        submitted_value = (
-                            f"https://github.com/{github_username}/journal-starter"
-                        )
-                    elif sub_type == "deployed_api":
-                        submitted_value = "https://journal-api.example.com"
-                    else:
-                        submitted_value = f"https://seed-data.example.com/{req.slug}"
-
-                    await conn.execute(
-                        text(
-                            """
-                            DELETE FROM submissions
-                            WHERE user_id = :user_id
-                              AND requirement_uuid = :req_uuid
-                            """
-                        ),
-                        {"user_id": user_id, "req_uuid": req.uuid},
-                    )
-                    await conn.execute(
-                        text(
-                            """
-                            INSERT INTO submissions (
-                                user_id, requirement_uuid, submitted_value,
-                                is_validated, validated_at,
-                                verification_completed, created_at, updated_at
-                            )
-                            VALUES (
-                                :user_id, :req_uuid, :submitted_value,
-                                true, :now, true, :now, :now
-                            )
-                            """
-                        ),
-                        {
-                            "user_id": user_id,
-                            "req_uuid": req.uuid,
-                            "submitted_value": submitted_value,
-                            "now": now,
-                        },
-                    )
-                    sub_count += 1
-            print(f"Inserted {sub_count} submission records")
-
-            print("\nDone! All progress seeded.")
+            print(
+                f"Seeded {len(catalog.active_step_uuids)} steps and "
+                f"{len(catalog.active_requirement_uuids)} verifications for "
+                f"{github_username}."
+            )
     finally:
         await engine.dispose()
 

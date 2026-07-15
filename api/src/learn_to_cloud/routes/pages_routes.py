@@ -145,10 +145,8 @@ async def phase_page(
         for attempt in active_attempts
         if attempt.requirement_uuid in requirements_by_uuid
     }
-    # The Durable orchestration instance id IS the attempt UUID -- the
-    # submit route always starts Durable with ``instance_id=attempt.id``
-    # (shared with the compatibility ``verification_jobs`` row), so the
-    # status token keys off the same id here.
+    # The Durable orchestration instance id is the attempt UUID, so the status
+    # token keys off that same id.
     verification_status_tokens_by_req = {
         requirements_by_uuid[attempt.requirement_uuid].slug: (
             create_verification_status_token(

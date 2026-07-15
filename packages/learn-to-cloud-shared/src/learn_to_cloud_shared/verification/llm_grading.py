@@ -19,7 +19,7 @@ from learn_to_cloud_shared.verification.tasks import (
     VerificationTask,
     require_llm_rubric_grader,
 )
-from learn_to_cloud_shared.verification_job_executor import (
+from learn_to_cloud_shared.verification_workflow import (
     VerificationRunResult,
 )
 
@@ -61,7 +61,7 @@ def apply_llm_grading_decisions(
         }
     )
     return VerificationRunResult(
-        job=run_result.job,
+        attempt=run_result.attempt,
         validation_result=validation_result,
     )
 
@@ -86,7 +86,7 @@ def llm_grading_unavailable_result(
         }
     )
     return VerificationRunResult(
-        job=run_result.job,
+        attempt=run_result.attempt,
         validation_result=validation_result,
     )
 
@@ -116,7 +116,7 @@ def llm_grading_content_filtered_result(
         }
     )
     return VerificationRunResult(
-        job=run_result.job,
+        attempt=run_result.attempt,
         validation_result=validation_result,
     )
 

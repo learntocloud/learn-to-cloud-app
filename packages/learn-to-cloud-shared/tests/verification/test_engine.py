@@ -23,11 +23,11 @@ from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
     EvidenceItem,
 )
-from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
+from learn_to_cloud_shared.verification_workflow import PreparedVerificationAttempt
 
 
-def _job(requirement=None) -> PreparedVerificationJob:
-    return PreparedVerificationJob(
+def _job(requirement=None) -> PreparedVerificationAttempt:
+    return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username="learner",
@@ -181,12 +181,12 @@ def test_check_for_unknown_raises():
 # ---------------------------------------------------------------------------
 
 
-def _journal_job() -> PreparedVerificationJob:
+def _journal_job() -> PreparedVerificationAttempt:
     from learn_to_cloud_shared.testing.requirement_factories import (
         journal_api_verifier_requirement,
     )
 
-    return PreparedVerificationJob(
+    return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username="learner",
@@ -248,12 +248,12 @@ async def test_journal_profile_skips_grading_when_ci_fails(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def _deployment_job(description: str) -> PreparedVerificationJob:
+def _deployment_job(description: str) -> PreparedVerificationAttempt:
     from learn_to_cloud_shared.testing.requirement_factories import (
         deployment_architecture_requirement,
     )
 
-    return PreparedVerificationJob(
+    return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username="learner",
@@ -329,12 +329,12 @@ async def test_deployment_profile_gate_fails_when_deploy_script_missing():
 # ---------------------------------------------------------------------------
 
 
-def _deployed_api_job() -> PreparedVerificationJob:
+def _deployed_api_job() -> PreparedVerificationAttempt:
     from learn_to_cloud_shared.testing.requirement_factories import (
         deployed_api_requirement,
     )
 
-    return PreparedVerificationJob(
+    return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username=None,
@@ -343,12 +343,12 @@ def _deployed_api_job() -> PreparedVerificationJob:
     )
 
 
-def _devops_job() -> PreparedVerificationJob:
+def _devops_job() -> PreparedVerificationAttempt:
     from learn_to_cloud_shared.testing.requirement_factories import (
         devops_analysis_requirement,
     )
 
-    return PreparedVerificationJob(
+    return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username="learner",
@@ -425,12 +425,12 @@ async def test_devops_profile_fails_when_workflow_fails(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def _security_job() -> PreparedVerificationJob:
+def _security_job() -> PreparedVerificationAttempt:
     from learn_to_cloud_shared.testing.requirement_factories import (
         security_scanning_requirement,
     )
 
-    return PreparedVerificationJob(
+    return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username="learner",
@@ -442,12 +442,12 @@ def _security_job() -> PreparedVerificationJob:
     )
 
 
-def _career_job(text: str) -> PreparedVerificationJob:
+def _career_job(text: str) -> PreparedVerificationAttempt:
     from learn_to_cloud_shared.testing.requirement_factories import (
         career_reflection_requirement,
     )
 
-    return PreparedVerificationJob(
+    return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username=None,
@@ -535,7 +535,7 @@ async def test_career_profile_skips_grading_when_gate_fails(monkeypatch):
 
 
 def _phase02_job(requirement, submitted_value, github_username="learner"):
-    return PreparedVerificationJob(
+    return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username=github_username,

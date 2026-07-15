@@ -7,10 +7,6 @@ request-serving curriculum reads (see ``content_service``); it exists so
 the API can fail fast at startup if the packaged artifact is missing,
 stale, or corrupted, and so callers never touch the database just to
 read curriculum shape.
-
-The PostgreSQL curriculum tables (populated by ``content_sync.py`` at
-deploy time) and ``content_db_loader.py`` remain in place as a
-compatibility shadow, but no request path reads them anymore.
 """
 
 from __future__ import annotations

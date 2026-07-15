@@ -214,7 +214,6 @@ def _create_kwargs(
     id: UUID,
     requirement_uuid: UUID,
     submitted_value: SubmittedValue,
-    legacy_job_id: UUID | None = None,
     requirement_snapshot: dict | None = None,
     requirement_snapshot_hash: str = "snapshot-hash",
 ) -> dict:
@@ -234,7 +233,6 @@ def _create_kwargs(
         "submitted_value": submitted_value,
         "cloud_provider": None,
         "traceparent": None,
-        "legacy_job_id": legacy_job_id if legacy_job_id is not None else id,
     }
 
 
@@ -257,7 +255,6 @@ async def test_create_or_get_active_creates_new_attempt(
     assert created is True
     assert attempt.id == attempt_id
     assert attempt.snapshot_source == "submitted"
-    assert attempt.legacy_job_id == attempt_id
     assert attempt.submitted_value == "https://github.com/attemptrepo/repo"
 
 
@@ -496,35 +493,6 @@ async def test_are_all_requirements_succeeded_empty_list_is_true(
         assert await VerificationAttemptRepository(db).are_all_requirements_succeeded(
             USER_ID, []
         )
-
-
-async def test_get_requirement_uuids_with_any_attempt_includes_active_and_terminal(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    active_req = uuid4()
-    terminal_req = uuid4()
-    no_attempt_req = uuid4()
-    await _insert_attempt(session_maker, requirement_uuid=active_req)
-    await _insert_attempt(
-        session_maker, requirement_uuid=terminal_req, outcome="failed"
-    )
-    async with session_maker() as db:
-        result = await VerificationAttemptRepository(
-            db
-        ).get_requirement_uuids_with_any_attempt(
-            USER_ID, [active_req, terminal_req, no_attempt_req]
-        )
-    assert result == {active_req, terminal_req}
-
-
-async def test_get_requirement_uuids_with_any_attempt_empty_input(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    async with session_maker() as db:
-        result = await VerificationAttemptRepository(
-            db
-        ).get_requirement_uuids_with_any_attempt(USER_ID, [])
-    assert result == set()
 
 
 async def test_get_active_for_requirements_excludes_terminal(

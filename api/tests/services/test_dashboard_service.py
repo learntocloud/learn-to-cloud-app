@@ -14,9 +14,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.models import (
-    CurriculumStep,
     LearnerStepCompletion,
     User,
     VerificationAttempt,
@@ -31,7 +30,7 @@ from learn_to_cloud_shared.schemas import (
     UserProgress,
     VerificationProgress,
 )
-from sqlalchemy import event, select
+from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -405,8 +404,6 @@ class TestGetDashboardDataQueryCount:
         tree walk over every step, and never one query per step or
         requirement, regardless of how many the curriculum has.
         """
-        await sync_curriculum_to_db(db_session)
-
         user = User(id=1, github_username="octocat")
         db_session.add(user)
         await db_session.flush()
@@ -427,9 +424,7 @@ class TestGetDashboardDataQueryCount:
                 )
             )
 
-        first_step_uuid = (
-            await db_session.execute(select(CurriculumStep.uuid).limit(1))
-        ).scalar_one()
+        first_step_uuid = next(iter(get_curriculum_catalog().steps_by_uuid))
         db_session.add(
             LearnerStepCompletion(user_id=user.id, step_uuid=first_step_uuid)
         )
@@ -439,18 +434,6 @@ class TestGetDashboardDataQueryCount:
             result = await get_dashboard_data(db_session, user_id=user.id)
 
         assert result.total_phases > 0
-        # Fixed number of learner-state aggregate queries regardless of
-        # curriculum size: 2 for step completions (authoritative +
-        # narrow legacy step_progress fallback) and 3 for succeeded
-        # requirements (authoritative succeeded set, "any attempt exists"
-        # check across every current requirement, and the legacy
-        # submissions fallback query -- unavoidable here since this user
-        # has only attempted one of several current requirements, so most
-        # remain "unattempted" and the fallback check always runs), plus 2
-        # more for resolving the "Continue" destination's first-unchecked
-        # step within the current phase (authoritative + legacy fallback
-        # again, scoped to that one phase's steps). See progress_reads.py
-        # for the exact breakdown; the important invariant is that this
-        # count is fixed, not proportional to the number of steps/
-        # requirements in the curriculum.
-        assert len(statements) == 7
+        # One read each for completions and successful attempts, plus one
+        # completion read for the Continue destination.
+        assert len(statements) == 3

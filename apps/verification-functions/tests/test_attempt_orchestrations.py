@@ -25,7 +25,7 @@ from learn_to_cloud_shared.testing.requirement_factories import (
     repo_fork_requirement,
 )
 from learn_to_cloud_shared.verification_attempt_reconciler import stale_cutoff
-from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
+from learn_to_cloud_shared.verification_workflow import PreparedVerificationAttempt
 
 
 # --------------------------------------------------------------------------- #
@@ -92,7 +92,7 @@ def _drive(
 
 
 def _prepared_payload(requirement: Any, value: str) -> dict[str, object]:
-    job = PreparedVerificationJob(
+    job = PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username="alice",
@@ -117,7 +117,7 @@ def _make_responder(
         if fail_activity is not None and name == fail_activity:
             return _Raise(RuntimeError("activity failed"))
         if name == "prepare_verification_attempt":
-            return {"job": prepared_payload}
+            return {"attempt": prepared_payload}
         if name == "execute_requirement_verification":
             if recorded_requests is not None:
                 return {"status": "verified", "grading_requests": recorded_requests}
@@ -211,8 +211,6 @@ class TestVersionedOrchestratorRegistered:
             == "verification_attempt_orchestrator_v1"
         )
         assert hasattr(function_app, function_app._ATTEMPT_ORCHESTRATOR_NAME)
-        # The legacy orchestrator name/registration is untouched.
-        assert function_app._ORCHESTRATOR_NAME == "verification_orchestrator"
 
 
 # --------------------------------------------------------------------------- #
@@ -425,7 +423,6 @@ def _status_row(attempt_id, created_at) -> AttemptStatusRow:
         outcome=None,
         started_at=None,
         created_at=created_at,
-        legacy_job_id=None,
     )
 
 

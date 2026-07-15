@@ -30,7 +30,7 @@
     {% if card_state == 'checking' and verification_status_token %}
     {# Verification in progress — poll the Durable status proxy until terminal. #}
     <div
-        hx-get="/htmx/verification/jobs/status?token={{ verification_status_token | urlencode }}"
+        hx-get="/htmx/verification/attempts/status?token={{ verification_status_token | urlencode }}"
         hx-trigger="load delay:{{ verification_status_delay_seconds | default(2) }}s"
         hx-target="#requirement-{{ requirement.slug }}"
         hx-swap="outerHTML"

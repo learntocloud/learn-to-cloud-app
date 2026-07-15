@@ -53,7 +53,7 @@ class TestCompleteStep:
             ) as MockCompletionRepo,
             patch(
                 "learn_to_cloud.services.steps_service.resolve_completed_step_uuids",
-                new=AsyncMock(return_value=({step.uuid}, set())),
+                new=AsyncMock(return_value={step.uuid}),
             ),
         ):
             completion_repo = MockCompletionRepo.return_value
@@ -96,21 +96,14 @@ class TestUncompleteStep:
                 return_value=(topic, step),
             ),
             patch(
-                "learn_to_cloud.services.steps_service.StepProgressRepository",
-                autospec=True,
-            ) as MockRepo,
-            patch(
                 "learn_to_cloud.services.steps_service.LearnerStepCompletionRepository",
                 autospec=True,
             ) as MockCompletionRepo,
             patch(
                 "learn_to_cloud.services.steps_service.resolve_completed_step_uuids",
-                new=AsyncMock(return_value=(set(), set())),
+                new=AsyncMock(return_value=set()),
             ),
         ):
-            repo = MockRepo.return_value
-            repo.delete_step = AsyncMock(return_value=1)
-
             completion_repo = MockCompletionRepo.return_value
             completion_repo.delete = AsyncMock(return_value=1)
 
@@ -122,7 +115,6 @@ class TestUncompleteStep:
         assert returned_step.uuid == step.uuid
         assert completed == set()
         completion_repo.delete.assert_awaited_once_with(user_id=1, step_uuid=step.uuid)
-        repo.delete_step.assert_awaited_once_with(1, step.uuid)
 
 
 @pytest.mark.unit
@@ -135,7 +127,7 @@ class TestGetValidCompletedSteps:
 
         with patch(
             "learn_to_cloud.services.steps_service.resolve_completed_step_uuids",
-            new=AsyncMock(return_value=({s1.uuid}, set())),
+            new=AsyncMock(return_value={s1.uuid}),
         ) as resolve:
             result = await get_valid_completed_steps(
                 AsyncMock(), user_id=1, topic=topic

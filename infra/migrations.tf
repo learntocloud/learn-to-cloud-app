@@ -61,11 +61,6 @@ resource "azurerm_container_app_job" "migrations" {
         name  = "POSTGRES_VERIFICATION_FUNCTIONS_ROLE"
         value = local.verification_functions_postgres_role
       }
-
-      env {
-        name  = "CONTENT__DIR"
-        value = "/app/content/phases"
-      }
     }
   }
 

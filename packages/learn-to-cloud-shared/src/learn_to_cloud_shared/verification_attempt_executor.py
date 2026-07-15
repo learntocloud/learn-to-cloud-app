@@ -1,31 +1,26 @@
-"""Prepare, finalize, and terminalize unified verification attempts.
+"""Prepare, finalize, and terminalize verification attempts.
 
-This is the bridge (PR4) counterpart to ``verification_job_executor``: it runs
-against the curriculum-decoupled ``verification_attempts`` table instead of the
-legacy ``verification_jobs`` + ``submissions`` pair. Every trusted input comes
-from the attempt row -- the Durable input carries only the attempt id, so a
-leaked function key or a buggy caller cannot smuggle in a forged requirement.
+Every trusted input comes from the attempt row. The Durable input carries only
+the attempt id, so a leaked function key or buggy caller cannot smuggle in a
+forged requirement.
 
 Trust boundary and idempotency:
 
 1. :func:`prepare_verification_attempt` loads the attempt, validates its
    payload version / snapshot provenance / hash / value kind / active state,
    deserializes the stored typed requirement snapshot, and returns a
-   :class:`PreparedVerificationJob` the existing verify/grade activities run
+   :class:`PreparedVerificationAttempt` the verify/grade activities run
    unchanged.
 2. :func:`finalize_verification_attempt` writes the terminal outcome with a
    compare-and-set (``UPDATE ... WHERE outcome IS NULL RETURNING``) so replays
-   and competing finalizers never overwrite a result. Attempts from before the
-   writer cutover still mirror their linked legacy job during the drain.
+   and competing finalizers never overwrite a result.
 3. :func:`terminalize_verification_attempt` is the authoritative failure path
    (orchestrator/activity exception, or the stale-attempt reconciler): it
-   compare-and-sets a ``server_error`` / ``cancelled`` outcome and applies the
-   same conditional drain mirror.
+   compare-and-sets a ``server_error`` / ``cancelled`` outcome.
 """
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -33,17 +28,9 @@ from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import VerificationAttemptOutcome
-from learn_to_cloud_shared.repositories.submission_repository import (
-    SubmissionRepository,
-)
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
-    AttemptMirrorState,
     AttemptTerminalState,
     VerificationAttemptRepository,
-)
-from learn_to_cloud_shared.repositories.verification_job_repository import (
-    LinkResult,
-    VerificationJobRepository,
 )
 from learn_to_cloud_shared.submission_values import (
     SubmittedValue,
@@ -57,15 +44,14 @@ from learn_to_cloud_shared.verification_attempt_snapshot import (
     AttemptSnapshotError,
     validate_snapshot_integrity,
 )
-from learn_to_cloud_shared.verification_job_executor import (
-    PreparedVerificationJob,
+from learn_to_cloud_shared.verification_workflow import (
+    PreparedVerificationAttempt,
     VerificationRunResult,
-    _code_for_outcome,
-    _outcome_for,
+    code_for_outcome,
+    outcome_for_validation,
 )
 
 tracer = trace.get_tracer(__name__)
-logger = logging.getLogger(__name__)
 
 _SNAPSHOT_SOURCE_SUBMITTED = "submitted"
 _ORCHESTRATOR_TERMINAL_SOURCE = "orchestrator"
@@ -91,20 +77,10 @@ class AttemptNotRunnableError(AttemptPreparationError):
 class AttemptPreparation:
     """A prepared attempt ready for the verify/grade/finalize activities."""
 
-    job: PreparedVerificationJob
+    attempt: PreparedVerificationAttempt
 
     def to_payload(self) -> dict[str, object]:
-        return {"job": self.job.to_payload()}
-
-
-def _outcome_flags(outcome: str) -> tuple[bool, bool]:
-    """Map a terminal outcome to legacy ``(is_validated, completed)`` flags."""
-    is_validated = outcome == VerificationAttemptOutcome.SUCCEEDED.value
-    verification_completed = outcome in (
-        VerificationAttemptOutcome.SUCCEEDED.value,
-        VerificationAttemptOutcome.FAILED.value,
-    )
-    return is_validated, verification_completed
+        return {"attempt": self.attempt.to_payload()}
 
 
 async def prepare_verification_attempt(
@@ -172,14 +148,14 @@ async def prepare_verification_attempt(
             state.submission_value_kind,
             state.submitted_value,
         )
-        job = PreparedVerificationJob(
+        attempt = PreparedVerificationAttempt(
             id=state.id,
             user_id=state.user_id,
             github_username=state.github_username_snapshot,
             requirement=requirement,
             submitted_value=submitted_value,
         )
-        return AttemptPreparation(job=job)
+        return AttemptPreparation(attempt=attempt)
 
 
 async def finalize_verification_attempt(
@@ -188,11 +164,11 @@ async def finalize_verification_attempt(
     session_maker: async_sessionmaker[AsyncSession],
 ) -> AttemptTerminalState:
     """Persist an attempt's real verification outcome via compare-and-set."""
-    run_result = run_result.without_evidence()
-    job = run_result.job
+    run_result = run_result.without_transport_data()
+    attempt = run_result.attempt
     validation_result = run_result.validation_result
-    outcome = _outcome_for(validation_result)
-    error_code = _code_for_outcome(outcome)
+    outcome = outcome_for_validation(validation_result)
+    error_code = code_for_outcome(outcome)
     validation_message = (
         persisted_validation_message(validation_result.message)
         if not validation_result.is_valid
@@ -205,7 +181,7 @@ async def finalize_verification_attempt(
     )
 
     return await _finalize(
-        job.id,
+        attempt.id,
         session_maker=session_maker,
         outcome=VerificationAttemptOutcome(outcome),
         error_code=error_code,
@@ -275,70 +251,4 @@ async def _finalize(
             await db.commit()
         span.set_attribute("verification.cas_won", result.won)
 
-        # Mirror the legacy submission regardless of who won the CAS: the
-        # attempt is now terminal, and the mirror is independently idempotent,
-        # so a crash between the CAS commit and the mirror is recovered by any
-        # retry.
-        await _ensure_legacy_mirror(attempt_id, session_maker=session_maker)
         return result.state
-
-
-async def _ensure_legacy_mirror(
-    attempt_id: UUID,
-    *,
-    session_maker: async_sessionmaker[AsyncSession],
-) -> None:
-    """Create + link the legacy submission for a terminalized attempt, once.
-
-    No-ops when the attempt carries no ``legacy_job_id`` (a genuinely new
-    submitted attempt), when the legacy job is gone, or when the job is already
-    linked. The ``link_submission`` compare-and-set is the duplicate guard: if
-    a competing finalizer or the legacy execution path linked first, our
-    just-inserted submission is rolled back so one attempt/job never produces
-    two legacy submissions.
-    """
-    async with session_maker() as db:
-        state = await VerificationAttemptRepository(db).get_mirror_state(attempt_id)
-        if state is None or state.legacy_job_id is None or state.outcome is None:
-            return
-
-        job_repo = VerificationJobRepository(db)
-        job = await job_repo.get_by_id(state.legacy_job_id)
-        if job is None or job.result_submission_id is not None:
-            return
-
-        logger.warning(
-            "verification.legacy_write_used",
-            extra={
-                "path": "attempt_terminal_mirror",
-                "table": "submissions",
-                "attempt_id": str(attempt_id),
-            },
-        )
-        submission = await _create_mirror_submission(db, state)
-        link = await job_repo.link_submission(job.id, submission.id)
-        if link is LinkResult.LINKED:
-            await db.commit()
-            return
-        # Another finalizer / the legacy path won the link race: discard our
-        # duplicate insert.
-        await db.rollback()
-
-
-async def _create_mirror_submission(db: AsyncSession, state: AttemptMirrorState):
-    is_validated, verification_completed = _outcome_flags(state.outcome or "")
-    submitted_value = SubmittedValue.from_kind_and_value(
-        state.submission_value_kind,
-        state.submitted_value,
-    )
-    return await SubmissionRepository(db).create(
-        user_id=state.user_id,
-        requirement_uuid=state.requirement_uuid,
-        submitted_value=submitted_value,
-        extracted_username=state.github_username_snapshot,
-        is_validated=is_validated,
-        verification_completed=verification_completed,
-        feedback_json=state.feedback_json,
-        validation_message=state.validation_message,
-        cloud_provider=state.cloud_provider,
-    )

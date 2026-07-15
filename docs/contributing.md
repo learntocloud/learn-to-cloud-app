@@ -152,8 +152,7 @@ packaged YAML under
 `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases/`.
 To change it:
 
-1. Edit the YAML files. The deploy syncs them into Postgres -- no
-   migration needed for content changes.
+1. Edit the YAML files. CI compiles them into the packaged curriculum artifact.
 2. Validate locally:
    ```bash
    cd packages/learn-to-cloud-shared
@@ -161,8 +160,5 @@ To change it:
    ```
 3. Open a PR. CI runs the same validators.
 
-See [`docs/curriculum.md`](curriculum.md) for the full architecture
-(YAML-authoritative, deploy-time sync to Postgres, UUID FKs from
-user state to curriculum). Schema changes to the curriculum tables
-themselves are normal Alembic migrations; content changes go through
-the sync.
+See [`docs/curriculum.md`](curriculum.md) for the full packaged-artifact
+architecture.
