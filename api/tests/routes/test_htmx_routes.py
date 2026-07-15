@@ -272,11 +272,10 @@ class TestHtmxSubmitVerification:
         # Should render a server error card, not crash
         assert result is not None
 
-    async def test_durable_start_failure_deletes_attempt_and_job(self):
+    async def test_durable_start_failure_deletes_attempt(self):
         """When Durable's start_new call fails before reaching Functions, the
-        route deletes both the just-created attempt and legacy job rows
-        instead of marking either terminal. Frees the partial unique
-        indexes so the user can retry immediately."""
+        route deletes the just-created attempt instead of marking it terminal,
+        freeing the active slot so the user can retry immediately."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
         attempt_submission = _mock_attempt_submission(created=True)
@@ -286,8 +285,6 @@ class TestHtmxSubmitVerification:
         )
         attempt_repo = MagicMock()
         attempt_repo.delete_active = AsyncMock(return_value=True)
-        job_repo = MagicMock()
-        job_repo.delete_active = AsyncMock(return_value=True)
 
         with (
             patch(
@@ -314,10 +311,6 @@ class TestHtmxSubmitVerification:
                 "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
                 return_value=attempt_repo,
             ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
-                return_value=job_repo,
-            ),
         ):
             result = await htmx_submit_verification(
                 request,
@@ -330,7 +323,6 @@ class TestHtmxSubmitVerification:
         attempt_repo.delete_active.assert_awaited_once_with(
             attempt_submission.attempt_id
         )
-        job_repo.delete_active.assert_awaited_once_with(attempt_submission.attempt_id)
         write_session.commit.assert_awaited_once()
 
     async def test_durable_config_error_does_not_invite_immediate_retry(
@@ -347,8 +339,6 @@ class TestHtmxSubmitVerification:
         )
         attempt_repo = MagicMock()
         attempt_repo.delete_active = AsyncMock(return_value=True)
-        job_repo = MagicMock()
-        job_repo.delete_active = AsyncMock(return_value=True)
 
         with (
             patch(
@@ -375,10 +365,6 @@ class TestHtmxSubmitVerification:
                 "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
                 return_value=attempt_repo,
             ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
-                return_value=job_repo,
-            ),
         ):
             result = await htmx_submit_verification(
                 request,
@@ -392,7 +378,6 @@ class TestHtmxSubmitVerification:
         attempt_repo.delete_active.assert_awaited_once_with(
             attempt_submission.attempt_id
         )
-        job_repo.delete_active.assert_awaited_once_with(attempt_submission.attempt_id)
         _, _, context = _patch_templates.TemplateResponse.call_args.args
         assert context["server_error"] is True
         assert context["server_error_retryable"] is False
@@ -415,8 +400,6 @@ class TestHtmxSubmitVerification:
         )
         attempt_repo = MagicMock()
         attempt_repo.delete_active = AsyncMock(return_value=False)
-        job_repo = MagicMock()
-        job_repo.delete_active = AsyncMock(return_value=True)
 
         with (
             patch(
@@ -443,10 +426,6 @@ class TestHtmxSubmitVerification:
                 "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
                 return_value=attempt_repo,
             ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
-                return_value=job_repo,
-            ),
         ):
             await htmx_submit_verification(
                 request,
@@ -461,7 +440,6 @@ class TestHtmxSubmitVerification:
         attempt_repo.delete_active.assert_awaited_once_with(
             attempt_submission.attempt_id
         )
-        job_repo.delete_active.assert_not_awaited()
 
     async def test_async_submit_still_returns_processing_card(self):
         """Regression: async submissions must keep using the
@@ -711,7 +689,7 @@ class TestHtmxVerificationJobStatus:
         assert isinstance(result, HTMLResponse)
         assert "location.reload()" in bytes(result.body).decode()
 
-    async def test_failed_status_deletes_active_job_and_renders_error(
+    async def test_failed_status_terminalizes_attempt_and_renders_error(
         self,
         _patch_templates,
     ):
@@ -742,16 +720,29 @@ class TestHtmxVerificationJobStatus:
                 return_value=DurableStatusResult(runtime_status="Failed"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
                 autospec=True,
             ) as mock_repository_class,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                autospec=True,
+            ) as mock_job_repository_class,
             patch(
                 "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
         ):
             mock_repository = mock_repository_class.return_value
-            mock_repository.delete_active = AsyncMock(return_value=True)
+            mock_repository.get_status = AsyncMock(return_value=MagicMock())
+            mock_repository.finalize = AsyncMock(
+                return_value=MagicMock(
+                    won=True,
+                    state=MagicMock(outcome="server_error"),
+                )
+            )
+            mock_job_repository_class.return_value.delete_active = AsyncMock(
+                return_value=True
+            )
 
             result = await htmx_verification_job_status(
                 request,
@@ -760,7 +751,17 @@ class TestHtmxVerificationJobStatus:
             )
 
         assert isinstance(result, HTMLResponse)
-        mock_repository.delete_active.assert_awaited_once_with(job_id)
+        mock_repository.finalize.assert_awaited_once_with(
+            job_id,
+            outcome="server_error",
+            error_code="server_error",
+            validation_message="Verification failed before recording a result.",
+            terminal_source="legacy_poller",
+            feedback_json=None,
+        )
+        mock_job_repository_class.return_value.delete_active.assert_awaited_once_with(
+            job_id
+        )
         mock_session.commit.assert_awaited_once()
         _, _, context = _patch_templates.TemplateResponse.call_args.args
         assert context["server_error"] is True
@@ -772,9 +773,7 @@ class TestHtmxVerificationJobStatus:
             "issue at https://github.com/learntocloud/learn-to-cloud-app/issues."
         )
 
-    async def test_canceled_status_also_deletes_active_job(self):
-        """``Canceled`` and ``Terminated`` are handled the same way as
-        ``Failed`` — delete the row, let the user retry."""
+    async def test_canceled_status_terminalizes_attempt_as_cancelled(self):
         request = _mock_request()
         mock_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
@@ -800,16 +799,29 @@ class TestHtmxVerificationJobStatus:
                 return_value=DurableStatusResult(runtime_status="Canceled"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
                 autospec=True,
             ) as mock_repository_class,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                autospec=True,
+            ) as mock_job_repository_class,
             patch(
                 "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
         ):
             mock_repository = mock_repository_class.return_value
-            mock_repository.delete_active = AsyncMock(return_value=True)
+            mock_repository.get_status = AsyncMock(return_value=MagicMock())
+            mock_repository.finalize = AsyncMock(
+                return_value=MagicMock(
+                    won=True,
+                    state=MagicMock(outcome="cancelled"),
+                )
+            )
+            mock_job_repository_class.return_value.delete_active = AsyncMock(
+                return_value=True
+            )
 
             result = await htmx_verification_job_status(
                 request,
@@ -818,12 +830,72 @@ class TestHtmxVerificationJobStatus:
             )
 
         assert isinstance(result, HTMLResponse)
-        mock_repository.delete_active.assert_awaited_once_with(job_id)
+        mock_repository.finalize.assert_awaited_once_with(
+            job_id,
+            outcome="cancelled",
+            error_code="cancelled",
+            validation_message="Verification was cancelled.",
+            terminal_source="legacy_poller",
+            feedback_json=None,
+        )
+        mock_job_repository_class.return_value.delete_active.assert_awaited_once_with(
+            job_id
+        )
 
-    async def test_failed_status_delete_skipped_when_persist_won_race(self):
-        """If ``delete_active`` returns False (persist linked a
-        Submission first) the poller still responds with a reload — it
-        just logs and moves on."""
+    async def test_failed_status_reloads_when_attempt_was_already_finalized(self):
+        request = _mock_request()
+        mock_session = AsyncMock()
+        request.app.state.session_maker.return_value.__aenter__.return_value = (
+            mock_session
+        )
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        job_id = uuid4()
+        token_data = VerificationStatusToken(
+            user_id=1,
+            job_id=str(job_id),
+            instance_id=str(uuid4()),
+            requirement_slug="req-1",
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
+                return_value=token_data,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_verification_orchestration_status",
+                new_callable=AsyncMock,
+                return_value=DurableStatusResult(runtime_status="Failed"),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                autospec=True,
+            ) as mock_attempt_repository_class,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                autospec=True,
+            ) as mock_job_repository_class,
+        ):
+            attempt_repo = mock_attempt_repository_class.return_value
+            attempt_repo.get_status = AsyncMock(return_value=MagicMock())
+            attempt_repo.finalize = AsyncMock(
+                return_value=MagicMock(
+                    won=False,
+                    state=MagicMock(outcome="succeeded"),
+                )
+            )
+
+            result = await htmx_verification_job_status(
+                request,
+                token="signed-token",
+                current_user=current_user,
+            )
+
+        assert "location.reload()" in bytes(result.body).decode()
+        mock_job_repository_class.return_value.delete_active.assert_not_called()
+        mock_session.commit.assert_not_awaited()
+
+    async def test_failed_status_reload_when_attempt_and_job_are_missing(self):
         request = _mock_request()
         mock_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
@@ -848,12 +920,20 @@ class TestHtmxVerificationJobStatus:
                 return_value=DurableStatusResult(runtime_status="Failed"),
             ),
             patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                autospec=True,
+            ) as mock_attempt_repository_class,
+            patch(
                 "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
                 autospec=True,
-            ) as mock_repository_class,
+            ) as mock_job_repository_class,
         ):
-            mock_repository = mock_repository_class.return_value
-            mock_repository.delete_active = AsyncMock(return_value=False)
+            mock_attempt_repository_class.return_value.get_status = AsyncMock(
+                return_value=None
+            )
+            mock_job_repository_class.return_value.delete_active = AsyncMock(
+                return_value=False
+            )
 
             result = await htmx_verification_job_status(
                 request,

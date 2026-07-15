@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -15,9 +16,10 @@ from sqlalchemy import (
     delete,
     exists,
     func,
+    literal,
     select,
     text,
-    union,
+    union_all,
     update,
     values,
 )
@@ -31,6 +33,8 @@ from learn_to_cloud_shared.models import (
     utcnow,
 )
 from learn_to_cloud_shared.submission_values import SubmittedValue
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,7 +179,7 @@ class VerificationAttemptRepository:
         submitted_value: SubmittedValue,
         cloud_provider: str | None,
         traceparent: str | None,
-        legacy_job_id: UUID,
+        legacy_job_id: UUID | None,
     ) -> tuple[VerificationAttempt, bool]:
         """Create a new attempt, or return the active one, under an advisory lock.
 
@@ -743,12 +747,16 @@ class VerificationAttemptRepository:
         ).data(requirement_phase_rows)
 
         succeeded_attempts = select(
-            VerificationAttempt.user_id, VerificationAttempt.requirement_uuid
+            VerificationAttempt.user_id,
+            VerificationAttempt.requirement_uuid,
+            literal(0).label("legacy_rows"),
         ).where(
             VerificationAttempt.outcome == VerificationAttemptOutcome.SUCCEEDED.value
         )
         validated_legacy = select(
-            Submission.user_id, Submission.requirement_uuid
+            Submission.user_id,
+            Submission.requirement_uuid,
+            literal(1).label("legacy_rows"),
         ).where(
             Submission.is_validated.is_(True),
             ~exists().where(
@@ -756,7 +764,9 @@ class VerificationAttemptRepository:
                 VerificationAttempt.requirement_uuid == Submission.requirement_uuid,
             ),
         )
-        succeeded = union(succeeded_attempts, validated_legacy).subquery("succeeded")
+        succeeded = union_all(succeeded_attempts, validated_legacy).subquery(
+            "succeeded"
+        )
 
         result = await self.db.execute(
             select(
@@ -765,6 +775,7 @@ class VerificationAttemptRepository:
                 func.count(func.distinct(succeeded.c.requirement_uuid)).label(
                     "validated"
                 ),
+                func.sum(succeeded.c.legacy_rows).label("legacy_rows"),
             )
             .select_from(succeeded)
             .join(
@@ -774,8 +785,15 @@ class VerificationAttemptRepository:
             )
             .group_by(requirement_phase_map.c.phase_order, succeeded.c.user_id)
         )
+        rows = result.all()
+        legacy_rows = sum(row.legacy_rows or 0 for row in rows)
+        if legacy_rows:
+            logger.warning(
+                "stats.legacy_fallback_used",
+                extra={"count": legacy_rows},
+            )
         return [
-            (order, user_id)
-            for order, user_id, validated in result.all()
-            if validated >= completable[order]
+            (row.phase_order, row.user_id)
+            for row in rows
+            if row.validated >= completable[row.phase_order]
         ]

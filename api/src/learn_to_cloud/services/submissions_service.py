@@ -23,9 +23,6 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
     VerificationAttemptRepository,
 )
-from learn_to_cloud_shared.repositories.verification_job_repository import (
-    VerificationJobRepository,
-)
 from learn_to_cloud_shared.requirements import (
     RequirementIndex,
     get_prerequisite_phase,
@@ -128,13 +125,14 @@ async def get_phase_submission_context(
     )
     legacy_only_uuids = set(requirements_by_uuid.keys()) - has_any_attempt
     if legacy_only_uuids:
-        logger.warning(
-            "submission_card.legacy_fallback_used",
-            extra={"user_id": user_id, "count": len(legacy_only_uuids)},
-        )
         legacy_submissions = await SubmissionRepository(db).get_latest_for_requirements(
             user_id, legacy_only_uuids
         )
+        if legacy_submissions:
+            logger.warning(
+                "submission_card.legacy_fallback_used",
+                extra={"user_id": user_id, "count": len(legacy_submissions)},
+            )
         for sub in legacy_submissions:
             requirement = requirements_by_uuid.get(sub.requirement_uuid)
             if requirement is None:
@@ -181,14 +179,7 @@ class _PreValidationContext:
 
 @dataclass(frozen=True, slots=True)
 class VerificationAttemptSubmission:
-    """Result of creating or reusing a verification attempt (async Durable path).
-
-    ``attempt_id`` is shared with the compatibility ``verification_jobs`` row
-    created in the same transaction, so the caller can key the Durable start
-    call, status polling, and any failure cleanup off one id -- Functions
-    loads everything else (identity, requirement snapshot, submitted value)
-    straight from the attempt row.
-    """
+    """Result of creating or reusing a verification attempt."""
 
     attempt_id: UUID
     created: bool
@@ -272,15 +263,13 @@ async def create_verification_attempt(
 
     Every submission type runs through Durable Functions. This validates the
     request, then -- inside one transaction, guarded by a transaction-scoped
-    Postgres advisory lock on ``(user_id, requirement_uuid)`` -- creates (or
-    reuses) the authoritative ``VerificationAttempt`` row plus its
-    compatibility ``VerificationJob`` row, sharing one UUID, so old API
-    readers stay valid while the attempt row becomes the source of truth.
+    Postgres advisory lock on ``(user_id, requirement_uuid)`` -- creates or
+    reuses the authoritative ``VerificationAttempt`` row.
 
     The advisory lock serializes concurrent submits for the same
-    requirement so two racing requests can never both pass the
-    active/succeeded checks and create two active attempts; it releases
-    automatically when the transaction commits below.
+    requirement so two racing requests can never both pass the active/succeeded
+    checks and create two active attempts. New attempts no longer create a
+    compatibility ``verification_jobs`` row.
     """
     ctx = await _check_submission_preconditions(
         session_maker,
@@ -316,22 +305,12 @@ async def create_verification_attempt(
                 submitted_value=typed_value,
                 cloud_provider=None,
                 traceparent=traceparent,
-                legacy_job_id=attempt_id,
+                legacy_job_id=None,
             )
         except AttemptAlreadyValidatedError as exc:
             raise AlreadyValidatedError(
                 "You have already completed this requirement."
             ) from exc
-
-        if created:
-            await VerificationJobRepository(write_session).create(
-                id=attempt.id,
-                user_id=user_id,
-                requirement_uuid=ctx.requirement.uuid,
-                submitted_value=typed_value,
-                extracted_username=github_username,
-                traceparent=traceparent,
-            )
 
         await write_session.commit()
 

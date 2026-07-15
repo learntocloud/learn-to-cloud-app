@@ -22,6 +22,9 @@ MIGRATION_DB = "test_verification_backfill_migrations"
 _BEFORE = "0048_validate_deployment_architecture_type"
 _TABLES = "0049_add_verification_attempts_and_step_completions"
 _INDEXES = "0050_verification_attempts_concurrent_indexes"
+_GRANTS = "0051_narrow_functions_role_attempt_grants"
+_DELETE_BRIDGE = "0053_bridge_legacy_job_deletes"
+_DELETE_REPAIR = "0054_repair_deleted_legacy_job_attempts"
 
 os.environ.setdefault(
     "POSTGRES_VERIFICATION_FUNCTIONS_ROLE",
@@ -413,6 +416,110 @@ def test_concurrent_indexes_created_by_0050(alembic_runner, alembic_engine):
     ):
         assert index_name in by_name, f"{index_name} missing"
         assert by_name[index_name] is True, f"{index_name} is INVALID"
+
+
+@pytest.mark.migration_chain
+def test_legacy_drain_backfill_and_triggers(alembic_runner, alembic_engine):
+    from learn_to_cloud_shared.models import Submission, User, VerificationJob
+
+    alembic_runner.migrate_up_to(_GRANTS)
+    with Session(alembic_engine) as session:
+        session.add(User(id=1001, github_username="octocat"))
+        session.flush()
+        cur = _seed_curriculum(session)
+
+        linked_submission = _make_submission(
+            session,
+            user_id=1001,
+            requirement_uuid=cur["req_github"],
+            is_validated=True,
+            verification_completed=True,
+        )
+        linked_job = _make_job(
+            session,
+            user_id=1001,
+            requirement_uuid=cur["req_github"],
+            result_submission_id=linked_submission,
+        )
+        active_job = _make_job(
+            session,
+            user_id=1001,
+            requirement_uuid=cur["req_token"],
+            value_kind="token",
+        )
+        session.commit()
+
+    alembic_runner.migrate_up_to(_DELETE_BRIDGE)
+
+    assert _fetch_attempt(alembic_engine, linked_job)["outcome"] == "succeeded"
+    assert _fetch_attempt(alembic_engine, active_job)["outcome"] is None
+
+    with Session(alembic_engine) as session:
+        active = session.get(VerificationJob, active_job)
+        assert active is not None
+        result = Submission(
+            user_id=1001,
+            requirement_uuid=cur["req_token"],
+            submitted_value="tok-123",
+            submission_value_kind="token",
+            token_value="tok-123",
+            is_validated=False,
+            verification_completed=True,
+        )
+        session.add(result)
+        session.flush()
+        active.result_submission_id = result.id
+        session.commit()
+
+    finalized = _fetch_attempt(alembic_engine, active_job)
+    assert finalized["outcome"] == "failed"
+    assert finalized["terminal_source"] == "legacy_orchestrator"
+
+    with Session(alembic_engine) as session:
+        triggered_job = _make_job(
+            session,
+            user_id=1001,
+            requirement_uuid=cur["req_token"],
+            value_kind="token",
+        )
+        session.commit()
+
+    triggered = _fetch_attempt(alembic_engine, triggered_job)
+    assert triggered["outcome"] is None
+    assert triggered["legacy_job_id"] == triggered_job
+
+    with Session(alembic_engine) as session:
+        job = session.get(VerificationJob, triggered_job)
+        assert job is not None
+        session.delete(job)
+        session.commit()
+
+    deleted = _fetch_attempt(alembic_engine, triggered_job)
+    assert deleted["outcome"] == "server_error"
+    assert deleted["terminal_source"] == "legacy_job_delete"
+
+    missing_job_id = uuid.uuid4()
+    with Session(alembic_engine) as session:
+        from learn_to_cloud_shared.models import VerificationAttempt
+
+        session.add(
+            VerificationAttempt(
+                id=missing_job_id,
+                user_id=1001,
+                requirement_uuid=cur["req_token"],
+                snapshot_source="reconstructed",
+                submission_value_kind="token",
+                submitted_value="tok-missing",
+                legacy_job_id=missing_job_id,
+            )
+        )
+        session.commit()
+
+    alembic_runner.migrate_up_to(_DELETE_REPAIR)
+
+    repaired = _fetch_attempt(alembic_engine, missing_job_id)
+    assert repaired["outcome"] == "server_error"
+    assert repaired["terminal_source"] == "legacy_job_repair"
 
 
 def _index_is_valid(engine, index_name: str) -> bool | None:

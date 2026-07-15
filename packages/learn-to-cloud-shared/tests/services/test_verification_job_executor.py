@@ -15,9 +15,13 @@ from learn_to_cloud_shared.models import (
     Submission,
     SubmissionType,
     SubmissionValueKind,
+    VerificationAttempt,
     VerificationJob,
 )
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    VerificationAttemptRepository,
+)
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
@@ -159,6 +163,27 @@ async def _count_submissions(
 ) -> int:
     async with session_maker() as db:
         return await db.scalar(select(func.count()).select_from(Submission)) or 0
+
+
+async def _attach_active_attempt(
+    session_maker: async_sessionmaker[AsyncSession],
+    *,
+    job_id: UUID,
+    requirement: HandsOnRequirement,
+) -> None:
+    async with session_maker() as db:
+        db.add(
+            VerificationAttempt(
+                id=job_id,
+                user_id=USER_ID,
+                requirement_uuid=requirement.uuid,
+                snapshot_source="reconstructed",
+                submission_value_kind=SubmissionValueKind.GITHUB_URL.value,
+                submitted_value="https://github.com/executoruser/repo",
+                legacy_job_id=job_id,
+            )
+        )
+        await db.commit()
 
 
 async def _get_submission(
@@ -467,6 +492,58 @@ async def test_persist_is_idempotent_via_result_submission_id_guard(
     assert second.status == "succeeded"
     assert second.submission_id == first.submission_id
     assert await _count_submissions(session_maker) == 1
+
+
+async def test_legacy_persist_finalizes_matching_attempt(
+    session_maker: async_sessionmaker[AsyncSession],
+    synced_requirement: HandsOnRequirement,
+):
+    job_id = await _create_job(session_maker, synced_requirement)
+    await _attach_active_attempt(
+        session_maker,
+        job_id=job_id,
+        requirement=synced_requirement,
+    )
+    run_result = VerificationRunResult(
+        job=_prepared(job_id, synced_requirement),
+        validation_result=ValidationResult(is_valid=True, message="Verified"),
+    )
+
+    await persist_verification_result(run_result, session_maker=session_maker)
+
+    async with session_maker() as db:
+        status = await VerificationAttemptRepository(db).get_status(job_id)
+    assert status is not None
+    assert status.outcome == "succeeded"
+
+
+async def test_legacy_prepare_replay_repairs_active_attempt(
+    session_maker: async_sessionmaker[AsyncSession],
+    synced_requirement: HandsOnRequirement,
+):
+    job_id = await _create_job(session_maker, synced_requirement)
+    run_result = VerificationRunResult(
+        job=_prepared(job_id, synced_requirement),
+        validation_result=ValidationResult(is_valid=False, message="Needs work"),
+    )
+    await persist_verification_result(run_result, session_maker=session_maker)
+    await _attach_active_attempt(
+        session_maker,
+        job_id=job_id,
+        requirement=synced_requirement,
+    )
+
+    preparation = await prepare_verification_job(
+        job_id,
+        session_maker=session_maker,
+        prepared_input=_prepared(job_id, synced_requirement),
+    )
+
+    assert preparation.terminal_result is not None
+    async with session_maker() as db:
+        status = await VerificationAttemptRepository(db).get_status(job_id)
+    assert status is not None
+    assert status.outcome == "failed"
 
 
 async def test_persist_raises_when_job_row_was_deleted(

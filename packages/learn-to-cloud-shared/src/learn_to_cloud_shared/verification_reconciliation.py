@@ -56,10 +56,12 @@ class ReconciliationReport:
     attempts_without_provenance: list[UUID] = field(default_factory=list)
     step_completions_missing: list[tuple[int, UUID]] = field(default_factory=list)
     step_completions_extra: list[tuple[int, UUID]] = field(default_factory=list)
+    active_legacy_attempts: list[UUID] = field(default_factory=list)
+    unlinked_legacy_jobs: list[UUID] = field(default_factory=list)
 
     @property
     def divergences(self) -> dict[str, int]:
-        """Named divergence categories mapped to their row counts."""
+        """State that must agree across authoritative and legacy records."""
         return {
             "linked_outcome_mismatches": len(self.linked_outcome_mismatches),
             "orphan_outcome_mismatches": len(self.orphan_outcome_mismatches),
@@ -70,13 +72,30 @@ class ReconciliationReport:
             "dangling_submission_provenance": len(self.dangling_submission_provenance),
             "attempts_without_provenance": len(self.attempts_without_provenance),
             "step_completions_missing": len(self.step_completions_missing),
-            "step_completions_extra": len(self.step_completions_extra),
+        }
+
+    @property
+    def drain_observations(self) -> dict[str, int]:
+        """Expected one-way-cutover state retained for operator visibility."""
+        return {
+            "authoritative_only_step_completions": len(self.step_completions_extra),
+            "active_legacy_attempts": len(self.active_legacy_attempts),
+            "unlinked_legacy_jobs": len(self.unlinked_legacy_jobs),
         }
 
     @property
     def ok(self) -> bool:
         """True when every divergence category is empty."""
         return not any(self.divergences.values())
+
+    @property
+    def contract_ready(self) -> bool:
+        """True when data agrees and no legacy verification work remains."""
+        return (
+            self.ok
+            and not self.active_legacy_attempts
+            and not self.unlinked_legacy_jobs
+        )
 
 
 async def _scalar_count(session: AsyncSession, table: str) -> int:
@@ -200,8 +219,12 @@ async def run_reconciliation(session: AsyncSession) -> ReconciliationReport:
                     SELECT s.id
                     FROM submissions s
                     WHERE NOT EXISTS (
-                        SELECT 1 FROM verification_attempts a
+                        SELECT 1
+                        FROM verification_attempts a
+                        LEFT JOIN verification_jobs vj
+                          ON vj.id = a.legacy_job_id
                         WHERE a.legacy_submission_id = s.id
+                           OR vj.result_submission_id = s.id
                     )
                     ORDER BY s.id
                     """
@@ -219,6 +242,7 @@ async def run_reconciliation(session: AsyncSession) -> ReconciliationReport:
                     SELECT a.id
                     FROM verification_attempts a
                     WHERE a.legacy_job_id IS NOT NULL
+                      AND a.outcome IS NULL
                       AND NOT EXISTS (
                         SELECT 1 FROM verification_jobs vj
                         WHERE vj.id = a.legacy_job_id
@@ -264,6 +288,48 @@ async def run_reconciliation(session: AsyncSession) -> ReconciliationReport:
                     WHERE legacy_job_id IS NULL
                       AND legacy_submission_id IS NULL
                       AND snapshot_source = 'reconstructed'
+                    ORDER BY id
+                    """
+                )
+            )
+        ).all()
+    ]
+
+    active_legacy_attempts = [
+        r.id
+        for r in (
+            await session.execute(
+                text(
+                    """
+                    SELECT id
+                    FROM verification_attempts
+                    WHERE outcome IS NULL
+                      AND (
+                        legacy_job_id IS NOT NULL
+                        OR legacy_submission_id IS NOT NULL
+                      )
+                    ORDER BY id
+                    """
+                )
+            )
+        ).all()
+    ]
+
+    unlinked_legacy_jobs = [
+        r.id
+        for r in (
+            await session.execute(
+                text(
+                    """
+                    SELECT id
+                    FROM verification_jobs vj
+                    WHERE vj.result_submission_id IS NULL
+                      AND NOT EXISTS (
+                        SELECT 1
+                        FROM verification_attempts a
+                        WHERE a.legacy_job_id = vj.id
+                          AND a.outcome IS NOT NULL
+                      )
                     ORDER BY id
                     """
                 )
@@ -323,6 +389,8 @@ async def run_reconciliation(session: AsyncSession) -> ReconciliationReport:
         attempts_without_provenance=attempts_without_provenance,
         step_completions_missing=step_completions_missing,
         step_completions_extra=step_completions_extra,
+        active_legacy_attempts=active_legacy_attempts,
+        unlinked_legacy_jobs=unlinked_legacy_jobs,
     )
 
 
@@ -338,5 +406,10 @@ def format_report(report: ReconciliationReport) -> str:
         marker = "ok" if count == 0 else "!!"
         lines.append(f"  [{marker}] {name:<32} {count}")
     lines.append("")
+    lines.append("Drain observations:")
+    for name, count in report.drain_observations.items():
+        lines.append(f"  [--] {name:<32} {count}")
+    lines.append("")
     lines.append("RESULT: " + ("OK -- fully reconciled" if report.ok else "DIVERGENT"))
+    lines.append("CONTRACT READY: " + ("yes" if report.contract_ready else "no"))
     return "\n".join(lines)

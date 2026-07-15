@@ -963,7 +963,7 @@ async def finalize_verification_attempt(
     run_payload,
     context: func.Context,
 ) -> dict[str, object]:
-    """Compare-and-set the attempt's real outcome and mirror the legacy row."""
+    """Compare-and-set the attempt's real outcome."""
     with _attached_invocation_context(context):
         run_result = VerificationRunResult.from_payload(_activity_payload(run_payload))
         _set_prepared_job_span_attributes(run_result.job)
@@ -983,7 +983,7 @@ async def terminalize_verification_attempt(
     input_payload,
     context: func.Context,
 ) -> dict[str, object]:
-    """Compare-and-set a failure/cancellation outcome + mirror the legacy row."""
+    """Compare-and-set a failure/cancellation outcome."""
     with _attached_invocation_context(context):
         data = _activity_payload(input_payload)
         attempt_id = UUID(str(data["attempt_id"]))

@@ -323,6 +323,7 @@ async def test_finalize_maps_outcomes(
 ) -> None:
     requirement = repo_fork_requirement(slug="fork", required_repo="owner/repo")
     attempt_id = await _insert_submitted_attempt(session_maker, requirement)
+    submissions_before = await _count_submissions(session_maker)
     state = await finalize_verification_attempt(
         _run_result(
             attempt_id,
@@ -338,6 +339,7 @@ async def test_finalize_maps_outcomes(
         stored = await VerificationAttemptRepository(db).get_status(attempt_id)
     assert stored is not None
     assert stored.outcome == expected
+    assert await _count_submissions(session_maker) == submissions_before
 
 
 async def test_finalize_replay_does_not_overwrite(
