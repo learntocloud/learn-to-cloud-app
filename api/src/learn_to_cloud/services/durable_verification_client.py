@@ -82,20 +82,7 @@ async def _post_start_request(
 async def start_verification_orchestration(
     prepared: PreparedVerificationJob,
 ) -> DurableStartResult:
-    """Start the legacy Durable orchestration for a persisted verification job.
-
-    Posts the full :class:`PreparedVerificationJob` payload to the
-    Functions starter so the orchestration has everything it needs to
-    run without reading curriculum tables. The Functions side still
-    validates the immutable fields (``user_id``, ``requirement_uuid``,
-    ``submitted_value``) against the ``verification_jobs`` row before
-    starting -- the payload is trusted only for the requirement
-    *definition* and ``github_username`` snapshot.
-
-    New submissions no longer call this -- see
-    :func:`start_verification_attempt_orchestration`. This stays registered
-    for any in-flight legacy instances until PR8 (legacy-drain).
-    """
+    """Start the legacy Durable orchestration with a persisted job payload."""
     settings = get_web_settings()
     base_url, token_scope = _verification_endpoint_config(settings)
     headers = await _verification_auth_headers(token_scope)
@@ -112,13 +99,7 @@ async def start_verification_orchestration(
 async def start_verification_attempt_orchestration(
     attempt_id: UUID,
 ) -> DurableStartResult:
-    """Start the versioned Durable attempt orchestration for a persisted attempt.
-
-    Posts no body: the Functions starter loads identity, the requirement
-    snapshot, and the submitted value straight from the ``verification_attempts``
-    row (see the PR4 bridge), so the API never sends -- and the narrowed
-    Functions role never needs to trust -- a second copy of any of that.
-    """
+    """Start a Durable orchestration using only the persisted attempt ID."""
     settings = get_web_settings()
     base_url, token_scope = _verification_endpoint_config(settings)
     headers = await _verification_auth_headers(token_scope)
