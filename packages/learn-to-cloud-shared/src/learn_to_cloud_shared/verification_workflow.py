@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from enum import StrEnum
 from uuid import UUID
 
 from learn_to_cloud_shared.github_target import GitHubTarget
@@ -24,6 +25,16 @@ VERIFICATION_SUCCEEDED_CODE = "verification_succeeded"
 OUTCOME_SUCCEEDED = "succeeded"
 OUTCOME_FAILED = "failed"
 OUTCOME_SERVER_ERROR = "server_error"
+
+
+class GradingDisposition(StrEnum):
+    """Why LLM grading was requested or skipped for a verification run."""
+
+    REQUESTED = "requested"
+    NOT_REQUIRED = "not_required"
+    SKIPPED_GATE_FAILED = "skipped_gate_failed"
+    SKIPPED_MISSING_USERNAME = "skipped_missing_username"
+    SKIPPED_UNKNOWN_SUBMISSION_TYPE = "skipped_unknown_submission_type"
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +85,7 @@ class VerificationRunResult:
     validation_result: ValidationResult
     evidence: list[EvidenceBundle] | None = None
     grading_requests: list[LLMGradingRequest] | None = None
+    grading_disposition: GradingDisposition | None = None
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -87,6 +99,11 @@ class VerificationRunResult:
             "grading_requests": (
                 [request.model_dump(mode="json") for request in self.grading_requests]
                 if self.grading_requests is not None
+                else None
+            ),
+            "grading_disposition": (
+                self.grading_disposition.value
+                if self.grading_disposition is not None
                 else None
             ),
         }
@@ -105,6 +122,12 @@ class VerificationRunResult:
             if isinstance(raw_requests, list)
             else None
         )
+        raw_disposition = payload.get("grading_disposition")
+        grading_disposition = (
+            GradingDisposition(_expect_str(raw_disposition, "grading_disposition"))
+            if raw_disposition is not None
+            else None
+        )
         return cls(
             attempt=PreparedVerificationAttempt.from_payload(
                 _expect_mapping(payload["attempt"])
@@ -114,6 +137,7 @@ class VerificationRunResult:
             ),
             evidence=evidence,
             grading_requests=grading_requests,
+            grading_disposition=grading_disposition,
         )
 
     def without_transport_data(self) -> VerificationRunResult:

@@ -63,6 +63,7 @@ def apply_llm_grading_decisions(
     return VerificationRunResult(
         attempt=run_result.attempt,
         validation_result=validation_result,
+        grading_disposition=run_result.grading_disposition,
     )
 
 
@@ -88,6 +89,7 @@ def llm_grading_unavailable_result(
     return VerificationRunResult(
         attempt=run_result.attempt,
         validation_result=validation_result,
+        grading_disposition=run_result.grading_disposition,
     )
 
 
@@ -118,6 +120,7 @@ def llm_grading_content_filtered_result(
     return VerificationRunResult(
         attempt=run_result.attempt,
         validation_result=validation_result,
+        grading_disposition=run_result.grading_disposition,
     )
 
 

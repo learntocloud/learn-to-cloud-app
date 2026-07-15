@@ -16,6 +16,7 @@ from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceItem,
 )
 from learn_to_cloud_shared.verification_workflow import (
+    GradingDisposition,
     PreparedVerificationAttempt,
     VerificationRunResult,
 )
@@ -111,15 +112,19 @@ class TestVerificationRunResultGradingRequests:
             attempt=_run_result(None).attempt,
             validation_result=ValidationResult(is_valid=False, message="gate failed"),
             grading_requests=[],
+            grading_disposition=GradingDisposition.SKIPPED_GATE_FAILED,
         )
         restored = VerificationRunResult.from_payload(result.to_payload())
         assert restored.grading_requests == []
+        assert restored.grading_disposition == GradingDisposition.SKIPPED_GATE_FAILED
 
     def test_without_transport_data_strips_grading_requests(self) -> None:
         result = VerificationRunResult(
             attempt=_run_result(None).attempt,
             validation_result=ValidationResult(is_valid=True, message="ok"),
             grading_requests=[_grading_request()],
+            grading_disposition=GradingDisposition.REQUESTED,
         )
         stripped = result.without_transport_data()
         assert stripped.grading_requests is None
+        assert stripped.grading_disposition == GradingDisposition.REQUESTED
