@@ -2,21 +2,26 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import (
+    SubmissionValueKind,
     VerificationAttempt,
     VerificationAttemptOutcome,
     utcnow,
 )
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    AttemptAlreadyValidatedError,
     VerificationAttemptRepository,
 )
+from learn_to_cloud_shared.submission_values import SubmittedValue
 
 pytestmark = pytest.mark.integration
 
@@ -45,7 +50,9 @@ async def _insert_attempt(
     session_maker: async_sessionmaker[AsyncSession],
     *,
     attempt_id: UUID | None = None,
+    requirement_uuid: UUID | None = None,
     created_at=None,
+    started_at=None,
     outcome: str | None = None,
 ) -> UUID:
     attempt_id = attempt_id or uuid4()
@@ -53,10 +60,11 @@ async def _insert_attempt(
         attempt = VerificationAttempt(
             id=attempt_id,
             user_id=USER_ID,
-            requirement_uuid=uuid4(),
+            requirement_uuid=requirement_uuid or uuid4(),
             snapshot_source="reconstructed",
             submission_value_kind="github_url",
             submitted_value="https://github.com/attemptrepo/repo",
+            started_at=started_at,
             outcome=outcome,
             completed_at=utcnow() if outcome is not None else None,
         )
@@ -65,6 +73,12 @@ async def _insert_attempt(
         db.add(attempt)
         await db.commit()
     return attempt_id
+
+
+def _submitted_value(
+    value: str = "https://github.com/attemptrepo/repo",
+) -> SubmittedValue:
+    return SubmittedValue(kind=SubmissionValueKind.GITHUB_URL, github_url=value)
 
 
 async def test_finalize_sets_terminal_state(
@@ -193,3 +207,210 @@ async def test_list_active_older_than_uses_started_at_when_present(
             now - timedelta(hours=1), limit=10
         )
     assert attempt_id not in {row.id for row in rows}
+
+
+def _create_kwargs(
+    *,
+    id: UUID,
+    requirement_uuid: UUID,
+    submitted_value: SubmittedValue,
+    legacy_job_id: UUID | None = None,
+    requirement_snapshot: dict | None = None,
+    requirement_snapshot_hash: str = "snapshot-hash",
+) -> dict:
+    """Shared kwargs for ``create_or_get_active`` so each test only overrides
+    what it cares about."""
+    return {
+        "id": id,
+        "user_id": USER_ID,
+        "requirement_uuid": requirement_uuid,
+        "artifact_schema_version": 1,
+        "curriculum_version": 1,
+        "content_hash": "content-hash",
+        "requirement_snapshot": requirement_snapshot or {"slug": "test-requirement"},
+        "requirement_snapshot_hash": requirement_snapshot_hash,
+        "payload_version": 1,
+        "github_username_snapshot": "attemptrepo",
+        "submitted_value": submitted_value,
+        "cloud_provider": None,
+        "traceparent": None,
+        "legacy_job_id": legacy_job_id if legacy_job_id is not None else id,
+    }
+
+
+async def test_create_or_get_active_creates_new_attempt(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    requirement_uuid = uuid4()
+    attempt_id = uuid4()
+
+    async with session_maker() as db:
+        attempt, created = await VerificationAttemptRepository(db).create_or_get_active(
+            **_create_kwargs(
+                id=attempt_id,
+                requirement_uuid=requirement_uuid,
+                submitted_value=_submitted_value(),
+            )
+        )
+        await db.commit()
+
+    assert created is True
+    assert attempt.id == attempt_id
+    assert attempt.snapshot_source == "submitted"
+    assert attempt.legacy_job_id == attempt_id
+    assert attempt.submitted_value == "https://github.com/attemptrepo/repo"
+
+
+async def test_create_or_get_active_returns_existing_active_attempt(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    requirement_uuid = uuid4()
+    first_id = uuid4()
+    second_id = uuid4()
+
+    async with session_maker() as db:
+        first, first_created = await VerificationAttemptRepository(
+            db
+        ).create_or_get_active(
+            **_create_kwargs(
+                id=first_id,
+                requirement_uuid=requirement_uuid,
+                submitted_value=_submitted_value(
+                    "https://github.com/attemptrepo/first"
+                ),
+            )
+        )
+        await db.commit()
+
+    async with session_maker() as db:
+        second, second_created = await VerificationAttemptRepository(
+            db
+        ).create_or_get_active(
+            **_create_kwargs(
+                id=second_id,
+                requirement_uuid=requirement_uuid,
+                submitted_value=_submitted_value(
+                    "https://github.com/attemptrepo/second"
+                ),
+            )
+        )
+        await db.commit()
+
+    assert first_created is True
+    assert second_created is False
+    assert second.id == first.id
+    assert second.submitted_value == "https://github.com/attemptrepo/first"
+
+    async with session_maker() as db:
+        count = await db.scalar(
+            select(func.count())
+            .select_from(VerificationAttempt)
+            .where(VerificationAttempt.requirement_uuid == requirement_uuid)
+        )
+    assert count == 1
+
+
+async def test_create_or_get_active_raises_for_succeeded_attempt(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    requirement_uuid = uuid4()
+    await _insert_attempt(
+        session_maker, requirement_uuid=requirement_uuid, outcome="succeeded"
+    )
+
+    async with session_maker() as db:
+        with pytest.raises(AttemptAlreadyValidatedError):
+            await VerificationAttemptRepository(db).create_or_get_active(
+                **_create_kwargs(
+                    id=uuid4(),
+                    requirement_uuid=requirement_uuid,
+                    submitted_value=_submitted_value(),
+                )
+            )
+
+
+async def test_create_or_get_active_serializes_concurrent_submits(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    """Two concurrent submits for the same (user, requirement) must not
+    both create an active attempt. The transaction-scoped advisory lock in
+    ``create_or_get_active`` serializes them: the second caller blocks until
+    the first commits, then sees the first's row under the lock and reuses
+    it instead of creating a second active attempt."""
+    requirement_uuid = uuid4()
+
+    async def _submit(value: str) -> tuple[UUID, bool]:
+        async with session_maker() as db:
+            attempt, created = await VerificationAttemptRepository(
+                db
+            ).create_or_get_active(
+                **_create_kwargs(
+                    id=uuid4(),
+                    requirement_uuid=requirement_uuid,
+                    submitted_value=_submitted_value(
+                        f"https://github.com/attemptrepo/{value}"
+                    ),
+                )
+            )
+            await db.commit()
+        return attempt.id, created
+
+    results = await asyncio.gather(_submit("first"), _submit("second"))
+
+    created_flags = [created for _, created in results]
+    assert created_flags.count(True) == 1
+    assert created_flags.count(False) == 1
+    # Both callers must agree on which attempt won the race.
+    assert results[0][0] == results[1][0]
+
+    async with session_maker() as db:
+        count = await db.scalar(
+            select(func.count())
+            .select_from(VerificationAttempt)
+            .where(VerificationAttempt.requirement_uuid == requirement_uuid)
+        )
+    assert count == 1
+
+
+async def test_delete_active_removes_non_terminal_attempt(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    attempt_id = await _insert_attempt(session_maker)
+
+    async with session_maker() as db:
+        deleted = await VerificationAttemptRepository(db).delete_active(attempt_id)
+        await db.commit()
+    assert deleted is True
+
+    async with session_maker() as db:
+        status = await VerificationAttemptRepository(db).get_status(attempt_id)
+    assert status is None
+
+
+async def test_delete_active_refuses_terminal_attempt(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    attempt_id = await _insert_attempt(session_maker, outcome="succeeded")
+
+    async with session_maker() as db:
+        deleted = await VerificationAttemptRepository(db).delete_active(attempt_id)
+    assert deleted is False
+
+    async with session_maker() as db:
+        status = await VerificationAttemptRepository(db).get_status(attempt_id)
+    assert status is not None
+
+
+async def test_delete_active_refuses_claimed_attempt(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    attempt_id = await _insert_attempt(session_maker, started_at=utcnow())
+
+    async with session_maker() as db:
+        deleted = await VerificationAttemptRepository(db).delete_active(attempt_id)
+    assert deleted is False
+
+    async with session_maker() as db:
+        status = await VerificationAttemptRepository(db).get_status(attempt_id)
+    assert status is not None
+    assert status.started_at is not None

@@ -103,6 +103,26 @@ class TestCreate:
         assert job.created_at is not None
         assert job.result_submission_id is None
 
+    async def test_creates_verification_job_with_explicit_id(
+        self,
+        db_session: AsyncSession,
+        user,
+        req_uuid: UUID,
+    ):
+        """The unified-attempt submission path shares one UUID between the
+        ``verification_attempts`` row and this compatibility job row."""
+        repo = VerificationJobRepository(db_session)
+        shared_id = uuid4()
+
+        job = await repo.create(
+            id=shared_id,
+            user_id=USER_ID,
+            requirement_uuid=req_uuid,
+            submitted_value=_github_value("https://github.com/testuser"),
+        )
+
+        assert job.id == shared_id
+
     async def test_create_or_get_active_returns_existing_active_job(
         self,
         db_session: AsyncSession,

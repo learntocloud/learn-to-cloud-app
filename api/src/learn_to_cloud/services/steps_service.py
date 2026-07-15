@@ -4,6 +4,12 @@ After the Phase E follow-up that dropped legacy id columns, the unit of
 identity for steps is ``step.uuid``. The HTMX endpoints take a step
 UUID directly; the topic context is recovered (when needed for
 rendering) by walking the loaded curriculum tree.
+
+Writes go to both the legacy ``step_progress`` table and the
+curriculum-decoupled ``learner_step_completions`` table (PR5 of the
+verification/progress refactor) so PR6 can cut progress reads over to the
+new table without a backfill race. Reads stay on ``step_progress`` until
+that cutover.
 """
 
 from typing import TYPE_CHECKING
@@ -11,7 +17,10 @@ from uuid import UUID
 
 from learn_to_cloud_shared.content_service import get_topic_containing_step
 from learn_to_cloud_shared.models import utcnow
-from learn_to_cloud_shared.repositories import StepProgressRepository
+from learn_to_cloud_shared.repositories import (
+    LearnerStepCompletionRepository,
+    StepProgressRepository,
+)
 from learn_to_cloud_shared.schemas import LearningStep, StepCompletionResult
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,10 +82,23 @@ async def complete_step(
     """
     topic, step = _find_step(step_uuid)
 
+    completed_at = utcnow()
+    completion_repo = LearnerStepCompletionRepository(db)
     step_repo = StepProgressRepository(db)
+
+    # Write the authoritative row first: the legacy step_progress insert's
+    # mirror trigger (migration 0049) then finds the row already present and
+    # no-ops. Both writes are ON CONFLICT DO NOTHING against the same
+    # (user_id, step_uuid) key, so this is idempotent regardless of order.
+    await completion_repo.create_if_not_exists(
+        user_id=user_id,
+        step_uuid=step.uuid,
+        completed_at=completed_at,
+    )
     step_progress = await step_repo.create_if_not_exists(
         user_id=user_id,
         step_uuid=step.uuid,
+        completed_at=completed_at,
     )
 
     span = trace.get_current_span()
@@ -126,7 +148,14 @@ async def uncomplete_step(
     """
     topic, step = _find_step(step_uuid)
 
+    completion_repo = LearnerStepCompletionRepository(db)
     step_repo = StepProgressRepository(db)
+
+    # Delete the authoritative row first for the same reason as the insert
+    # order in complete_step: whichever delete (this one or the legacy
+    # step_progress mirror trigger) runs second finds nothing left to
+    # remove and is a harmless no-op.
+    await completion_repo.delete(user_id=user_id, step_uuid=step.uuid)
     deleted = await step_repo.delete_step(user_id, step.uuid)
 
     span = trace.get_current_span()

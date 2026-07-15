@@ -7,6 +7,7 @@ the human-readable step IDs when needed.
 """
 
 from collections.abc import Iterable
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import delete, select
@@ -51,18 +52,26 @@ class StepProgressRepository:
         self,
         user_id: int,
         step_uuid: UUID,
+        completed_at: datetime | None = None,
     ) -> StepProgress | None:
         """Atomically create a step progress record if it doesn't exist.
 
         Uses INSERT ... ON CONFLICT DO NOTHING RETURNING to check and
         insert in a single round-trip instead of SELECT + INSERT.
+        ``completed_at`` lets a caller share one timestamp with the
+        authoritative ``learner_step_completions`` write (see
+        ``LearnerStepCompletionRepository``); omit it to use the model's own
+        default.
 
         Returns:
             The created StepProgress if inserted, or None if already existed.
         """
+        values: dict[str, object] = {"user_id": user_id, "step_uuid": step_uuid}
+        if completed_at is not None:
+            values["completed_at"] = completed_at
         stmt = (
             pg_insert(StepProgress)
-            .values(user_id=user_id, step_uuid=step_uuid)
+            .values(**values)
             .on_conflict_do_nothing(
                 constraint="uq_step_progress_user_step",
             )

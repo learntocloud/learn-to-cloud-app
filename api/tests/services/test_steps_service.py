@@ -51,10 +51,17 @@ class TestCompleteStep:
                 "learn_to_cloud.services.steps_service.StepProgressRepository",
                 autospec=True,
             ) as MockRepo,
+            patch(
+                "learn_to_cloud.services.steps_service.LearnerStepCompletionRepository",
+                autospec=True,
+            ) as MockCompletionRepo,
         ):
             repo = MockRepo.return_value
             repo.create_if_not_exists = AsyncMock(return_value=mock_progress)
             repo.get_completed_step_uuids = AsyncMock(return_value={step.uuid})
+
+            completion_repo = MockCompletionRepo.return_value
+            completion_repo.create_if_not_exists = AsyncMock(return_value=MagicMock())
 
             result, returned_topic, completed = await complete_step(
                 AsyncMock(), user_id=1, step_uuid=step.uuid
@@ -63,6 +70,19 @@ class TestCompleteStep:
         assert result.step_slug == step.slug
         assert returned_topic.uuid == topic.uuid
         assert step.uuid in completed
+        # Both the authoritative and legacy tables get the dual write, with
+        # one shared completed_at timestamp.
+        completion_repo.create_if_not_exists.assert_awaited_once()
+        repo.create_if_not_exists.assert_awaited_once()
+        completion_await_args = completion_repo.create_if_not_exists.await_args
+        legacy_await_args = repo.create_if_not_exists.await_args
+        assert completion_await_args is not None
+        assert legacy_await_args is not None
+        completion_kwargs = completion_await_args.kwargs
+        legacy_kwargs = legacy_await_args.kwargs
+        assert completion_kwargs["user_id"] == 1
+        assert completion_kwargs["step_uuid"] == step.uuid
+        assert completion_kwargs["completed_at"] == legacy_kwargs["completed_at"]
 
     @pytest.mark.asyncio
     async def test_unknown_step_raises(self):
@@ -90,10 +110,17 @@ class TestUncompleteStep:
                 "learn_to_cloud.services.steps_service.StepProgressRepository",
                 autospec=True,
             ) as MockRepo,
+            patch(
+                "learn_to_cloud.services.steps_service.LearnerStepCompletionRepository",
+                autospec=True,
+            ) as MockCompletionRepo,
         ):
             repo = MockRepo.return_value
             repo.delete_step = AsyncMock(return_value=1)
             repo.get_completed_step_uuids = AsyncMock(return_value=set())
+
+            completion_repo = MockCompletionRepo.return_value
+            completion_repo.delete = AsyncMock(return_value=1)
 
             deleted, returned_topic, returned_step, completed = await uncomplete_step(
                 AsyncMock(), user_id=1, step_uuid=step.uuid
@@ -102,6 +129,8 @@ class TestUncompleteStep:
         assert deleted == 1
         assert returned_step.uuid == step.uuid
         assert completed == set()
+        completion_repo.delete.assert_awaited_once_with(user_id=1, step_uuid=step.uuid)
+        repo.delete_step.assert_awaited_once_with(1, step.uuid)
 
 
 @pytest.mark.unit
