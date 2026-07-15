@@ -21,6 +21,7 @@ Marked @pytest.mark.smoke so they can be run separately:
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -331,7 +332,7 @@ class TestAuthPageSmoke:
         req_slug = phase.hands_on_verification.requirements[0].slug
 
         verified_submission = SubmissionData(
-            id=1,
+            id=uuid4(),
             submitted_value="https://github.com/testuser/repo",
             is_validated=True,
             validated_at=datetime(2024, 1, 2, tzinfo=UTC),

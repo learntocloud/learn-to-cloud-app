@@ -1,6 +1,5 @@
 """Learning-step completion service."""
 
-import logging
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -9,7 +8,6 @@ from learn_to_cloud_shared.models import utcnow
 from learn_to_cloud_shared.progress_reads import resolve_completed_step_uuids
 from learn_to_cloud_shared.repositories import (
     LearnerStepCompletionRepository,
-    StepProgressRepository,
 )
 from learn_to_cloud_shared.schemas import LearningStep, StepCompletionResult
 from opentelemetry import trace
@@ -17,8 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
     from learn_to_cloud_shared.schemas import Topic
-
-logger = logging.getLogger(__name__)
 
 
 class StepValidationError(Exception):
@@ -52,7 +48,7 @@ async def get_valid_completed_steps(
     topic: "Topic",
 ) -> set[UUID]:
     """Get completed step UUIDs filtered to steps that exist in this topic."""
-    completed, _ = await resolve_completed_step_uuids(
+    completed = await resolve_completed_step_uuids(
         db, user_id, (step.uuid for step in topic.learning_steps)
     )
     return completed
@@ -128,19 +124,9 @@ async def uncomplete_step(
     """
     topic, step = _find_step(step_uuid)
 
-    authoritative_deleted = await LearnerStepCompletionRepository(db).delete(
+    deleted = await LearnerStepCompletionRepository(db).delete(
         user_id=user_id, step_uuid=step.uuid
     )
-    # Until the legacy fallback is removed, an old row would otherwise make
-    # this step appear complete again. This delete-through creates no new
-    # legacy state and is removed with the fallback in the contract layer.
-    legacy_deleted = await StepProgressRepository(db).delete_step(user_id, step.uuid)
-    if legacy_deleted:
-        logger.warning(
-            "step.legacy_delete_through_used",
-            extra={"user_id": user_id, "step_uuid": str(step.uuid)},
-        )
-    deleted = max(authoritative_deleted, legacy_deleted)
 
     span = trace.get_current_span()
     span.set_attribute("step.uuid", str(step.uuid))

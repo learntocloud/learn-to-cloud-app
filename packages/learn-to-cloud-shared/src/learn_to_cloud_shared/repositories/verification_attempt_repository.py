@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -14,27 +13,21 @@ from sqlalchemy import (
     and_,
     column,
     delete,
-    exists,
     func,
-    literal,
     select,
     text,
-    union_all,
     update,
     values,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.models import (
-    Submission,
     VerificationAttempt,
     VerificationAttemptOutcome,
     VerificationSnapshotSource,
     utcnow,
 )
 from learn_to_cloud_shared.submission_values import SubmittedValue
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +48,6 @@ class AttemptPrepareState:
     traceparent: str | None
     outcome: str | None
     started_at: datetime | None
-    legacy_job_id: UUID | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,33 +72,11 @@ class AttemptStatusRow:
     outcome: str | None
     started_at: datetime | None
     created_at: datetime
-    legacy_job_id: UUID | None
-
-
-@dataclass(frozen=True, slots=True)
-class AttemptMirrorState:
-    """Terminal attempt fields needed to mirror a legacy submission."""
-
-    id: UUID
-    user_id: int
-    requirement_uuid: UUID
-    submission_value_kind: str
-    submitted_value: str
-    github_username_snapshot: str | None
-    cloud_provider: str | None
-    outcome: str | None
-    feedback_json: list[dict] | None
-    validation_message: str | None
-    legacy_job_id: UUID | None
 
 
 @dataclass(frozen=True, slots=True)
 class ActiveAttemptRow:
-    """Minimal projection of an in-flight (``outcome IS NULL``) attempt.
-
-    Used to render the "verification in progress" card state -- replaces
-    the legacy ``VerificationJob`` active-row read for that purpose.
-    """
+    """Minimal projection of an in-flight attempt."""
 
     id: UUID
     requirement_uuid: UUID
@@ -179,7 +149,6 @@ class VerificationAttemptRepository:
         submitted_value: SubmittedValue,
         cloud_provider: str | None,
         traceparent: str | None,
-        legacy_job_id: UUID | None,
     ) -> tuple[VerificationAttempt, bool]:
         """Create a new attempt, or return the active one, under an advisory lock.
 
@@ -238,7 +207,6 @@ class VerificationAttemptRepository:
             github_username_snapshot=github_username_snapshot,
             cloud_provider=cloud_provider,
             traceparent=traceparent,
-            legacy_job_id=legacy_job_id,
             submission_value_kind=submitted_value.kind.value,
             submitted_value=submitted_value.as_text,
         )
@@ -298,7 +266,6 @@ class VerificationAttemptRepository:
                 VerificationAttempt.traceparent,
                 VerificationAttempt.outcome,
                 VerificationAttempt.started_at,
-                VerificationAttempt.legacy_job_id,
             ).where(VerificationAttempt.id == attempt_id)
         )
         row = result.one_or_none()
@@ -319,7 +286,6 @@ class VerificationAttemptRepository:
             traceparent=row.traceparent,
             outcome=row.outcome,
             started_at=row.started_at,
-            legacy_job_id=row.legacy_job_id,
         )
 
     async def mark_started(
@@ -349,7 +315,6 @@ class VerificationAttemptRepository:
                 VerificationAttempt.outcome,
                 VerificationAttempt.started_at,
                 VerificationAttempt.created_at,
-                VerificationAttempt.legacy_job_id,
             ).where(VerificationAttempt.id == attempt_id)
         )
         row = result.one_or_none()
@@ -362,7 +327,6 @@ class VerificationAttemptRepository:
             outcome=row.outcome,
             started_at=row.started_at,
             created_at=row.created_at,
-            legacy_job_id=row.legacy_job_id,
         )
 
     async def get_terminal_state(self, attempt_id: UUID) -> AttemptTerminalState | None:
@@ -389,40 +353,6 @@ class VerificationAttemptRepository:
             completed_at=row.completed_at,
         )
 
-    async def get_mirror_state(self, attempt_id: UUID) -> AttemptMirrorState | None:
-        """Load the terminal fields needed to mirror a legacy submission."""
-        result = await self.db.execute(
-            select(
-                VerificationAttempt.id,
-                VerificationAttempt.user_id,
-                VerificationAttempt.requirement_uuid,
-                VerificationAttempt.submission_value_kind,
-                VerificationAttempt.submitted_value,
-                VerificationAttempt.github_username_snapshot,
-                VerificationAttempt.cloud_provider,
-                VerificationAttempt.outcome,
-                VerificationAttempt.feedback_json,
-                VerificationAttempt.validation_message,
-                VerificationAttempt.legacy_job_id,
-            ).where(VerificationAttempt.id == attempt_id)
-        )
-        row = result.one_or_none()
-        if row is None:
-            return None
-        return AttemptMirrorState(
-            id=row.id,
-            user_id=row.user_id,
-            requirement_uuid=row.requirement_uuid,
-            submission_value_kind=row.submission_value_kind,
-            submitted_value=row.submitted_value,
-            github_username_snapshot=row.github_username_snapshot,
-            cloud_provider=row.cloud_provider,
-            outcome=row.outcome,
-            feedback_json=row.feedback_json,
-            validation_message=row.validation_message,
-            legacy_job_id=row.legacy_job_id,
-        )
-
     async def list_active_older_than(
         self, cutoff: datetime, *, limit: int
     ) -> list[AttemptStatusRow]:
@@ -439,7 +369,6 @@ class VerificationAttemptRepository:
                 VerificationAttempt.outcome,
                 VerificationAttempt.started_at,
                 VerificationAttempt.created_at,
-                VerificationAttempt.legacy_job_id,
             )
             .where(
                 VerificationAttempt.outcome.is_(None),
@@ -465,7 +394,6 @@ class VerificationAttemptRepository:
                 outcome=row.outcome,
                 started_at=row.started_at,
                 created_at=row.created_at,
-                legacy_job_id=row.legacy_job_id,
             )
             for row in result.all()
         ]
@@ -542,9 +470,7 @@ class VerificationAttemptRepository:
     async def get_succeeded_requirement_uuids(self, user_id: int) -> set[UUID]:
         """Return every requirement UUID with at least one succeeded attempt.
 
-        Mirrors ``SubmissionRepository.get_validated_requirement_uuids``
-        against the authoritative table; callers intersect the result with
-        the catalog's current requirement UUIDs.
+        Callers intersect the result with current catalog requirement UUIDs.
         """
         result = await self.db.execute(
             select(func.distinct(VerificationAttempt.requirement_uuid)).where(
@@ -592,35 +518,13 @@ class VerificationAttemptRepository:
         succeeded = await self.count_succeeded_for_requirements(user_id, uuids)
         return succeeded >= len(uuids)
 
-    async def get_requirement_uuids_with_any_attempt(
-        self, user_id: int, requirement_uuids: Iterable[UUID]
-    ) -> set[UUID]:
-        """Requirement UUIDs that already have at least one attempt row.
-
-        An authoritative attempt -- active or terminal -- always wins over
-        legacy data, so callers use this to scope the legacy submission-card
-        fallback to only the requirements with zero attempt history at all.
-        """
-        uuids = list(requirement_uuids)
-        if not uuids:
-            return set()
-        result = await self.db.execute(
-            select(func.distinct(VerificationAttempt.requirement_uuid)).where(
-                VerificationAttempt.user_id == user_id,
-                VerificationAttempt.requirement_uuid.in_(uuids),
-            )
-        )
-        return set(result.scalars().all())
-
     async def get_active_for_requirements(
         self, user_id: int, requirement_uuids: Iterable[UUID]
     ) -> list[ActiveAttemptRow]:
         """Get active (``outcome IS NULL``) attempts across a set of requirements.
 
-        Replaces the legacy ``VerificationJobRepository.get_active_for_requirements``
-        read for the phase page's "verification in progress" indicator --
-        ``VerificationAttempt.id`` is the same UUID used as the Durable
-        instance id and the status-token job id.
+        ``VerificationAttempt.id`` is also the Durable instance id and the
+        status-token attempt id.
         """
         uuids = list(requirement_uuids)
         if not uuids:
@@ -715,14 +619,8 @@ class VerificationAttemptRepository:
     ) -> list[tuple[int, int]]:
         """List ``(phase_order, user_id)`` for fully phase-verified users.
 
-        Mirrors ``SubmissionRepository.list_phase_completions`` (see that
-        docstring for the ``VALUES``-relation shape that avoids a
-        curriculum-table join) but sources succeeded ``verification_attempts``
-        as the primary signal. Also folds in legacy ``submissions.is_validated``
-        rows via a single ``UNION`` -- a narrow safety net only when the
-        (user, requirement) pair has no attempt row at all. Reconciliation is
-        expected to have already run before this reader is enabled, so this is
-        a fallback for the rare gap, not the primary path.
+        Uses an in-query ``VALUES`` relation to map current requirement UUIDs
+        to phases without joining database curriculum tables.
         """
         completable = {
             order: total
@@ -749,24 +647,10 @@ class VerificationAttemptRepository:
         succeeded_attempts = select(
             VerificationAttempt.user_id,
             VerificationAttempt.requirement_uuid,
-            literal(0).label("legacy_rows"),
         ).where(
             VerificationAttempt.outcome == VerificationAttemptOutcome.SUCCEEDED.value
         )
-        validated_legacy = select(
-            Submission.user_id,
-            Submission.requirement_uuid,
-            literal(1).label("legacy_rows"),
-        ).where(
-            Submission.is_validated.is_(True),
-            ~exists().where(
-                VerificationAttempt.user_id == Submission.user_id,
-                VerificationAttempt.requirement_uuid == Submission.requirement_uuid,
-            ),
-        )
-        succeeded = union_all(succeeded_attempts, validated_legacy).subquery(
-            "succeeded"
-        )
+        succeeded = succeeded_attempts.subquery("succeeded")
 
         result = await self.db.execute(
             select(
@@ -775,7 +659,6 @@ class VerificationAttemptRepository:
                 func.count(func.distinct(succeeded.c.requirement_uuid)).label(
                     "validated"
                 ),
-                func.sum(succeeded.c.legacy_rows).label("legacy_rows"),
             )
             .select_from(succeeded)
             .join(
@@ -785,15 +668,8 @@ class VerificationAttemptRepository:
             )
             .group_by(requirement_phase_map.c.phase_order, succeeded.c.user_id)
         )
-        rows = result.all()
-        legacy_rows = sum(row.legacy_rows or 0 for row in rows)
-        if legacy_rows:
-            logger.warning(
-                "stats.legacy_fallback_used",
-                extra={"count": legacy_rows},
-            )
         return [
             (row.phase_order, row.user_id)
-            for row in rows
+            for row in result.all()
             if row.validated >= completable[row.phase_order]
         ]

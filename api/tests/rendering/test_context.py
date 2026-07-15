@@ -7,7 +7,6 @@ Tests cover:
 - build_requirement_card_context card_state derivation
 """
 
-from typing import Literal
 from uuid import uuid4
 
 import pytest
@@ -278,7 +277,6 @@ def _make_submission(
     is_validated: bool,
     verification_completed: bool = False,
     validation_message: str | None = None,
-    source: Literal["attempt", "legacy"] = "attempt",
 ):
     from datetime import UTC, datetime
 
@@ -291,7 +289,6 @@ def _make_submission(
         verification_completed=verification_completed,
         validation_message=validation_message,
         created_at=datetime(2024, 1, 1, tzinfo=UTC),
-        source=source,
     )
 
 
@@ -349,17 +346,6 @@ class TestBuildRequirementCardContextCardState:
         assert ctx["server_error_message"]
         # No red inline banner text -- the amber service banner covers it.
         assert ctx["error_banner"] is None
-
-    def test_legacy_fallback_submission_maps_same_as_attempt(self):
-        """A legacy-sourced submission uses the same is_validated-driven state."""
-        req = _make_requirement(SubmissionType.CTF_TOKEN)
-        submission = _make_submission(
-            is_validated=True, verification_completed=True, source="legacy"
-        )
-        ctx = build_requirement_card_context(
-            requirement=req, github_username="alice", submission=submission
-        )
-        assert ctx["card_state"] == "passed"
 
     def test_explicit_server_error_overrides_missing_submission(self):
         """The live submit/poll flow can force 'unavailable' with no row yet."""

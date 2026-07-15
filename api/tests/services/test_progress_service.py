@@ -327,11 +327,11 @@ class TestFetchUserProgress:
             ),
             patch(
                 "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
-                new=AsyncMock(return_value=({step_uuid}, set())),
+                new=AsyncMock(return_value={step_uuid}),
             ),
             patch(
                 "learn_to_cloud.services.progress_service.resolve_succeeded_requirement_uuids",
-                new=AsyncMock(return_value=(set(), set())),
+                new=AsyncMock(return_value=set()),
             ),
         ):
             result = await fetch_user_progress(AsyncMock(), user_id=1)
@@ -387,13 +387,11 @@ class TestFetchUserProgress:
             ),
             patch(
                 "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
-                new=AsyncMock(
-                    return_value=({current_step_uuid, stale_step_uuid}, set())
-                ),
+                new=AsyncMock(return_value={current_step_uuid, stale_step_uuid}),
             ),
             patch(
                 "learn_to_cloud.services.progress_service.resolve_succeeded_requirement_uuids",
-                new=AsyncMock(return_value=({current_req_uuid, stale_req_uuid}, set())),
+                new=AsyncMock(return_value={current_req_uuid, stale_req_uuid}),
             ),
         ):
             result = await fetch_user_progress(AsyncMock(), user_id=1)
@@ -402,57 +400,6 @@ class TestFetchUserProgress:
         # step/requirement UUIDs (not in phase_order_by_*_uuid) drop out.
         assert result.phases[0].learning.steps_completed == 1
         assert result.phases[1].verification.requirements_verified == 1
-
-    @pytest.mark.asyncio
-    async def test_legacy_fallback_counts_surface_on_typed_models(self):
-        """Fallback-only UUIDs are both counted and flagged for observability."""
-        from learn_to_cloud_shared.requirements import RequirementIndex
-        from learn_to_cloud_shared.schemas import PhaseOverview
-
-        phase_overview = (
-            PhaseOverview(uuid=uuid4(), name="Phase 0", slug="phase0", order=0),
-        )
-        step_uuid = uuid4()
-        req_uuid = uuid4()
-        fake_catalog = MagicMock(
-            active_step_uuids=frozenset({step_uuid}),
-            active_requirement_uuids=frozenset({req_uuid}),
-            phase_order_by_step_uuid={step_uuid: 0},
-            phase_order_by_requirement_uuid={req_uuid: 0},
-        )
-
-        with (
-            patch(
-                "learn_to_cloud.services.progress_service.get_curriculum_overview",
-                return_value=phase_overview,
-            ),
-            patch(
-                "learn_to_cloud.services.progress_service.get_required_step_counts_by_phase",
-                return_value={0: 1},
-            ),
-            patch(
-                "learn_to_cloud.services.progress_service.load_requirement_index",
-                return_value=RequirementIndex.from_requirements_by_phase_order({0: []}),
-            ),
-            patch(
-                "learn_to_cloud.services.progress_service.get_curriculum_catalog",
-                return_value=fake_catalog,
-            ),
-            patch(
-                "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
-                new=AsyncMock(return_value=({step_uuid}, {step_uuid})),
-            ),
-            patch(
-                "learn_to_cloud.services.progress_service.resolve_succeeded_requirement_uuids",
-                new=AsyncMock(return_value=({req_uuid}, {req_uuid})),
-            ),
-        ):
-            result = await fetch_user_progress(AsyncMock(), user_id=1)
-
-        assert result.phases[0].learning.steps_completed == 1
-        assert result.phases[0].learning.legacy_fallback_steps == 1
-        assert result.phases[0].verification.requirements_verified == 1
-        assert result.phases[0].verification.legacy_fallback_requirements == 1
 
 
 # ---------------------------------------------------------------------------
@@ -470,7 +417,7 @@ class TestFetchPhaseProgress:
 
         with patch(
             "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
-            new=AsyncMock(return_value=(completed_uuids, set())),
+            new=AsyncMock(return_value=completed_uuids),
         ):
             result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
 
@@ -503,11 +450,11 @@ class TestFetchPhaseProgress:
         with (
             patch(
                 "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
-                new=AsyncMock(return_value=(completed_uuids, set())),
+                new=AsyncMock(return_value=completed_uuids),
             ),
             patch(
                 "learn_to_cloud.services.progress_service.resolve_succeeded_requirement_uuids",
-                new=AsyncMock(return_value=(set(), set())),
+                new=AsyncMock(return_value=set()),
             ),
         ):
             result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
@@ -542,11 +489,11 @@ class TestFetchPhaseProgress:
         with (
             patch(
                 "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
-                new=AsyncMock(return_value=(completed_uuids, set())),
+                new=AsyncMock(return_value=completed_uuids),
             ),
             patch(
                 "learn_to_cloud.services.progress_service.resolve_succeeded_requirement_uuids",
-                new=AsyncMock(return_value=({req.uuid}, set())),
+                new=AsyncMock(return_value={req.uuid}),
             ),
         ):
             result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
@@ -564,7 +511,7 @@ class TestFetchPhaseProgress:
 
         with patch(
             "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
-            new=AsyncMock(return_value=(set(), set())),
+            new=AsyncMock(return_value=set()),
         ):
             result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
 
@@ -616,7 +563,7 @@ class TestResolveContinueDestination:
 
         with patch(
             "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
-            new=AsyncMock(return_value=(set(), set())),
+            new=AsyncMock(return_value=set()),
         ):
             destination = await resolve_continue_destination(
                 AsyncMock(), user_id=1, phase=phase
@@ -632,7 +579,7 @@ class TestResolveContinueDestination:
 
         with patch(
             "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
-            new=AsyncMock(return_value=(completed, set())),
+            new=AsyncMock(return_value=completed),
         ):
             destination = await resolve_continue_destination(
                 AsyncMock(), user_id=1, phase=phase
@@ -648,7 +595,7 @@ class TestResolveContinueDestination:
 
         with patch(
             "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
-            new=AsyncMock(return_value=(set(), set())),
+            new=AsyncMock(return_value=set()),
         ) as mock_resolve:
             destination = await resolve_continue_destination(
                 AsyncMock(), user_id=1, phase=phase
@@ -663,7 +610,7 @@ class TestResolveContinueDestination:
 
         with patch(
             "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
-            new=AsyncMock(return_value=(set(), set())),
+            new=AsyncMock(return_value=set()),
         ):
             destination = await resolve_continue_destination(
                 AsyncMock(), user_id=1, phase=phase

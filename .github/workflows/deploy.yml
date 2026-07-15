@@ -240,15 +240,6 @@ jobs:
         working-directory: api
         run: uv run alembic check
 
-      - name: Run curriculum YAML -> DB sync (simulates deploy-time job)
-        working-directory: packages/learn-to-cloud-shared
-        # Matches the subprocess invocation in api/scripts/run_migrations.py.
-        # Production migration images set CONTENT__DIR explicitly because
-        # curriculum YAML is no longer package data in the shared wheel.
-        env:
-          CONTENT__DIR: ${{ github.workspace }}/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases
-        run: uv run python -m learn_to_cloud_shared.cli.sync_curriculum
-
       - name: Run test suites with coverage and verification import smoke
         run: uv run poe test
 
@@ -532,7 +523,6 @@ jobs:
                 DATABASE__NAME="$DATABASE_NAME" \
                 AZURE_CLIENT_ID="$MIGRATION_CLIENT_ID" \
                 POSTGRES_VERIFICATION_FUNCTIONS_ROLE="$POSTGRES_VERIFICATION_FUNCTIONS_ROLE" \
-                CONTENT__DIR="/app/content/phases" \
               --registry-identity "$MIGRATION_IDENTITY_ID" \
               --query name \
               --output tsv

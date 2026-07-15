@@ -82,7 +82,7 @@ class UserNotFoundError(Exception):
 async def delete_user_account(db: AsyncSession, user_id: int) -> None:
     """Permanently delete a user and all associated data.
 
-    Cascades to submissions and step progress.
+    Cascades to verification attempts and learning-step completions.
 
     Raises:
         UserNotFoundError: If the user does not exist.

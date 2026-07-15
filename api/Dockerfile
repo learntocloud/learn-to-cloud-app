@@ -75,16 +75,12 @@ ENTRYPOINT ["tini", "-g", "--"]
 # Switch to non-root user
 USER appuser
 
-# Migration stage - Alembic plus curriculum YAML sync
+# Migration stage
 FROM runtime-base AS migrations-runtime
 
 COPY --chown=appuser:appuser api/alembic.ini .
 COPY --chown=appuser:appuser api/alembic/ ./alembic/
 COPY --chown=appuser:appuser api/scripts/run_migrations.py ./scripts/run_migrations.py
-COPY --chown=appuser:appuser packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases /app/content/phases
-
-ENV CONTENT__DIR="/app/content/phases"
-
 CMD ["python", "scripts/run_migrations.py"]
 
 # API stage - request-serving runtime

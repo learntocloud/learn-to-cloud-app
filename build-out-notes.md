@@ -40,3 +40,27 @@ Temporary insert, result-link, and delete triggers make those guarantees hold
 for older replicas throughout the rolling deployment, not only for the new
 application revision. A final idempotent repair terminalizes any active attempt
 whose legacy job was deleted before the delete trigger became available.
+
+## PR 9: Historical migration helper
+
+The plan called for removing all temporary provenance code. Alembic revision
+0049 imports `verification_provenance.py` when a database is upgraded from
+scratch, and historical migrations are immutable. Deleting that module would
+break fresh installs even though no runtime path uses it.
+
+PR 9 therefore retains a small migration-only helper containing the two
+deterministic functions revision 0049 imports. The reconciliation runtime and
+its tests are removed.
+
+## PR 9/10: Deployment-safe contract split
+
+The plan combined removal of every legacy caller with the table-drop migration
+in PR 9. The deployment workflow runs migrations before deploying new API and
+Functions revisions, so that ordering could drop tables while PR 8 replicas
+were still serving traffic.
+
+The contract is therefore split into two deployments. PR 9 removes runtime and
+pipeline callers while leaving the drained tables and their unused ORM
+definitions in place. PR 10 removes those definitions alongside the final
+schema drop and its migration assertions, and must deploy after the PR 9 API
+and Functions revisions are fully active.

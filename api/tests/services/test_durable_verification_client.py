@@ -1,4 +1,4 @@
-"""Unit tests for the Durable verification starter client."""
+"""Unit tests for the Durable verification attempt client."""
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -7,22 +7,18 @@ from uuid import uuid4
 import httpx
 import pytest
 from azure.core.exceptions import ClientAuthenticationError
-from learn_to_cloud_shared.testing.requirement_factories import (
-    profile_readme_requirement,
-)
-from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
 
 from learn_to_cloud.services.durable_verification_client import (
     DurableVerificationAuthError,
     DurableVerificationConfigError,
     DurableVerificationStartError,
     DurableVerificationStatusError,
-    get_verification_orchestration_status,
+    get_verification_attempt_status,
     start_verification_attempt_orchestration,
-    start_verification_orchestration,
 )
 
 pytestmark = pytest.mark.unit
+_TOKEN = "-".join(("access", "token"))
 
 
 def _settings(
@@ -41,16 +37,6 @@ def _settings(
     )
 
 
-def _prepared(job_id=None) -> PreparedVerificationJob:
-    return PreparedVerificationJob(
-        id=job_id or uuid4(),
-        user_id=42,
-        github_username="testuser",
-        requirement=profile_readme_requirement(),
-        submitted_value="https://github.com/testuser/testuser",
-    )
-
-
 def _async_client(response: httpx.Response | Exception):
     client = MagicMock()
     if isinstance(response, Exception):
@@ -66,166 +52,7 @@ def _async_client(response: httpx.Response | Exception):
     return client, context_manager
 
 
-async def test_starts_orchestration_with_bearer_token_header_and_payload():
-    prepared = _prepared()
-    client, context_manager = _async_client(httpx.Response(202, json={"id": "abc"}))
-
-    with (
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_web_settings",
-            return_value=_settings(),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_azure_token",
-            new=AsyncMock(return_value="access-token"),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
-            return_value=context_manager,
-        ) as async_client,
-    ):
-        result = await start_verification_orchestration(prepared)
-
-    assert result.instance_id == "abc"
-    async_client.assert_called_once_with(timeout=3.0)
-    client.post.assert_awaited_once_with(
-        f"http://localhost:7071/api/verification/jobs/{prepared.id}/start",
-        headers={"Authorization": "Bearer access-token"},
-        json=prepared.to_payload(),
-    )
-
-
-async def test_development_skips_token_and_sends_no_auth_header():
-    prepared = _prepared()
-    client, context_manager = _async_client(httpx.Response(202, json={"id": "abc"}))
-
-    with (
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_web_settings",
-            return_value=_settings(token_scope="", is_development=True),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_azure_token",
-            new=AsyncMock(side_effect=AssertionError("token must not be requested")),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
-            return_value=context_manager,
-        ),
-    ):
-        result = await start_verification_orchestration(prepared)
-
-    assert result.instance_id == "abc"
-    client.post.assert_awaited_once_with(
-        f"http://localhost:7071/api/verification/jobs/{prepared.id}/start",
-        headers={},
-        json=prepared.to_payload(),
-    )
-
-
-async def test_development_missing_base_url_fails_before_http_call():
-    with (
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_web_settings",
-            return_value=_settings(base_url="", token_scope="", is_development=True),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient"
-        ) as async_client,
-        pytest.raises(DurableVerificationConfigError),
-    ):
-        await start_verification_orchestration(_prepared())
-
-    async_client.assert_not_called()
-
-
-async def test_missing_config_fails_before_http_call():
-    with (
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_web_settings",
-            return_value=_settings(base_url="", token_scope=""),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient"
-        ) as async_client,
-        pytest.raises(DurableVerificationConfigError),
-    ):
-        await start_verification_orchestration(_prepared())
-
-    async_client.assert_not_called()
-
-
-async def test_token_error_fails_before_http_call():
-    with (
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_web_settings",
-            return_value=_settings(),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_azure_token",
-            new=AsyncMock(
-                side_effect=ClientAuthenticationError("identity unavailable")
-            ),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient"
-        ) as async_client,
-        pytest.raises(
-            DurableVerificationAuthError,
-            match="token could not be acquired",
-        ),
-    ):
-        await start_verification_orchestration(_prepared())
-
-    async_client.assert_not_called()
-
-
-async def test_http_error_status_raises_start_error():
-    _, context_manager = _async_client(httpx.Response(500, json={"error": "boom"}))
-
-    with (
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_web_settings",
-            return_value=_settings(),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_azure_token",
-            new=AsyncMock(return_value="access-token"),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
-            return_value=context_manager,
-        ),
-        pytest.raises(DurableVerificationStartError, match="HTTP 500"),
-    ):
-        await start_verification_orchestration(_prepared())
-
-
-async def test_transport_error_raises_start_error():
-    request = httpx.Request("POST", "http://localhost:7071")
-    _, context_manager = _async_client(httpx.ConnectError("down", request=request))
-
-    with (
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_web_settings",
-            return_value=_settings(),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_azure_token",
-            new=AsyncMock(return_value="access-token"),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
-            return_value=context_manager,
-        ),
-        pytest.raises(DurableVerificationStartError, match="request failed"),
-    ):
-        await start_verification_orchestration(_prepared())
-
-
-async def test_starts_attempt_orchestration_with_no_body():
-    """The PR4 attempt starter needs no payload -- Functions loads
-    everything from the ``verification_attempts`` row keyed by the URL id."""
+async def test_starts_attempt_orchestration_with_no_body() -> None:
     attempt_id = uuid4()
     client, context_manager = _async_client(httpx.Response(202, json={"id": "abc"}))
 
@@ -236,7 +63,7 @@ async def test_starts_attempt_orchestration_with_no_body():
         ),
         patch(
             "learn_to_cloud.services.durable_verification_client.get_azure_token",
-            new=AsyncMock(return_value="access-token"),
+            new=AsyncMock(return_value=_TOKEN),
         ),
         patch(
             "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
@@ -249,11 +76,11 @@ async def test_starts_attempt_orchestration_with_no_body():
     async_client.assert_called_once_with(timeout=3.0)
     client.post.assert_awaited_once_with(
         f"http://localhost:7071/api/verification/attempts/{attempt_id}/start",
-        headers={"Authorization": "Bearer access-token"},
+        headers={"Authorization": f"Bearer {_TOKEN}"},
     )
 
 
-async def test_attempt_orchestration_http_error_raises_start_error():
+async def test_start_http_error_raises_start_error() -> None:
     _, context_manager = _async_client(httpx.Response(500, json={"error": "boom"}))
 
     with (
@@ -263,7 +90,7 @@ async def test_attempt_orchestration_http_error_raises_start_error():
         ),
         patch(
             "learn_to_cloud.services.durable_verification_client.get_azure_token",
-            new=AsyncMock(return_value="access-token"),
+            new=AsyncMock(return_value=_TOKEN),
         ),
         patch(
             "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
@@ -274,29 +101,7 @@ async def test_attempt_orchestration_http_error_raises_start_error():
         await start_verification_attempt_orchestration(uuid4())
 
 
-async def test_attempt_orchestration_transport_error_raises_start_error():
-    request = httpx.Request("POST", "http://localhost:7071")
-    _, context_manager = _async_client(httpx.ConnectError("down", request=request))
-
-    with (
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_web_settings",
-            return_value=_settings(),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.get_azure_token",
-            new=AsyncMock(return_value="access-token"),
-        ),
-        patch(
-            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
-            return_value=context_manager,
-        ),
-        pytest.raises(DurableVerificationStartError, match="request failed"),
-    ):
-        await start_verification_attempt_orchestration(uuid4())
-
-
-async def test_gets_orchestration_status_with_bearer_token_header():
+async def test_gets_attempt_status() -> None:
     instance_id = str(uuid4())
     client, context_manager = _async_client(
         httpx.Response(200, json={"runtimeStatus": "Running", "customStatus": None})
@@ -309,24 +114,23 @@ async def test_gets_orchestration_status_with_bearer_token_header():
         ),
         patch(
             "learn_to_cloud.services.durable_verification_client.get_azure_token",
-            new=AsyncMock(return_value="access-token"),
+            new=AsyncMock(return_value=_TOKEN),
         ),
         patch(
             "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
             return_value=context_manager,
-        ) as async_client,
+        ),
     ):
-        result = await get_verification_orchestration_status(instance_id)
+        result = await get_verification_attempt_status(instance_id)
 
     assert result.runtime_status == "Running"
-    async_client.assert_called_once_with(timeout=3.0)
     client.get.assert_awaited_once_with(
-        f"http://localhost:7071/api/verification/jobs/{instance_id}/status",
-        headers={"Authorization": "Bearer access-token"},
+        f"http://localhost:7071/api/verification/attempts/{instance_id}/status",
+        headers={"Authorization": f"Bearer {_TOKEN}"},
     )
 
 
-async def test_status_without_runtime_status_raises_status_error():
+async def test_status_without_runtime_status_raises_status_error() -> None:
     _, context_manager = _async_client(httpx.Response(200, json={"output": {}}))
 
     with (
@@ -344,4 +148,30 @@ async def test_status_without_runtime_status_raises_status_error():
         ),
         pytest.raises(DurableVerificationStatusError, match="runtimeStatus"),
     ):
-        await get_verification_orchestration_status(str(uuid4()))
+        await get_verification_attempt_status(str(uuid4()))
+
+
+async def test_production_requires_token_scope() -> None:
+    with (
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
+            return_value=_settings(token_scope=""),
+        ),
+        pytest.raises(DurableVerificationConfigError),
+    ):
+        await start_verification_attempt_orchestration(uuid4())
+
+
+async def test_token_failure_raises_auth_error() -> None:
+    with (
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
+            return_value=_settings(),
+        ),
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_azure_token",
+            new=AsyncMock(side_effect=ClientAuthenticationError("bad token")),
+        ),
+        pytest.raises(DurableVerificationAuthError),
+    ):
+        await start_verification_attempt_orchestration(uuid4())

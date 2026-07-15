@@ -598,15 +598,11 @@ class LearningProgress(FrozenModel):
 
     ``steps_completed`` intersects stored ``learner_step_completions`` UUIDs
     with the catalog's current active step UUIDs, so a retired step never
-    inflates progress. ``legacy_fallback_steps`` counts completions that
-    were only found in the legacy ``step_progress`` table (not yet mirrored
-    into ``learner_step_completions``) -- present for PR8 to detect when
-    the fallback path can be removed.
+    inflates progress.
     """
 
     steps_completed: int
     steps_required: int
-    legacy_fallback_steps: int = 0
 
     @computed_field
     @property
@@ -629,14 +625,11 @@ class VerificationProgress(FrozenModel):
     ``succeeded`` ``verification_attempts`` outcome against the catalog's
     current active requirement UUIDs -- a ``failed``/``server_error``/
     ``cancelled`` outcome never counts, and a retired requirement UUID never
-    inflates progress. ``legacy_fallback_requirements`` counts verifications
-    found only via the legacy ``submissions.is_validated`` fallback --
-    present for PR8 to detect when the fallback path can be removed.
+    inflates progress.
     """
 
     requirements_verified: int
     requirements_required: int
-    legacy_fallback_requirements: int = 0
 
     @computed_field
     @property
@@ -891,15 +884,10 @@ class SubmissionData(FrozenModel):
     that need them have the corresponding ``HandsOnRequirement``
     in scope.
 
-    PR6 of the verification/progress refactor sources this primarily from
-    ``verification_attempts`` (``id`` is then that attempt's UUID) and only
-    falls back to the legacy ``submissions`` row (``id`` an int) when a
-    requirement has no attempt row at all yet. ``source`` makes that
-    provenance explicit for logging/telemetry and so PR8 can detect when
-    the fallback path is no longer exercised.
+    Sourced from the latest terminal ``verification_attempts`` row.
     """
 
-    id: int | UUID
+    id: UUID
     submitted_value: str
     extracted_username: str | None = None
     is_validated: bool
@@ -910,7 +898,6 @@ class SubmissionData(FrozenModel):
     cloud_provider: str | None = None
     created_at: datetime
     updated_at: datetime | None = None
-    source: Literal["attempt", "legacy"] = "attempt"
 
 
 class SubmissionResult(FrozenModel):

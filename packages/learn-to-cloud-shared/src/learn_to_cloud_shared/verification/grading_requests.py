@@ -1,7 +1,7 @@
 """LLM grading request/decision transport plus shared prompt builders.
 
 Kept dependency-light on purpose: it imports only schemas and task
-definitions, never ``verification_job_executor``. That lets the executor
+definitions, never ``verification_workflow``. That lets the workflow transport
 carry :class:`LLMGradingRequest`s on ``VerificationRunResult`` (so the engine
 can record grading requests on the verify result) without an import cycle,
 and lets both the engine and the legacy grading probe build the LLM prompt

@@ -1,18 +1,4 @@
-"""Repository for the authoritative ``learner_step_completions`` table.
-
-Coexists with :class:`~learn_to_cloud_shared.repositories.progress_repository.
-StepProgressRepository` during the PR5/PR6 migration window: callers
-explicitly dual-write here alongside ``step_progress``, while a temporary
-database trigger (migration 0049) also mirrors any remaining legacy-only
-``step_progress`` writer into this table. Both the explicit writes and the
-trigger use ``ON CONFLICT DO NOTHING`` / a plain ``DELETE``, so whichever one
-runs first in a transaction makes the other a no-op -- order between them
-does not matter for correctness.
-
-PR6 cuts progress reads over to this table as the authoritative source;
-callers add a narrow ``step_progress`` fallback for steps not yet mirrored
-here (see ``progress_service``).
-"""
+"""Repository for authoritative learner step completions."""
 
 from __future__ import annotations
 
@@ -38,12 +24,7 @@ class LearnerStepCompletionRepository:
         user_id: int,
         step_uuids: Iterable[UUID],
     ) -> set[UUID]:
-        """Return which of the given step UUIDs the user has completed.
-
-        Mirrors ``StepProgressRepository.get_completed_step_uuids`` against
-        the authoritative table. Returning an empty set for an empty input
-        avoids a round-trip with an empty IN-list.
-        """
+        """Return which of the given step UUIDs the user has completed."""
         uuids = list(step_uuids)
         if not uuids:
             return set()

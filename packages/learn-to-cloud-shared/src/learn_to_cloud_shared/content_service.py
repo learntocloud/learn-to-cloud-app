@@ -7,12 +7,8 @@ startup, and lazily via ``get_curriculum_catalog``'s ``lru_cache``), so
 every function here is a synchronous, in-memory lookup -- no
 ``AsyncSession``, no I/O.
 
-The PostgreSQL curriculum tables and ``content_db_loader.py`` remain in
-place (populated at deploy time by ``content_sync.py``) as a
-compatibility shadow, but no request path reads them.
-
-For the deploy-time YAML to DB sync and the strict cross-file
-validators, use ``learn_to_cloud_shared.content_yaml_loader``.
+For authoring and strict cross-file validation, use
+``learn_to_cloud_shared.content_yaml_loader``.
 """
 
 from __future__ import annotations

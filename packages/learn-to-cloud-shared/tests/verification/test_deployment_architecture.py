@@ -148,14 +148,14 @@ class TestJobTarget:
     def test_derives_target_from_username_and_required_repo(self):
         from uuid import uuid4
 
-        from learn_to_cloud_shared.verification_job_executor import (
-            PreparedVerificationJob,
+        from learn_to_cloud_shared.verification_workflow import (
+            PreparedVerificationAttempt,
         )
 
         req = deployment_architecture_requirement(
             required_repo="learntocloud/journal-starter"
         )
-        job = PreparedVerificationJob(
+        job = PreparedVerificationAttempt(
             id=uuid4(),
             user_id=1,
             github_username="alice",
@@ -172,14 +172,14 @@ class TestJobTarget:
     def test_returns_none_when_username_missing(self):
         from uuid import uuid4
 
-        from learn_to_cloud_shared.verification_job_executor import (
-            PreparedVerificationJob,
+        from learn_to_cloud_shared.verification_workflow import (
+            PreparedVerificationAttempt,
         )
 
         req = deployment_architecture_requirement(
             required_repo="learntocloud/journal-starter"
         )
-        job = PreparedVerificationJob(
+        job = PreparedVerificationAttempt(
             id=uuid4(),
             user_id=1,
             github_username="",

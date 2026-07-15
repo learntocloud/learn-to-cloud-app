@@ -10,7 +10,6 @@ import httpx
 from azure.core.exceptions import AzureError
 from learn_to_cloud_shared.core.azure_auth import get_token as get_azure_token
 from learn_to_cloud_shared.core.config import get_web_settings
-from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
 
 
 class DurableVerificationConfigError(Exception):
@@ -46,15 +45,11 @@ async def _post_start_request(
     *,
     headers: dict[str, str],
     timeout: float,
-    body: dict[str, Any] | None,
 ) -> DurableStartResult:
     """POST a Durable starter request and parse its ``{"id": ...}`` response."""
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            if body is None:
-                response = await client.post(url, headers=headers)
-            else:
-                response = await client.post(url, headers=headers, json=body)
+            response = await client.post(url, headers=headers)
     except httpx.HTTPError as exc:
         raise DurableVerificationStartError("Durable starter request failed.") from exc
 
@@ -79,23 +74,6 @@ async def _post_start_request(
     return DurableStartResult(instance_id=instance_id)
 
 
-async def start_verification_orchestration(
-    prepared: PreparedVerificationJob,
-) -> DurableStartResult:
-    """Start the legacy Durable orchestration with a persisted job payload."""
-    settings = get_web_settings()
-    base_url, token_scope = _verification_endpoint_config(settings)
-    headers = await _verification_auth_headers(token_scope)
-
-    url = f"{base_url}/api/verification/jobs/{prepared.id}/start"
-    return await _post_start_request(
-        url,
-        headers=headers,
-        timeout=settings.http.external_api_timeout,
-        body=prepared.to_payload(),
-    )
-
-
 async def start_verification_attempt_orchestration(
     attempt_id: UUID,
 ) -> DurableStartResult:
@@ -109,20 +87,19 @@ async def start_verification_attempt_orchestration(
         url,
         headers=headers,
         timeout=settings.http.external_api_timeout,
-        body=None,
     )
 
 
-async def get_verification_orchestration_status(
+async def get_verification_attempt_status(
     instance_id: str,
 ) -> DurableStatusResult:
-    """Fetch Durable orchestration status through the Function app proxy."""
+    """Fetch an attempt's Durable status through the Function app proxy."""
     settings = get_web_settings()
     base_url, token_scope = _verification_endpoint_config(settings)
 
     headers = await _verification_auth_headers(token_scope)
 
-    url = f"{base_url}/api/verification/jobs/{instance_id}/status"
+    url = f"{base_url}/api/verification/attempts/{instance_id}/status"
 
     timeout = settings.http.external_api_timeout
     try:

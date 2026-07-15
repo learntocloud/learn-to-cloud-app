@@ -1,4 +1,4 @@
-"""Durable Functions host for asynchronous verification jobs."""
+"""Durable Functions host for asynchronous verification attempts."""
 
 from __future__ import annotations
 
@@ -25,10 +25,6 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptTerminalState,
     VerificationAttemptRepository,
 )
-from learn_to_cloud_shared.repositories.verification_job_repository import (
-    VerificationJobRepository,
-)
-from learn_to_cloud_shared.submission_values import submission_value_from_columns
 from learn_to_cloud_shared.verification_attempt_executor import (
     finalize_verification_attempt as finalize_attempt,
 )
@@ -52,16 +48,10 @@ from learn_to_cloud_shared.verification.llm_grading import (
     apply_llm_grading_decisions as apply_llm_decisions,
 )
 from learn_to_cloud_shared.verification.engine import run_profile
-from learn_to_cloud_shared.verification_job_executor import (
-    PreparedVerificationJob,
-    VerificationJobNotFoundError,
+from learn_to_cloud_shared.verification_workflow import (
+    PreparedVerificationAttempt,
     VerificationRunResult,
-)
-from learn_to_cloud_shared.verification_job_executor import (
-    persist_verification_result as persist_prepared_verification_result,
-)
-from learn_to_cloud_shared.verification_job_executor import (
-    prepare_verification_job as prepare_persisted_verification_job,
+    outcome_for_validation,
 )
 from opentelemetry import context as otel_context
 from opentelemetry import trace as otel_trace
@@ -102,15 +92,6 @@ configure_observability()
 
 app = df.DFApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
-# Every submission type runs through this one orchestrator. Routing to the
-# right steps happens inside the verify activity via the engine profile
-# registry (verification/engine.py run_profile), and LLM grading is
-# data-driven -- the grading step runs only when the verify step emits
-# grading requests, so deterministic phases pass straight through.
-_ORCHESTRATOR_NAME = "verification_orchestrator"
-# Versioned orchestrator for the unified ``verification_attempts`` path. Kept
-# distinct from the legacy name so existing Durable history/replay for
-# in-flight legacy instances is untouched; the attempt id is the instance id.
 _ATTEMPT_ORCHESTRATOR_NAME = "verification_attempt_orchestrator_v1"
 _VERIFY_RETRY_OPTIONS = df.RetryOptions(
     first_retry_interval_in_milliseconds=5000,
@@ -203,21 +184,20 @@ def _activity_payloads(value: object) -> list[dict[str, object]]:
 
 def _set_verification_span_attributes(
     *,
-    job_id: str,
+    attempt_id: str,
     user_id: int | None = None,
     github_username: str | None = None,
     phase_id: int | None = None,
     requirement_slug: str | None = None,
     submission_type: str | None = None,
     status: str | None = None,
-    result_submission_id: int | None = None,
 ) -> None:
     """Add verification identity to the current span when telemetry is enabled."""
     span = otel_trace.get_current_span()
     if not span.is_recording():
         return
 
-    span.set_attribute("verification.job_id", job_id)
+    span.set_attribute("verification.attempt.id", attempt_id)
     if phase_id is not None:
         span.set_attribute("verification.phase_id", phase_id)
     if requirement_slug:
@@ -226,8 +206,6 @@ def _set_verification_span_attributes(
         span.set_attribute("verification.submission_type", submission_type)
     if status:
         span.set_attribute("verification.status", status)
-    if result_submission_id is not None:
-        span.set_attribute("verification.result_submission_id", result_submission_id)
     if user_id is not None:
         user_id_text = str(user_id)
         span.set_attribute("enduser.id", user_id_text)
@@ -237,81 +215,47 @@ def _set_verification_span_attributes(
         span.set_attribute("app.github_username", github_username)
 
 
-def _set_prepared_job_span_attributes(job: PreparedVerificationJob) -> None:
+def _set_attempt_span_attributes(attempt: PreparedVerificationAttempt) -> None:
     _set_verification_span_attributes(
-        job_id=str(job.id),
-        user_id=job.user_id,
-        github_username=job.github_username,
-        requirement_slug=job.requirement.slug,
-        submission_type=job.requirement.submission_type.value,
+        attempt_id=str(attempt.id),
+        user_id=attempt.user_id,
+        github_username=attempt.github_username,
+        requirement_slug=attempt.requirement.slug,
+        submission_type=attempt.requirement.submission_type.value,
     )
 
 
-def _set_result_span_attributes(result: Mapping[str, object]) -> None:
-    job_id = result.get("job_id")
-    if not isinstance(job_id, str):
-        return
-
-    phase_id = result.get("phase_id")
-    requirement_slug = result.get("requirement_slug")
-    submission_type = result.get("submission_type")
-    status = result.get("status")
-    result_submission_id = result.get("submission_id")
-
+def _set_result_span_attributes(result: VerificationRunResult) -> None:
+    attempt = result.attempt
     _set_verification_span_attributes(
-        job_id=job_id,
-        phase_id=phase_id if isinstance(phase_id, int) else None,
-        requirement_slug=(
-            requirement_slug if isinstance(requirement_slug, str) else None
-        ),
-        submission_type=submission_type if isinstance(submission_type, str) else None,
-        status=status if isinstance(status, str) else None,
-        result_submission_id=(
-            result_submission_id if isinstance(result_submission_id, int) else None
-        ),
+        attempt_id=str(attempt.id),
+        user_id=attempt.user_id,
+        github_username=attempt.github_username,
+        requirement_slug=attempt.requirement.slug,
+        submission_type=attempt.requirement.submission_type.value,
+        status=outcome_for_validation(result.validation_result),
     )
 
 
-def _log_verification_job_completed(
-    result: Mapping[str, object],
-    job: PreparedVerificationJob,
-) -> None:
-    logger.info(
-        "verification.job.completed",
-        extra={
-            "job_id": result.get("job_id"),
-            "user_id": job.user_id,
-            "github_username": job.github_username,
-            "requirement_slug": job.requirement.slug,
-            "submission_type": job.requirement.submission_type.value,
-            "status": result.get("status"),
-            "result_submission_id": result.get("submission_id"),
-            "is_valid": result.get("is_valid"),
-            "verification_completed": result.get("verification_completed"),
-            "error_code": result.get("code"),
-        },
-    )
-
-
-def _job_custom_status(
+def _attempt_custom_status(
     step: str,
-    job_id: object,
-    job: PreparedVerificationJob,
+    attempt_id: object,
+    attempt: PreparedVerificationAttempt,
 ) -> dict[str, object]:
     return {
         "step": step,
-        "job_id": job_id,
-        "requirement_slug": job.requirement.slug,
-        "submission_type": job.requirement.submission_type.value,
+        "attempt_id": attempt_id,
+        "requirement_slug": attempt.requirement.slug,
+        "submission_type": attempt.requirement.submission_type.value,
     }
 
 
 def _result_custom_status(
     step: str,
-    job_id: object,
+    attempt_id: object,
     result: Mapping[str, object],
 ) -> dict[str, object]:
-    status: dict[str, object] = {"step": step, "job_id": job_id}
+    status: dict[str, object] = {"step": step, "attempt_id": attempt_id}
     for key in ("phase_id", "requirement_slug", "submission_type"):
         value = result.get(key)
         if value is not None:
@@ -320,72 +264,20 @@ def _result_custom_status(
 
 
 @dataclass(frozen=True)
-class _TerminalOutcome:
-    """Preparation already decided the job's outcome; skip verification."""
-
-    result: object
-
-
-@dataclass(frozen=True)
 class _PreparedOutcome:
-    """Preparation produced a job ready for the verify/persist steps."""
+    """Preparation produced an attempt ready for verification."""
 
-    job_id: str
+    attempt_id: str
     prepared_payload: Mapping[str, object]
-    prepared_job: PreparedVerificationJob
-
-
-def _prepare_step(context: df.DurableOrchestrationContext):
-    """Validate and prepare the job. Shared first step for every workflow.
-
-    Yields the ``prepare_verification_job`` activity and returns either a
-    :class:`_TerminalOutcome` (preparation already decided the result) or a
-    :class:`_PreparedOutcome`. Side effects (span attributes, custom
-    status) are kept in the order the canonical workflow has always used
-    so in-flight jobs replay identically.
-    """
-    input_payload = context.get_input()
-    if not isinstance(input_payload, Mapping):
-        raise TypeError(
-            f"verification orchestration: expected Mapping input, "
-            f"got {type(input_payload).__name__}"
-        )
-    job_id_obj = input_payload.get("id")
-    job_id = job_id_obj if isinstance(job_id_obj, str) else str(job_id_obj)
-    _set_verification_span_attributes(job_id=job_id)
-    context.set_custom_status({"step": "preparing", "job_id": job_id})
-    preparation = yield context.call_activity_with_retry(
-        "prepare_verification_job",
-        _TRANSIENT_RETRY_OPTIONS,
-        input_payload,
-    )
-
-    terminal_result = preparation.get("terminal_result")
-    if terminal_result is not None:
-        result_payload = _activity_payload(terminal_result)
-        _set_result_span_attributes(result_payload)
-        context.set_custom_status(
-            _result_custom_status("completed", job_id, result_payload)
-        )
-        return _TerminalOutcome(result=terminal_result)
-
-    prepared_job = preparation["job"]
-    prepared_job_payload = _activity_payload(prepared_job)
-    prepared_verification_job = PreparedVerificationJob.from_payload(
-        prepared_job_payload
-    )
-    _set_prepared_job_span_attributes(prepared_verification_job)
-    return _PreparedOutcome(
-        job_id=job_id,
-        prepared_payload=prepared_job,
-        prepared_job=prepared_verification_job,
-    )
+    prepared_attempt: PreparedVerificationAttempt
 
 
 def _verify_step(context: df.DurableOrchestrationContext, outcome: _PreparedOutcome):
     """Run the requirement verification activity and return its run result."""
     context.set_custom_status(
-        _job_custom_status("verifying", outcome.job_id, outcome.prepared_job)
+        _attempt_custom_status(
+            "verifying", outcome.attempt_id, outcome.prepared_attempt
+        )
     )
     run_result = yield context.call_activity_with_retry(
         "execute_requirement_verification",
@@ -416,7 +308,9 @@ def _llm_grading_step(
         return run_result
 
     context.set_custom_status(
-        _job_custom_status("llm_grading", outcome.job_id, outcome.prepared_job)
+        _attempt_custom_status(
+            "llm_grading", outcome.attempt_id, outcome.prepared_attempt
+        )
     )
     config_status = yield context.call_activity("ensure_grading_config", None)
     if not config_status.get("valid"):
@@ -461,91 +355,6 @@ def _llm_grading_step(
         )
 
 
-def _persist_step(
-    context: df.DurableOrchestrationContext,
-    outcome: _PreparedOutcome,
-    run_result: object,
-):
-    """Persist the final run result and mark the job completed."""
-    context.set_custom_status(
-        _job_custom_status("persisting", outcome.job_id, outcome.prepared_job)
-    )
-    result = yield context.call_activity_with_retry(
-        "persist_verification_result",
-        _TRANSIENT_RETRY_OPTIONS,
-        run_result,
-    )
-    result_payload = _activity_payload(result)
-    _set_result_span_attributes(result_payload)
-    context.set_custom_status(
-        _result_custom_status("completed", outcome.job_id, result_payload)
-    )
-    return result
-
-
-def _run_verification_orchestration(context: df.DurableOrchestrationContext):
-    """The verification workflow for every submission type.
-
-    prepare -> verify -> grade -> persist. The LLM grading step is
-    data-driven: it runs only when the verify step produced grading
-    requests, so deterministic phases (which never emit grading requests)
-    pass straight through it. Routing to the right validator happens inside
-    the verify activity via the engine profile registry.
-
-    Kept as a plain generator (separate from the decorated trigger) so the
-    orchestration tests can drive it directly.
-    """
-    outcome = yield from _prepare_step(context)
-    if isinstance(outcome, _TerminalOutcome):
-        return outcome.result
-    run_result = yield from _verify_step(context, outcome)
-    run_result = yield from _llm_grading_step(context, outcome, run_result)
-    return (yield from _persist_step(context, outcome, run_result))
-
-
-@app.orchestration_trigger(context_name="context")
-def verification_orchestrator(context: df.DurableOrchestrationContext):
-    """Run the verification workflow for every submission type."""
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.activity_trigger(input_name="input_payload")
-async def prepare_verification_job(
-    input_payload,
-    context: func.Context,
-) -> dict[str, object]:
-    """Validate the persisted verification job and return the prepared
-    work item for the orchestrator to run.
-
-    Input is the :class:`PreparedVerificationJob` payload dict carried
-    by the orchestration. The requirement definition + github_username
-    snapshot travel with the orchestration so this activity never
-    reads curriculum or users tables.
-    """
-    with _attached_invocation_context(context):
-        if not isinstance(input_payload, Mapping):
-            raise TypeError(
-                f"prepare_verification_job: expected Mapping input, "
-                f"got {type(input_payload).__name__}"
-            )
-        prepared_input = PreparedVerificationJob.from_payload(input_payload)
-        job_id = str(prepared_input.id)
-        _set_verification_span_attributes(job_id=job_id)
-        try:
-            preparation = await prepare_persisted_verification_job(
-                job_id,
-                session_maker=_get_session_maker(),
-                prepared_input=prepared_input,
-            )
-        except VerificationJobNotFoundError:
-            logger.warning("verification.job.not_found", extra={"job_id": job_id})
-            raise
-
-        if preparation.job is not None:
-            _set_prepared_job_span_attributes(preparation.job)
-        return preparation.to_payload()
-
-
 @app.activity_trigger(input_name="job_payload")
 async def execute_requirement_verification(
     job_payload,
@@ -553,11 +362,11 @@ async def execute_requirement_verification(
 ) -> dict[str, object]:
     """Run the requirement verifier without writing database state."""
     with _attached_invocation_context(context):
-        prepared_job = PreparedVerificationJob.from_payload(
+        prepared_attempt = PreparedVerificationAttempt.from_payload(
             _activity_payload(job_payload)
         )
-        _set_prepared_job_span_attributes(prepared_job)
-        run_result = await run_profile(prepared_job)
+        _set_attempt_span_attributes(prepared_attempt)
+        run_result = await run_profile(prepared_attempt)
         span = otel_trace.get_current_span()
         if span.is_recording():
             span.set_attribute(
@@ -568,7 +377,7 @@ async def execute_requirement_verification(
                 run_result.validation_result.verification_completed,
             )
         result_payload = run_result.to_payload()
-        _set_result_span_attributes(result_payload)
+        _set_result_span_attributes(run_result)
         return result_payload
 
 
@@ -616,7 +425,7 @@ async def apply_llm_grading_results(
         data = _activity_payload(payload)
         run_payload = _activity_payload(data["run_result"])
         run_result_payload = VerificationRunResult.from_payload(run_payload)
-        _set_prepared_job_span_attributes(run_result_payload.job)
+        _set_attempt_span_attributes(run_result_payload.attempt)
         decision_payloads = [
             LLMGradingDecisionPayload.model_validate(item)
             for item in _activity_payloads(data["decisions"])
@@ -626,7 +435,7 @@ async def apply_llm_grading_results(
             decision_payloads,
         )
         result_payload = run_result.to_payload()
-        _set_result_span_attributes(result_payload)
+        _set_result_span_attributes(run_result)
         return result_payload
 
 
@@ -659,7 +468,7 @@ async def llm_grading_failed(
         run_result_payload = VerificationRunResult.from_payload(
             _activity_payload(data["run_result"])
         )
-        _set_prepared_job_span_attributes(run_result_payload.job)
+        _set_attempt_span_attributes(run_result_payload.attempt)
         # Record the real cause in telemetry so operators can diagnose the
         # failure. The user-facing result stays generic on purpose.
         span = otel_trace.get_current_span()
@@ -675,118 +484,18 @@ async def llm_grading_failed(
         else:
             run_result = llm_grading_unavailable_result(run_result_payload)
         result_payload = run_result.to_payload()
-        _set_result_span_attributes(result_payload)
+        _set_result_span_attributes(run_result)
         return result_payload
 
 
-@app.activity_trigger(input_name="run_payload")
-async def persist_verification_result(
-    run_payload,
-    context: func.Context,
-) -> dict[str, object]:
-    """Persist the verification result and mark the job terminal."""
-    with _attached_invocation_context(context):
-        run_result = VerificationRunResult.from_payload(_activity_payload(run_payload))
-        _set_prepared_job_span_attributes(run_result.job)
-        result = await persist_prepared_verification_result(
-            run_result,
-            session_maker=_get_session_maker(),
-        )
-        result_payload = result.to_payload()
-        _set_result_span_attributes(result_payload)
-        _log_verification_job_completed(result_payload, run_result.job)
-        return result_payload
-
-
-@app.route(route="verification/jobs/{job_id}/start", methods=["POST"])
+@app.route(route="verification/attempts/{instance_id}/status", methods=["GET"])
 @app.durable_client_input(client_name="client")
-async def start_verification_job(
+async def get_verification_attempt_status(
     req: func.HttpRequest,
     client: df.DurableOrchestrationClient,
     context: func.Context,
 ) -> func.HttpResponse:
-    """Start the verification orchestration for an existing job.
-
-    The API posts a full :class:`PreparedVerificationJob` payload as
-    the request body. We validate the immutable fields against the
-    ``verification_jobs`` row (route ``job_id``, ``user_id``,
-    ``requirement_uuid``, ``submitted_value``) so a leaked function
-    key or API bug can't make us run validation against a forged
-    user/requirement pair. The requirement *definition* and the
-    ``github_username`` snapshot are trusted from the payload -- which
-    is what lets the Functions role drop curriculum/users grants
-    entirely.
-    """
-    with _attached_invocation_context(context):
-        raw_job_id = req.route_params.get("job_id")
-        if raw_job_id is None:
-            return _json_response({"error": "missing_job_id"}, status_code=400)
-
-        try:
-            job_uuid = UUID(raw_job_id)
-        except ValueError:
-            return _json_response({"error": "invalid_job_id"}, status_code=400)
-
-        try:
-            body = req.get_json()
-        except ValueError:
-            return _json_response({"error": "invalid_json_body"}, status_code=400)
-
-        try:
-            prepared = PreparedVerificationJob.from_payload(body)
-        except (KeyError, ValueError, TypeError) as exc:
-            return _json_response(
-                {"error": "invalid_payload", "detail": str(exc)},
-                status_code=400,
-            )
-
-        if prepared.id != job_uuid:
-            return _json_response({"error": "payload_job_id_mismatch"}, status_code=400)
-
-        job_id = str(job_uuid)
-        async with _get_session_maker()() as session:
-            job = await VerificationJobRepository(session).get_by_id(job_uuid)
-            if job is None:
-                return _json_response({"error": "job_not_found"}, status_code=404)
-
-            if (
-                job.user_id != prepared.user_id
-                or job.requirement_uuid != prepared.requirement.uuid
-                or submission_value_from_columns(job) != prepared.typed_submitted_value
-            ):
-                return _json_response(
-                    {"error": "payload_does_not_match_job"},
-                    status_code=400,
-                )
-
-        submission_type_str = prepared.requirement.submission_type.value
-        _set_verification_span_attributes(job_id=job_id)
-        instance_id = await client.start_new(
-            _ORCHESTRATOR_NAME,
-            instance_id=job_id,
-            client_input=prepared.to_payload(),
-        )
-        logger.info(
-            "verification.orchestration.started",
-            extra={
-                "job_id": job_id,
-                "instance_id": instance_id,
-                "orchestrator_name": _ORCHESTRATOR_NAME,
-                "requirement_slug": prepared.requirement.slug,
-                "submission_type": submission_type_str,
-            },
-        )
-        return client.create_check_status_response(req, instance_id)
-
-
-@app.route(route="verification/jobs/{instance_id}/status", methods=["GET"])
-@app.durable_client_input(client_name="client")
-async def get_verification_job_status(
-    req: func.HttpRequest,
-    client: df.DurableOrchestrationClient,
-    context: func.Context,
-) -> func.HttpResponse:
-    """Return minimal Durable status for a verification orchestration."""
+    """Return minimal Durable status for a verification attempt."""
     with _attached_invocation_context(context):
         raw_instance_id = req.route_params.get("instance_id")
         if raw_instance_id is None:
@@ -810,12 +519,12 @@ async def get_verification_job_status(
 
 
 # ---------------------------------------------------------------------------
-# Versioned unified verification-attempt path (bridge / PR4)
+# Verification-attempt workflow
 #
-# Runs against the curriculum-decoupled ``verification_attempts`` table. The
+# The
 # Durable input carries only the attempt id; every trusted field is loaded
 # from the attempt row by the prepare activity. Verification and LLM grading
-# reuse the legacy activities unchanged. Terminal state is written with a
+# reuse the shared activities. Terminal state is written with a
 # compare-and-set finalize, and any authoritative failure is converted into a
 # terminal outcome via the terminalize activity instead of relying on polling.
 # ---------------------------------------------------------------------------
@@ -841,7 +550,9 @@ def _finalize_attempt_step(
 ):
     """Persist the attempt's terminal outcome via the CAS finalize activity."""
     context.set_custom_status(
-        _job_custom_status("finalizing", outcome.job_id, outcome.prepared_job)
+        _attempt_custom_status(
+            "finalizing", outcome.attempt_id, outcome.prepared_attempt
+        )
     )
     result = yield context.call_activity_with_retry(
         "finalize_verification_attempt",
@@ -850,7 +561,7 @@ def _finalize_attempt_step(
     )
     result_payload = _activity_payload(result)
     context.set_custom_status(
-        _result_custom_status("completed", outcome.job_id, result_payload)
+        _result_custom_status("completed", outcome.attempt_id, result_payload)
     )
     return result
 
@@ -885,15 +596,15 @@ def _run_attempt_orchestration(context: df.DurableOrchestrationContext):
     """Versioned workflow: prepare -> verify -> grade -> finalize.
 
     Prepare loads and validates the attempt row (payload version, snapshot
-    provenance/hash, value kind, active state) and returns a runnable job the
-    existing verify/grade steps consume unchanged. Any exception in the
+    provenance/hash, value kind, active state) and returns a runnable attempt
+    the verify/grade steps consume. Any exception in the
     authoritative path terminalizes the attempt instead of failing silently.
 
     Kept as a plain generator (separate from the decorated trigger) so the
     orchestration tests can drive it directly.
     """
     attempt_id = _attempt_id_from_input(context)
-    _set_verification_span_attributes(job_id=attempt_id)
+    _set_verification_span_attributes(attempt_id=attempt_id)
     context.set_custom_status({"step": "preparing", "attempt_id": attempt_id})
     try:
         preparation = yield context.call_activity_with_retry(
@@ -901,15 +612,15 @@ def _run_attempt_orchestration(context: df.DurableOrchestrationContext):
             _TRANSIENT_RETRY_OPTIONS,
             {"attempt_id": attempt_id},
         )
-        prepared_job_payload = preparation["job"]
-        prepared_job = PreparedVerificationJob.from_payload(
-            _activity_payload(prepared_job_payload)
+        prepared_attempt_payload = preparation["attempt"]
+        prepared_attempt = PreparedVerificationAttempt.from_payload(
+            _activity_payload(prepared_attempt_payload)
         )
-        _set_prepared_job_span_attributes(prepared_job)
+        _set_attempt_span_attributes(prepared_attempt)
         outcome = _PreparedOutcome(
-            job_id=attempt_id,
-            prepared_payload=prepared_job_payload,
-            prepared_job=prepared_job,
+            attempt_id=attempt_id,
+            prepared_payload=prepared_attempt_payload,
+            prepared_attempt=prepared_attempt,
         )
         run_result = yield from _verify_step(context, outcome)
         run_result = yield from _llm_grading_step(context, outcome, run_result)
@@ -942,19 +653,19 @@ async def prepare_verification_attempt(
     input_payload,
     context: func.Context,
 ) -> dict[str, object]:
-    """Load + validate an attempt row and return a runnable job payload."""
+    """Load and validate an attempt row for verification."""
     with _attached_invocation_context(context):
         data = _activity_payload(input_payload)
         raw_attempt_id = data.get("attempt_id")
         if not isinstance(raw_attempt_id, str):
             raise TypeError("prepare_verification_attempt: missing attempt_id")
         attempt_id = UUID(raw_attempt_id)
-        _set_verification_span_attributes(job_id=str(attempt_id))
+        _set_verification_span_attributes(attempt_id=str(attempt_id))
         preparation = await prepare_attempt(
             attempt_id,
             session_maker=_get_session_maker(),
         )
-        _set_prepared_job_span_attributes(preparation.job)
+        _set_attempt_span_attributes(preparation.attempt)
         return preparation.to_payload()
 
 
@@ -966,7 +677,7 @@ async def finalize_verification_attempt(
     """Compare-and-set the attempt's real outcome."""
     with _attached_invocation_context(context):
         run_result = VerificationRunResult.from_payload(_activity_payload(run_payload))
-        _set_prepared_job_span_attributes(run_result.job)
+        _set_attempt_span_attributes(run_result.attempt)
         state = await finalize_attempt(
             run_result,
             session_maker=_get_session_maker(),
@@ -1205,7 +916,7 @@ async def start_verification_attempt(
             return _json_response({"error": "invalid_attempt_id"}, status_code=400)
 
         instance_id = str(attempt_uuid)
-        _set_verification_span_attributes(job_id=instance_id)
+        _set_verification_span_attributes(attempt_id=instance_id)
 
         outcome = await _start_attempt_orchestration(
             client,

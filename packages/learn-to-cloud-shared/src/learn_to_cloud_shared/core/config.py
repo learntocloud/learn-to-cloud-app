@@ -129,9 +129,8 @@ class ContentConfig(FrozenConfig):
             return source_content
 
         raise RuntimeError(
-            "CONTENT__DIR is required because curriculum YAML is not packaged "
-            "with learn-to-cloud-shared. Set CONTENT__DIR to the copied "
-            "content/phases directory in jobs that sync or validate YAML."
+            "CONTENT__DIR is required when authored curriculum YAML is not "
+            "available from the source tree."
         )
 
 

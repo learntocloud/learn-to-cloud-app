@@ -12,21 +12,8 @@ A phase is complete only when both measures are complete (see
 verification-complete by definition, and a phase with zero steps is
 learning-complete by definition.
 
-Data sources:
-- Step completions: ``learner_step_completions`` table (authoritative), with
-  a narrow ``step_progress`` legacy fallback for steps not yet mirrored.
-- Hands-on validations: ``verification_attempts`` table (authoritative --
-  ``outcome == 'succeeded'`` only), with a narrow ``submissions`` legacy
-  fallback for requirements that have no attempt row at all yet.
-- Curriculum shape: packaged catalog via ``content_service`` (in-memory,
-  no DB reads)
-
-The legacy fallback exists only for records not yet reconciled/mirrored
-during the PR5/PR6 mixed-revision window -- a requirement or step with an
-authoritative row always wins, regardless of legacy state. Fallback usage is
-logged (``progress.legacy_fallback_used``) and surfaced on the typed
-``LearningProgress``/``VerificationProgress`` models so PR8 can detect when
-the fallback path is no longer exercised and remove it.
+Step completion and verification state come from their authoritative tables.
+Curriculum shape comes from the packaged in-memory catalog.
 """
 
 import logging
@@ -81,8 +68,7 @@ async def fetch_user_progress(
     """Fetch complete progress data for a user, via authoritative learner-state reads.
 
     Reads only ``learner_step_completions``/``verification_attempts`` UUIDs
-    for this user (no curriculum-table joins), plus a narrow legacy fallback
-    query for either source, then groups them by phase order in Python using
+    for this user, then groups them by phase order in Python using
     the packaged catalog's ``phase_order_by_step_uuid`` /
     ``phase_order_by_requirement_uuid`` maps. A stale/retired UUID (not in
     the catalog) is simply absent from those maps and drops out.
@@ -102,24 +88,17 @@ async def fetch_user_progress(
     required_steps_by_phase = get_required_step_counts_by_phase()
     catalog = get_curriculum_catalog()
 
-    completed_step_uuids, fallback_step_uuids = await resolve_completed_step_uuids(
+    completed_step_uuids = await resolve_completed_step_uuids(
         db, user_id, catalog.active_step_uuids
     )
     completed_steps_by_phase = _count_by_phase(
         completed_step_uuids, catalog.phase_order_by_step_uuid
     )
-    fallback_steps_by_phase = _count_by_phase(
-        fallback_step_uuids, catalog.phase_order_by_step_uuid
-    )
-
-    succeeded_req_uuids, fallback_req_uuids = await resolve_succeeded_requirement_uuids(
+    succeeded_req_uuids = await resolve_succeeded_requirement_uuids(
         db, user_id, catalog.active_requirement_uuids
     )
     succeeded_by_phase = _count_by_phase(
         succeeded_req_uuids, catalog.phase_order_by_requirement_uuid
-    )
-    fallback_reqs_by_phase = _count_by_phase(
-        fallback_req_uuids, catalog.phase_order_by_requirement_uuid
     )
 
     phase_progress_map: dict[int, PhaseProgress] = {}
@@ -129,14 +108,12 @@ async def fetch_user_progress(
             learning=LearningProgress(
                 steps_completed=completed_steps_by_phase.get(phase.order, 0),
                 steps_required=required_steps_by_phase.get(phase.order, 0),
-                legacy_fallback_steps=fallback_steps_by_phase.get(phase.order, 0),
             ),
             verification=VerificationProgress(
                 requirements_verified=succeeded_by_phase.get(phase.order, 0),
                 requirements_required=len(
                     req_index.requirements_for_phase(phase.order)
                 ),
-                legacy_fallback_requirements=fallback_reqs_by_phase.get(phase.order, 0),
             ),
         )
 
@@ -192,7 +169,7 @@ async def fetch_phase_progress(
     all_step_uuids = [
         step.uuid for topic in phase.topics for step in topic.learning_steps
     ]
-    completed_step_uuids, fallback_step_uuids = await resolve_completed_step_uuids(
+    completed_step_uuids = await resolve_completed_step_uuids(
         db, user_id, all_step_uuids
     )
 
@@ -217,25 +194,21 @@ async def fetch_phase_progress(
     hands_on_required = len(current_req_uuids)
 
     hands_on_validated = 0
-    fallback_req_count = 0
     if hands_on_required > 0:
-        succeeded, fallback_only = await resolve_succeeded_requirement_uuids(
+        succeeded = await resolve_succeeded_requirement_uuids(
             db, user_id, current_req_uuids
         )
         hands_on_validated = len(succeeded)
-        fallback_req_count = len(fallback_only)
 
     return PhaseProgress(
         phase_id=phase.order,
         learning=LearningProgress(
             steps_completed=total_completed,
             steps_required=total_steps,
-            legacy_fallback_steps=len(fallback_step_uuids),
         ),
         verification=VerificationProgress(
             requirements_verified=hands_on_validated,
             requirements_required=hands_on_required,
-            legacy_fallback_requirements=fallback_req_count,
         ),
         topic_progress=topic_progress,
     )
@@ -281,7 +254,7 @@ async def resolve_continue_destination(
     all_step_uuids = [
         step.uuid for topic in phase.topics for step in topic.learning_steps
     ]
-    completed_step_uuids, _ = await resolve_completed_step_uuids(
+    completed_step_uuids = await resolve_completed_step_uuids(
         db, user_id, all_step_uuids
     )
     first_incomplete = find_first_incomplete_step(phase, completed_step_uuids)

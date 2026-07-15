@@ -20,11 +20,9 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from typing import Annotated, Literal
-from uuid import UUID
 
 from opentelemetry import trace
 from pydantic import Field
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import SubmissionType
@@ -77,13 +75,9 @@ from learn_to_cloud_shared.verification.token_base import (
     verify_ctf_token,
     verify_networking_token,
 )
-from learn_to_cloud_shared.verification_job_executor import (
-    PreparedVerificationJob,
-    VerificationJobExecutionResult,
-    VerificationJobNotFoundError,
+from learn_to_cloud_shared.verification_workflow import (
+    PreparedVerificationAttempt,
     VerificationRunResult,
-    persist_verification_result,
-    prepare_verification_job,
 )
 
 _tracer = trace.get_tracer(__name__)
@@ -294,7 +288,7 @@ class StepResult(FrozenModel):
 class StepContext:
     """Everything a check may read. Carries runtime clients, so not a model."""
 
-    job: PreparedVerificationJob
+    job: PreparedVerificationAttempt
     repository: GitHubTarget | None
     submitted_value: str
     evidence_so_far: tuple[EvidenceBundle, ...] = ()
@@ -870,7 +864,7 @@ _NETWORKING_TOKEN_PROFILE = VerificationProfile(
 register_profile(SubmissionType.NETWORKING_TOKEN, _NETWORKING_TOKEN_PROFILE)
 
 
-def _resolve_profile(job: PreparedVerificationJob) -> VerificationProfile | None:
+def _resolve_profile(job: PreparedVerificationAttempt) -> VerificationProfile | None:
     """Return the profile for this job's submission type, or None if unknown."""
     return profile_for(job.requirement.submission_type)
 
@@ -907,7 +901,7 @@ def _aggregate(step_results: list[StepResult]) -> ValidationResult:
 
 
 def _grading_requests_for(
-    job: PreparedVerificationJob,
+    job: PreparedVerificationAttempt,
     deterministic_result: ValidationResult,
     step_results: list[StepResult],
 ) -> list[LLMGradingRequest]:
@@ -959,7 +953,7 @@ def _grading_requests_for(
 
 
 async def run_profile(
-    job: PreparedVerificationJob,
+    job: PreparedVerificationAttempt,
     *,
     repo_files: RepoFiles | None = None,
 ) -> VerificationRunResult:
@@ -976,7 +970,7 @@ async def run_profile(
     profile = _resolve_profile(job)
     if profile is None:
         return VerificationRunResult(
-            job=job,
+            attempt=job,
             validation_result=ValidationResult(
                 is_valid=False,
                 message=(f"Unknown submission type: {job.requirement.submission_type}"),
@@ -989,7 +983,7 @@ async def run_profile(
 
     if profile.requires_username and not job.github_username:
         return VerificationRunResult(
-            job=job,
+            attempt=job,
             validation_result=ValidationResult(
                 is_valid=False,
                 message="GitHub username is required for this verification",
@@ -1025,49 +1019,8 @@ async def run_profile(
     grading_requests = _grading_requests_for(job, deterministic_result, step_results)
 
     return VerificationRunResult(
-        job=job,
+        attempt=job,
         validation_result=deterministic_result,
         evidence=bundles or None,
         grading_requests=grading_requests,
     )
-
-
-async def execute_verification_job(
-    job_id: UUID | str,
-    *,
-    session_maker: async_sessionmaker[AsyncSession],
-    prepared_input: PreparedVerificationJob,
-) -> VerificationJobExecutionResult:
-    """Run one persisted verification job end-to-end (prepare, run, persist).
-
-    A non-grading convenience over the individual primitives. Production
-    sequences the same steps (plus grading) as separate Durable activities;
-    this collapses them for callers that want a single deterministic run.
-    """
-    normalized_job_id = job_id if isinstance(job_id, UUID) else UUID(job_id)
-
-    with _tracer.start_as_current_span(
-        "execute_verification_job",
-        attributes={"verification.job_id": str(normalized_job_id)},
-    ) as span:
-        preparation = await prepare_verification_job(
-            normalized_job_id,
-            session_maker=session_maker,
-            prepared_input=prepared_input,
-        )
-        if preparation.terminal_result is not None:
-            span.set_attribute(
-                "verification.status",
-                preparation.terminal_result.status,
-            )
-            return preparation.terminal_result
-        if preparation.job is None:
-            raise VerificationJobNotFoundError(str(normalized_job_id))
-
-        run_result = await run_profile(preparation.job)
-        result = await persist_verification_result(
-            run_result,
-            session_maker=session_maker,
-        )
-        span.set_attribute("verification.status", result.status)
-        return result

@@ -20,8 +20,8 @@ from learn_to_cloud_shared.verification.tasks import (
     PHASE7_LLM_TASKS,
     LLMGradingDecision,
 )
-from learn_to_cloud_shared.verification_job_executor import (
-    PreparedVerificationJob,
+from learn_to_cloud_shared.verification_workflow import (
+    PreparedVerificationAttempt,
     VerificationRunResult,
 )
 
@@ -38,7 +38,7 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
         required_repo="learntocloud/journal",
     )
     return VerificationRunResult(
-        job=PreparedVerificationJob(
+        attempt=PreparedVerificationAttempt(
             id=uuid4(),
             user_id=1,
             github_username="learner",
@@ -71,7 +71,7 @@ def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
         required_repo="learntocloud/journal-starter",
     )
     return VerificationRunResult(
-        job=PreparedVerificationJob(
+        attempt=PreparedVerificationAttempt(
             id=uuid4(),
             user_id=1,
             github_username="learner",
@@ -205,7 +205,7 @@ def _phase7_run_result(
         description="Answer three reflection questions.",
     )
     return VerificationRunResult(
-        job=PreparedVerificationJob(
+        attempt=PreparedVerificationAttempt(
             id=uuid4(),
             user_id=1,
             github_username="learner",

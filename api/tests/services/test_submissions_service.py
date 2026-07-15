@@ -1,16 +1,7 @@
-"""Tests for submissions_service verification job pre-validation and the
-phase submission card context.
-
-Tests cover:
-- Already-validated short-circuit (authoritative + legacy fallback)
-- Sequential phase gating (authoritative + legacy fallback)
-- get_phase_submission_context: authoritative-attempt cards, every terminal
-  outcome, active-attempt suppression, and legacy-only fallback
-"""
+"""Tests for verification attempt submission and card context."""
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import cast
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -454,7 +445,6 @@ class TestCreateVerificationAttempt:
         attempt_create_await_args = mock_attempt_repo.create_or_get_active.await_args
         assert attempt_create_await_args is not None
         assert attempt_create_await_args.kwargs["traceparent"] == expected_traceparent
-        assert attempt_create_await_args.kwargs["legacy_job_id"] is None
 
     @pytest.mark.asyncio
     async def test_returns_verification_attempt_submission(self):
@@ -643,19 +633,10 @@ def _patch_attempt_repo(
 @pytest.mark.unit
 class TestGetPhaseSubmissionContext:
     @pytest.mark.asyncio
-    async def test_empty_when_no_attempts_and_no_legacy_submissions(self):
+    async def test_empty_when_no_attempts(self):
         req = _make_mock_requirement()
         phase = _phase_with_requirement(req)
-        with (
-            _patch_attempt_repo(latest_terminal=[], attempted_uuids=set()),
-            patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as MockRepo,
-        ):
-            MockRepo.return_value.get_latest_for_requirements = AsyncMock(
-                return_value=[]
-            )
+        with _patch_attempt_repo(latest_terminal=[]):
             result = await get_phase_submission_context(
                 AsyncMock(), user_id=1, phase=phase
             )
@@ -678,7 +659,6 @@ class TestGetPhaseSubmissionContext:
         sub = result.submissions_by_req[req.slug]
         assert sub.is_validated is True
         assert sub.verification_completed is True
-        assert sub.source == "attempt"
 
     @pytest.mark.asyncio
     async def test_failed_attempt_renders_as_not_validated_but_completed(self):
@@ -729,121 +709,6 @@ class TestGetPhaseSubmissionContext:
         sub = result.submissions_by_req[req.slug]
         assert sub.is_validated is False
         assert sub.verification_completed is False
-
-    @pytest.mark.asyncio
-    async def test_active_attempt_suppresses_card_without_legacy_fallback(self):
-        """An active (still-processing) attempt means "no terminal card yet",
-        and must NOT fall back to legacy data even if a legacy row exists --
-        an authoritative attempt (any state) always wins over legacy."""
-        req = _make_mock_requirement()
-        phase = _phase_with_requirement(req)
-
-        with (
-            _patch_attempt_repo(latest_terminal=[], attempted_uuids={req.uuid}),
-            patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as MockRepo,
-        ):
-            result = await get_phase_submission_context(
-                AsyncMock(), user_id=1, phase=phase
-            )
-
-        assert result.submissions_by_req == {}
-        MockRepo.return_value.get_latest_for_requirements.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_legacy_fallback_used_only_when_no_attempt_exists(self):
-        """Zero attempt rows for a requirement is the only case that
-        consults the legacy ``submissions`` table."""
-        req = _make_mock_requirement()
-        phase = _phase_with_requirement(req)
-        mock_sub = _make_mock_submission(is_validated=True)
-        mock_sub.requirement_uuid = req.uuid
-        mock_sub.feedback_json = None
-
-        with (
-            _patch_attempt_repo(latest_terminal=[], attempted_uuids=set()),
-            patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as MockRepo,
-        ):
-            MockRepo.return_value.get_latest_for_requirements = AsyncMock(
-                return_value=[mock_sub]
-            )
-            result = await get_phase_submission_context(
-                AsyncMock(), user_id=1, phase=phase
-            )
-
-        assert req.slug in result.submissions_by_req
-        sub = result.submissions_by_req[req.slug]
-        assert sub.source == "legacy"
-        assert sub.is_validated is True
-
-    @pytest.mark.asyncio
-    async def test_authoritative_attempt_wins_over_legacy_when_both_exist(self):
-        """A requirement with an attempt row is never re-checked against
-        legacy data, even if a (stale) legacy row also exists."""
-        req = _make_mock_requirement()
-        phase = _phase_with_requirement(req)
-        attempt = _make_attempt_projection(req, outcome="succeeded")
-
-        with (
-            _patch_attempt_repo(latest_terminal=[attempt], attempted_uuids={req.uuid}),
-            patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as MockRepo,
-        ):
-            result = await get_phase_submission_context(
-                AsyncMock(), user_id=1, phase=phase
-            )
-
-        assert result.submissions_by_req[req.slug].source == "attempt"
-        MockRepo.return_value.get_latest_for_requirements.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_passing_submission_with_feedback_renders_for_pass(self):
-        """#425: rubric feedback persists for passing submissions too --
-        exercised here via the legacy fallback path."""
-        req = _make_mock_requirement()
-        phase = _phase_with_requirement(req)
-        mock_sub = _make_mock_submission(is_validated=True, verification_completed=True)
-        mock_sub.requirement_uuid = req.uuid
-        mock_sub.feedback_json = [
-            {
-                "task_name": "rubric-check-1",
-                "passed": True,
-                "feedback": "great job",
-                "next_steps": "",
-            },
-            {
-                "task_name": "rubric-check-2",
-                "passed": True,
-                "feedback": "also good",
-                "next_steps": "",
-            },
-        ]
-        with (
-            _patch_attempt_repo(latest_terminal=[], attempted_uuids=set()),
-            patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as MockRepo,
-        ):
-            MockRepo.return_value.get_latest_for_requirements = AsyncMock(
-                return_value=[mock_sub]
-            )
-            result = await get_phase_submission_context(
-                AsyncMock(), user_id=1, phase=phase
-            )
-        assert req.slug in result.feedback_by_req
-        feedback = result.feedback_by_req[req.slug]
-        assert feedback["passed"] == 2
-        tasks = cast(list[dict[str, object]], feedback["tasks"])
-        assert len(tasks) == 2
-        assert all(t["passed"] is True for t in tasks)
 
     @pytest.mark.asyncio
     async def test_attempt_feedback_renders_for_pass(self):

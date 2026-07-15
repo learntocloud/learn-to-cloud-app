@@ -3,11 +3,8 @@
 This module loads the curriculum tree from the authored YAML files.
 Runtime reads in the API go through the packaged curriculum catalog
 (``content_catalog.py``) via the public ``content_service`` module. The
-YAML loader is still authoritative for the deterministic artifact
-compiler (``content_compiler.py``), the deploy-time YAML to DB sync
-(``content_sync.py``, kept as a compatibility shadow), and the strict
-cross-file validators run in CI. Production migration jobs provide the
-YAML path through ``CONTENT__DIR``.
+YAML loader is authoritative for the deterministic artifact compiler
+(``content_compiler.py``) and the strict cross-file validators run in CI.
 
 Do not import from this module in request-serving code paths. Use
 ``learn_to_cloud_shared.content_service`` (catalog-backed, in-memory)
@@ -292,9 +289,7 @@ def get_all_phases_from_yaml() -> tuple[Phase, ...]:
 
     Results are cached for performance. Dynamically discovers phase
     directories (phase0, phase1, ...). Tolerant of broken individual
-    files (logs and skips) -- used by the API's process-level content
-    cache. Used by ``content_sync.py`` (deploy-time YAML to DB sync) and
-    by the strict cross-file validators invoked in CI.
+    files (logs and skips). Used by authoring tools and validators.
     """
     return _discover_phases(strict=False)
 

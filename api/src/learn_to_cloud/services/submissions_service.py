@@ -10,15 +10,11 @@ Routes should delegate submission business logic to this module.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.progress_reads import are_all_requirements_succeeded
-from learn_to_cloud_shared.repositories.submission_repository import (
-    SubmissionRepository,
-)
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
     VerificationAttemptRepository,
@@ -37,7 +33,6 @@ from learn_to_cloud_shared.schemas import (
 from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.verification.execution import (
     attempt_to_submission_data,
-    to_submission_data,
 )
 from learn_to_cloud_shared.verification_attempt_snapshot import (
     ATTEMPT_PAYLOAD_VERSION,
@@ -47,8 +42,6 @@ from learn_to_cloud_shared.verification_attempt_snapshot import (
 from opentelemetry.propagate import inject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-logger = logging.getLogger(__name__)
-
 
 async def get_phase_submission_context(
     db: AsyncSession,
@@ -57,13 +50,8 @@ async def get_phase_submission_context(
 ) -> PhaseSubmissionContext:
     """Build submission context for rendering a phase page.
 
-    Fetches the latest *terminal* ``verification_attempts`` row per
-    requirement for the user in ``phase`` (PR6 authoritative source),
-    converts each to a ``SubmissionData`` DTO, and parses stored feedback
-    JSON into template-ready summaries. Falls back to the legacy
-    ``submissions`` table only for a requirement with zero attempt rows at
-    all -- an authoritative attempt (even one that failed) always wins over
-    legacy data.
+    Fetches the latest terminal attempt per requirement and converts it to
+    template-ready submission and feedback data.
 
     Takes the resolved ``Phase`` rather than a phase id so we can pull
     each requirement's UUID, slug, and submission_type out of the
@@ -104,7 +92,6 @@ async def get_phase_submission_context(
         passed = sum(1 for t in tasks if t["passed"])
         feedback_by_req[requirement_slug] = {"tasks": tasks, "passed": passed}
 
-    attempted_uuids: set[UUID] = set()
     for attempt in latest_attempts:
         requirement = requirements_by_uuid.get(attempt.requirement_uuid)
         if requirement is None:
@@ -112,33 +99,8 @@ async def get_phase_submission_context(
             # rows whose uuid is in the input list, but if curriculum drift
             # slips one past us we skip silently rather than crash the page.
             continue
-        attempted_uuids.add(attempt.requirement_uuid)
         submissions_by_req[requirement.slug] = attempt_to_submission_data(attempt)
         _record_feedback(requirement.slug, attempt.feedback_json)
-
-    # Legacy fallback: a requirement's attempt row is trusted whenever it
-    # exists at all (including a still-active one, which correctly means no
-    # terminal card is shown yet). Only a requirement with zero attempt rows
-    # falls back to the legacy submissions table.
-    has_any_attempt = await attempt_repo.get_requirement_uuids_with_any_attempt(
-        user_id, requirements_by_uuid.keys()
-    )
-    legacy_only_uuids = set(requirements_by_uuid.keys()) - has_any_attempt
-    if legacy_only_uuids:
-        legacy_submissions = await SubmissionRepository(db).get_latest_for_requirements(
-            user_id, legacy_only_uuids
-        )
-        if legacy_submissions:
-            logger.warning(
-                "submission_card.legacy_fallback_used",
-                extra={"user_id": user_id, "count": len(legacy_submissions)},
-            )
-        for sub in legacy_submissions:
-            requirement = requirements_by_uuid.get(sub.requirement_uuid)
-            if requirement is None:
-                continue
-            submissions_by_req[requirement.slug] = to_submission_data(sub)
-            _record_feedback(requirement.slug, sub.feedback_json)
 
     return PhaseSubmissionContext(
         submissions_by_req=submissions_by_req,
@@ -203,13 +165,10 @@ async def _check_submission_preconditions(
     Validates requirement existence, already-validated status, and phase gating.
 
     Opens a short-lived DB session for the learner-state reads (existing
-    attempt/submission, prior-phase verification), then releases it before
-    returning. Both checks read ``verification_attempts`` as authoritative,
-    with the narrow legacy ``submissions`` fallback described in
-    ``learn_to_cloud_shared.progress_reads`` -- ``create_or_get_active``
-    still re-checks "already succeeded" under its advisory lock, so this is
-    a fast-fail before the heavier snapshot/derivation work, not the only
-    guard against a duplicate validated submission.
+    attempt and prior-phase verification), then releases it before returning.
+    ``create_or_get_active`` still re-checks "already succeeded" under its
+    advisory lock, so this is a fast-fail before the heavier snapshot work,
+    not the only guard against a duplicate validated submission.
     """
     index = load_requirement_index()
     requirement = index.by_slug.get(requirement_slug)
@@ -305,7 +264,6 @@ async def create_verification_attempt(
                 submitted_value=typed_value,
                 cloud_provider=None,
                 traceparent=traceparent,
-                legacy_job_id=None,
             )
         except AttemptAlreadyValidatedError as exc:
             raise AlreadyValidatedError(
@@ -345,8 +303,7 @@ async def run_submit_smoke_check(
 
     requirement = _pick_smoke_requirement(index)
 
-    # The synthetic user has no submissions, so preconditions read the
-    # requirement index and the submissions table, then return cleanly.
+    # The synthetic user has no attempts, so preconditions return cleanly.
     # An early-phase requirement has no prerequisite phase, so the
     # sequential gating check does not raise for the synthetic user.
     ctx = await _check_submission_preconditions(

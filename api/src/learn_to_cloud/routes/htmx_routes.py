@@ -22,9 +22,6 @@ from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
-from learn_to_cloud_shared.repositories.verification_job_repository import (
-    VerificationJobRepository,
-)
 from learn_to_cloud_shared.requirements import get_requirement_by_slug
 from learn_to_cloud_shared.schemas import (
     CareerReflectionRequirement,
@@ -52,7 +49,7 @@ from learn_to_cloud.services.durable_verification_client import (
     DurableVerificationConfigError,
     DurableVerificationStartError,
     DurableVerificationStatusError,
-    get_verification_orchestration_status,
+    get_verification_attempt_status,
     start_verification_attempt_orchestration,
 )
 from learn_to_cloud.services.steps_service import (
@@ -200,29 +197,14 @@ async def _terminalize_failed_attempt(
     token_data: VerificationStatusToken,
     status: str,
 ) -> bool:
-    """Persist a terminal Durable failure without orphaning legacy state."""
+    """Persist a terminal Durable failure."""
     session_maker = request.app.state.session_maker
     attempt_id = UUID(token_data.job_id)
     async with session_maker() as session:
         attempt_repo = VerificationAttemptRepository(session)
         attempt = await attempt_repo.get_status(attempt_id)
         if attempt is None:
-            # A job can predate the drain bridge or lose an active-row
-            # uniqueness race. With no attempt provenance to preserve, remove
-            # only that orphaned active job.
-            deleted = await VerificationJobRepository(session).delete_active(attempt_id)
-            await session.commit()
-            if deleted:
-                logger.warning(
-                    "verification.legacy_write_used",
-                    extra={
-                        "path": "orphaned_terminal_job_cleanup",
-                        "table": "verification_jobs",
-                        "job_id": str(attempt_id),
-                        "runtime_status": status,
-                    },
-                )
-            return deleted
+            return False
 
         cancelled = status in {"terminated", "canceled"}
         result = await attempt_repo.finalize(
@@ -234,7 +216,7 @@ async def _terminalize_failed_attempt(
                 if cancelled
                 else "Verification failed before recording a result."
             ),
-            terminal_source="legacy_poller",
+            terminal_source="poller",
             feedback_json=None,
         )
         if not result.won:
@@ -247,18 +229,7 @@ async def _terminalize_failed_attempt(
                 },
             )
             return False
-        deleted_job = await VerificationJobRepository(session).delete_active(attempt_id)
         await session.commit()
-        if deleted_job:
-            logger.warning(
-                "verification.legacy_write_used",
-                extra={
-                    "path": "terminal_job_cleanup",
-                    "table": "verification_jobs",
-                    "job_id": str(attempt_id),
-                    "runtime_status": status,
-                },
-            )
         logger.info(
             "verification.poller.attempt_terminalized",
             extra={
@@ -559,13 +530,13 @@ async def _start_async_attempt_and_render(
         )
 
 
-@router.get("/verification/jobs/status", response_class=HTMLResponse)
-async def htmx_verification_job_status(
+@router.get("/verification/attempts/status", response_class=HTMLResponse)
+async def htmx_verification_attempt_status(
     request: Request,
     token: Annotated[str, Query(max_length=4096)],
     current_user: CurrentUser,
 ) -> HTMLResponse:
-    """Return a polling card or reload trigger based on Durable job status."""
+    """Return a polling card or reload trigger based on Durable attempt status."""
     user_id = current_user.user_id
     try:
         token_data = load_verification_status_token(
@@ -583,9 +554,7 @@ async def htmx_verification_job_status(
         )
 
     try:
-        durable_status = await get_verification_orchestration_status(
-            token_data.instance_id
-        )
+        durable_status = await get_verification_attempt_status(token_data.instance_id)
     except (DurableVerificationConfigError, DurableVerificationStatusError) as exc:
         record_span_exception(
             exc,
