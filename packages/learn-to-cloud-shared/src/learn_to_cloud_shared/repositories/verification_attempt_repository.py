@@ -1,24 +1,4 @@
-"""Repository for the unified ``verification_attempts`` table.
-
-The bridge (PR4) reads and finalizes attempts here. Every write to a
-terminal state goes through :meth:`VerificationAttemptRepository.finalize`,
-which is a compare-and-set (``UPDATE ... WHERE id=:id AND outcome IS NULL
-RETURNING``) so a Durable replay, a competing finalizer, and the stale-attempt
-reconciler can never overwrite a result that is already terminal.
-
-Reads are deliberately narrow: prepare/reconcile only select the columns the
-Functions role is granted, matching the column-level privileges the bridge
-migration installs.
-
-PR6 of the verification/progress refactor adds a second family of reads --
-progress, sequential gating, the submission card, and stats -- that run
-under the API's normal role and treat this table as the authoritative source
-of verification state (``outcome == 'succeeded'`` is the only "verified"
-signal). Those callers add a narrow legacy ``submissions`` fallback for
-(user, requirement) pairs not yet mirrored here; see ``progress_service``,
-``requirements.is_phase_verification_locked``, and
-``submissions_service.get_phase_submission_context``.
-"""
+"""Repository for verification attempts and compare-and-set finalization."""
 
 from __future__ import annotations
 
@@ -553,13 +533,7 @@ class VerificationAttemptRepository:
             raise AttemptAlreadyGoneError(str(attempt_id))
         return FinalizeResult(won=False, state=existing)
 
-    # ------------------------------------------------------------------
-    # PR6: progress/gating/card reads. These treat ``verification_attempts``
-    # as authoritative -- only ``outcome == 'succeeded'`` counts as verified,
-    # matching the plan's unified verification semantics. Callers add a
-    # narrow legacy fallback (see ``progress_service`` / ``requirements``)
-    # for the rare (user, requirement) pair not yet mirrored here.
-    # ------------------------------------------------------------------
+    # Authoritative progress, gating, card, and stats reads.
 
     async def get_succeeded_requirement_uuids(self, user_id: int) -> set[UUID]:
         """Return every requirement UUID with at least one succeeded attempt.

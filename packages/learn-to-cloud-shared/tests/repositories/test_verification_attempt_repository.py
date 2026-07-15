@@ -416,9 +416,7 @@ async def test_delete_active_refuses_claimed_attempt(
     assert status.started_at is not None
 
 
-# ---------------------------------------------------------------------------
-# PR6 progress/gating/card/stats reads
-# ---------------------------------------------------------------------------
+# Progress, gating, card, and stats reads
 
 
 async def test_get_succeeded_requirement_uuids_only_counts_succeeded(

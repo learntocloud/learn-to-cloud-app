@@ -76,19 +76,7 @@ def _log_submission_completed(
 
 
 def to_submission_data(submission: Submission) -> SubmissionData:
-    """Project a ``Submission`` row into the ``SubmissionData`` response model.
-
-    Phase D.2 + D.3 (#461 / #465) removed the denormalized
-    ``requirement_slug`` / ``submission_type`` / ``phase_id`` fields from
-    both the table and the schema -- callers that need them work off
-    the in-memory ``HandsOnRequirement`` directly.
-
-    PR6 of the verification/progress refactor uses this only for the
-    narrow legacy submission-card fallback (see
-    ``learn_to_cloud.services.submissions_service.get_phase_submission_context``);
-    ``source`` is set to ``"legacy"`` so callers/templates can see the
-    provenance.
-    """
+    """Project a legacy submission row into its response model."""
     return SubmissionData(
         id=submission.id,
         submitted_value=submission_value_from_columns(submission).as_text,
