@@ -310,12 +310,6 @@ class _RequirementBase(StrictFrozenModel):
     name: str
     description: str
 
-    @property
-    def placeholder(self) -> str | None:
-        """Backwards-compat shim: read ``type_config.placeholder`` if any."""
-        cfg = getattr(self, "type_config", None)
-        return getattr(cfg, "placeholder", None) if cfg is not None else None
-
 
 class ProfileReadmeRequirement(_RequirementBase):
     submission_type: Literal[SubmissionType.PROFILE_README]

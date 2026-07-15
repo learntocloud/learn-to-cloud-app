@@ -30,12 +30,11 @@ Run Steps 1–3, then Step 5 (Submission Test), then Step 6.
 
 | Phase | Requirement ID | Submission Type | Needs Functions? | Value source |
 |-------|---------------|-----------------|-----------------|--------------|
-| 0 | `github-profile` | `github_profile` | No | Auto-derived from username |
-| 1 | `profile-readme` | `profile_readme` | No | Auto-derived from username |
-| 1 | `linux-ctfs-fork` | `repo_fork` | No | Auto-derived from username |
-| 1 | `linux-ctfs-token` | `ctf_token` | No | Token — user must provide |
-| 2 | `networking-lab-fork` | `repo_fork` | No | Auto-derived from username |
-| 2 | `networking-lab-token` | `networking_token` | No | Token — user must provide |
+| 1 | `profile-readme` | `profile_readme` | **Yes** | Auto-derived from username |
+| 1 | `linux-ctfs-fork` | `repo_fork` | **Yes** | Auto-derived from username |
+| 1 | `linux-ctfs-token` | `ctf_token` | **Yes** | Token — user must provide |
+| 2 | `networking-lab-fork` | `repo_fork` | **Yes** | Auto-derived from username |
+| 2 | `networking-lab-token` | `networking_token` | **Yes** | Token — user must provide |
 | 3 | `journal-api-implementation` | `journal_api_verifier` | **Yes** | Auto-derived from username |
 | 4 | `deployed-journal-api` | `deployed_api` | **Yes** | URL — user must provide |
 | 5 | `devops-implementation` | `devops_analysis` | **Yes** | Auto-derived from username |

@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from learn_to_cloud_shared.schemas import ValidationResult
+from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.testing.requirement_factories import (
     repo_fork_requirement,
 )
@@ -21,13 +22,16 @@ from learn_to_cloud_shared.verification_workflow import (
 
 
 def _run_result(evidence) -> VerificationRunResult:
+    requirement = repo_fork_requirement(required_repo="owner/repo")
     return VerificationRunResult(
         attempt=PreparedVerificationAttempt(
             id=uuid4(),
             user_id=1,
             github_username="alice",
-            requirement=repo_fork_requirement(required_repo="owner/repo"),
-            submitted_value="https://github.com/alice/repo",
+            requirement=requirement,
+            submitted_value=SubmittedValue.from_raw(
+                requirement, "https://github.com/alice/repo"
+            ),
         ),
         validation_result=ValidationResult(is_valid=True, message="ok"),
         evidence=evidence,

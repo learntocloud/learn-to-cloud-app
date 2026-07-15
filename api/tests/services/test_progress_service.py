@@ -3,7 +3,7 @@
 Tests cover:
 - compute_topic_progress status derivation and stale-step filtering
 - phase_progress_to_data status mapping
-- fetch_user_progress DB assembly (authoritative + narrow legacy fallback)
+- fetch_user_progress DB assembly from authoritative learner state
 - fetch_phase_progress per-topic breakdown, including zero-requirement phases
 - both-measures phase completion (learning AND verification)
 - find_first_incomplete_step / resolve_continue_destination

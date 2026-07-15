@@ -136,8 +136,6 @@ Or use VS Code's **"API + Verification"** compound launch configuration.
 │   ├── src/
 │   │   └── learn_to_cloud/
 │   │       ├── main.py       # App entry point
-│   │       ├── models.py     # Compatibility imports for shared models
-│   │       ├── schemas.py    # Compatibility imports for shared schemas
 │   │       ├── routes/       # API + page endpoints
 │   │       ├── services/     # Business logic
 │   │       ├── repositories/ # Database queries
