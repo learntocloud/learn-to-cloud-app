@@ -1,12 +1,4 @@
-"""Rendered-HTML tests for phase and dashboard templates.
-
-These guard issue #593: a hands-on requirement that was validated before its
-phase became gated must still render as complete (not blanket-locked), and the
-dashboard tile must not show a stale ambiguous "not started" for a
-hands-on-only phase's real (verification-only) progress. Also covers PR7's
-verification-card states and the deduplicated phase/dashboard progress
-displays.
-"""
+"""Rendered-HTML tests for phase and dashboard progress states."""
 
 from datetime import datetime
 from types import SimpleNamespace
