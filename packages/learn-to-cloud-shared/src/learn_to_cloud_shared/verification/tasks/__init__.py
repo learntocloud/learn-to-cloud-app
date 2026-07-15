@@ -8,7 +8,6 @@ from learn_to_cloud_shared.verification.tasks.base import (
     EvidencePolicy,
     FilePresenceGraderConfig,
     GradingResult,
-    IndicatorGraderConfig,
     LLMGradingDecision,
     LLMRubricGraderConfig,
     TokenGraderConfig,
@@ -27,8 +26,12 @@ from learn_to_cloud_shared.verification.tasks.phase4 import (
     PHASE4_TASKS,
 )
 from learn_to_cloud_shared.verification.tasks.phase5 import (
+    PHASE5_EVIDENCE_PATH_PATTERNS,
+    PHASE5_MAX_EVIDENCE_FILES,
+    PHASE5_MAX_FILE_SIZE_BYTES,
+    PHASE5_MAX_TOTAL_CONTENT_BYTES,
+    PHASE5_REQUIRED_PATHS,
     PHASE5_REQUIREMENT_SLUG,
-    PHASE5_TASKS,
 )
 from learn_to_cloud_shared.verification.tasks.phase6 import (
     PHASE6_LLM_TASKS,
@@ -50,7 +53,6 @@ __all__ = [
     "EvidencePolicy",
     "FilePresenceGraderConfig",
     "GradingResult",
-    "IndicatorGraderConfig",
     "LLMGradingDecision",
     "LLMRubricGraderConfig",
     "JOURNAL_API_FINAL_RUBRIC_TASK",
@@ -60,8 +62,12 @@ __all__ = [
     "PHASE4_REQUIREMENT_SLUG",
     "PHASE4_LLM_TASKS",
     "PHASE4_TASKS",
+    "PHASE5_EVIDENCE_PATH_PATTERNS",
+    "PHASE5_MAX_EVIDENCE_FILES",
+    "PHASE5_MAX_FILE_SIZE_BYTES",
+    "PHASE5_MAX_TOTAL_CONTENT_BYTES",
     "PHASE5_REQUIREMENT_SLUG",
-    "PHASE5_TASKS",
+    "PHASE5_REQUIRED_PATHS",
     "PHASE6_REQUIREMENT_SLUG",
     "PHASE6_LLM_TASKS",
     "CAREER_REFLECTION_RUBRIC_TASK",

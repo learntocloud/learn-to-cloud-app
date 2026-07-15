@@ -39,8 +39,11 @@ from learn_to_cloud_shared.verification.deployment_architecture import (
     collect_deployment_architecture_evidence,
     validate_deployment_architecture,
 )
-from learn_to_cloud_shared.verification.devops_analysis import run_devops_workflow
+from learn_to_cloud_shared.verification.devops_analysis import (
+    verify_required_devops_files,
+)
 from learn_to_cloud_shared.verification.evidence import collect_repo_file_evidence
+from learn_to_cloud_shared.verification.ghcr import verify_public_ghcr_image
 from learn_to_cloud_shared.verification.github_profile import (
     validate_profile_readme,
     validate_repo_fork,
@@ -145,14 +148,16 @@ class DeployedApiCheckParams(CheckParams):
     check_name = "deployed_api_check"
 
 
-class DevopsAnalysisCheckParams(CheckParams):
-    """Params for the deterministic ``devops_analysis_check`` (no config).
+class DevopsRequiredFilesParams(CheckParams):
+    """Params for the Phase 5 required-files gate."""
 
-    The check runs the Phase 5 DevOps workflow against the fork resolved from
-    the requirement plus the learner's username, so it carries no data.
-    """
+    check_name = "devops_required_files"
 
-    check_name = "devops_analysis_check"
+
+class PublicGhcrImageParams(CheckParams):
+    """Params for the Phase 5 public GHCR image gate."""
+
+    check_name = "public_ghcr_image"
 
 
 class CodeQLStatusParams(CheckParams):
@@ -398,12 +403,12 @@ async def _check_deployed_api(
     )
 
 
-@register_check(DevopsAnalysisCheckParams)
-async def _check_devops_analysis(
+@register_check(DevopsRequiredFilesParams)
+async def _check_devops_required_files(
     context: StepContext,
     params: CheckParams,
 ) -> StepResult:
-    """Deterministic Phase 5 gate: run the DevOps workflow on the fork."""
+    """Gate on the prescribed Phase 5 repository paths."""
     target = context.repository
     if target is None or not target.repo:
         return StepResult(
@@ -416,7 +421,37 @@ async def _check_devops_analysis(
                 repo_exists=False,
             ),
         )
-    result = await run_devops_workflow(target.owner, target.repo, context.repo_files)
+    result = await verify_required_devops_files(
+        target.owner,
+        target.repo,
+        context.repo_files,
+    )
+    return StepResult(
+        passed=result.is_valid,
+        stop_on_fail=True,
+        validation_result=result,
+    )
+
+
+@register_check(PublicGhcrImageParams)
+async def _check_public_ghcr_image(
+    context: StepContext,
+    params: CheckParams,
+) -> StepResult:
+    """Gate on the learner's public ``journal-api:latest`` GHCR manifest."""
+    target = context.repository
+    if target is None:
+        return StepResult(
+            passed=False,
+            stop_on_fail=True,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message="Requirement configuration error: missing required_repo",
+                username_match=True,
+                repo_exists=False,
+            ),
+        )
+    result = await verify_public_ghcr_image(target.owner)
     return StepResult(
         passed=result.is_valid,
         stop_on_fail=True,
@@ -733,8 +768,12 @@ _DEVOPS_ANALYSIS_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
         Step(
-            params=DevopsAnalysisCheckParams(),
-            task_id="devops-analysis-check",
+            params=DevopsRequiredFilesParams(),
+            task_id="devops-required-files",
+        ),
+        Step(
+            params=PublicGhcrImageParams(),
+            task_id="public-ghcr-image",
         ),
     ),
 )
