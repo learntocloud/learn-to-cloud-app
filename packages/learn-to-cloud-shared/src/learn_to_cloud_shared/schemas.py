@@ -409,6 +409,9 @@ class HealthResponse(BaseModel):
 
     status: str
     service: str
+    curriculum_version: int | None = None
+    artifact_schema_version: int | None = None
+    content_hash: str | None = None
 
 
 class StepCompletionResult(FrozenModel):

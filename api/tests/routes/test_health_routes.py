@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 
 from learn_to_cloud.routes.health_routes import health, ready
 
@@ -17,6 +18,16 @@ class TestHealthEndpoint:
         result = await health()
         assert result.status == "healthy"
         assert result.service == "learn-to-cloud-api"
+
+    async def test_health_exposes_curriculum_artifact_identity(self):
+        """Health response includes the loaded artifact's identity fields."""
+        catalog = get_curriculum_catalog()
+
+        result = await health()
+
+        assert result.curriculum_version == catalog.curriculum_version
+        assert result.artifact_schema_version == catalog.artifact_schema_version
+        assert result.content_hash == catalog.content_hash
 
 
 @pytest.mark.unit
@@ -42,6 +53,24 @@ class TestReadyEndpoint:
             request.app.state.engine,
             request.app.state.settings.database,
         )
+
+    async def test_ready_exposes_curriculum_artifact_identity(self):
+        """Ready response includes the loaded artifact's identity fields."""
+        catalog = get_curriculum_catalog()
+        request = MagicMock()
+        request.app.state.init_error = None
+        request.app.state.init_done = True
+        request.app.state.alembic_code_head = None
+
+        with patch(
+            "learn_to_cloud.routes.health_routes.check_db_connection",
+            autospec=True,
+        ):
+            result = await ready(request)
+
+        assert result.curriculum_version == catalog.curriculum_version
+        assert result.artifact_schema_version == catalog.artifact_schema_version
+        assert result.content_hash == catalog.content_hash
 
     async def test_ready_returns_503_when_init_error(self):
         """Ready returns 503 when init_error is set."""

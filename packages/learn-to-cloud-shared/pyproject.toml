@@ -9,6 +9,11 @@ include-package-data = false
 where = ["src"]
 include = ["learn_to_cloud_shared*"]
 
+[tool.setuptools.package-data]
+# Only the compiled artifact ships in the wheel -- authored YAML under
+# content/phases/ stays source-only (see content_yaml_loader.py).
+learn_to_cloud_shared = ["content/curriculum.json"]
+
 [project]
 name = "learn-to-cloud-shared"
 version = "0.1.0"
