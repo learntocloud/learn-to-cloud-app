@@ -6,6 +6,7 @@ Tests cover:
 - fetch_user_progress DB assembly (authoritative + narrow legacy fallback)
 - fetch_phase_progress per-topic breakdown, including zero-requirement phases
 - both-measures phase completion (learning AND verification)
+- find_first_incomplete_step / resolve_continue_destination
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -16,16 +17,22 @@ from learn_to_cloud_shared.schemas import (
     LearningProgress,
     LearningStep,
     Phase,
+    PhaseHandsOnVerificationOverview,
     PhaseProgress,
     Topic,
     VerificationProgress,
+)
+from learn_to_cloud_shared.testing.requirement_factories import (
+    repo_fork_requirement,
 )
 
 from learn_to_cloud.services.progress_service import (
     compute_topic_progress,
     fetch_phase_progress,
     fetch_user_progress,
+    find_first_incomplete_step,
     phase_progress_to_data,
+    resolve_continue_destination,
 )
 
 # ---------------------------------------------------------------------------
@@ -64,6 +71,16 @@ def _make_phase(
         slug=f"phase{phase_id}",
         order=phase_id,
         topics=topics or [],
+    )
+
+
+def _with_requirement(phase: Phase) -> Phase:
+    return phase.model_copy(
+        update={
+            "hands_on_verification": PhaseHandsOnVerificationOverview(
+                requirements=[repo_fork_requirement(slug="verify")]
+            )
+        }
     )
 
 
@@ -190,7 +207,7 @@ class TestPhaseProgressToData:
             requirements_required=1,
         )
         assert progress.is_complete is False
-        assert progress.status == "in_progress"
+        assert progress.status == "learning_complete"
 
     def test_not_complete_when_only_verification_done(self):
         """Both measures must be complete -- verification alone isn't enough."""
@@ -201,7 +218,7 @@ class TestPhaseProgressToData:
             requirements_required=1,
         )
         assert progress.is_complete is False
-        assert progress.status == "in_progress"
+        assert progress.status == "verification_complete"
 
     def test_zero_requirements_is_verification_complete(self):
         """A phase with zero requirements is verification-complete by definition."""
@@ -224,6 +241,48 @@ class TestPhaseProgressToData:
         )
         assert progress.learning.is_complete is True
         assert progress.is_complete is True
+
+    def test_empty_phase_is_not_started(self):
+        progress = _phase_progress(
+            steps_completed=0,
+            steps_required=0,
+            requirements_verified=0,
+            requirements_required=0,
+        )
+        assert progress.is_complete is True
+        assert progress.status == "not_started"
+
+    def test_untouched_hands_on_only_phase_is_not_started_not_learning_complete(self):
+        """A zero-step, untouched hands-on-only phase reads as not started.
+
+        Regression: naively deriving status from the trivial "zero steps
+        means 100% learning" rule would label an untouched hands-on-only
+        phase "learning complete", which misleads a learner who hasn't
+        touched it at all.
+        """
+        progress = _phase_progress(
+            steps_completed=0,
+            steps_required=0,
+            requirements_verified=0,
+            requirements_required=2,
+        )
+        assert progress.status == "not_started"
+
+    def test_partial_steps_only_phase_is_in_progress_not_verification_complete(self):
+        """A zero-requirement phase's status is driven by steps alone.
+
+        Regression: naively deriving status from the trivial "zero
+        requirements means 100% verification" rule would label a
+        partially-stepped, requirement-free phase "verification complete",
+        which is vacuously true and misleading.
+        """
+        progress = _phase_progress(
+            steps_completed=3,
+            steps_required=10,
+            requirements_verified=0,
+            requirements_required=0,
+        )
+        assert progress.status == "in_progress"
 
 
 # ---------------------------------------------------------------------------
@@ -514,3 +573,100 @@ class TestFetchPhaseProgress:
         # Learning still pending -> phase overall not complete.
         assert result.learning.is_complete is False
         assert result.is_complete is False
+
+
+# ---------------------------------------------------------------------------
+# find_first_incomplete_step / resolve_continue_destination
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestFindFirstIncompleteStep:
+    def test_returns_first_unchecked_step_in_topic_order(self):
+        first_topic = _make_topic("t1", steps=["s1", "s2"])
+        second_topic = _make_topic("t2", steps=["s3"])
+        phase = _make_phase(0, topics=[first_topic, second_topic])
+        completed = {first_topic.learning_steps[0].uuid}
+
+        result = find_first_incomplete_step(phase, completed)
+
+        assert result is not None
+        topic, step = result
+        assert topic.slug == first_topic.slug
+        assert step.slug == "s2"
+
+    def test_returns_none_when_every_step_checked(self):
+        topic = _make_topic("t1", steps=["s1", "s2"])
+        phase = _make_phase(0, topics=[topic])
+        completed = {s.uuid for s in topic.learning_steps}
+
+        assert find_first_incomplete_step(phase, completed) is None
+
+    def test_returns_none_for_a_phase_with_no_steps(self):
+        phase = _make_phase(0, topics=[])
+        assert find_first_incomplete_step(phase, set()) is None
+
+
+@pytest.mark.unit
+class TestResolveContinueDestination:
+    @pytest.mark.asyncio
+    async def test_links_to_first_incomplete_steps_topic(self):
+        topic = _make_topic("t1", steps=["s1", "s2"])
+        phase = _make_phase(3, topics=[topic])
+
+        with patch(
+            "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
+            new=AsyncMock(return_value=(set(), set())),
+        ):
+            destination = await resolve_continue_destination(
+                AsyncMock(), user_id=1, phase=phase
+            )
+
+        assert destination == "/phase/3/topic1"
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_verification_section_when_all_steps_checked(self):
+        topic = _make_topic("t1", steps=["s1"])
+        phase = _with_requirement(_make_phase(3, topics=[topic]))
+        completed = {s.uuid for s in topic.learning_steps}
+
+        with patch(
+            "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
+            new=AsyncMock(return_value=(completed, set())),
+        ):
+            destination = await resolve_continue_destination(
+                AsyncMock(), user_id=1, phase=phase
+            )
+
+        assert destination == "/phase/3#verification-section"
+
+    @pytest.mark.asyncio
+    async def test_hands_on_only_phase_links_straight_to_verification(self):
+        """A zero-step phase has nothing to check off, so it goes straight
+        to verification without ever calling the DB."""
+        phase = _with_requirement(_make_phase(3, topics=[]))
+
+        with patch(
+            "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
+            new=AsyncMock(return_value=(set(), set())),
+        ) as mock_resolve:
+            destination = await resolve_continue_destination(
+                AsyncMock(), user_id=1, phase=phase
+            )
+
+        assert destination == "/phase/3#verification-section"
+        mock_resolve.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_phase_without_requirements_does_not_link_dead_anchor(self):
+        phase = _make_phase(3, topics=[])
+
+        with patch(
+            "learn_to_cloud.services.progress_service.resolve_completed_step_uuids",
+            new=AsyncMock(return_value=(set(), set())),
+        ):
+            destination = await resolve_continue_destination(
+                AsyncMock(), user_id=1, phase=phase
+            )
+
+        assert destination == "/phase/3"

@@ -680,12 +680,16 @@ class PhaseSummaryData(FrozenModel):
 
 
 class ContinuePhaseData(FrozenModel):
-    """Pointer to the user's current in-progress phase."""
+    """Where the dashboard's "Continue" action should take the learner.
 
-    phase_id: int
-    name: str
-    slug: str
-    order: int
+    ``destination_url`` already resolves to the specific place that matters
+    -- the first unchecked learning step's topic, or the phase's
+    verification section once every step is checked -- so templates never
+    need to re-derive a phase link from separate id/order/slug fields.
+    """
+
+    destination_url: str
+    label: str
 
 
 class DashboardData(FrozenModel):
@@ -777,9 +781,38 @@ class PhaseProgress(FrozenModel):
     @computed_field
     @property
     def status(self) -> str:
-        """Phase status string."""
+        """Phase status, naming which of the two measures still needs work.
+
+        ``learning_complete`` and ``verification_complete`` name the
+        *finished* measure -- a learner reads "learning complete" as
+        "verification is what's left", not as a description of what they
+        just did. ``verification_complete`` covers the (rarer, sequential
+        gating is verification-only) case where a learner verifies before
+        checking off every step.
+
+        Only distinguished when the phase has real work on *both* axes --
+        a phase with zero steps or zero requirements is trivially complete
+        on that axis (see ``LearningProgress``/``VerificationProgress``),
+        and labelling that trivial truth as "complete" would misrepresent a
+        phase the learner hasn't touched at all.
+        """
+        has_any_work = (
+            self.learning.steps_required > 0
+            or self.verification.requirements_required > 0
+        )
+        if not has_any_work:
+            return "not_started"
         if self.is_complete:
             return "completed"
+        has_both_axes = (
+            self.learning.steps_required > 0
+            and self.verification.requirements_required > 0
+        )
+        if has_both_axes:
+            if self.learning.is_complete:
+                return "learning_complete"
+            if self.verification.is_complete:
+                return "verification_complete"
         if (
             self.learning.steps_completed > 0
             or self.verification.requirements_verified > 0

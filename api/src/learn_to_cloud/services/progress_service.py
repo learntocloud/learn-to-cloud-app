@@ -46,6 +46,7 @@ from learn_to_cloud_shared.progress_reads import (
 from learn_to_cloud_shared.requirements import load_requirement_index
 from learn_to_cloud_shared.schemas import (
     LearningProgress,
+    LearningStep,
     Phase,
     PhaseOverview,
     PhaseProgress,
@@ -248,3 +249,48 @@ def phase_progress_to_data(progress: PhaseProgress) -> PhaseProgressData:
         is_complete=progress.is_complete,
         status=progress.status,
     )
+
+
+def find_first_incomplete_step(
+    phase: Phase, completed_step_uuids: set[UUID]
+) -> tuple[Topic, LearningStep] | None:
+    """First not-yet-checked learning step in topic/step order, or ``None``.
+
+    ``None`` means every step in ``phase`` is checked (including trivially,
+    when the phase has no steps at all) -- the caller should point the
+    learner at verification instead.
+    """
+    for topic in phase.topics:
+        for step in topic.learning_steps:
+            if step.uuid not in completed_step_uuids:
+                return topic, step
+    return None
+
+
+async def resolve_continue_destination(
+    db: AsyncSession,
+    user_id: int,
+    phase: Phase,
+) -> str:
+    """Where the dashboard's "Continue" action should send this learner.
+
+    Points at the first unchecked step's topic, since that's where a
+    learner actually left off -- falls back to the phase's verification
+    section once every current step is checked.
+    """
+    all_step_uuids = [
+        step.uuid for topic in phase.topics for step in topic.learning_steps
+    ]
+    completed_step_uuids, _ = await resolve_completed_step_uuids(
+        db, user_id, all_step_uuids
+    )
+    first_incomplete = find_first_incomplete_step(phase, completed_step_uuids)
+    if first_incomplete is not None:
+        topic, _step = first_incomplete
+        return f"/phase/{phase.order}/{topic.slug}"
+    if (
+        phase.hands_on_verification is not None
+        and phase.hands_on_verification.requirements
+    ):
+        return f"/phase/{phase.order}#verification-section"
+    return f"/phase/{phase.order}"

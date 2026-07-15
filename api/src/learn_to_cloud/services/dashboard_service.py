@@ -6,7 +6,10 @@ for the dashboard page.
 
 import logging
 
-from learn_to_cloud_shared.content_service import get_curriculum_overview
+from learn_to_cloud_shared.content_service import (
+    get_curriculum_overview,
+    get_phase_by_slug,
+)
 from learn_to_cloud_shared.schemas import (
     ContinuePhaseData,
     DashboardData,
@@ -19,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from learn_to_cloud.services.progress_service import (
     fetch_user_progress,
     phase_progress_to_data,
+    resolve_continue_destination,
 )
 
 logger = logging.getLogger(__name__)
@@ -75,11 +79,15 @@ async def get_dashboard_data(
         current_id = user_progress.current_phase
         current = next((p for p in phases if p.order == current_id), None)
         if current is not None:
+            destination_url = f"/phase/{current.order}"
+            current_detail = get_phase_by_slug(current.slug)
+            if current_detail is not None:
+                destination_url = await resolve_continue_destination(
+                    db, user_id, current_detail
+                )
             continue_phase = ContinuePhaseData(
-                phase_id=current.order,
-                name=current.name,
-                slug=current.slug,
-                order=current.order,
+                destination_url=destination_url,
+                label=f"Phase {current.order}: {current.name}",
             )
 
     logger.debug(

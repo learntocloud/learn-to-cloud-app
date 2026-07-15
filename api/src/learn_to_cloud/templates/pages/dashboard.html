@@ -6,40 +6,51 @@
 {% endblock %}
 
 {% block page_body %}
-{# ── Overall progress hero card ──
-   Two separate item-weighted measures (learning steps checked,
-   verification requirements succeeded) rather than one blended
-   percentage -- verification is primary per the product decision that
-   it's the learner-facing measure of record. Full label/visual pass is
-   PR7; this is the minimal data-shape adapter for PR6. #}
+{# Primary verification progress and secondary learning progress. #}
 <div class="relative overflow-hidden p-5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-800 mb-8 shadow">
-    <div class="flex items-center justify-between gap-6">
-        {# Left: title, counts, progress bars #}
-        <div class="flex-1 min-w-0">
-            <h2 class="text-lg font-bold text-white mb-1">Overall Progress</h2>
-            <p class="text-sm text-blue-100 mb-3">{{ dashboard.phases_completed }} of {{ dashboard.total_phases }} phases completed</p>
-            <p class="text-xs text-blue-200 mb-1">Requirements verified — {{ dashboard.verification_percentage | round(0) | int }}%</p>
-            <div class="h-2 bg-white/20 rounded-full overflow-hidden mb-2">
-                <div class="h-full rounded-full transition-all {{ 'bg-green-400' if dashboard.is_program_complete else 'bg-white' }}" style="width: {{ dashboard.verification_percentage }}%"></div>
-            </div>
-            <p class="text-xs text-blue-200 mb-1">Steps checked — {{ dashboard.learning_percentage | round(0) | int }}%</p>
-            <div class="h-2 bg-white/20 rounded-full overflow-hidden">
-                <div class="h-full rounded-full transition-all bg-white/70" style="width: {{ dashboard.learning_percentage }}%"></div>
-            </div>
+    <h2 class="text-lg font-bold text-white mb-1">Overall Progress</h2>
+    <p class="text-sm text-blue-100 mb-4">
+        {{ dashboard.phases_completed }} of {{ dashboard.total_phases }} phases complete.
+        Complete each phase's verification to progress.
+    </p>
+
+    <div class="mb-3">
+        <p class="text-sm font-medium text-white mb-1">Verification progress — {{ dashboard.verification_percentage | round(0) | int }}% of requirements</p>
+        <div
+            class="h-2.5 bg-white/20 rounded-full overflow-hidden"
+            role="progressbar"
+            aria-valuenow="{{ dashboard.verification_percentage | round(0) | int }}"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-label="Requirements verified: {{ dashboard.verification_percentage | round(0) | int }} percent"
+        >
+            <div class="h-full rounded-full transition-all {{ 'bg-green-400' if dashboard.is_program_complete else 'bg-white' }}" style="width: {{ dashboard.verification_percentage }}%"></div>
         </div>
-        {# Right: percentage number (verification, the primary measure) #}
-        <div class="shrink-0 text-right hidden sm:block">
-            <span class="text-3xl font-bold text-white">{{ dashboard.verification_percentage | round(0) | int }}%</span>
+    </div>
+
+    <div>
+        <p class="text-xs text-blue-100 mb-1">Learning progress — {{ dashboard.learning_percentage | round(0) | int }}% of learning steps</p>
+        <div
+            class="h-1.5 bg-white/20 rounded-full overflow-hidden"
+            role="progressbar"
+            aria-valuenow="{{ dashboard.learning_percentage | round(0) | int }}"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-label="Learning steps checked: {{ dashboard.learning_percentage | round(0) | int }} percent"
+        >
+            <div class="h-full rounded-full transition-all bg-white/70" style="width: {{ dashboard.learning_percentage }}%"></div>
         </div>
     </div>
 </div>
 
-{# ── Continue where you left off ── #}
+{# ── Continue where you left off ──
+   Points at the first unchecked step's topic, or the phase's verification
+   section once every current step is checked. #}
 {% if dashboard.continue_phase %}
-<a href="/phase/{{ dashboard.continue_phase.order }}" class="flex items-center justify-between p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors mb-6">
+<a href="{{ dashboard.continue_phase.destination_url }}" class="flex items-center justify-between p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors mb-6">
     <div>
         <p class="text-xs font-medium text-blue-600 dark:text-blue-400 mb-0.5">Continue where you left off</p>
-        <p class="text-sm font-semibold text-gray-900 dark:text-white">Phase {{ dashboard.continue_phase.order }}: {{ dashboard.continue_phase.name }}</p>
+        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ dashboard.continue_phase.label }}</p>
     </div>
     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
@@ -47,35 +58,43 @@
 </a>
 {% endif %}
 
-{# ── Phase list ── #}
+{# ── Phase list ──
+   One state per phase (see PhaseProgress.status) and both counts as plain
+   text -- no per-row bar, so there's exactly one place (the hero above)
+   showing a percentage/bar for a given measure. #}
 <div class="space-y-3">
     {% for phase in dashboard.phases %}
-    <a href="/phase/{{ phase.order }}" class="block p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors {% if phase.progress and phase.progress.status == 'completed' %}border-l-3 border-l-green-500 dark:border-l-green-400{% elif phase.progress and phase.progress.status == 'in_progress' %}border-l-3 border-l-blue-500 dark:border-l-blue-400{% endif %}">
-        <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2.5">
-                <span class="flex items-center justify-center h-6 w-6 rounded-full text-xs font-semibold {% if phase.progress and phase.progress.status == 'completed' %}bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400{% elif phase.progress and phase.progress.status == 'in_progress' %}bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400{% else %}bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500{% endif %}">{{ phase.order }}</span>
-                <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ phase.name }}</h2>
+    {% set p = phase.progress %}
+    <a href="/phase/{{ phase.order }}" class="block p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors {% if p and p.status == 'completed' %}border-l-3 border-l-green-500 dark:border-l-green-400{% elif p and p.status != 'not_started' %}border-l-3 border-l-blue-500 dark:border-l-blue-400{% endif %}">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <span class="flex items-center justify-center h-6 w-6 rounded-full text-xs font-semibold flex-shrink-0 {% if p and p.status == 'completed' %}bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400{% elif p and p.status != 'not_started' %}bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400{% else %}bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500{% endif %}">{{ phase.order }}</span>
+                <h2 class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ phase.name }}</h2>
             </div>
-            {% if phase.progress and phase.progress.status == "completed" %}
-            <span class="text-xs font-medium text-green-600 dark:text-green-400">Complete ✓</span>
-            {% elif phase.progress and phase.progress.status == "in_progress" %}
-            {% if phase.progress.learning.steps_completed == 0 and phase.progress.verification.requirements_verified > 0 %}
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ phase.progress.verification.requirements_verified }}/{{ phase.progress.verification.requirements_required }} hands-on</span>
-            {% else %}
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ phase.progress.learning.steps_completed }}/{{ phase.progress.learning.steps_required }} steps</span>
-            {% endif %}
-            {% else %}
-            <span class="text-xs text-gray-400 dark:text-gray-500">Not started</span>
-            {% endif %}
+            <span class="text-xs font-medium shrink-0 {% if p and p.status == 'completed' %}text-green-600 dark:text-green-400{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+                {% if not p or p.status == 'not_started' %}
+                Not started
+                {% elif p.status == 'completed' %}
+                Complete ✓
+                {% elif p.status == 'learning_complete' %}
+                Ready for verification
+                {% elif p.status == 'verification_complete' %}
+                Steps remaining
+                {% else %}
+                In progress
+                {% endif %}
+            </span>
         </div>
-        {% if phase.progress and phase.progress.learning.steps_completed == 0 and phase.progress.verification.requirements_verified > 0 %}
-        <div class="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-            <div class="h-full rounded-full transition-all {% if phase.progress.status == 'completed' %}bg-green-500{% else %}bg-blue-500{% endif %}" style="width: {{ phase.progress.verification.percentage }}%"></div>
-        </div>
-        {% elif phase.progress and phase.progress.learning.percentage > 0 %}
-        <div class="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-            <div class="h-full rounded-full transition-all {% if phase.progress.status == 'completed' %}bg-green-500{% else %}bg-blue-500{% endif %}" style="width: {{ phase.progress.learning.percentage }}%"></div>
-        </div>
+        {% if p and (p.verification.requirements_required > 0 or p.learning.steps_required > 0) %}
+        <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+            {%- if p.verification.requirements_required > 0 -%}
+            {{ p.verification.requirements_verified }}/{{ p.verification.requirements_required }} requirements verified
+            {%- endif -%}
+            {%- if p.verification.requirements_required > 0 and p.learning.steps_required > 0 %} · {% endif -%}
+            {%- if p.learning.steps_required > 0 -%}
+            {{ p.learning.steps_completed }}/{{ p.learning.steps_required }} steps checked
+            {%- endif -%}
+        </p>
         {% endif %}
     </a>
     {% endfor %}

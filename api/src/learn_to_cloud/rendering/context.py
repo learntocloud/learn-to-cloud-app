@@ -7,7 +7,7 @@ avoids duplicated dict-building logic.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
@@ -15,7 +15,11 @@ from learn_to_cloud_shared.submission_derivation import (
 )
 
 if TYPE_CHECKING:
-    from learn_to_cloud_shared.schemas import Phase, PhaseProgress, TaskResult, Topic
+    from learn_to_cloud_shared.schemas import (
+        Phase,
+        PhaseProgress,
+        Topic,
+    )
 
 # ── FAQ content ──────────────────────────────────────────────
 # Stored here (rendering layer) rather than in templates or routes.
@@ -154,24 +158,16 @@ def build_progress_dict(completed: int, total: int) -> dict[str, int]:
     }
 
 
-def build_phase_topics(
-    phase: Phase, detail: PhaseProgress
-) -> tuple[list[dict[str, Any]], dict[str, int | float | bool]]:
-    """Build template-ready topic list and overall progress for a phase page.
+def build_phase_topics(phase: Phase, detail: PhaseProgress) -> list[dict[str, Any]]:
+    """Build template-ready topic list for a phase page.
 
-    Merges topic metadata from content with per-topic progress data. The
-    returned ``progress`` dict is intentionally learning-only (steps): it
-    feeds the top-of-page bar that sits directly above the per-topic step
-    breakdown. ``is_complete`` still reflects the phase's full completion
-    (learning AND verification, see ``PhaseProgress.is_complete``), so a
-    100%-learning phase pending verification shows a full bar without the
-    "Complete" label -- an honest, if not fully polished, intermediate state
-    ahead of PR7's presentation pass.
+    Merges topic metadata from content with per-topic learning progress.
+    The phase's own learning/verification progress renders straight from
+    ``detail`` (a typed ``PhaseProgress``) rather than a re-shaped dict --
+    see ``pages/phase.html``.
 
     Returns:
-        ``(topics, progress)`` — topics is a list of dicts with ``name``,
-        ``slug``, and ``progress`` keys; progress is a dict with
-        ``percentage``, ``steps_completed``, and ``steps_required`` keys.
+        A list of dicts with ``name``, ``slug``, and ``progress`` keys.
     """
     topics: list[dict[str, Any]] = []
     for t in phase.topics:
@@ -188,45 +184,59 @@ def build_phase_topics(
             }
         )
 
-    progress = {
-        "percentage": detail.learning.percentage,
-        "steps_completed": detail.learning.steps_completed,
-        "steps_required": detail.learning.steps_required,
-        "is_complete": detail.is_complete,
-    }
-
-    return topics, progress
+    return topics
 
 
-def build_feedback_tasks_from_results(
-    task_results: list[TaskResult] | None,
-) -> tuple[list[dict[str, Any]], int]:
-    """Build a template-ready task list from task result objects.
+_PERSISTED_SERVICE_ERROR_MESSAGE = (
+    "The verification service couldn't finish checking this attempt because of "
+    "a problem on our side, not something you did."
+)
 
-    Args:
-        task_results: List of objects with ``task_name``, ``passed``,
-            and ``feedback`` attributes.
 
-    Returns:
-        ``(feedback_tasks, passed_count)`` tuple.
+def _derive_card_state(
+    submission: Any,
+    *,
+    processing: bool,
+    server_error: bool,
+) -> str:
+    """Derive the one verification-card state that drives the whole card.
+
+    Replaces the old combination of ``submission.is_validated`` /
+    ``verification_completed`` / ``processing`` / ``server_error`` flags
+    with a single state: ``checking``, ``passed``, ``failed`` (a real
+    learner attempt that didn't pass), ``unavailable`` (a system/retryable
+    fault -- covers both ``server_error`` and ``cancelled`` outcomes, since
+    neither counts against the learner), or ``not_started``.
     """
-    tasks: list[dict[str, Any]] = []
-    passed = 0
-    if not task_results:
-        return tasks, passed
+    if processing:
+        return "checking"
+    if server_error:
+        return "unavailable"
+    if submission is None:
+        return "not_started"
+    if submission.is_validated:
+        return "passed"
+    if submission.verification_completed:
+        return "failed"
+    # Not validated and verification never completed -- a terminal
+    # server_error/cancelled outcome read back from storage, not an
+    # explicit override from the live submit/poll flow.
+    return "unavailable"
 
-    for task in task_results:
-        tasks.append(
-            {
-                "name": task.task_name,
-                "passed": task.passed,
-                "message": task.feedback,
-                "next_steps": task.next_steps,
-            }
-        )
-        if task.passed:
-            passed += 1
 
+def feedback_tasks_and_passed(
+    feedback: dict[str, object] | None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Extract ``(tasks, passed)`` from one ``feedback_by_req`` entry.
+
+    ``PhaseSubmissionContext.feedback_by_req`` values are loosely typed
+    (``dict[str, object]``) since they come straight off stored JSONB; this
+    narrows them to what :func:`build_requirement_card_context` expects.
+    """
+    if not feedback:
+        return [], 0
+    tasks = cast("list[dict[str, Any]]", feedback.get("tasks", []))
+    passed = cast(int, feedback.get("passed", 0))
     return tasks, passed
 
 
@@ -247,8 +257,10 @@ def build_requirement_card_context(
 ) -> dict[str, Any]:
     """Build the template context for ``partials/requirement_card.html``.
 
-    Centralises context-building so the phase page and the HTMX submit
-    route (including the SSE stream) all produce identically-shaped dicts.
+    Centralises context-building so the phase page and the HTMX submit/poll
+    routes all produce identically-shaped dicts, and so a single
+    ``card_state`` (see :func:`_derive_card_state`) -- not a scattered
+    combination of flags -- drives which part of the card renders.
     Pre-computes ``derived_url`` for read-only display so the Jinja template
     never builds URLs.
 
@@ -263,12 +275,18 @@ def build_requirement_card_context(
             (or ``None``).
         feedback_tasks: Pre-built task-feedback entries.
         feedback_passed: Count of passing tasks (for the summary line).
-        server_error: Whether to render the server-error banner.
-        server_error_message: Optional server-error text.
+        server_error: Whether to force the "service unavailable" state --
+            used by the live submit/poll flow for a failure that has no
+            ``submission`` row to derive from (e.g. Durable never started).
+        server_error_message: Optional server-error text; defaults to a
+            generic message when the state is derived from a persisted
+            ``unavailable`` submission rather than passed explicitly.
         server_error_retryable: Whether to invite the user to retry. False for
             server-side problems (e.g. misconfiguration) where retrying cannot
             succeed, so the banner omits the "try again immediately" guidance.
-        error_banner: Optional inline error banner text.
+        error_banner: Optional inline error banner text (e.g. a pre-submit
+            validation message). Defaults to ``submission.validation_message``
+            when the card state is ``failed`` and no override is given.
         processing: Whether the card is in the "analysing..." state.
         verification_status_token: Signed token used by the HTMX polling card.
         verification_status_delay_seconds: Delay before the next status poll.
@@ -287,11 +305,22 @@ def build_requirement_card_context(
             # template will fall back to its read-only placeholder branch.
             derived_url = None
 
+    card_state = _derive_card_state(
+        submission, processing=processing, server_error=server_error
+    )
+    if card_state == "unavailable":
+        server_error = True
+        if server_error_message is None:
+            server_error_message = _PERSISTED_SERVICE_ERROR_MESSAGE
+    elif card_state == "failed" and error_banner is None and submission is not None:
+        error_banner = submission.validation_message
+
     return {
         "requirement": requirement,
         "submission": submission,
         "feedback_tasks": feedback_tasks or [],
         "feedback_passed": feedback_passed,
+        "card_state": card_state,
         "server_error": server_error,
         "server_error_message": server_error_message,
         "server_error_retryable": server_error_retryable,

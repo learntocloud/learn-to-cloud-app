@@ -1,17 +1,46 @@
 {% extends "base.html" %}
+{% from "macros/badges.html" import status_pill %}
 {% block title %}{{ phase.name }} - Learn to Cloud{% endblock %}
 
 {% block content %}
 <div class="mb-8">
-    <div class="flex items-center gap-3 mb-2">
+    <div class="flex items-center gap-3 mb-2 flex-wrap">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ phase.name }}</h1>
+        {% if phase_progress %}
+        {% if phase_progress.status == 'completed' %}
+        {{ status_pill("Phase complete ✓", "success") }}
+        {% elif phase_progress.status == 'learning_complete' %}
+        {{ status_pill("Ready for verification", "info") }}
+        {% elif phase_progress.status == 'verification_complete' %}
+        {{ status_pill("Steps remaining", "info") }}
+        {% endif %}
+        {% endif %}
     </div>
     <div class="mt-2 text-gray-600 dark:text-gray-400 [&>p]:m-0 phase-description">{{ phase.description | md | safe }}</div>
 
-    {% if progress %}
-    {% with progress=progress, progress_label='Complete ✓' if progress.is_complete else progress.percentage | round(0) | int ~ '% complete' %}
-    {% include "partials/progress_bar.html" %}
-    {% endwith %}
+    {% if phase_progress %}
+    <div class="mt-4 space-y-2 max-w-md">
+        {% if phase_progress.verification.requirements_required > 0 %}
+        {% with
+            value=phase_progress.verification.percentage,
+            label='Verification progress — ' ~ phase_progress.verification.requirements_verified ~ '/' ~ phase_progress.verification.requirements_required ~ ' requirements',
+            complete=phase_progress.verification.is_complete,
+            aria_label='Requirements verified: ' ~ phase_progress.verification.requirements_verified ~ ' of ' ~ phase_progress.verification.requirements_required
+        %}
+        {% include "partials/progress_bar.html" %}
+        {% endwith %}
+        {% endif %}
+        {% if phase_progress.learning.steps_required > 0 %}
+        {% with
+            value=phase_progress.learning.percentage,
+            label='Learning progress — ' ~ phase_progress.learning.steps_completed ~ '/' ~ phase_progress.learning.steps_required ~ ' steps',
+            complete=phase_progress.learning.is_complete,
+            aria_label='Learning steps checked: ' ~ phase_progress.learning.steps_completed ~ ' of ' ~ phase_progress.learning.steps_required
+        %}
+        {% include "partials/progress_bar.html" %}
+        {% endwith %}
+        {% endif %}
+    </div>
     {% endif %}
 </div>
 
@@ -26,7 +55,7 @@
             {% if topic.progress %}
             <span class="text-sm flex items-center gap-1.5 {% if topic.progress.completed == topic.progress.total and topic.progress.total > 0 %}text-green-600 dark:text-green-400 font-medium{% else %}text-gray-500 dark:text-gray-400{% endif %}">
                 {% if topic.progress.completed == topic.progress.total and topic.progress.total > 0 %}
-                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                 Complete
                 {% else %}
                 {{ topic.progress.completed }}/{{ topic.progress.total }} steps
@@ -46,7 +75,7 @@
     {# Phase verification is gated — prerequisite phase not yet complete #}
     <div class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 mb-4">
         <div class="flex items-start gap-3">
-            <span class="text-amber-500 dark:text-amber-400 text-lg mt-0.5">🔒</span>
+            <span class="text-amber-500 dark:text-amber-400 text-lg mt-0.5" aria-hidden="true">🔒</span>
             <div>
                 <p class="text-sm font-medium text-amber-800 dark:text-amber-200">
                     Phase {{ prerequisite_phase_id }} verification required
@@ -61,27 +90,14 @@
     </div>
     <div class="space-y-2">
         {% for req in requirements %}
-        {% set submission = submissions_by_req.get(req.slug) %}
-        {% set is_verified = submission and submission.is_validated %}
-        {% if is_verified %}
+        {% set card = card_contexts_by_req[req.slug] %}
+        {% if card.card_state == 'passed' %}
         {# Already validated before the phase was gated — keep showing it as
-           complete so the card matches the progress percentage. #}
-        {% set fb = feedback_by_req.get(req.slug, {}) if feedback_by_req is defined else {} %}
-        {% set feedback_tasks = fb.get('tasks', []) if fb else [] %}
-        <div id="requirement-{{ req.slug }}">
-            <div class="flex items-center gap-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-2.5">
-                <span class="text-green-600 dark:text-green-400">✓</span>
-                <span class="text-sm font-medium text-green-800 dark:text-green-200">{{ req.name }}</span>
-            </div>
-            {% if feedback_tasks %}
-            {% with requirement_slug=req.slug %}
-            {% include "partials/verification_feedback.html" %}
-            {% endwith %}
-            {% endif %}
-        </div>
+           verified so the card matches the progress bar above. #}
+        {% include "partials/verified_requirement_row.html" %}
         {% else %}
         <div class="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-2.5 opacity-50">
-            <span class="text-gray-400 dark:text-gray-500">🔒</span>
+            <span class="text-gray-400 dark:text-gray-500" aria-hidden="true">🔒</span>
             <span class="text-sm text-gray-500 dark:text-gray-400">{{ req.name }}</span>
         </div>
         {% endif %}
@@ -91,38 +107,34 @@
     {% set ns = namespace(found_active=false) %}
     <div class="space-y-2">
         {% for req in requirements %}
-        {% set submission = submissions_by_req.get(req.slug) %}
-        {% set is_verified = submission and submission.is_validated %}
-        {% set fb = feedback_by_req.get(req.slug, {}) if feedback_by_req is defined else {} %}
-        {% set feedback_tasks = fb.get('tasks', []) if fb else [] %}
-        {% set feedback_passed = fb.get('passed', 0) if fb else 0 %}
-        {% set active_job = active_jobs_by_req.get(req.slug) if active_jobs_by_req is defined else None %}
-        {% set verification_status_token = verification_status_tokens_by_req.get(req.slug) if verification_status_tokens_by_req is defined else None %}
-        {% set persisted_error = submission.validation_message if submission and not submission.is_validated and submission.validation_message else None %}
-
-        {% if is_verified %}
+        {% set card = card_contexts_by_req[req.slug] %}
+        {% if card.card_state == 'passed' %}
         {# Compact verified row, with expandable feedback explaining why it passed #}
-        <div id="requirement-{{ req.slug }}">
-            <div class="flex items-center gap-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-2.5">
-                <span class="text-green-600 dark:text-green-400">✓</span>
-                <span class="text-sm font-medium text-green-800 dark:text-green-200">{{ req.name }}</span>
-            </div>
-            {% if feedback_tasks %}
-            {% with requirement_slug=req.slug %}
-            {% include "partials/verification_feedback.html" %}
-            {% endwith %}
-            {% endif %}
-        </div>
+        {% include "partials/verified_requirement_row.html" %}
         {% elif not ns.found_active %}
-        {# First incomplete — show full card #}
+        {# First incomplete — show the full interactive card #}
         {% set ns.found_active = true %}
-        {% with requirement=req, submission=submission, feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, phase_id=phase.order, error_banner=persisted_error, server_error=False, server_error_message=None, server_error_retryable=True, processing=active_job is not none, verification_status_token=verification_status_token, verification_status_delay_seconds=2, derived_url=derived_urls_by_req.get(req.slug) %}
+        {% with
+            requirement=card.requirement,
+            submission=card.submission,
+            feedback_tasks=card.feedback_tasks,
+            feedback_passed=card.feedback_passed,
+            card_state=card.card_state,
+            server_error=card.server_error,
+            server_error_message=card.server_error_message,
+            server_error_retryable=card.server_error_retryable,
+            error_banner=card.error_banner,
+            processing=card.processing,
+            verification_status_token=card.verification_status_token,
+            verification_status_delay_seconds=card.verification_status_delay_seconds,
+            derived_url=card.derived_url
+        %}
         {% include "partials/requirement_card.html" %}
         {% endwith %}
         {% else %}
-        {# Future steps — compact locked row #}
+        {# Future requirements — compact, not-yet-reached row #}
         <div class="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-2.5 opacity-50">
-            <span class="text-gray-400 dark:text-gray-500">○</span>
+            <span class="text-gray-400 dark:text-gray-500" aria-hidden="true">○</span>
             <span class="text-sm text-gray-500 dark:text-gray-400">{{ req.name }}</span>
         </div>
         {% endif %}
