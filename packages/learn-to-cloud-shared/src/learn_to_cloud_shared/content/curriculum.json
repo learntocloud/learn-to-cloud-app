@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "d358192a7e540fcb95288f7a847c6c3db2e2ea3de108d957315a9d160a57e750",
-  "curriculum_version": 1,
+  "content_hash": "4123a7ef3474c99f07d446cd70964906355daf2cb0ba89782be0452b4a49b8b9",
+  "curriculum_version": 2,
   "phases": [
     {
       "capstone": null,
@@ -4581,7 +4581,7 @@
         ],
         "requirements": [
           {
-            "description": "Submit your journal-starter fork after finishing the DevOps capstone so automated checks can validate your implementation.",
+            "description": "Submit your journal-starter fork after finishing the DevOps capstone. Before submitting, publish a public verification image at `ghcr.io/<your-github-username>/journal-api:latest`; keep your cloud registry and IAM-based Kubernetes image pull as the real deployment path.",
             "name": "Complete the DevOps Capstone",
             "slug": "devops-implementation",
             "submission_type": "devops_analysis",
@@ -5811,7 +5811,9 @@
               "action": "build",
               "checklist": [
                 "**Test job** \u2014 Run linting and tests with a PostgreSQL 15 service container, run `database_setup.sql` before pytest, install `uv` using `astral-sh/setup-uv`",
-                "**Build & Push job** \u2014 Build the Docker image and push to your container registry, tagged with commit SHA and `latest`",
+                "**Build & Push job** \u2014 Build the Docker image and push it to your cloud container registry, tagged with commit SHA and `latest`",
+                "**Public verification copy** \u2014 Also push the image as `ghcr.io/<your-github-username>/journal-api:latest` so automated verification can confirm the build succeeded",
+                "**Public GHCR package** \u2014 After the first push, open the package settings on GitHub and change the package visibility to public",
                 "**Deploy job** \u2014 Connect to your K8s cluster, `sed`-substitute the image placeholder, apply manifests from `k8s/`",
                 "**`AZURE_CREDENTIALS` secret** \u2014 output of `az ad sp create-for-rbac --sdk-auth`",
                 "**`ACR_LOGIN_SERVER` secret** \u2014 your ACR login server URL",
@@ -5826,7 +5828,12 @@
               "options": [],
               "order": 3,
               "slug": "phase5-topic6-build-cicd-pipeline",
-              "tips": [],
+              "tips": [
+                {
+                  "text": "Keep your cloud registry and IAM-based Kubernetes pull path for the real deployment. The public GHCR image is an additional copy used only by automated verification; private GHCR packages cannot be verified.",
+                  "type": "note"
+                }
+              ],
               "title": "CI/CD Pipeline",
               "url": null,
               "uuid": "a995972d-217d-487a-b9cf-4818ca9bd64e"

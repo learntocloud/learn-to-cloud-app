@@ -3,6 +3,6 @@ uuid: 623a87ae-156f-42da-a83c-09241d523e00
 slug: devops-implementation
 submission_type: devops_analysis
 name: Complete the DevOps Capstone
-description: Submit your journal-starter fork after finishing the DevOps capstone so automated checks can validate your implementation.
+description: Submit your journal-starter fork after finishing the DevOps capstone. Before submitting, publish a public verification image at `ghcr.io/<your-github-username>/journal-api:latest`; keep your cloud registry and IAM-based Kubernetes image pull as the real deployment path.
 type_config:
   required_repo: learntocloud/journal-starter
