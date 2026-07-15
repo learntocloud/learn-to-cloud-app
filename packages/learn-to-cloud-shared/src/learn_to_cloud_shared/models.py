@@ -482,15 +482,7 @@ class StepProgress(Base):
 
 
 class LearnerStepCompletion(Base):
-    """Curriculum-decoupled record of a learner completing a step.
-
-    Expand-only companion to :class:`StepProgress`. Keyed on
-    ``step_uuid`` with no FK to the curriculum tables so a step whose
-    definition is later soft-deleted or renumbered never blocks writes.
-    While legacy API revisions remain the writers of ``step_progress``,
-    a temporary database trigger mirrors inserts and deletes here; the
-    explicit new-table writes land in a later PR.
-    """
+    """Record a learner completing a catalog step UUID."""
 
     __tablename__ = "learner_step_completions"
 
@@ -512,17 +504,7 @@ class LearnerStepCompletion(Base):
 
 
 class VerificationAttempt(TimestampMixin, Base):
-    """One verification attempt, keyed by its Durable orchestration id.
-
-    ``id`` doubles as the Durable Functions instance id (matching the
-    legacy ``verification_jobs`` contract). ``requirement_uuid`` carries
-    no FK to the curriculum tables so history survives curriculum
-    churn. An attempt is *active* while ``outcome`` is ``NULL`` and
-    *terminal* once an outcome and ``completed_at`` are set together.
-
-    Expand-only: this table is populated by backfill and (later)
-    dual-writes; active runtime readers/writers are unchanged in this PR.
-    """
+    """Persist a verification attempt using its UUID as the Durable instance ID."""
 
     __tablename__ = "verification_attempts"
     __table_args__ = (
@@ -625,7 +607,6 @@ class VerificationAttempt(TimestampMixin, Base):
     error_code: Mapped[str | None] = mapped_column(Text, nullable=True)
     terminal_source: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Temporary migration provenance, retained until the final contract PR.
     legacy_job_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True), nullable=True
     )
