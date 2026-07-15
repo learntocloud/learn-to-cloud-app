@@ -10,6 +10,8 @@ import os
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
 from uuid import UUID
 
 import azure.durable_functions as df
@@ -18,10 +20,28 @@ from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.database import create_engine, create_session_maker
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE, configure_logging
 from learn_to_cloud_shared.core.observability import configure_observability
+from learn_to_cloud_shared.models import utcnow
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    AttemptTerminalState,
+    VerificationAttemptRepository,
+)
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
 from learn_to_cloud_shared.submission_values import submission_value_from_columns
+from learn_to_cloud_shared.verification_attempt_executor import (
+    finalize_verification_attempt as finalize_attempt,
+)
+from learn_to_cloud_shared.verification_attempt_executor import (
+    prepare_verification_attempt as prepare_attempt,
+)
+from learn_to_cloud_shared.verification_attempt_executor import (
+    terminalize_verification_attempt as terminalize_attempt,
+)
+from learn_to_cloud_shared.verification_attempt_reconciler import (
+    reconcile_decision,
+    stale_cutoff,
+)
 from learn_to_cloud_shared.verification.llm_grading import (
     LLMGradingDecisionPayload,
     LLMGradingRequest,
@@ -88,6 +108,10 @@ app = df.DFApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 # data-driven -- the grading step runs only when the verify step emits
 # grading requests, so deterministic phases pass straight through.
 _ORCHESTRATOR_NAME = "verification_orchestrator"
+# Versioned orchestrator for the unified ``verification_attempts`` path. Kept
+# distinct from the legacy name so existing Durable history/replay for
+# in-flight legacy instances is untouched; the attempt id is the instance id.
+_ATTEMPT_ORCHESTRATOR_NAME = "verification_attempt_orchestrator_v1"
 _VERIFY_RETRY_OPTIONS = df.RetryOptions(
     first_retry_interval_in_milliseconds=5000,
     max_number_of_attempts=3,
@@ -783,3 +807,531 @@ async def get_verification_job_status(
             return _json_response({"error": "instance_not_found"}, status_code=404)
 
         return _json_response(status.to_json(), status_code=200)
+
+
+# ---------------------------------------------------------------------------
+# Versioned unified verification-attempt path (bridge / PR4)
+#
+# Runs against the curriculum-decoupled ``verification_attempts`` table. The
+# Durable input carries only the attempt id; every trusted field is loaded
+# from the attempt row by the prepare activity. Verification and LLM grading
+# reuse the legacy activities unchanged. Terminal state is written with a
+# compare-and-set finalize, and any authoritative failure is converted into a
+# terminal outcome via the terminalize activity instead of relying on polling.
+# ---------------------------------------------------------------------------
+
+
+def _attempt_id_from_input(context: df.DurableOrchestrationContext) -> str:
+    input_payload = context.get_input()
+    if not isinstance(input_payload, Mapping):
+        raise TypeError(
+            f"verification attempt orchestration: expected Mapping input, "
+            f"got {type(input_payload).__name__}"
+        )
+    attempt_id = input_payload.get("attempt_id")
+    if not isinstance(attempt_id, str):
+        raise TypeError("verification attempt orchestration: missing attempt_id")
+    return attempt_id
+
+
+def _finalize_attempt_step(
+    context: df.DurableOrchestrationContext,
+    outcome: _PreparedOutcome,
+    run_result: object,
+):
+    """Persist the attempt's terminal outcome via the CAS finalize activity."""
+    context.set_custom_status(
+        _job_custom_status("finalizing", outcome.job_id, outcome.prepared_job)
+    )
+    result = yield context.call_activity_with_retry(
+        "finalize_verification_attempt",
+        _TRANSIENT_RETRY_OPTIONS,
+        run_result,
+    )
+    result_payload = _activity_payload(result)
+    context.set_custom_status(
+        _result_custom_status("completed", outcome.job_id, result_payload)
+    )
+    return result
+
+
+def _terminalize_attempt_step(
+    context: df.DurableOrchestrationContext,
+    attempt_id: str,
+):
+    """Convert an authoritative orchestration failure into a terminal outcome.
+
+    Runs the terminalize activity so an exhausted-retry activity failure or an
+    orchestrator error records a trustworthy ``server_error`` instead of
+    leaving the attempt active for a browser poll that will never resolve it.
+    """
+    context.set_custom_status({"step": "terminalizing", "attempt_id": attempt_id})
+    return (
+        yield context.call_activity_with_retry(
+            "terminalize_verification_attempt",
+            _TRANSIENT_RETRY_OPTIONS,
+            {
+                "attempt_id": attempt_id,
+                "outcome": "server_error",
+                "error_code": "server_error",
+                "validation_message": "Verification could not be completed.",
+                "terminal_source": "orchestrator_exception",
+            },
+        )
+    )
+
+
+def _run_attempt_orchestration(context: df.DurableOrchestrationContext):
+    """Versioned workflow: prepare -> verify -> grade -> finalize.
+
+    Prepare loads and validates the attempt row (payload version, snapshot
+    provenance/hash, value kind, active state) and returns a runnable job the
+    existing verify/grade steps consume unchanged. Any exception in the
+    authoritative path terminalizes the attempt instead of failing silently.
+
+    Kept as a plain generator (separate from the decorated trigger) so the
+    orchestration tests can drive it directly.
+    """
+    attempt_id = _attempt_id_from_input(context)
+    _set_verification_span_attributes(job_id=attempt_id)
+    context.set_custom_status({"step": "preparing", "attempt_id": attempt_id})
+    try:
+        preparation = yield context.call_activity_with_retry(
+            "prepare_verification_attempt",
+            _TRANSIENT_RETRY_OPTIONS,
+            {"attempt_id": attempt_id},
+        )
+        prepared_job_payload = preparation["job"]
+        prepared_job = PreparedVerificationJob.from_payload(
+            _activity_payload(prepared_job_payload)
+        )
+        _set_prepared_job_span_attributes(prepared_job)
+        outcome = _PreparedOutcome(
+            job_id=attempt_id,
+            prepared_payload=prepared_job_payload,
+            prepared_job=prepared_job,
+        )
+        run_result = yield from _verify_step(context, outcome)
+        run_result = yield from _llm_grading_step(context, outcome, run_result)
+        return (yield from _finalize_attempt_step(context, outcome, run_result))
+    except Exception:
+        return (yield from _terminalize_attempt_step(context, attempt_id))
+
+
+@app.orchestration_trigger(context_name="context")
+def verification_attempt_orchestrator_v1(context: df.DurableOrchestrationContext):
+    """Run the versioned unified verification-attempt workflow."""
+    return (yield from _run_attempt_orchestration(context))
+
+
+def _terminal_state_payload(state: AttemptTerminalState) -> dict[str, object]:
+    return {
+        "attempt_id": str(state.id),
+        "outcome": state.outcome,
+        "error_code": state.error_code,
+        "validation_message": state.validation_message,
+        "terminal_source": state.terminal_source,
+        "completed_at": state.completed_at.isoformat()
+        if state.completed_at is not None
+        else None,
+    }
+
+
+@app.activity_trigger(input_name="input_payload")
+async def prepare_verification_attempt(
+    input_payload,
+    context: func.Context,
+) -> dict[str, object]:
+    """Load + validate an attempt row and return a runnable job payload."""
+    with _attached_invocation_context(context):
+        data = _activity_payload(input_payload)
+        raw_attempt_id = data.get("attempt_id")
+        if not isinstance(raw_attempt_id, str):
+            raise TypeError("prepare_verification_attempt: missing attempt_id")
+        attempt_id = UUID(raw_attempt_id)
+        _set_verification_span_attributes(job_id=str(attempt_id))
+        preparation = await prepare_attempt(
+            attempt_id,
+            session_maker=_get_session_maker(),
+        )
+        _set_prepared_job_span_attributes(preparation.job)
+        return preparation.to_payload()
+
+
+@app.activity_trigger(input_name="run_payload")
+async def finalize_verification_attempt(
+    run_payload,
+    context: func.Context,
+) -> dict[str, object]:
+    """Compare-and-set the attempt's real outcome and mirror the legacy row."""
+    with _attached_invocation_context(context):
+        run_result = VerificationRunResult.from_payload(_activity_payload(run_payload))
+        _set_prepared_job_span_attributes(run_result.job)
+        state = await finalize_attempt(
+            run_result,
+            session_maker=_get_session_maker(),
+        )
+        logger.info(
+            "verification.attempt.finalized",
+            extra={"attempt_id": str(state.id), "outcome": state.outcome},
+        )
+        return _terminal_state_payload(state)
+
+
+@app.activity_trigger(input_name="input_payload")
+async def terminalize_verification_attempt(
+    input_payload,
+    context: func.Context,
+) -> dict[str, object]:
+    """Compare-and-set a failure/cancellation outcome + mirror the legacy row."""
+    with _attached_invocation_context(context):
+        data = _activity_payload(input_payload)
+        attempt_id = UUID(str(data["attempt_id"]))
+        state = await terminalize_attempt(
+            attempt_id,
+            outcome=str(data["outcome"]),
+            error_code=str(data["error_code"]),
+            validation_message=str(data["validation_message"]),
+            terminal_source=str(data["terminal_source"]),
+            session_maker=_get_session_maker(),
+        )
+        logger.info(
+            "verification.attempt.terminalized",
+            extra={
+                "attempt_id": str(state.id),
+                "outcome": state.outcome,
+                "terminal_source": state.terminal_source,
+            },
+        )
+        return _terminal_state_payload(state)
+
+
+def _durable_instance_exists(status: object) -> bool:
+    """True when a Durable status describes a real, existing instance."""
+    if status is None:
+        return False
+    return getattr(status, "runtime_status", None) is not None
+
+
+def _runtime_status_name(status: object) -> str | None:
+    """Return a Durable status's runtime-status name, or None when absent."""
+    if status is None:
+        return None
+    runtime_status = getattr(status, "runtime_status", None)
+    if runtime_status is None:
+        return None
+    return getattr(runtime_status, "name", str(runtime_status))
+
+
+class _StartOutcome(Enum):
+    """Result of an idempotent attempt-orchestration start."""
+
+    STARTED = "started"
+    ALREADY_EXISTS = "already_exists"
+    ALREADY_CLAIMED = "already_claimed"
+    AMBIGUOUS_STARTED = "ambiguous_started"
+    START_FAILED = "start_failed"
+    ATTEMPT_NOT_FOUND = "attempt_not_found"
+
+
+class _StartClaim(Enum):
+    """Database claim state before any Durable start call."""
+
+    CLAIMED = "claimed"
+    ALREADY_CLAIMED = "already_claimed"
+    TERMINAL = "terminal"
+    MISSING = "missing"
+
+
+async def _get_instance_status(
+    client: df.DurableOrchestrationClient, instance_id: str
+) -> object:
+    return await client.get_status(
+        instance_id,
+        show_history=False,
+        show_history_output=False,
+        show_input=False,
+    )
+
+
+async def _resolve_ambiguous_start(
+    client: df.DurableOrchestrationClient,
+    instance_id: str,
+) -> object | None:
+    """Poll briefly until Durable confirms the instance exists or is absent."""
+    all_queries_succeeded = True
+    for delay_seconds in (0.0, 0.5, 1.5):
+        if delay_seconds:
+            await asyncio.sleep(delay_seconds)
+        try:
+            status = await _get_instance_status(client, instance_id)
+        except Exception:
+            all_queries_succeeded = False
+            logger.exception(
+                "verification.attempt.start.status_query_failed",
+                extra={"attempt_id": instance_id},
+            )
+            continue
+        if _durable_instance_exists(status):
+            return status
+    if not all_queries_succeeded:
+        raise RuntimeError(
+            f"Durable status could not confirm whether attempt {instance_id} started"
+        )
+    return None
+
+
+async def _claim_attempt_start(
+    attempt_id: UUID,
+    *,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> _StartClaim:
+    """Atomically claim the right to call Durable ``start_new``."""
+    async with session_maker() as db:
+        repo = VerificationAttemptRepository(db)
+        if await repo.mark_started(attempt_id):
+            await db.commit()
+            return _StartClaim.CLAIMED
+
+        status = await repo.get_status(attempt_id)
+        if status is None:
+            return _StartClaim.MISSING
+        if status.outcome is not None:
+            return _StartClaim.TERMINAL
+        return _StartClaim.ALREADY_CLAIMED
+
+
+async def _start_attempt_orchestration(
+    client: df.DurableOrchestrationClient,
+    attempt_uuid: UUID,
+    *,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> _StartOutcome:
+    """Idempotently start the attempt orchestration keyed by the attempt UUID.
+
+    The attempt UUID is the Durable instance id, so a retry re-uses the same
+    id. An already-existing instance is treated as success; an ambiguous start
+    failure is resolved by inspecting Durable status before deciding the start
+    truly failed; only a confirmed start failure terminalizes the attempt.
+    """
+    instance_id = str(attempt_uuid)
+
+    claim = await _claim_attempt_start(
+        attempt_uuid,
+        session_maker=session_maker,
+    )
+    if claim is _StartClaim.MISSING:
+        return _StartOutcome.ATTEMPT_NOT_FOUND
+    if claim is _StartClaim.TERMINAL:
+        return _StartOutcome.ALREADY_EXISTS
+    if claim is _StartClaim.ALREADY_CLAIMED:
+        existing = await _resolve_ambiguous_start(client, instance_id)
+        if not _durable_instance_exists(existing):
+            logger.info(
+                "verification.attempt.start.claimed_pending",
+                extra={"attempt_id": instance_id},
+            )
+            return _StartOutcome.ALREADY_CLAIMED
+        logger.info(
+            "verification.attempt.start.already_exists",
+            extra={
+                "attempt_id": instance_id,
+                "runtime_status": _runtime_status_name(existing),
+            },
+        )
+        return _StartOutcome.ALREADY_EXISTS
+
+    try:
+        await client.start_new(
+            _ATTEMPT_ORCHESTRATOR_NAME,
+            instance_id=instance_id,
+            client_input={"attempt_id": instance_id},
+        )
+    except Exception as exc:
+        # The start result is ambiguous (timeout / transient query failure).
+        # Inspect Durable status before deciding it failed so a race where the
+        # instance actually started is not double-counted as a failure.
+        status = await _resolve_ambiguous_start(client, instance_id)
+        if _durable_instance_exists(status):
+            logger.warning(
+                "verification.attempt.start.ambiguous_but_started",
+                extra={
+                    "attempt_id": instance_id,
+                    "runtime_status": _runtime_status_name(status),
+                },
+            )
+            return _StartOutcome.AMBIGUOUS_STARTED
+
+        logger.error(
+            "verification.attempt.start.failed",
+            extra={"attempt_id": instance_id, "error": str(exc)},
+        )
+        await terminalize_attempt(
+            attempt_uuid,
+            outcome="server_error",
+            error_code="server_error",
+            validation_message="Verification could not be started.",
+            terminal_source="start_failure",
+            session_maker=session_maker,
+        )
+        return _StartOutcome.START_FAILED
+
+    logger.info(
+        "verification.attempt.orchestration.started",
+        extra={
+            "attempt_id": instance_id,
+            "orchestrator_name": _ATTEMPT_ORCHESTRATOR_NAME,
+        },
+    )
+    return _StartOutcome.STARTED
+
+
+@app.route(route="verification/attempts/{attempt_id}/start", methods=["POST"])
+@app.durable_client_input(client_name="client")
+async def start_verification_attempt(
+    req: func.HttpRequest,
+    client: df.DurableOrchestrationClient,
+    context: func.Context,
+) -> func.HttpResponse:
+    """Start the versioned attempt orchestration, keyed by the attempt UUID."""
+    with _attached_invocation_context(context):
+        raw_attempt_id = req.route_params.get("attempt_id")
+        if raw_attempt_id is None:
+            return _json_response({"error": "missing_attempt_id"}, status_code=400)
+
+        try:
+            attempt_uuid = UUID(raw_attempt_id)
+        except ValueError:
+            return _json_response({"error": "invalid_attempt_id"}, status_code=400)
+
+        instance_id = str(attempt_uuid)
+        _set_verification_span_attributes(job_id=instance_id)
+
+        outcome = await _start_attempt_orchestration(
+            client,
+            attempt_uuid,
+            session_maker=_get_session_maker(),
+        )
+        if outcome is _StartOutcome.START_FAILED:
+            return _json_response({"error": "start_failed"}, status_code=500)
+        if outcome is _StartOutcome.ATTEMPT_NOT_FOUND:
+            return _json_response({"error": "attempt_not_found"}, status_code=404)
+        return client.create_check_status_response(req, instance_id)
+
+
+@dataclass(frozen=True)
+class _ReconcileSummary:
+    """Structured result of a reconciler pass, for logging + tests."""
+
+    candidate_count: int
+    terminalized_count: int
+
+
+async def _reconcile_stale_attempts(
+    client: df.DurableOrchestrationClient,
+    *,
+    session_maker: async_sessionmaker[AsyncSession],
+    stale_attempt_min_age_minutes: int,
+    batch_limit: int,
+    now: datetime | None = None,
+) -> _ReconcileSummary:
+    """Terminalize abandoned active attempts older than the verification window.
+
+    Asks Durable for each fixed instance's status and compare-and-set
+    terminalizes only the confirmed abandoned/failed/terminated/cancelled/
+    not-started ones; healthy Pending/Running instances are left untouched.
+    Idempotent: a re-run re-applies harmless CAS no-ops.
+    """
+    reference = now if now is not None else utcnow()
+    cutoff = stale_cutoff(reference, stale_attempt_min_age_minutes)
+    async with session_maker() as db:
+        stale = await VerificationAttemptRepository(db).list_active_older_than(
+            cutoff,
+            limit=batch_limit,
+        )
+    logger.info(
+        "verification.reconciler.scan",
+        extra={"candidate_count": len(stale), "cutoff": cutoff.isoformat()},
+    )
+
+    terminalized = 0
+    for attempt in stale:
+        instance_id = str(attempt.id)
+        try:
+            status = await _get_instance_status(client, instance_id)
+        except Exception:
+            logger.exception(
+                "verification.reconciler.status_query_failed",
+                extra={"attempt_id": instance_id},
+            )
+            continue
+        status_name = _runtime_status_name(status)
+        decision = reconcile_decision(status_name)
+        if decision is None:
+            continue
+        if status_name is None:
+            try:
+                confirmed_status = await _get_instance_status(client, instance_id)
+            except Exception:
+                logger.exception(
+                    "verification.reconciler.status_recheck_failed",
+                    extra={"attempt_id": instance_id},
+                )
+                continue
+            confirmed_name = _runtime_status_name(confirmed_status)
+            decision = reconcile_decision(confirmed_name)
+            if decision is None:
+                continue
+            status_name = confirmed_name
+        await terminalize_attempt(
+            attempt.id,
+            outcome=decision.outcome,
+            error_code=decision.error_code,
+            validation_message=decision.validation_message,
+            terminal_source=decision.terminal_source,
+            session_maker=session_maker,
+        )
+        terminalized += 1
+        logger.info(
+            "verification.reconciler.terminalized",
+            extra={
+                "attempt_id": str(attempt.id),
+                "durable_status": status_name,
+                "outcome": decision.outcome.value,
+            },
+        )
+
+    logger.info(
+        "verification.reconciler.completed",
+        extra={
+            "candidate_count": len(stale),
+            "terminalized_count": terminalized,
+        },
+    )
+    return _ReconcileSummary(
+        candidate_count=len(stale),
+        terminalized_count=terminalized,
+    )
+
+
+@app.timer_trigger(
+    arg_name="timer",
+    schedule="0 */15 * * * *",
+    run_on_startup=False,
+    use_monitor=True,
+)
+@app.durable_client_input(client_name="client")
+async def reconcile_stale_verification_attempts(
+    timer: func.TimerRequest,
+    client: df.DurableOrchestrationClient,
+    context: func.Context,
+) -> None:
+    """Scheduled reconciler for abandoned active verification attempts."""
+    with _attached_invocation_context(context):
+        cfg = get_worker_settings().reconciler
+        await _reconcile_stale_attempts(
+            client,
+            session_maker=_get_session_maker(),
+            stale_attempt_min_age_minutes=cfg.stale_attempt_min_age_minutes,
+            batch_limit=cfg.batch_limit,
+        )

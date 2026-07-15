@@ -133,6 +133,31 @@ class SubmittedValue:
                 return cls(kind=kind, text_value=value)
 
     @classmethod
+    def from_kind_and_value(
+        cls,
+        kind: str | SubmissionValueKind,
+        value: str,
+    ) -> SubmittedValue:
+        """Build a typed value from a stored ``(kind, submitted_value)`` pair.
+
+        The ``verification_attempts`` table keeps only the kind and the single
+        canonical ``submitted_value`` text, so this routes that text into the
+        column the kind implies without re-parsing/validating it.
+        """
+        normalized_kind = (
+            kind if isinstance(kind, SubmissionValueKind) else SubmissionValueKind(kind)
+        )
+        match normalized_kind:
+            case SubmissionValueKind.GITHUB_URL:
+                return cls(kind=normalized_kind, github_url=value)
+            case SubmissionValueKind.TOKEN:
+                return cls(kind=normalized_kind, token_value=value)
+            case SubmissionValueKind.DEPLOYED_URL:
+                return cls(kind=normalized_kind, deployed_url=value)
+            case SubmissionValueKind.TEXT:
+                return cls(kind=normalized_kind, text_value=value)
+
+    @classmethod
     def from_columns(
         cls,
         *,
