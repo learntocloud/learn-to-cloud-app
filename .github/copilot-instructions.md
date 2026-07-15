@@ -16,19 +16,15 @@ Workflow:
 4. Open a Pull Request to merge into `main`
 5. Never force-push to `main`, alert user if some git error occurs
 
-These prefixes must stay in sync with the `pull_request.branches` globs in `.github/workflows/deploy.yml`, so stacked PRs (base != `main`) still run CI.
-
 ## Stacked PRs
 
-Split a large, tightly-coupled change into a chain of small PRs when reviewers benefit from seeing it in stages. Use the `gh-stack` extension (installed) and its skill at `.agents/skills/gh-stack/SKILL.md` to create and sync the stack. Do not hand-manage rebases.
+Use stacked PRs only when a large, tightly-coupled change benefits from staged review. Use the `gh-stack` extension and its skill at `.agents/skills/gh-stack/SKILL.md` for stack mechanics.
 
-Rules:
+Repository policy:
 
-1. Chain off `main`: bottom PR base = `main`, each higher PR base = the branch below it. Only stack work that genuinely depends on the branch below; independent work gets its own top-level branch off `main`.
-2. Never squash-merge a stacked PR. Squash rewrites the base into a new SHA and gives every PR above it phantom conflicts (this exact bug hit PRs #632-#636). Merge stacked PRs with **Create a merge commit** (the only method that preserves GitHub's indirect auto-merge and clean retargeting). Reserve **Squash and merge** for standalone single PRs.
-3. Rebase-and-merge also rewrites SHAs on GitHub, so after each lower PR lands, the next PR up still needs one rebase onto `main`. Let `gh-stack` do that sync; do not force-push `main`.
-4. Auto-delete head branches is ON, so GitHub auto-retargets the next PR's base to `main` when a merged branch is deleted. Still confirm the base before merging.
-5. Every merge to `main` that touches a deploy path (`api/**`, `apps/verification-functions/**`, `infra/**`, `packages/learn-to-cloud-shared/**`, etc.) triggers a full build + terraform + deploy. `concurrency: cancel-in-progress` collapses back-to-back merges into roughly one real deploy, so merge a ready stack in quick succession rather than spacing merges out.
+1. Independent work gets a standalone branch from `main`; only stack work that genuinely depends on the layer below it.
+2. Prefer **Squash and merge** so each PR lands as one commit.
+3. Identify deployment boundaries before merging. Merge only through the highest layer that can deploy safely, wait for that deployment when required, then merge the remaining layer.
 
 
 ## Code Comments and Docstrings
