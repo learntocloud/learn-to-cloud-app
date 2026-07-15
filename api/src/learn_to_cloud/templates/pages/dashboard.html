@@ -6,20 +6,16 @@
 {% endblock %}
 
 {% block page_body %}
-{# ── Overall progress hero card ──
-   Two separate item-weighted measures (learning steps checked,
-   verification requirements succeeded), never one blended percentage --
-   verification is primary per the product decision that it's the
-   learner-facing measure of record. #}
+{# Primary verification progress and secondary learning progress. #}
 <div class="relative overflow-hidden p-5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-800 mb-8 shadow">
     <h2 class="text-lg font-bold text-white mb-1">Overall Progress</h2>
     <p class="text-sm text-blue-100 mb-4">
         {{ dashboard.phases_completed }} of {{ dashboard.total_phases }} phases complete.
-        Verification is the measure that counts here — steps checked below just tracks what you've studied.
+        Complete each phase's verification to progress.
     </p>
 
     <div class="mb-3">
-        <p class="text-sm font-medium text-white mb-1">Verification — {{ dashboard.verification_percentage | round(0) | int }}% of requirements</p>
+        <p class="text-sm font-medium text-white mb-1">Verification progress — {{ dashboard.verification_percentage | round(0) | int }}% of requirements</p>
         <div
             class="h-2.5 bg-white/20 rounded-full overflow-hidden"
             role="progressbar"
@@ -33,7 +29,7 @@
     </div>
 
     <div>
-        <p class="text-xs text-blue-100 mb-1">Steps checked — {{ dashboard.learning_percentage | round(0) | int }}% of learning steps</p>
+        <p class="text-xs text-blue-100 mb-1">Learning progress — {{ dashboard.learning_percentage | round(0) | int }}% of learning steps</p>
         <div
             class="h-1.5 bg-white/20 rounded-full overflow-hidden"
             role="progressbar"

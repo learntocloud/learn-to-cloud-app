@@ -19,12 +19,11 @@
     <div class="mt-2 text-gray-600 dark:text-gray-400 [&>p]:m-0 phase-description">{{ phase.description | md | safe }}</div>
 
     {% if phase_progress %}
-    {% set has_both_measures = phase_progress.verification.requirements_required > 0 and phase_progress.learning.steps_required > 0 %}
     <div class="mt-4 space-y-2 max-w-md">
         {% if phase_progress.verification.requirements_required > 0 %}
         {% with
             value=phase_progress.verification.percentage,
-            label='Requirements verified — ' ~ phase_progress.verification.requirements_verified ~ '/' ~ phase_progress.verification.requirements_required,
+            label='Verification progress — ' ~ phase_progress.verification.requirements_verified ~ '/' ~ phase_progress.verification.requirements_required ~ ' requirements',
             complete=phase_progress.verification.is_complete,
             aria_label='Requirements verified: ' ~ phase_progress.verification.requirements_verified ~ ' of ' ~ phase_progress.verification.requirements_required
         %}
@@ -34,17 +33,12 @@
         {% if phase_progress.learning.steps_required > 0 %}
         {% with
             value=phase_progress.learning.percentage,
-            label='Steps checked — ' ~ phase_progress.learning.steps_completed ~ '/' ~ phase_progress.learning.steps_required,
+            label='Learning progress — ' ~ phase_progress.learning.steps_completed ~ '/' ~ phase_progress.learning.steps_required ~ ' steps',
             complete=phase_progress.learning.is_complete,
             aria_label='Learning steps checked: ' ~ phase_progress.learning.steps_completed ~ ' of ' ~ phase_progress.learning.steps_required
         %}
         {% include "partials/progress_bar.html" %}
         {% endwith %}
-        {% endif %}
-        {% if has_both_measures %}
-        <p class="text-xs text-gray-500 dark:text-gray-400">
-            Verification is what counts toward finishing this phase — steps checked just tracks what you've studied.
-        </p>
         {% endif %}
     </div>
     {% endif %}

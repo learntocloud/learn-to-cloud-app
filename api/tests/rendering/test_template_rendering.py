@@ -205,6 +205,36 @@ class TestProgressBarAccessibility:
 
 
 @pytest.mark.unit
+def test_phase_progress_uses_distinct_labels_without_explanatory_copy():
+    phase_progress = SimpleNamespace(
+        status="in_progress",
+        verification=SimpleNamespace(
+            requirements_required=2,
+            requirements_verified=1,
+            percentage=50.0,
+            is_complete=False,
+        ),
+        learning=SimpleNamespace(
+            steps_required=5,
+            steps_completed=2,
+            percentage=40.0,
+            is_complete=False,
+        ),
+    )
+    html = _render(
+        "pages/phase.html",
+        phase=SimpleNamespace(name="Phase 1", description="", order=1),
+        topics=[],
+        phase_progress=phase_progress,
+        requirements=[],
+    )
+
+    assert "Verification progress — 1/2 requirements" in html
+    assert "Learning progress — 2/5 steps" in html
+    assert "Verification is what counts" not in html
+
+
+@pytest.mark.unit
 def test_step_checkbox_keeps_keyboard_events_from_toggling_accordion():
     loader = _ENV.loader
     assert loader is not None
@@ -265,6 +295,20 @@ class TestDashboardPhaseRow:
         html = self._render_dashboard(progress)
         assert "1/2 requirements verified" in html
         assert "0/0 steps checked" not in html
+
+    def test_hero_uses_clear_progress_labels(self):
+        progress = self._progress(
+            status="in_progress",
+            steps_completed=2,
+            steps_required=5,
+            requirements_verified=1,
+            requirements_required=2,
+        )
+        html = self._render_dashboard(progress)
+        assert "Complete each phase's verification to progress." in html
+        assert "Verification progress — 3% of requirements" in html
+        assert "Learning progress — 3% of learning steps" in html
+        assert "Verification is the measure that counts" not in html
 
     def test_step_progress_phase_shows_both_counts(self):
         progress = self._progress(
