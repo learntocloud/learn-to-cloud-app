@@ -10,7 +10,7 @@ from learn_to_cloud_shared.verification.evidence import (
 from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidencePolicy,
-    IndicatorGraderConfig,
+    FilePresenceGraderConfig,
     VerificationTask,
 )
 
@@ -32,7 +32,7 @@ def _task(
             max_file_size_bytes=max_file_size_bytes,
             max_total_bytes=max_total_bytes,
         ),
-        grader=IndicatorGraderConfig(),
+        grader=FilePresenceGraderConfig(),
     )
 
 

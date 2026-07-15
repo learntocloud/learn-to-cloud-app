@@ -17,7 +17,6 @@ EvidenceSource = Literal[
     "manual",
 ]
 GraderKind = Literal[
-    "indicator",
     "file_presence",
     "api_probe",
     "token",
@@ -54,15 +53,6 @@ class EvidenceBundle(FrozenModel):
     source: EvidenceSource
     items: list[EvidenceItem] = Field(default_factory=list)
     total_bytes: int = 0
-
-
-class IndicatorGraderConfig(FrozenModel):
-    """Deterministic substring-based grading config."""
-
-    kind: Literal["indicator"] = "indicator"
-    pass_indicators: list[str] = Field(default_factory=list)
-    fail_indicators: list[str] = Field(default_factory=list)
-    min_pass_count: int = 1
 
 
 class FilePresenceGraderConfig(FrozenModel):
@@ -119,8 +109,7 @@ class CompositeGraderConfig(FrozenModel):
 
 
 GraderConfig = Annotated[
-    IndicatorGraderConfig
-    | FilePresenceGraderConfig
+    FilePresenceGraderConfig
     | ApiProbeGraderConfig
     | TokenGraderConfig
     | LLMRubricGraderConfig
@@ -164,13 +153,6 @@ class GradingResult(FrozenModel):
             feedback=self.feedback,
             next_steps=self.next_steps,
         )
-
-
-def require_indicator_grader(task: VerificationTask) -> IndicatorGraderConfig:
-    """Return the task's indicator grader or raise a configuration error."""
-    if not isinstance(task.grader, IndicatorGraderConfig):
-        raise TypeError(f"Task {task.id} does not use an indicator grader")
-    return task.grader
 
 
 def require_file_presence_grader(task: VerificationTask) -> FilePresenceGraderConfig:

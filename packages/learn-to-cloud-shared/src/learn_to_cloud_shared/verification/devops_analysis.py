@@ -1,330 +1,147 @@
-"""Phase 5 DevOps verification — checks that learners have added
-Dockerfile, CI/CD, Terraform, and K8s artifacts to their journal-starter fork.
-"""
+"""Deterministic repository checks for the Phase 5 DevOps capstone."""
 
 from __future__ import annotations
-
-import asyncio
 
 import httpx
 from opentelemetry import trace
 
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.verification.errors import github_error_to_result
-from learn_to_cloud_shared.verification.evidence import truncate_to_bytes
-from learn_to_cloud_shared.verification.github_http import (
-    RETRIABLE_EXCEPTIONS,
-)
-from learn_to_cloud_shared.verification.graders import grade_indicator_task
+from learn_to_cloud_shared.verification.github_http import RETRIABLE_EXCEPTIONS
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
-from learn_to_cloud_shared.verification.tasks.base import VerificationTask
 from learn_to_cloud_shared.verification.tasks.phase5 import (
-    MAX_FILE_SIZE_BYTES,
-    PHASE5_TASKS,
+    PHASE5_EVIDENCE_PATH_PATTERNS,
+    PHASE5_MAX_EVIDENCE_FILES,
+    PHASE5_REQUIRED_PATHS,
 )
 
-tracer = trace.get_tracer(__name__)
-
-# Patterns that suggest prompt injection attempts.
-# Logged as warnings for monitoring.
-_SUSPICIOUS_PATTERNS = [
-    "ignore previous instructions",
-    "ignore all instructions",
-    "mark as passed",
-    "override",
-    "system prompt",
-]
+_tracer = trace.get_tracer(__name__)
+_FILES_TASK_NAME = "Required DevOps Files"
 
 
-class DevOpsAnalysisError(Exception):
-    """Raised when DevOps analysis fails."""
+def missing_required_devops_paths(all_files: list[str]) -> list[str]:
+    """Return required exact paths or directory prefixes absent from the tree."""
+    normalized = {path.casefold() for path in all_files}
+    missing: list[str] = []
+    for required in PHASE5_REQUIRED_PATHS:
+        normalized_required = required.casefold()
+        if required.endswith("/"):
+            present = any(path.startswith(normalized_required) for path in normalized)
+        else:
+            present = normalized_required in normalized
+        if not present:
+            missing.append(required)
+    return missing
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Static helpers (pure functions)
-# ─────────────────────────────────────────────────────────────────────────────
+def select_devops_evidence_paths(
+    all_files: list[str],
+    *,
+    max_files: int = PHASE5_MAX_EVIDENCE_FILES,
+) -> list[str]:
+    """Select bounded DevOps files, prioritizing prescribed exact paths."""
+    ordered_files = sorted(all_files, key=str.casefold)
+    selected: list[str] = []
+    selected_normalized: set[str] = set()
 
+    exact_patterns = [
+        pattern
+        for pattern in PHASE5_EVIDENCE_PATH_PATTERNS
+        if not pattern.endswith("/")
+    ]
+    directory_patterns = [
+        pattern for pattern in PHASE5_EVIDENCE_PATH_PATTERNS if pattern.endswith("/")
+    ]
 
-def _check_required_files(all_files: list[str]) -> list[TaskResult]:
-    """Check each task's ``required_files`` against the full repo tree.
+    for pattern in exact_patterns:
+        match = next(
+            (
+                path
+                for path in ordered_files
+                if path.casefold() == pattern.casefold()
+                and path.casefold() not in selected_normalized
+            ),
+            None,
+        )
+        if match is not None:
+            selected.append(match)
+            selected_normalized.add(match.casefold())
 
-    Entries ending with ``/`` are directory prefixes — at least one
-    file must exist under that path.  All other entries are exact
-    file matches (case-insensitive).
-
-    Returns:
-        List of ``TaskResult`` failures.  Empty means all files exist.
-    """
-    all_files_lower = {f.lower() for f in all_files}
-    failures: list[TaskResult] = []
-
-    for task in PHASE5_TASKS:
-        missing: list[str] = []
-        for req in task.evidence.required_files:
-            if req.endswith("/"):
-                if not any(f.startswith(req.lower()) for f in all_files_lower):
-                    missing.append(req)
-            else:
-                if req.lower() not in all_files_lower:
-                    missing.append(req)
-
-        if missing:
-            first = missing[0]
-            if first.endswith("/"):
-                next_step = f"Add at least one file under {first} in your repository."
-            else:
-                next_step = f"Add {first} to your repository."
-            failures.append(
-                TaskResult(
-                    task_name=task.name,
-                    passed=False,
-                    feedback=(
-                        "Required file(s) not found in repository: "
-                        f"{', '.join(missing)}."
-                    ),
-                    next_steps=next_step,
-                )
-            )
-
-    return failures
-
-
-def _check_task_indicators(
-    task_def: VerificationTask,
-    file_contents: list[str],
-) -> TaskResult:
-    """Check pass/fail indicators against file contents for one task."""
-    return grade_indicator_task(task_def, file_contents).to_task_result()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Repository file fetching
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def _filter_devops_files(all_files: list[str]) -> dict[str, list[str]]:
-    """Filter repository files to DevOps-relevant paths.
-
-    Exact-match patterns are collected first (guaranteed inclusion);
-    directory patterns fill remaining slots up to MAX_FILES_PER_CATEGORY.
-
-    Returns:
-        Dict mapping task_id -> list of relevant file paths.
-    """
-    result: dict[str, list[str]] = {}
-
-    for task in PHASE5_TASKS:
-        exact_patterns = [p for p in task.evidence.path_patterns if not p.endswith("/")]
-        dir_patterns = [p for p in task.evidence.path_patterns if p.endswith("/")]
-
-        exact_matches: list[str] = []
-        dir_matches: list[str] = []
-        exact_set: set[str] = set()
-
-        for file_path in all_files:
-            matched_exact = False
-            for pattern in exact_patterns:
-                if file_path.lower() == pattern.lower():
-                    exact_matches.append(file_path)
-                    exact_set.add(file_path)
-                    matched_exact = True
-                    break
-            if not matched_exact:
-                for pattern in dir_patterns:
-                    if file_path.lower().startswith(pattern.lower()):
-                        dir_matches.append(file_path)
-                        break
-
-        # Exact matches always come first; directory matches fill remaining slots
-        combined = exact_matches + [f for f in dir_matches if f not in exact_set]
-        result[task.id] = combined[: task.evidence.max_files]
-
-    return result
-
-
-async def _fetch_file_content(
-    repo_files: RepoFiles, owner: str, repo: str, path: str, branch: str = "main"
-) -> str | None:
-    """Fetch a single file's raw content, truncating and flagging suspicious text.
-
-    Returns ``None`` when the file cannot be read.
-    """
-    content = await repo_files.file(owner, repo, path, branch)
-    if content is None:
-        return None
-
-    if len(content.encode("utf-8")) > MAX_FILE_SIZE_BYTES:
-        content = truncate_to_bytes(content, MAX_FILE_SIZE_BYTES)
-
-    content_lower = content.lower()
-    for pattern in _SUSPICIOUS_PATTERNS:
-        if pattern in content_lower:
-            span = trace.get_current_span()
-            span.add_event(
-                "suspicious_pattern",
-                {"pattern": pattern, "file": path},
-            )
+    for path in ordered_files:
+        normalized_path = path.casefold()
+        if normalized_path in selected_normalized:
+            continue
+        if any(
+            normalized_path.startswith(pattern.casefold())
+            for pattern in directory_patterns
+        ):
+            selected.append(path)
+            selected_normalized.add(normalized_path)
+        if len(selected) >= max_files:
             break
 
-    return content
+    return selected[:max_files]
 
 
-async def _fetch_all_devops_files(
-    repo_files: RepoFiles,
-    owner: str,
-    repo: str,
-    devops_files: dict[str, list[str]],
-    branch: str = "main",
-) -> dict[str, list[str]]:
-    """Fetch all DevOps file contents in parallel.
-
-    Returns:
-        Dict mapping task_id -> list of raw file content strings.
-    """
-    fetch_tasks: list[tuple[str, str]] = []
-    for task_id, paths in devops_files.items():
-        for path in paths:
-            fetch_tasks.append((task_id, path))
-
-    if not fetch_tasks:
-        return {task.id: [] for task in PHASE5_TASKS}
-
-    async def _fetch_one(task_id: str, path: str) -> tuple[str, str | None]:
-        content = await _fetch_file_content(repo_files, owner, repo, path, branch)
-        return (task_id, content)
-
-    results = await asyncio.gather(
-        *[_fetch_one(tid, p) for tid, p in fetch_tasks],
-        return_exceptions=True,
-    )
-
-    grouped: dict[str, list[str]] = {task.id: [] for task in PHASE5_TASKS}
-    total_bytes = 0
-    max_total_bytes = max(task.evidence.max_total_bytes for task in PHASE5_TASKS)
-
-    for result in results:
-        if isinstance(result, BaseException):
-            continue
-        task_id, content = result
-        if content is None:
-            continue
-
-        content_size = len(content.encode("utf-8"))
-        if total_bytes + content_size > max_total_bytes:
-            continue
-        total_bytes += content_size
-        grouped[task_id].append(content)
-
-    return grouped
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Main workflow
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-async def run_devops_workflow(
-    owner: str, repo: str, repo_files: RepoFiles | None = None
-) -> ValidationResult:
-    """Run the full Phase 5 DevOps verification."""
-    repo_files = repo_files or default_repo_files()
-    with tracer.start_as_current_span(
-        "devops_verification",
-        attributes={
-            "github.owner": owner,
-            "github.repo": repo,
-        },
-    ) as span:
-        # ── Step 1: Fetch repo tree ──────────────────────────────
-        try:
-            all_files = await repo_files.tree(owner, repo)
-        except (
-            httpx.HTTPStatusError,
-            *RETRIABLE_EXCEPTIONS,
-        ) as e:
-            if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
-                span.set_attribute("verification.passed", False)
-                span.set_attribute("verification.reason", "repo_not_found")
-                return ValidationResult(
-                    is_valid=False,
-                    message=(
-                        f"Repository '{owner}/{repo}' not found. "
-                        "Make sure the repository is public."
+def check_required_devops_files(all_files: list[str]) -> ValidationResult:
+    """Build the authoritative required-files gate result."""
+    missing = missing_required_devops_paths(all_files)
+    if missing:
+        missing_text = ", ".join(missing)
+        return ValidationResult(
+            is_valid=False,
+            message="Required DevOps files are missing.",
+            task_results=[
+                TaskResult(
+                    task_name=_FILES_TASK_NAME,
+                    passed=False,
+                    feedback=f"Missing required path(s): {missing_text}.",
+                    next_steps=(
+                        "Add the missing files or directories to your "
+                        "journal-starter repository, then submit again."
                     ),
                 )
-            span.record_exception(e)
+            ],
+        )
+
+    return ValidationResult(
+        is_valid=True,
+        message="Required DevOps files are present.",
+        task_results=[
+            TaskResult(
+                task_name=_FILES_TASK_NAME,
+                passed=True,
+                feedback=(
+                    "Found the Dockerfile, GitHub Actions workflow, Terraform "
+                    "configuration, and required Kubernetes manifests."
+                ),
+            )
+        ],
+    )
+
+
+async def verify_required_devops_files(
+    owner: str,
+    repo: str,
+    repo_files: RepoFiles | None = None,
+) -> ValidationResult:
+    """Fetch the repository tree and run the required-files gate."""
+    repo_files = repo_files or default_repo_files()
+    with _tracer.start_as_current_span(
+        "devops_required_files",
+        attributes={"github.owner": owner, "github.repo": repo},
+    ) as span:
+        try:
+            all_files = await repo_files.tree(owner, repo)
+        except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
+            span.record_exception(exc)
             return github_error_to_result(
-                e,
+                exc,
                 event="devops_analysis.repo_tree_error",
                 context={"owner": owner, "repo": repo},
             )
 
+        result = check_required_devops_files(all_files)
+        span.set_attribute("verification.passed", result.is_valid)
         span.set_attribute("repo.total_files", len(all_files))
-
-        # ── Step 2: Check required files exist ───────────────────
-        existence_failures = _check_required_files(all_files)
-
-        if existence_failures:
-            span.set_attribute("verification.passed", False)
-            span.set_attribute("verification.reason", "missing_files")
-            span.set_attribute(
-                "verification.failed_tasks",
-                ",".join(f.task_name for f in existence_failures),
-            )
-            failed_count = len(existence_failures)
-            total = len(PHASE5_TASKS)
-            return ValidationResult(
-                is_valid=False,
-                message=(
-                    f"{failed_count} of {total} tasks are missing required files. "
-                    "Add the missing files listed below, then re-submit."
-                ),
-                task_results=existence_failures,
-            )
-
-        # ── Step 3: Fetch file contents ──────────────────────────
-        devops_files = _filter_devops_files(all_files)
-        file_contents = await _fetch_all_devops_files(
-            repo_files, owner, repo, devops_files
-        )
-
-        span.set_attribute(
-            "repo.fetched_files",
-            sum(len(v) for v in file_contents.values()),
-        )
-
-        # ── Step 4: Run indicator checks per task ────────────────
-        task_results: list[TaskResult] = []
-        for task_def in PHASE5_TASKS:
-            task_files = file_contents.get(task_def.id, [])
-            result = _check_task_indicators(task_def, task_files)
-            task_results.append(result)
-
-        # ── Step 5: Aggregate results ────────────────────────────
-        passed_count = sum(1 for t in task_results if t.passed)
-        total_count = len(PHASE5_TASKS)
-        all_passed = passed_count == total_count
-
-        if all_passed:
-            message = (
-                f"All {total_count} DevOps tasks verified! "
-                "Your journal-starter fork has proper "
-                "containerization, CI/CD, Terraform, and "
-                "Kubernetes artifacts."
-            )
-        else:
-            message = (
-                f"Completed {passed_count}/{total_count} tasks. "
-                "Review the feedback below and try again "
-                "after making improvements."
-            )
-
-        span.set_attribute("verification.passed", all_passed)
-        span.set_attribute("verification.passed_count", passed_count)
-        span.set_attribute("verification.total_count", total_count)
-
-        return ValidationResult(
-            is_valid=all_passed,
-            message=message,
-            task_results=task_results,
-        )
+        return result

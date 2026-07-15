@@ -511,32 +511,82 @@ async def test_deployed_api_profile_fails_when_probe_fails(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_devops_profile_passes_through_deterministic_result(monkeypatch):
-    async def fake_workflow(owner, repo, repo_files=None):
+async def test_devops_profile_runs_files_then_ghcr_gates(monkeypatch):
+    calls: list[str] = []
+    files_task = TaskResult(task_name="Files", passed=True, feedback="present")
+    image_task = TaskResult(task_name="Image", passed=True, feedback="pullable")
+
+    async def fake_files(owner, repo, repo_files=None):
+        calls.append("files")
         assert owner == "learner"
         assert repo == "devops-repo"
-        return ValidationResult(is_valid=True, message="DevOps checks passed")
+        return ValidationResult(
+            is_valid=True,
+            message="Required files exist",
+            task_results=[files_task],
+        )
 
-    monkeypatch.setattr(engine_module, "run_devops_workflow", fake_workflow)
+    async def fake_image(owner):
+        calls.append("image")
+        assert owner == "learner"
+        return ValidationResult(
+            is_valid=True,
+            message="Container image is pullable",
+            task_results=[image_task],
+        )
+
+    monkeypatch.setattr(engine_module, "verify_required_devops_files", fake_files)
+    monkeypatch.setattr(engine_module, "verify_public_ghcr_image", fake_image)
 
     result = await run_profile(_devops_job())
 
+    assert calls == ["files", "image"]
     assert result.validation_result.is_valid is True
-    assert result.validation_result.message == "DevOps checks passed"
+    assert result.validation_result.message == "Container image is pullable"
+    assert result.validation_result.task_results == [files_task, image_task]
     assert result.grading_requests == []
+    assert result.grading_disposition == GradingDisposition.NOT_REQUIRED
     assert result.evidence is None
 
 
 @pytest.mark.asyncio
-async def test_devops_profile_fails_when_workflow_fails(monkeypatch):
-    async def fake_workflow(owner, repo, repo_files=None):
+async def test_devops_profile_skips_ghcr_when_files_gate_fails(monkeypatch):
+    calls: list[str] = []
+
+    async def fake_files(owner, repo, repo_files=None):
+        calls.append("files")
         return ValidationResult(is_valid=False, message="Missing workflow file")
 
-    monkeypatch.setattr(engine_module, "run_devops_workflow", fake_workflow)
+    async def fake_image(owner):
+        calls.append("image")
+        return ValidationResult(is_valid=True, message="unexpected")
+
+    monkeypatch.setattr(engine_module, "verify_required_devops_files", fake_files)
+    monkeypatch.setattr(engine_module, "verify_public_ghcr_image", fake_image)
+
+    result = await run_profile(_devops_job())
+
+    assert calls == ["files"]
+    assert result.validation_result.is_valid is False
+    assert result.validation_result.message == "Missing workflow file"
+    assert result.grading_requests == []
+
+
+@pytest.mark.asyncio
+async def test_devops_profile_stops_when_ghcr_gate_fails(monkeypatch):
+    async def fake_files(owner, repo, repo_files=None):
+        return ValidationResult(is_valid=True, message="Required files exist")
+
+    async def fake_image(owner):
+        return ValidationResult(is_valid=False, message="Image is private")
+
+    monkeypatch.setattr(engine_module, "verify_required_devops_files", fake_files)
+    monkeypatch.setattr(engine_module, "verify_public_ghcr_image", fake_image)
 
     result = await run_profile(_devops_job())
 
     assert result.validation_result.is_valid is False
+    assert result.validation_result.message == "Image is private"
     assert result.grading_requests == []
 
 
