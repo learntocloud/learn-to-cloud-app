@@ -512,6 +512,8 @@ async def test_deployed_api_profile_fails_when_probe_fails(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_devops_profile_runs_files_then_ghcr_gates(monkeypatch):
+    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+
     calls: list[str] = []
     files_task = TaskResult(task_name="Files", passed=True, feedback="present")
     image_task = TaskResult(task_name="Image", passed=True, feedback="pullable")
@@ -538,15 +540,36 @@ async def test_devops_profile_runs_files_then_ghcr_gates(monkeypatch):
     monkeypatch.setattr(engine_module, "verify_required_devops_files", fake_files)
     monkeypatch.setattr(engine_module, "verify_public_ghcr_image", fake_image)
 
-    result = await run_profile(_devops_job())
+    repo_files = InMemoryRepoFiles(
+        {
+            "Dockerfile": "FROM python:3.12-slim",
+            ".github/workflows/deploy.yml": "jobs: {}",
+            "infra/main.tf": 'resource "azurerm_kubernetes_cluster" "main" {}',
+            "k8s/deployment.yaml": "kind: Deployment",
+            "k8s/service.yaml": "kind: Service",
+        }
+    )
+    result = await run_profile(_devops_job(), repo_files=repo_files)
 
     assert calls == ["files", "image"]
     assert result.validation_result.is_valid is True
     assert result.validation_result.message == "Container image is pullable"
     assert result.validation_result.task_results == [files_task, image_task]
-    assert result.grading_requests == []
-    assert result.grading_disposition == GradingDisposition.NOT_REQUIRED
-    assert result.evidence is None
+    assert result.grading_requests is not None
+    assert len(result.grading_requests) == 1
+    assert result.grading_disposition == GradingDisposition.REQUESTED
+    assert result.evidence is not None
+    assert [item.path for item in result.evidence[0].items] == [
+        "Dockerfile",
+        "k8s/deployment.yaml",
+        "k8s/service.yaml",
+        ".github/workflows/deploy.yml",
+        "infra/main.tf",
+    ]
+    request = result.grading_requests[0]
+    assert request.task.id == "devops-implementation-rubric"
+    assert ".github/workflows/deploy.yml" in request.message
+    assert "infra/main.tf" in request.message
 
 
 @pytest.mark.asyncio
@@ -570,6 +593,7 @@ async def test_devops_profile_skips_ghcr_when_files_gate_fails(monkeypatch):
     assert result.validation_result.is_valid is False
     assert result.validation_result.message == "Missing workflow file"
     assert result.grading_requests == []
+    assert result.grading_disposition == GradingDisposition.SKIPPED_GATE_FAILED
 
 
 @pytest.mark.asyncio
@@ -588,6 +612,7 @@ async def test_devops_profile_stops_when_ghcr_gate_fails(monkeypatch):
     assert result.validation_result.is_valid is False
     assert result.validation_result.message == "Image is private"
     assert result.grading_requests == []
+    assert result.grading_disposition == GradingDisposition.SKIPPED_GATE_FAILED
 
 
 # ---------------------------------------------------------------------------

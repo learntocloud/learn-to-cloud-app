@@ -7,6 +7,7 @@ from opentelemetry import trace
 
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.verification.errors import github_error_to_result
+from learn_to_cloud_shared.verification.evidence import select_repo_paths
 from learn_to_cloud_shared.verification.github_http import RETRIABLE_EXCEPTIONS
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.tasks.phase5 import (
@@ -40,47 +41,11 @@ def select_devops_evidence_paths(
     max_files: int = PHASE5_MAX_EVIDENCE_FILES,
 ) -> list[str]:
     """Select bounded DevOps files, prioritizing prescribed exact paths."""
-    ordered_files = sorted(all_files, key=str.casefold)
-    selected: list[str] = []
-    selected_normalized: set[str] = set()
-
-    exact_patterns = [
-        pattern
-        for pattern in PHASE5_EVIDENCE_PATH_PATTERNS
-        if not pattern.endswith("/")
-    ]
-    directory_patterns = [
-        pattern for pattern in PHASE5_EVIDENCE_PATH_PATTERNS if pattern.endswith("/")
-    ]
-
-    for pattern in exact_patterns:
-        match = next(
-            (
-                path
-                for path in ordered_files
-                if path.casefold() == pattern.casefold()
-                and path.casefold() not in selected_normalized
-            ),
-            None,
-        )
-        if match is not None:
-            selected.append(match)
-            selected_normalized.add(match.casefold())
-
-    for path in ordered_files:
-        normalized_path = path.casefold()
-        if normalized_path in selected_normalized:
-            continue
-        if any(
-            normalized_path.startswith(pattern.casefold())
-            for pattern in directory_patterns
-        ):
-            selected.append(path)
-            selected_normalized.add(normalized_path)
-        if len(selected) >= max_files:
-            break
-
-    return selected[:max_files]
+    return select_repo_paths(
+        all_files,
+        PHASE5_EVIDENCE_PATH_PATTERNS,
+        max_files=max_files,
+    )
 
 
 def check_required_devops_files(all_files: list[str]) -> ValidationResult:

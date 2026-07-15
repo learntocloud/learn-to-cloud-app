@@ -22,8 +22,9 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from typing import ClassVar
 
+import httpx
 from opentelemetry import trace
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import SubmissionType
@@ -42,8 +43,13 @@ from learn_to_cloud_shared.verification.deployment_architecture import (
 from learn_to_cloud_shared.verification.devops_analysis import (
     verify_required_devops_files,
 )
-from learn_to_cloud_shared.verification.evidence import collect_repo_file_evidence
+from learn_to_cloud_shared.verification.errors import github_error_to_result
+from learn_to_cloud_shared.verification.evidence import (
+    collect_repo_file_evidence,
+    collect_repo_pattern_evidence,
+)
 from learn_to_cloud_shared.verification.ghcr import verify_public_ghcr_image
+from learn_to_cloud_shared.verification.github_http import RETRIABLE_EXCEPTIONS
 from learn_to_cloud_shared.verification.github_profile import (
     validate_profile_readme,
     validate_repo_fork,
@@ -68,6 +74,9 @@ from learn_to_cloud_shared.verification.tasks.phase3 import (
 )
 from learn_to_cloud_shared.verification.tasks.phase4 import (
     DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
+)
+from learn_to_cloud_shared.verification.tasks.phase5 import (
+    DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
 )
 from learn_to_cloud_shared.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
@@ -107,14 +116,23 @@ class CIStatusParams(CheckParams):
 class LLMRubricReviewParams(CheckParams):
     """Params for the terminal ``llm_rubric_review`` step.
 
-    Carries the rubric ``task`` (criteria + grader) and the exact repository
-    ``evidence_paths`` to fetch. Fetching exact paths (no repo-tree listing)
-    keeps evidence deterministic and matches the prescribed capstone files.
+    Carries the rubric ``task`` (criteria + grader). Existing profiles fetch
+    exact ``evidence_paths``; profiles with dynamic filenames may discover
+    files from the task's bounded ``path_patterns``.
     """
 
     check_name = "llm_rubric_review"
     task: VerificationTask
-    evidence_paths: tuple[str, ...]
+    evidence_paths: tuple[str, ...] = ()
+    discover_paths: bool = False
+
+    @model_validator(mode="after")
+    def _validate_evidence_selection(self) -> LLMRubricReviewParams:
+        if self.discover_paths == bool(self.evidence_paths):
+            raise ValueError(
+                "Choose exactly one LLM evidence mode: exact paths or discovery"
+            )
+        return self
 
 
 class DeploymentArchitectureGateParams(CheckParams):
@@ -363,7 +381,7 @@ async def _check_llm_rubric_review(
     context: StepContext,
     params: CheckParams,
 ) -> StepResult:
-    """Fetch exact-path evidence for a terminal LLM rubric review.
+    """Fetch bounded repository evidence for a terminal LLM rubric review.
 
     Never a gate: it gathers the bundle the LLM will grade and marks the task
     for grading. The actual LLM call runs later in the separate durable
@@ -374,13 +392,45 @@ async def _check_llm_rubric_review(
     if target is None or not target.repo:
         return StepResult(passed=True, stop_on_fail=False)
     repo_files = context.repo_files or default_repo_files()
-    bundle = await collect_repo_file_evidence(
-        repo_files,
-        target.owner,
-        target.repo,
-        list(params.evidence_paths),
-        params.task,
-    )
+    if params.discover_paths:
+        try:
+            bundle = await collect_repo_pattern_evidence(
+                repo_files,
+                target.owner,
+                target.repo,
+                params.task,
+            )
+        except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
+            result = github_error_to_result(
+                exc,
+                event="llm_rubric_review.repo_tree_error",
+                context={"owner": target.owner, "repo": target.repo},
+            )
+            return StepResult(
+                passed=False,
+                stop_on_fail=True,
+                validation_result=result,
+            )
+        if not bundle.items:
+            return StepResult(
+                passed=False,
+                stop_on_fail=True,
+                validation_result=ValidationResult(
+                    is_valid=False,
+                    message=(
+                        "Could not collect repository evidence for automated review."
+                    ),
+                    verification_completed=False,
+                ),
+            )
+    else:
+        bundle = await collect_repo_file_evidence(
+            repo_files,
+            target.owner,
+            target.repo,
+            list(params.evidence_paths),
+            params.task,
+        )
     return StepResult(
         passed=True,
         stop_on_fail=False,
@@ -764,6 +814,9 @@ _DEPLOYED_API_PROFILE = VerificationProfile(
 register_profile(SubmissionType.DEPLOYED_API, _DEPLOYED_API_PROFILE)
 
 
+_DEVOPS_IMPLEMENTATION_RUBRIC = DEVOPS_IMPLEMENTATION_RUBRIC_TASK.grader
+assert isinstance(_DEVOPS_IMPLEMENTATION_RUBRIC, LLMRubricGraderConfig)
+
 _DEVOPS_ANALYSIS_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
@@ -775,7 +828,15 @@ _DEVOPS_ANALYSIS_PROFILE = VerificationProfile(
             params=PublicGhcrImageParams(),
             task_id="public-ghcr-image",
         ),
+        Step(
+            params=LLMRubricReviewParams(
+                task=DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
+                discover_paths=True,
+            ),
+            task_id=DEVOPS_IMPLEMENTATION_RUBRIC_TASK.id,
+        ),
     ),
+    rubric=_DEVOPS_IMPLEMENTATION_RUBRIC,
 )
 
 register_profile(SubmissionType.DEVOPS_ANALYSIS, _DEVOPS_ANALYSIS_PROFILE)

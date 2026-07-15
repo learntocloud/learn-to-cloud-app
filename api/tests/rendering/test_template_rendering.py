@@ -72,6 +72,31 @@ def _card_contexts(
 
 
 @pytest.mark.unit
+def test_phase5_holistic_feedback_renders_in_shared_panel():
+    html = _render(
+        "partials/verification_feedback.html",
+        feedback_tasks=[
+            {
+                "name": "DevOps Implementation Review",
+                "passed": False,
+                "message": (
+                    "Dockerfile and CI/CD are sound; Kubernetes references "
+                    "a different image."
+                ),
+                "next_steps": "Align the workflow and Deployment image reference.",
+            }
+        ],
+        feedback_passed=0,
+        requirement_slug="devops-implementation",
+    )
+
+    assert "DevOps Implementation Review" in html
+    assert "Kubernetes references" in html
+    assert "Align the workflow" in html
+    assert 'id="feedback-panel-devops-implementation"' in html
+
+
+@pytest.mark.unit
 class TestPhaseVerificationLocked:
     """The gated (`verification_locked`) branch of pages/phase.html."""
 
