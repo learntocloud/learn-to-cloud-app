@@ -215,6 +215,9 @@ jobs:
             exit 1
           fi
 
+      - name: Validate installed shared runtime package
+        run: uv run poe package-smoke
+
       - name: Verify single migration head (no branches)
         working-directory: api
         run: |
@@ -463,24 +466,17 @@ jobs:
             -t ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:${{ github.sha }} \
             -t ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:latest .
 
-          docker run --rm -i ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} python - <<'PY'
-          from importlib.resources import files
-          from pathlib import Path
-
-          phases_path = Path(
-              str(files("learn_to_cloud_shared").joinpath("content", "phases"))
-          )
-          assert not phases_path.exists(), f"API image contains YAML at {phases_path}"
-          PY
+          docker run --rm \
+            ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} \
+            python -m learn_to_cloud_shared.runtime_package_check
 
           docker run --rm -i \
             -e DATABASE__URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" \
             ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:${{ github.sha }} \
             python - <<'PY'
-          from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
+          from learn_to_cloud_shared.runtime_package_check import main
 
-          catalog = get_curriculum_catalog()
-          assert catalog.phases, "Migration image did not load the curriculum artifact"
+          main()
           PY
 
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}

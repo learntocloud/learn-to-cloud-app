@@ -39,6 +39,19 @@ set -e
 (cd apps/verification-functions && uv run pytest tests/)
 """
 
+[tool.poe.tasks.package-smoke]
+help = "Build and validate the installed shared runtime package"
+shell = """
+set -euo pipefail
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+uv build --package learn-to-cloud-shared --wheel --out-dir "$tmpdir"
+wheel=$(find "$tmpdir" -maxdepth 1 -name '*.whl' -print -quit)
+uv venv "$tmpdir/venv"
+uv pip install --python "$tmpdir/venv/bin/python" "$wheel"
+"$tmpdir/venv/bin/python" -m learn_to_cloud_shared.runtime_package_check
+"""
+
 [tool.poe.tasks.check]
-help = "Run the full quality gate: static checks then tests"
-sequence = ["static", "test"]
+help = "Run the full quality gate: static checks, package smoke, then tests"
+sequence = ["static", "package-smoke", "test"]
