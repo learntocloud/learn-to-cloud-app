@@ -16,7 +16,7 @@ Workflow:
 4. Open a Pull Request to merge into `main`
 5. Never force-push to `main`, alert user if some git error occurs
 
-These prefixes must stay in sync with the `pull_request.branches` globs in `.github/workflows/deploy.yml`, so stacked PRs (base != `main`) still run CI.
+GitHub evaluates stacked PR workflow filters against the stack base, so `pull_request.branches: [main]` runs CI for every PR in a stack targeting `main`.
 
 ## Stacked PRs
 
@@ -25,10 +25,10 @@ Split a large, tightly-coupled change into a chain of small PRs when reviewers b
 Rules:
 
 1. Chain off `main`: bottom PR base = `main`, each higher PR base = the branch below it. Only stack work that genuinely depends on the branch below; independent work gets its own top-level branch off `main`.
-2. Never squash-merge a stacked PR. Squash rewrites the base into a new SHA and gives every PR above it phantom conflicts (this exact bug hit PRs #632-#636). Merge stacked PRs with **Create a merge commit** (the only method that preserves GitHub's indirect auto-merge and clean retargeting). Reserve **Squash and merge** for standalone single PRs.
-3. Rebase-and-merge also rewrites SHAs on GitHub, so after each lower PR lands, the next PR up still needs one rebase onto `main`. Let `gh-stack` do that sync; do not force-push `main`.
-4. Auto-delete head branches is ON, so GitHub auto-retargets the next PR's base to `main` when a merged branch is deleted. Still confirm the base before merging.
-5. Every merge to `main` that touches a deploy path (`api/**`, `apps/verification-functions/**`, `infra/**`, `packages/learn-to-cloud-shared/**`, etc.) triggers a full build + terraform + deploy. `concurrency: cancel-in-progress` collapses back-to-back merges into roughly one real deploy, so merge a ready stack in quick succession rather than spacing merges out.
+2. Merge through GitHub's native Stack controls. Merging a PR lands it and every unmerged PR below it together; do not merge those PRs individually.
+3. Prefer **Squash and merge** for one commit per PR. GitHub handles the remaining stack's retargeting and cascading rebase after a full or partial stack merge.
+4. Identify deployment boundaries before merging. Merge only through the highest layer that can deploy safely, wait for that deployment when required, then merge the remaining layer.
+5. Active `main` deployments are never canceled. Back-to-back merges retain the running deployment and only the newest pending deployment, while stale PR runs still cancel.
 
 
 ## Code Comments and Docstrings

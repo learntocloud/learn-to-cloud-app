@@ -14,14 +14,8 @@ on:
       - 'docker-compose.yml'
       - '.github/workflows/deploy.yml'
   pull_request:
-    # Include feature-branch prefixes so stacked PRs (base != main) still get CI.
-    # Keep these globs in sync with the branch prefixes in .github/copilot-instructions.md.
-    branches:
-      - main
-      - 'feat/**'
-      - 'fix/**'
-      - 'chore/**'
-      - 'refactor/**'
+    # GitHub evaluates stacked PRs against the stack base.
+    branches: [main]
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -35,7 +29,9 @@ on:
 
 concurrency:
   group: deploy-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep active production migrations and deployments safe. Stale PR runs
+  # still cancel, while only the newest pending main run is retained.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
