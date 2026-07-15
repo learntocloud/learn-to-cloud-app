@@ -215,6 +215,9 @@ jobs:
             exit 1
           fi
 
+      - name: Validate installed shared runtime package
+        run: uv run poe package-smoke
+
       - name: Verify single migration head (no branches)
         working-directory: api
         run: |
@@ -430,13 +433,6 @@ jobs:
           import function_app
           PY
 
-      - name: Deploy verification Functions
-        uses: Azure/functions-action@bc63708cc6539760eea18d8a7de4ce8ef5fdf593 # v1
-        with:
-          app-name: ${{ needs.terraform.outputs.verification_functions_name }}
-          package: apps/verification-functions
-          remote-build: false
-
       - name: Log in to ACR
         run: az acr login --name ${{ needs.terraform.outputs.container_registry_name }}
 
@@ -470,24 +466,17 @@ jobs:
             -t ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:${{ github.sha }} \
             -t ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:latest .
 
-          docker run --rm -i ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} python - <<'PY'
-          from importlib.resources import files
-          from pathlib import Path
-
-          phases_path = Path(
-              str(files("learn_to_cloud_shared").joinpath("content", "phases"))
-          )
-          assert not phases_path.exists(), f"API image contains YAML at {phases_path}"
-          PY
+          docker run --rm \
+            ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} \
+            python -m learn_to_cloud_shared.runtime_package_check
 
           docker run --rm -i \
             -e DATABASE__URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" \
             ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:${{ github.sha }} \
             python - <<'PY'
-          from learn_to_cloud_shared.content_yaml_loader import get_all_phases_from_yaml
+          from learn_to_cloud_shared.runtime_package_check import main
 
-          phases = get_all_phases_from_yaml()
-          assert phases, "Migration image did not load curriculum phases"
+          main()
           PY
 
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
@@ -566,6 +555,13 @@ jobs:
             --tail 100 \
             --format text || true
           exit 1
+
+      - name: Deploy verification Functions
+        uses: Azure/functions-action@bc63708cc6539760eea18d8a7de4ce8ef5fdf593 # v1
+        with:
+          app-name: ${{ needs.terraform.outputs.verification_functions_name }}
+          package: apps/verification-functions
+          remote-build: false
 
       - name: Deploy to Container App
         run: |
