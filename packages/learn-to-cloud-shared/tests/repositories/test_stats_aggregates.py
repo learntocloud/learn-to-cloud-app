@@ -12,11 +12,15 @@ from learn_to_cloud_shared.models import (
     CurriculumPhase,
     CurriculumRequirement,
     SubmissionValueKind,
+    utcnow,
 )
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
 )
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    VerificationAttemptRepository,
+)
 from learn_to_cloud_shared.submission_values import SubmittedValue
 
 pytestmark = pytest.mark.integration
@@ -188,5 +192,186 @@ class TestListPhaseCompletions:
         completions = await SubmissionRepository(db_session).list_phase_completions(
             counts, phase_order_by_requirement_uuid
         )
+
+        assert (single_phase, user_id) not in completions
+
+
+class TestVerificationAttemptListPhaseCompletions:
+    """``VerificationAttemptRepository.list_phase_completions`` (PR6): the
+    authoritative equivalent of ``SubmissionRepository.list_phase_completions``,
+    sourced from succeeded ``verification_attempts`` with a narrow legacy
+    ``submissions`` union for records not yet mirrored.
+    """
+
+    async def test_succeeded_attempt_counts_as_completion(
+        self, db_session: AsyncSession, reqs_by_phase
+    ):
+        from learn_to_cloud_shared.models import VerificationAttempt
+
+        single_phase = next(
+            order for order, reqs in reqs_by_phase.items() if len(reqs) == 1
+        )
+        req_uuid, kind = reqs_by_phase[single_phase][0]
+        user_id = 50005
+        await UserRepository(db_session).upsert(user_id, github_username="attemptonly")
+        db_session.add(
+            VerificationAttempt(
+                user_id=user_id,
+                requirement_uuid=req_uuid,
+                snapshot_source="reconstructed",
+                submission_value_kind=kind,
+                submitted_value=_value_for_kind(kind, f"u{user_id}").as_text,
+                outcome="succeeded",
+                completed_at=utcnow(),
+            )
+        )
+        await db_session.flush()
+
+        counts = get_requirement_counts_by_phase()
+        phase_order_by_requirement_uuid = (
+            get_curriculum_catalog().phase_order_by_requirement_uuid
+        )
+        completions = await VerificationAttemptRepository(
+            db_session
+        ).list_phase_completions(counts, phase_order_by_requirement_uuid)
+
+        assert (single_phase, user_id) in completions
+
+    async def test_unions_succeeded_attempts_and_legacy_submissions(
+        self, db_session: AsyncSession, reqs_by_phase
+    ):
+        """A phase can be completed via a mix of attempts and legacy rows;
+        both an authoritative-only completer and a legacy-only completer
+        show up, and a mixed completer (one req via each source) also
+        counts once both are unioned."""
+        from learn_to_cloud_shared.models import VerificationAttempt
+
+        multi_phase = next(
+            order for order, reqs in reqs_by_phase.items() if len(reqs) > 1
+        )
+        reqs = reqs_by_phase[multi_phase]
+
+        attempt_user = 50006
+        legacy_user = 50007
+        mixed_user = 50008
+        for uid, name in (
+            (attempt_user, "attemptcompleter"),
+            (legacy_user, "legacycompleter"),
+            (mixed_user, "mixedcompleter"),
+        ):
+            await UserRepository(db_session).upsert(uid, github_username=name)
+        await db_session.flush()
+
+        # attempt_user: succeeds every requirement via verification_attempts.
+        for req_uuid, kind in reqs:
+            db_session.add(
+                VerificationAttempt(
+                    user_id=attempt_user,
+                    requirement_uuid=req_uuid,
+                    snapshot_source="reconstructed",
+                    submission_value_kind=kind,
+                    submitted_value=_value_for_kind(kind, f"u{attempt_user}").as_text,
+                    outcome="succeeded",
+                    completed_at=utcnow(),
+                )
+            )
+        # legacy_user: validates every requirement via the legacy table only.
+        await _validate_all(db_session, legacy_user, reqs)
+        # mixed_user: first requirement via attempt, rest via legacy.
+        db_session.add(
+            VerificationAttempt(
+                user_id=mixed_user,
+                requirement_uuid=reqs[0][0],
+                snapshot_source="reconstructed",
+                submission_value_kind=reqs[0][1],
+                submitted_value=_value_for_kind(reqs[0][1], f"u{mixed_user}").as_text,
+                outcome="succeeded",
+                completed_at=utcnow(),
+            )
+        )
+        await _validate_all(db_session, mixed_user, reqs[1:])
+        await db_session.flush()
+
+        counts = get_requirement_counts_by_phase()
+        phase_order_by_requirement_uuid = (
+            get_curriculum_catalog().phase_order_by_requirement_uuid
+        )
+        completions = await VerificationAttemptRepository(
+            db_session
+        ).list_phase_completions(counts, phase_order_by_requirement_uuid)
+
+        assert (multi_phase, attempt_user) in completions
+        assert (multi_phase, legacy_user) in completions
+        assert (multi_phase, mixed_user) in completions
+
+    async def test_authoritative_failure_overrides_legacy_success(
+        self, db_session: AsyncSession, reqs_by_phase
+    ):
+        from learn_to_cloud_shared.models import VerificationAttempt
+
+        single_phase = next(
+            order for order, reqs in reqs_by_phase.items() if len(reqs) == 1
+        )
+        req_uuid, kind = reqs_by_phase[single_phase][0]
+        user_id = 50010
+        await UserRepository(db_session).upsert(
+            user_id, github_username="authoritativefailure"
+        )
+        await _validate_all(db_session, user_id, [(req_uuid, kind)])
+        db_session.add(
+            VerificationAttempt(
+                user_id=user_id,
+                requirement_uuid=req_uuid,
+                snapshot_source="reconstructed",
+                submission_value_kind=kind,
+                submitted_value=_value_for_kind(kind, f"u{user_id}").as_text,
+                outcome="failed",
+                completed_at=utcnow(),
+            )
+        )
+        await db_session.flush()
+
+        completions = await VerificationAttemptRepository(
+            db_session
+        ).list_phase_completions(
+            get_requirement_counts_by_phase(),
+            get_curriculum_catalog().phase_order_by_requirement_uuid,
+        )
+
+        assert (single_phase, user_id) not in completions
+
+    async def test_stale_requirement_uuid_is_ignored(
+        self, db_session: AsyncSession, reqs_by_phase
+    ):
+        from learn_to_cloud_shared.models import VerificationAttempt
+
+        single_phase = next(
+            order for order, reqs in reqs_by_phase.items() if len(reqs) == 1
+        )
+        req_uuid, kind = reqs_by_phase[single_phase][0]
+        user_id = 50009
+        await UserRepository(db_session).upsert(user_id, github_username="stalecase2")
+        db_session.add(
+            VerificationAttempt(
+                user_id=user_id,
+                requirement_uuid=req_uuid,
+                snapshot_source="reconstructed",
+                submission_value_kind=kind,
+                submitted_value=_value_for_kind(kind, f"u{user_id}").as_text,
+                outcome="succeeded",
+                completed_at=utcnow(),
+            )
+        )
+        await db_session.flush()
+
+        counts = get_requirement_counts_by_phase()
+        phase_order_by_requirement_uuid = dict(
+            get_curriculum_catalog().phase_order_by_requirement_uuid
+        )
+        del phase_order_by_requirement_uuid[req_uuid]
+
+        completions = await VerificationAttemptRepository(
+            db_session
+        ).list_phase_completions(counts, phase_order_by_requirement_uuid)
 
         assert (single_phase, user_id) not in completions

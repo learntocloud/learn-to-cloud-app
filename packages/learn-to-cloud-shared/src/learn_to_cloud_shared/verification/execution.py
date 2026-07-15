@@ -8,9 +8,16 @@ from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.github_target import GitHubTarget
-from learn_to_cloud_shared.models import Submission, SubmissionType
+from learn_to_cloud_shared.models import (
+    Submission,
+    SubmissionType,
+    VerificationAttemptOutcome,
+)
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
+)
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    AttemptCardProjection,
 )
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
@@ -69,13 +76,7 @@ def _log_submission_completed(
 
 
 def to_submission_data(submission: Submission) -> SubmissionData:
-    """Project a ``Submission`` row into the ``SubmissionData`` response model.
-
-    Phase D.2 + D.3 (#461 / #465) removed the denormalized
-    ``requirement_slug`` / ``submission_type`` / ``phase_id`` fields from
-    both the table and the schema -- callers that need them work off
-    the in-memory ``HandsOnRequirement`` directly.
-    """
+    """Project a legacy submission row into its response model."""
     return SubmissionData(
         id=submission.id,
         submitted_value=submission_value_from_columns(submission).as_text,
@@ -88,6 +89,31 @@ def to_submission_data(submission: Submission) -> SubmissionData:
         cloud_provider=submission.cloud_provider,
         created_at=submission.created_at,
         updated_at=submission.updated_at,
+        source="legacy",
+    )
+
+
+def attempt_to_submission_data(attempt: AttemptCardProjection) -> SubmissionData:
+    """Project a terminal verification attempt into its response model."""
+    outcome = VerificationAttemptOutcome(attempt.outcome)
+    is_validated = outcome is VerificationAttemptOutcome.SUCCEEDED
+    verification_completed = outcome in (
+        VerificationAttemptOutcome.SUCCEEDED,
+        VerificationAttemptOutcome.FAILED,
+    )
+    return SubmissionData(
+        id=attempt.id,
+        submitted_value=attempt.submitted_value,
+        extracted_username=attempt.github_username_snapshot,
+        is_validated=is_validated,
+        validated_at=attempt.completed_at if is_validated else None,
+        verification_completed=verification_completed,
+        feedback_json=attempt.feedback_json,
+        validation_message=(attempt.validation_message if not is_validated else None),
+        cloud_provider=attempt.cloud_provider,
+        created_at=attempt.created_at,
+        updated_at=attempt.updated_at,
+        source="attempt",
     )
 
 

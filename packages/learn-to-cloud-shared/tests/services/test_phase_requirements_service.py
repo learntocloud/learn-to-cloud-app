@@ -119,13 +119,10 @@ class TestIsPhaseVerificationLocked:
                 return_value=by_phase_order,
             ),
             patch(
-                "learn_to_cloud_shared.requirements.SubmissionRepository",
-                autospec=True,
-            ) as MockRepo,
+                "learn_to_cloud_shared.requirements.are_all_requirements_succeeded",
+                new=AsyncMock(return_value=False),
+            ),
         ):
-            MockRepo.return_value.are_all_requirements_validated = AsyncMock(
-                return_value=False
-            )
             is_locked, prereq = await is_phase_verification_locked(
                 AsyncMock(), user_id=1, phase_order=4
             )
@@ -144,13 +141,10 @@ class TestIsPhaseVerificationLocked:
                 return_value=by_phase_order,
             ),
             patch(
-                "learn_to_cloud_shared.requirements.SubmissionRepository",
-                autospec=True,
-            ) as MockRepo,
+                "learn_to_cloud_shared.requirements.are_all_requirements_succeeded",
+                new=AsyncMock(return_value=True),
+            ),
         ):
-            MockRepo.return_value.are_all_requirements_validated = AsyncMock(
-                return_value=True
-            )
             is_locked, prereq = await is_phase_verification_locked(
                 AsyncMock(), user_id=1, phase_order=4
             )

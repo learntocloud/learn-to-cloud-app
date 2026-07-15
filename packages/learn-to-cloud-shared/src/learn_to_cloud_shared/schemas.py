@@ -593,14 +593,74 @@ class TopicProgressData(FrozenModel):
     status: str  # "not_started", "in_progress", "completed"
 
 
-class PhaseProgressData(FrozenModel):
-    """Progress status for a phase (service-layer response model)."""
+class LearningProgress(FrozenModel):
+    """A learner's checked-step progress, scoped to current catalog steps.
+
+    ``steps_completed`` intersects stored ``learner_step_completions`` UUIDs
+    with the catalog's current active step UUIDs, so a retired step never
+    inflates progress. ``legacy_fallback_steps`` counts completions that
+    were only found in the legacy ``step_progress`` table (not yet mirrored
+    into ``learner_step_completions``) -- present for PR8 to detect when
+    the fallback path can be removed.
+    """
 
     steps_completed: int
     steps_required: int
-    hands_on_validated: int
-    hands_on_required: int
-    percentage: float
+    legacy_fallback_steps: int = 0
+
+    @computed_field
+    @property
+    def is_complete(self) -> bool:
+        """A zero-step phase is learning-complete by definition."""
+        return self.steps_completed >= self.steps_required
+
+    @computed_field
+    @property
+    def percentage(self) -> float:
+        if self.steps_required == 0:
+            return 100.0
+        return round(min(100.0, (self.steps_completed / self.steps_required) * 100), 1)
+
+
+class VerificationProgress(FrozenModel):
+    """A learner's succeeded-attempt progress, scoped to current requirements.
+
+    ``requirements_verified`` intersects distinct requirement UUIDs with a
+    ``succeeded`` ``verification_attempts`` outcome against the catalog's
+    current active requirement UUIDs -- a ``failed``/``server_error``/
+    ``cancelled`` outcome never counts, and a retired requirement UUID never
+    inflates progress. ``legacy_fallback_requirements`` counts verifications
+    found only via the legacy ``submissions.is_validated`` fallback --
+    present for PR8 to detect when the fallback path can be removed.
+    """
+
+    requirements_verified: int
+    requirements_required: int
+    legacy_fallback_requirements: int = 0
+
+    @computed_field
+    @property
+    def is_complete(self) -> bool:
+        """A zero-requirement phase is verification-complete by definition."""
+        return self.requirements_verified >= self.requirements_required
+
+    @computed_field
+    @property
+    def percentage(self) -> float:
+        if self.requirements_required == 0:
+            return 100.0
+        return round(
+            min(100.0, (self.requirements_verified / self.requirements_required) * 100),
+            1,
+        )
+
+
+class PhaseProgressData(FrozenModel):
+    """Progress status for a phase (service-layer response model)."""
+
+    learning: LearningProgress
+    verification: VerificationProgress
+    is_complete: bool
     status: str  # "not_started", "in_progress", "completed"
 
 
@@ -629,10 +689,17 @@ class ContinuePhaseData(FrozenModel):
 
 
 class DashboardData(FrozenModel):
-    """Complete dashboard payload (service-layer response model)."""
+    """Complete dashboard payload (service-layer response model).
+
+    Exposes two item-weighted totals across all phases' *current* steps and
+    requirements, rather than one blended percentage -- see
+    ``UserProgress.overall_learning_percentage`` /
+    ``overall_verification_percentage``.
+    """
 
     phases: list[PhaseSummaryData]
-    overall_percentage: float
+    learning_percentage: float
+    verification_percentage: float
     phases_completed: int
     total_phases: int
     is_program_complete: bool
@@ -689,25 +756,23 @@ class StatsPageData(FrozenModel):
 class PhaseProgress(FrozenModel):
     """User's progress for a single phase.
 
-    Unified model used by both dashboard and phase detail views.
-    When topic_progress is populated, provides per-topic breakdown.
+    Unified model used by both dashboard and phase detail views. Holds
+    learning and verification as two separate, typed measures rather than
+    one blended percentage -- a phase is complete only when *both* are
+    complete (see ``is_complete``). When ``topic_progress`` is populated,
+    provides per-topic breakdown.
     """
 
     phase_id: int
-    steps_completed: int
-    steps_required: int
-    hands_on_validated: int  # count of validated requirements
-    hands_on_required: int  # count of required requirements
+    learning: LearningProgress
+    verification: VerificationProgress
     topic_progress: dict[UUID, TopicProgressData] | None = None
 
     @computed_field
     @property
     def is_complete(self) -> bool:
-        """Phase is complete when all requirements are met."""
-        return (
-            self.steps_completed >= self.steps_required
-            and self.hands_on_validated >= self.hands_on_required
-        )
+        """Phase is complete only when learning AND verification are both complete."""
+        return self.learning.is_complete and self.verification.is_complete
 
     @computed_field
     @property
@@ -715,29 +780,12 @@ class PhaseProgress(FrozenModel):
         """Phase status string."""
         if self.is_complete:
             return "completed"
-        if self.steps_completed > 0 or self.hands_on_validated > 0:
+        if (
+            self.learning.steps_completed > 0
+            or self.verification.requirements_verified > 0
+        ):
             return "in_progress"
         return "not_started"
-
-    @computed_field
-    @property
-    def percentage(self) -> float:
-        """Phase completion percentage (steps + hands-on)."""
-        total = self.steps_required + self.hands_on_required
-        if total == 0:
-            return 0.0
-        completed = min(self.steps_completed, self.steps_required) + min(
-            self.hands_on_validated, self.hands_on_required
-        )
-        return round((completed / total) * 100, 1)
-
-    @computed_field
-    @property
-    def step_percentage(self) -> float:
-        """Percentage of steps completed."""
-        if self.steps_required == 0:
-            return 100.0
-        return round(min(100.0, (self.steps_completed / self.steps_required) * 100), 1)
 
 
 class UserProgress(FrozenModel):
@@ -750,7 +798,7 @@ class UserProgress(FrozenModel):
     @computed_field
     @property
     def phases_completed(self) -> int:
-        """Count of fully completed phases."""
+        """Count of fully completed phases (learning AND verification)."""
         return sum(1 for p in self.phases.values() if p.is_complete)
 
     @computed_field
@@ -770,24 +818,34 @@ class UserProgress(FrozenModel):
 
     @computed_field
     @property
-    def overall_percentage(self) -> float:
-        """Overall completion percentage across all phases."""
-        if not self.phases:
-            return 0.0
-
-        total_steps = sum(p.steps_required for p in self.phases.values())
-        total_hands_on = sum(p.hands_on_required for p in self.phases.values())
-        completed_steps = sum(p.steps_completed for p in self.phases.values())
-        completed_hands_on = sum(p.hands_on_validated for p in self.phases.values())
-
-        if total_steps + total_hands_on == 0:
-            return 0.0
-
-        total = total_steps + total_hands_on
-        completed = min(completed_steps, total_steps) + min(
-            completed_hands_on, total_hands_on
+    def overall_learning_percentage(self) -> float:
+        """Item-weighted learning percentage across all phases' current steps."""
+        total_required = sum(p.learning.steps_required for p in self.phases.values())
+        if total_required == 0:
+            return 100.0
+        completed = sum(
+            min(p.learning.steps_completed, p.learning.steps_required)
+            for p in self.phases.values()
         )
-        return round((completed / total) * 100, 1)
+        return round((completed / total_required) * 100, 1)
+
+    @computed_field
+    @property
+    def overall_verification_percentage(self) -> float:
+        """Item-weighted verification percentage across all phases' requirements."""
+        total_required = sum(
+            p.verification.requirements_required for p in self.phases.values()
+        )
+        if total_required == 0:
+            return 100.0
+        completed = sum(
+            min(
+                p.verification.requirements_verified,
+                p.verification.requirements_required,
+            )
+            for p in self.phases.values()
+        )
+        return round((completed / total_required) * 100, 1)
 
 
 class SubmissionData(FrozenModel):
@@ -799,9 +857,16 @@ class SubmissionData(FrozenModel):
     in the app reads them off ``SubmissionData`` either -- callers
     that need them have the corresponding ``HandsOnRequirement``
     in scope.
+
+    PR6 of the verification/progress refactor sources this primarily from
+    ``verification_attempts`` (``id`` is then that attempt's UUID) and only
+    falls back to the legacy ``submissions`` row (``id`` an int) when a
+    requirement has no attempt row at all yet. ``source`` makes that
+    provenance explicit for logging/telemetry and so PR8 can detect when
+    the fallback path is no longer exercised.
     """
 
-    id: int
+    id: int | UUID
     submitted_value: str
     extracted_username: str | None = None
     is_validated: bool
@@ -812,6 +877,7 @@ class SubmissionData(FrozenModel):
     cloud_provider: str | None = None
     created_at: datetime
     updated_at: datetime | None = None
+    source: Literal["attempt", "legacy"] = "attempt"
 
 
 class SubmissionResult(FrozenModel):

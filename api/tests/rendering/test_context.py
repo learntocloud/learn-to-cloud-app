@@ -13,12 +13,14 @@ import pytest
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
+    LearningProgress,
     LearningStep,
     Phase,
     PhaseProgress,
     TaskResult,
     Topic,
     TopicProgressData,
+    VerificationProgress,
 )
 
 from learn_to_cloud.rendering.context import (
@@ -108,10 +110,10 @@ class TestBuildPhaseTopics:
         )
         detail = PhaseProgress(
             phase_id=0,
-            steps_completed=1,
-            steps_required=3,
-            hands_on_validated=0,
-            hands_on_required=0,
+            learning=LearningProgress(steps_completed=1, steps_required=3),
+            verification=VerificationProgress(
+                requirements_verified=0, requirements_required=0
+            ),
             topic_progress={
                 topic.uuid: TopicProgressData(
                     steps_completed=1,
@@ -140,10 +142,10 @@ class TestBuildPhaseTopics:
         )
         detail = PhaseProgress(
             phase_id=0,
-            steps_completed=0,
-            steps_required=3,
-            hands_on_validated=0,
-            hands_on_required=0,
+            learning=LearningProgress(steps_completed=0, steps_required=3),
+            verification=VerificationProgress(
+                requirements_verified=0, requirements_required=0
+            ),
             topic_progress={},
         )
         topics, _ = build_phase_topics(phase, detail)
@@ -160,10 +162,10 @@ class TestBuildPhaseTopics:
         )
         detail = PhaseProgress(
             phase_id=0,
-            steps_completed=3,
-            steps_required=3,
-            hands_on_validated=1,
-            hands_on_required=1,
+            learning=LearningProgress(steps_completed=3, steps_required=3),
+            verification=VerificationProgress(
+                requirements_verified=1, requirements_required=1
+            ),
             topic_progress={
                 topic.uuid: TopicProgressData(
                     steps_completed=3,

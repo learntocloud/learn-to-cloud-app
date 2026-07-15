@@ -216,7 +216,7 @@ class TestPhasePage:
                 return_value=mock_sub_context,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.VerificationJobRepository",
+                "learn_to_cloud.routes.pages_routes.VerificationAttemptRepository",
                 return_value=MagicMock(
                     get_active_for_requirements=AsyncMock(return_value=[]),
                 ),

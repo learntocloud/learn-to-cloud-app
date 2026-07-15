@@ -51,7 +51,8 @@ async def get_dashboard_data(
     if user_id is None:
         return DashboardData(
             phases=[_build_phase_summary(phase, None) for phase in phases],
-            overall_percentage=0.0,
+            learning_percentage=0.0,
+            verification_percentage=0.0,
             phases_completed=0,
             total_phases=len(phases),
             is_program_complete=False,
@@ -91,7 +92,8 @@ async def get_dashboard_data(
 
     return DashboardData(
         phases=phase_summaries,
-        overall_percentage=round(user_progress.overall_percentage, 1),
+        learning_percentage=round(user_progress.overall_learning_percentage, 1),
+        verification_percentage=round(user_progress.overall_verification_percentage, 1),
         phases_completed=user_progress.phases_completed,
         total_phases=user_progress.total_phases,
         is_program_complete=user_progress.is_program_complete,

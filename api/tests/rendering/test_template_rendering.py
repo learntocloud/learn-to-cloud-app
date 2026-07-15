@@ -105,7 +105,8 @@ class TestDashboardTileLabel:
         phase = SimpleNamespace(order=6, name="Phase 6", progress=progress)
         dashboard = SimpleNamespace(
             phases=[phase],
-            overall_percentage=3.0,
+            learning_percentage=3.0,
+            verification_percentage=3.0,
             phases_completed=0,
             total_phases=8,
             is_program_complete=False,
@@ -117,11 +118,12 @@ class TestDashboardTileLabel:
         """Zero steps + validated hands-on shows a hands-on label, not steps."""
         progress = SimpleNamespace(
             status="in_progress",
-            steps_completed=0,
-            steps_required=28,
-            hands_on_validated=1,
-            hands_on_required=1,
-            percentage=3.4,
+            learning=SimpleNamespace(
+                steps_completed=0, steps_required=28, percentage=0.0
+            ),
+            verification=SimpleNamespace(
+                requirements_verified=1, requirements_required=1, percentage=100.0
+            ),
         )
 
         html = self._render_dashboard(progress)
@@ -133,11 +135,12 @@ class TestDashboardTileLabel:
         """Nonzero step progress keeps the steps label."""
         progress = SimpleNamespace(
             status="in_progress",
-            steps_completed=5,
-            steps_required=28,
-            hands_on_validated=0,
-            hands_on_required=1,
-            percentage=17.0,
+            learning=SimpleNamespace(
+                steps_completed=5, steps_required=28, percentage=17.9
+            ),
+            verification=SimpleNamespace(
+                requirements_verified=0, requirements_required=1, percentage=0.0
+            ),
         )
 
         html = self._render_dashboard(progress)

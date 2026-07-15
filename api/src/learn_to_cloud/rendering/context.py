@@ -159,7 +159,14 @@ def build_phase_topics(
 ) -> tuple[list[dict[str, Any]], dict[str, int | float | bool]]:
     """Build template-ready topic list and overall progress for a phase page.
 
-    Merges topic metadata from content with per-topic progress data.
+    Merges topic metadata from content with per-topic progress data. The
+    returned ``progress`` dict is intentionally learning-only (steps): it
+    feeds the top-of-page bar that sits directly above the per-topic step
+    breakdown. ``is_complete`` still reflects the phase's full completion
+    (learning AND verification, see ``PhaseProgress.is_complete``), so a
+    100%-learning phase pending verification shows a full bar without the
+    "Complete" label -- an honest, if not fully polished, intermediate state
+    ahead of PR7's presentation pass.
 
     Returns:
         ``(topics, progress)`` — topics is a list of dicts with ``name``,
@@ -182,9 +189,9 @@ def build_phase_topics(
         )
 
     progress = {
-        "percentage": detail.percentage,
-        "steps_completed": detail.steps_completed,
-        "steps_required": detail.steps_required,
+        "percentage": detail.learning.percentage,
+        "steps_completed": detail.learning.steps_completed,
+        "steps_required": detail.learning.steps_required,
         "is_complete": detail.is_complete,
     }
 

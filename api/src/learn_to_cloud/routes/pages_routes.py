@@ -15,8 +15,8 @@ from learn_to_cloud_shared.content_service import (
 )
 from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.models import User
-from learn_to_cloud_shared.repositories.verification_job_repository import (
-    VerificationJobRepository,
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    VerificationAttemptRepository,
 )
 from learn_to_cloud_shared.requirements import (
     is_phase_verification_locked,
@@ -133,29 +133,32 @@ async def phase_page(
     submissions_by_req = sub_context.submissions_by_req
     feedback_by_req = sub_context.feedback_by_req
     requirements_by_uuid = {req.uuid: req for req in requirements}
-    active_jobs = await VerificationJobRepository(db).get_active_for_requirements(
+    active_attempts = await VerificationAttemptRepository(
+        db
+    ).get_active_for_requirements(
         user_id,
         requirements_by_uuid.keys(),
     )
     active_jobs_by_req = {
-        requirements_by_uuid[job.requirement_uuid].slug: job
-        for job in active_jobs
-        if job.requirement_uuid in requirements_by_uuid
+        requirements_by_uuid[attempt.requirement_uuid].slug: attempt
+        for attempt in active_attempts
+        if attempt.requirement_uuid in requirements_by_uuid
     }
-    # The Durable orchestration instance id IS the job UUID — we always
-    # pass ``instance_id=job.id`` to the starter, so we don't need to read
-    # back the now-dead ``orchestration_instance_id`` column.
+    # The Durable orchestration instance id IS the attempt UUID -- the
+    # submit route always starts Durable with ``instance_id=attempt.id``
+    # (shared with the compatibility ``verification_jobs`` row), so the
+    # status token keys off the same id here.
     verification_status_tokens_by_req = {
-        requirements_by_uuid[job.requirement_uuid].slug: (
+        requirements_by_uuid[attempt.requirement_uuid].slug: (
             create_verification_status_token(
                 user_id=user_id,
-                job_id=job.id,
-                instance_id=str(job.id),
-                requirement_slug=requirements_by_uuid[job.requirement_uuid].slug,
+                job_id=attempt.id,
+                instance_id=str(attempt.id),
+                requirement_slug=requirements_by_uuid[attempt.requirement_uuid].slug,
             )
         )
-        for job in active_jobs
-        if job.requirement_uuid in requirements_by_uuid
+        for attempt in active_attempts
+        if attempt.requirement_uuid in requirements_by_uuid
     }
 
     # Pre-compute per-requirement derived URLs so the Jinja template never

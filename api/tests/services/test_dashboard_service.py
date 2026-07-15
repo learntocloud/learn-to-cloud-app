@@ -15,13 +15,21 @@ from uuid import uuid4
 
 import pytest
 from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
-from learn_to_cloud_shared.models import CurriculumStep, StepProgress, User
+from learn_to_cloud_shared.models import (
+    CurriculumStep,
+    LearnerStepCompletion,
+    User,
+    VerificationAttempt,
+    utcnow,
+)
 from learn_to_cloud_shared.requirements import load_requirement_index
 from learn_to_cloud_shared.schemas import (
+    LearningProgress,
     PhaseOverview,
     PhaseProgress,
     PhaseProgressData,
     UserProgress,
+    VerificationProgress,
 )
 from sqlalchemy import event, select
 from sqlalchemy.engine import Engine
@@ -58,10 +66,13 @@ def _make_phase_progress(
 ) -> PhaseProgress:
     return PhaseProgress(
         phase_id=phase_id,
-        steps_completed=steps_completed,
-        steps_required=steps_required,
-        hands_on_validated=hands_on_validated,
-        hands_on_required=hands_on_required,
+        learning=LearningProgress(
+            steps_completed=steps_completed, steps_required=steps_required
+        ),
+        verification=VerificationProgress(
+            requirements_verified=hands_on_validated,
+            requirements_required=hands_on_required,
+        ),
     )
 
 
@@ -81,16 +92,16 @@ class TestBuildPhaseSummary:
     def test_with_progress(self):
         phase = _make_phase(1)
         progress_data = PhaseProgressData(
-            steps_completed=3,
-            steps_required=5,
-            hands_on_validated=1,
-            hands_on_required=1,
-            percentage=60.0,
+            learning=LearningProgress(steps_completed=3, steps_required=5),
+            verification=VerificationProgress(
+                requirements_verified=1, requirements_required=1
+            ),
+            is_complete=False,
             status="in_progress",
         )
         result = _build_phase_summary(phase, progress_data)
         assert result.progress is not None
-        assert result.progress.steps_completed == 3
+        assert result.progress.learning.steps_completed == 3
 
     def test_maps_all_phase_fields(self):
         phase = PhaseOverview(
@@ -125,7 +136,8 @@ class TestGetDashboardDataUnauthenticated:
         ):
             result = await get_dashboard_data(db=AsyncMock(), user_id=None)
 
-        assert result.overall_percentage == 0.0
+        assert result.learning_percentage == 0.0
+        assert result.verification_percentage == 0.0
         assert result.phases_completed == 0
         assert result.total_phases == 2
         assert result.is_program_complete is False
@@ -164,11 +176,11 @@ class TestGetDashboardDataAuthenticated:
             total_phases=2,
         )
         progress_data = PhaseProgressData(
-            steps_completed=2,
-            steps_required=5,
-            hands_on_validated=0,
-            hands_on_required=1,
-            percentage=33.3,
+            learning=LearningProgress(steps_completed=2, steps_required=5),
+            verification=VerificationProgress(
+                requirements_verified=0, requirements_required=1
+            ),
+            is_complete=False,
             status="in_progress",
         )
 
@@ -213,11 +225,11 @@ class TestGetDashboardDataAuthenticated:
             total_phases=1,
         )
         progress_data = PhaseProgressData(
-            steps_completed=5,
-            steps_required=5,
-            hands_on_validated=1,
-            hands_on_required=1,
-            percentage=100.0,
+            learning=LearningProgress(steps_completed=5, steps_required=5),
+            verification=VerificationProgress(
+                requirements_verified=1, requirements_required=1
+            ),
+            is_complete=True,
             status="completed",
         )
 
@@ -256,11 +268,11 @@ class TestGetDashboardDataAuthenticated:
             total_phases=2,
         )
         progress_data = PhaseProgressData(
-            steps_completed=3,
-            steps_required=5,
-            hands_on_validated=0,
-            hands_on_required=1,
-            percentage=50.0,
+            learning=LearningProgress(steps_completed=3, steps_required=5),
+            verification=VerificationProgress(
+                requirements_verified=0, requirements_required=1
+            ),
+            is_complete=False,
             status="in_progress",
         )
 
@@ -323,10 +335,12 @@ class TestGetDashboardDataQueryCount:
         """Query count stays small and fixed, regardless of curriculum size.
 
         Seeds the real curriculum (hundreds of steps across several
-        phases), completes a handful of steps and validates one
-        requirement for a user, then asserts the whole /dashboard flow
-        stays in the low single digits of small, indexed queries --
-        never a full 5-table tree walk over every step.
+        phases), completes a handful of steps and succeeds one requirement
+        for a user via the authoritative ``learner_step_completions`` /
+        ``verification_attempts`` tables, then asserts the whole /dashboard
+        flow stays at a small, fixed query count -- never a full 5-table
+        tree walk over every step, and never one query per step or
+        requirement, regardless of how many the curriculum has.
         """
         await sync_curriculum_to_db(db_session)
 
@@ -338,50 +352,39 @@ class TestGetDashboardDataQueryCount:
         first_phase_order = min(req_index.by_phase_order)
         reqs = req_index.requirements_for_phase(first_phase_order)
         if reqs:
-            from learn_to_cloud_shared.models import (
-                CurriculumRequirement,
-                SubmissionValueKind,
-            )
-            from learn_to_cloud_shared.repositories.submission_repository import (
-                SubmissionRepository,
-            )
-            from learn_to_cloud_shared.submission_values import SubmittedValue
-
-            req_row = (
-                await db_session.execute(
-                    select(CurriculumRequirement).where(
-                        CurriculumRequirement.uuid == reqs[0].uuid
-                    )
+            db_session.add(
+                VerificationAttempt(
+                    user_id=user.id,
+                    requirement_uuid=reqs[0].uuid,
+                    snapshot_source="reconstructed",
+                    submission_value_kind="github_url",
+                    submitted_value="https://github.com/octocat/repo",
+                    outcome="succeeded",
+                    completed_at=utcnow(),
                 )
-            ).scalar_one()
-            kind = SubmissionValueKind(req_row.submission_value_kind)
-            value_kwargs = {
-                SubmissionValueKind.GITHUB_URL: {"github_url": "https://x/y"},
-                SubmissionValueKind.TOKEN: {"token_value": "tok"},
-                SubmissionValueKind.DEPLOYED_URL: {"deployed_url": "https://x"},
-                SubmissionValueKind.TEXT: {"text_value": "ok"},
-            }[kind]
-
-            await SubmissionRepository(db_session).create(
-                user_id=user.id,
-                requirement_uuid=reqs[0].uuid,
-                submitted_value=SubmittedValue(kind=kind, **value_kwargs),
-                extracted_username=None,
-                is_validated=True,
             )
 
         first_step_uuid = (
             await db_session.execute(select(CurriculumStep.uuid).limit(1))
         ).scalar_one()
-        db_session.add(StepProgress(user_id=user.id, step_uuid=first_step_uuid))
+        db_session.add(
+            LearnerStepCompletion(user_id=user.id, step_uuid=first_step_uuid)
+        )
         await db_session.flush()
 
         with _count_queries() as statements:
             result = await get_dashboard_data(db_session, user_id=user.id)
 
         assert result.total_phases > 0
-        # Small, fixed number of learner-state aggregate queries -- curriculum
-        # shape comes from the in-memory catalog now, so this counts only the
-        # two SQL aggregates over step_progress/submissions. See
-        # progress_service.fetch_user_progress for the exact breakdown.
-        assert len(statements) == 2
+        # Fixed number of learner-state aggregate queries regardless of
+        # curriculum size: 2 for step completions (authoritative +
+        # narrow legacy step_progress fallback) and 3 for succeeded
+        # requirements (authoritative succeeded set, "any attempt exists"
+        # check across every current requirement, and the legacy
+        # submissions fallback query -- unavoidable here since this user
+        # has only attempted one of several current requirements, so most
+        # remain "unattempted" and the fallback check always runs). See
+        # progress_reads.py for the exact breakdown; the important
+        # invariant is that this count is fixed, not proportional to the
+        # number of steps/requirements in the curriculum.
+        assert len(statements) == 5

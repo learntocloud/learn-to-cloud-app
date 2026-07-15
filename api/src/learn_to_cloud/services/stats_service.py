@@ -1,13 +1,19 @@
 """Stats service — assembles the public /stats page payload.
 
 The phase funnel and the graduate list come from a single completion
-aggregate (``SubmissionRepository.list_phase_completions``) plus a total
-account count and one batched user load. Because phase submissions are
-gated on the previous phase, completions are nested (completers of phase
-N are a subset of phase N-1), so the funnel is monotone and "graduates"
-are simply the learners who appear in every completable phase. The
-latest-commit panel is fetched (and cached) separately via the shared
+aggregate (``VerificationAttemptRepository.list_phase_completions``) plus a
+total account count and one batched user load. Because phase submissions
+are gated on the previous phase, completions are nested (completers of
+phase N are a subset of phase N-1), so the funnel is monotone and
+"graduates" are simply the learners who appear in every completable phase.
+The latest-commit panel is fetched (and cached) separately via the shared
 GitHub helper.
+
+PR6 of the verification/progress refactor sources completions from
+``verification_attempts`` (``outcome='succeeded'``) instead of the legacy
+``submissions.is_validated`` flag; stats stay verification-only (no step
+counting). ``list_phase_completions`` includes a narrow legacy union for
+records not yet mirrored -- see its docstring.
 """
 
 import logging
@@ -18,10 +24,10 @@ from learn_to_cloud_shared.content_service import (
     get_requirement_counts_by_phase,
 )
 from learn_to_cloud_shared.github_updates import get_latest_curriculum_commits
-from learn_to_cloud_shared.repositories.submission_repository import (
-    SubmissionRepository,
-)
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    VerificationAttemptRepository,
+)
 from learn_to_cloud_shared.schemas import (
     CommunityMember,
     FunnelLevel,
@@ -41,7 +47,7 @@ async def get_stats_page_data(db: AsyncSession) -> StatsPageData:
     phase_order_by_requirement_uuid = (
         get_curriculum_catalog().phase_order_by_requirement_uuid
     )
-    completions = await SubmissionRepository(db).list_phase_completions(
+    completions = await VerificationAttemptRepository(db).list_phase_completions(
         requirement_counts, phase_order_by_requirement_uuid
     )
 
