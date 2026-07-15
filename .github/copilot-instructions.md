@@ -16,19 +16,15 @@ Workflow:
 4. Open a Pull Request to merge into `main`
 5. Never force-push to `main`, alert user if some git error occurs
 
-GitHub evaluates stacked PR workflow filters against the stack base, so `pull_request.branches: [main]` runs CI for every PR in a stack targeting `main`.
-
 ## Stacked PRs
 
-Split a large, tightly-coupled change into a chain of small PRs when reviewers benefit from seeing it in stages. Use the `gh-stack` extension (installed) and its skill at `.agents/skills/gh-stack/SKILL.md` to create and sync the stack. Do not hand-manage rebases.
+Use stacked PRs only when a large, tightly-coupled change benefits from staged review. Use the `gh-stack` extension and its skill at `.agents/skills/gh-stack/SKILL.md` for stack mechanics.
 
-Rules:
+Repository policy:
 
-1. Chain off `main`: bottom PR base = `main`, each higher PR base = the branch below it. Only stack work that genuinely depends on the branch below; independent work gets its own top-level branch off `main`.
-2. Merge through GitHub's native Stack controls. Merging a PR lands it and every unmerged PR below it together; do not merge those PRs individually.
-3. Prefer **Squash and merge** for one commit per PR. GitHub handles the remaining stack's retargeting and cascading rebase after a full or partial stack merge.
-4. Identify deployment boundaries before merging. Merge only through the highest layer that can deploy safely, wait for that deployment when required, then merge the remaining layer.
-5. Active `main` deployments are never canceled. Back-to-back merges retain the running deployment and only the newest pending deployment, while stale PR runs still cancel.
+1. Independent work gets a standalone branch from `main`; only stack work that genuinely depends on the layer below it.
+2. Prefer **Squash and merge** so each PR lands as one commit.
+3. Identify deployment boundaries before merging. Merge only through the highest layer that can deploy safely, wait for that deployment when required, then merge the remaining layer.
 
 
 ## Code Comments and Docstrings
