@@ -72,8 +72,8 @@ def test_reconstructed_snapshot_is_not_runnable() -> None:
     # runnable typed requirement, so it must be rejected.
     reconstructed = {
         "uuid": "11111111-1111-1111-1111-111111111111",
-        "slug": "legacy",
-        "name": "Legacy",
+        "slug": "historical",
+        "name": "Historical",
         "submission_type": "repo_fork",
         "submission_value_kind": "github_url",
         "reconstructed": True,

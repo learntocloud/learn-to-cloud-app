@@ -10,10 +10,10 @@ import httpx
 from opentelemetry import trace
 
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
+from learn_to_cloud_shared.verification.errors import github_error_to_result
 from learn_to_cloud_shared.verification.evidence import truncate_to_bytes
 from learn_to_cloud_shared.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
-    github_error_to_validation_result,
 )
 from learn_to_cloud_shared.verification.graders import grade_indicator_task
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
@@ -253,7 +253,7 @@ async def run_devops_workflow(
                     ),
                 )
             span.record_exception(e)
-            return github_error_to_validation_result(
+            return github_error_to_result(
                 e,
                 event="devops_analysis.repo_tree_error",
                 context={"owner": owner, "repo": repo},

@@ -35,9 +35,9 @@ import httpx
 from opentelemetry import trace
 
 from learn_to_cloud_shared.schemas import ValidationResult
+from learn_to_cloud_shared.verification.errors import github_error_to_result
 from learn_to_cloud_shared.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
-    github_error_to_validation_result,
 )
 from learn_to_cloud_shared.verification.repo_ref import RepoRef, default_repo_ref
 from learn_to_cloud_shared.verification.workflow_runs import (
@@ -96,7 +96,7 @@ async def verify_codeql_status(
                     ),
                 )
             span.record_exception(e)
-            return github_error_to_validation_result(
+            return github_error_to_result(
                 e,
                 event="codeql_status.api_error",
                 context={"owner": owner, "repo": repo},
@@ -165,7 +165,7 @@ async def verify_codeql_status(
                     ),
                 )
             span.record_exception(e)
-            return github_error_to_validation_result(
+            return github_error_to_result(
                 e,
                 event="codeql_status.api_error",
                 context={"owner": owner, "repo": repo},

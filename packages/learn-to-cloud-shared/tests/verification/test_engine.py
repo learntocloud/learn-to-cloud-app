@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
+from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.testing.requirement_factories import (
     repo_fork_requirement,
 )
@@ -27,12 +28,15 @@ from learn_to_cloud_shared.verification_workflow import PreparedVerificationAtte
 
 
 def _job(requirement=None) -> PreparedVerificationAttempt:
+    requirement = requirement or repo_fork_requirement()
     return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username="learner",
-        requirement=requirement or repo_fork_requirement(),
-        submitted_value="https://github.com/learner/test-repo",
+        requirement=requirement,
+        submitted_value=SubmittedValue.from_raw(
+            requirement, "https://github.com/learner/test-repo"
+        ),
     )
 
 
@@ -186,16 +190,19 @@ def _journal_job() -> PreparedVerificationAttempt:
         journal_api_verifier_requirement,
     )
 
+    requirement = journal_api_verifier_requirement(
+        slug="journal-api-implementation",
+        name="Journal API Implementation",
+        required_repo="owner/journal-starter",
+    )
     return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username="learner",
-        requirement=journal_api_verifier_requirement(
-            slug="journal-api-implementation",
-            name="Journal API Implementation",
-            required_repo="owner/journal-starter",
+        requirement=requirement,
+        submitted_value=SubmittedValue.from_raw(
+            requirement, "https://github.com/learner/journal-starter"
         ),
-        submitted_value="https://github.com/learner/journal-starter",
     )
 
 
@@ -253,15 +260,16 @@ def _deployment_job(description: str) -> PreparedVerificationAttempt:
         deployment_architecture_requirement,
     )
 
+    requirement = deployment_architecture_requirement(
+        slug="deployment-architecture",
+        required_repo="owner/journal-starter",
+    )
     return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username="learner",
-        requirement=deployment_architecture_requirement(
-            slug="deployment-architecture",
-            required_repo="owner/journal-starter",
-        ),
-        submitted_value=description,
+        requirement=requirement,
+        submitted_value=SubmittedValue.from_raw(requirement, description),
     )
 
 
@@ -334,12 +342,13 @@ def _deployed_api_job() -> PreparedVerificationAttempt:
         deployed_api_requirement,
     )
 
+    requirement = deployed_api_requirement(slug="deployed-api")
     return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username=None,
-        requirement=deployed_api_requirement(slug="deployed-api"),
-        submitted_value="https://api.example.com",
+        requirement=requirement,
+        submitted_value=SubmittedValue.from_raw(requirement, "https://api.example.com"),
     )
 
 
@@ -348,15 +357,18 @@ def _devops_job() -> PreparedVerificationAttempt:
         devops_analysis_requirement,
     )
 
+    requirement = devops_analysis_requirement(
+        slug="devops-analysis",
+        required_repo="owner/devops-repo",
+    )
     return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username="learner",
-        requirement=devops_analysis_requirement(
-            slug="devops-analysis",
-            required_repo="owner/devops-repo",
+        requirement=requirement,
+        submitted_value=SubmittedValue.from_raw(
+            requirement, "https://github.com/learner/devops-repo"
         ),
-        submitted_value="https://github.com/learner/devops-repo",
     )
 
 
@@ -430,15 +442,18 @@ def _security_job() -> PreparedVerificationAttempt:
         security_scanning_requirement,
     )
 
+    requirement = security_scanning_requirement(
+        slug="security-scanning",
+        required_repo="owner/sec-repo",
+    )
     return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username="learner",
-        requirement=security_scanning_requirement(
-            slug="security-scanning",
-            required_repo="owner/sec-repo",
+        requirement=requirement,
+        submitted_value=SubmittedValue.from_raw(
+            requirement, "https://github.com/learner/sec-repo"
         ),
-        submitted_value="https://github.com/learner/sec-repo",
     )
 
 
@@ -447,12 +462,13 @@ def _career_job(text: str) -> PreparedVerificationAttempt:
         career_reflection_requirement,
     )
 
+    requirement = career_reflection_requirement(slug="career-reflection")
     return PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
         github_username=None,
-        requirement=career_reflection_requirement(slug="career-reflection"),
-        submitted_value=text,
+        requirement=requirement,
+        submitted_value=SubmittedValue.from_raw(requirement, text),
     )
 
 
@@ -540,7 +556,7 @@ def _phase02_job(requirement, submitted_value, github_username="learner"):
         user_id=1,
         github_username=github_username,
         requirement=requirement,
-        submitted_value=submitted_value,
+        submitted_value=SubmittedValue.from_raw(requirement, submitted_value),
     )
 
 

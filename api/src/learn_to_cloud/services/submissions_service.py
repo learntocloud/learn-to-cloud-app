@@ -227,8 +227,7 @@ async def create_verification_attempt(
 
     The advisory lock serializes concurrent submits for the same
     requirement so two racing requests can never both pass the active/succeeded
-    checks and create two active attempts. New attempts no longer create a
-    compatibility ``verification_jobs`` row.
+    checks and create two active attempts.
     """
     ctx = await _check_submission_preconditions(
         session_maker,

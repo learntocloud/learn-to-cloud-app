@@ -38,6 +38,7 @@ def _requirement(slug: str, name: str) -> SimpleNamespace:
         name=name,
         description="",
         submission_type=SubmissionType.CTF_TOKEN,
+        type_config=SimpleNamespace(placeholder=None),
     )
 
 

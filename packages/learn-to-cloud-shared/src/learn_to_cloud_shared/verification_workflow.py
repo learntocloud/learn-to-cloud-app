@@ -34,15 +34,7 @@ class PreparedVerificationAttempt:
     user_id: int
     github_username: str | None
     requirement: HandsOnRequirement
-    submitted_value: SubmittedValue | str
-
-    def __post_init__(self) -> None:
-        if isinstance(self.submitted_value, str):
-            object.__setattr__(
-                self,
-                "submitted_value",
-                SubmittedValue.from_raw(self.requirement, self.submitted_value),
-            )
+    submitted_value: SubmittedValue
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -50,15 +42,8 @@ class PreparedVerificationAttempt:
             "user_id": self.user_id,
             "github_username": self.github_username,
             "requirement": self.requirement.model_dump(mode="json"),
-            "submitted_value": self.typed_submitted_value.as_text,
-            "submission_value": self.typed_submitted_value.to_payload(),
+            "submission_value": self.submitted_value.to_payload(),
         }
-
-    @property
-    def typed_submitted_value(self) -> SubmittedValue:
-        if isinstance(self.submitted_value, str):
-            return SubmittedValue.from_raw(self.requirement, self.submitted_value)
-        return self.submitted_value
 
     @property
     def target(self) -> GitHubTarget | None:
@@ -77,14 +62,7 @@ class PreparedVerificationAttempt:
                 else None
             ),
             requirement=requirement,
-            submitted_value=(
-                SubmittedValue.from_payload(payload["submission_value"])
-                if "submission_value" in payload
-                else SubmittedValue.from_raw(
-                    requirement,
-                    _expect_str(payload["submitted_value"], "submitted_value"),
-                )
-            ),
+            submitted_value=SubmittedValue.from_payload(payload["submission_value"]),
         )
 
 

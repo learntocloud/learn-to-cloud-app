@@ -27,17 +27,10 @@ from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.github_client import (
     get_github_client as _get_github_client,
 )
-from learn_to_cloud_shared.verification.errors import (
-    GitHubServerError,
-    github_error_to_result,
-    make_retriable,
-)
+from learn_to_cloud_shared.verification.errors import GitHubServerError, make_retriable
 
 # Exceptions that should trigger retry.
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = make_retriable(GitHubServerError)
-
-# Re-export under the historical name used across verification modules.
-github_error_to_validation_result = github_error_to_result
 
 
 def _parse_retry_after(header_value: str | None) -> float | None:

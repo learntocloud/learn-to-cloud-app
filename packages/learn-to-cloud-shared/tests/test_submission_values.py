@@ -25,8 +25,6 @@ from learn_to_cloud_shared.testing.requirement_factories import (
         (SubmissionType.DEPLOYED_API, SubmissionValueKind.DEPLOYED_URL),
         (SubmissionType.CAREER_REFLECTION, SubmissionValueKind.TEXT),
         (SubmissionType.DEPLOYMENT_ARCHITECTURE, SubmissionValueKind.TEXT),
-        ("ci_status", SubmissionValueKind.GITHUB_URL),
-        ("iac_token", SubmissionValueKind.TOKEN),
     ],
 )
 def test_value_kind_for_submission_type(
@@ -37,7 +35,7 @@ def test_value_kind_for_submission_type(
 
 
 @pytest.mark.unit
-def test_github_url_value_uses_github_column() -> None:
+def test_github_url_value_uses_typed_payload() -> None:
     value = SubmittedValue.from_raw(
         profile_readme_requirement(),
         " https://github.com/user ",
@@ -45,8 +43,7 @@ def test_github_url_value_uses_github_column() -> None:
 
     assert value.kind is SubmissionValueKind.GITHUB_URL
     assert value.github_url == "https://github.com/user"
-    assert value.to_columns() == {
-        "submitted_value": "https://github.com/user",
+    assert value.to_payload() == {
         "submission_value_kind": "github_url",
         "github_url": "https://github.com/user",
         "token_value": None,
@@ -56,7 +53,7 @@ def test_github_url_value_uses_github_column() -> None:
 
 
 @pytest.mark.unit
-def test_text_value_uses_text_column() -> None:
+def test_text_value_uses_typed_payload() -> None:
     value = SubmittedValue.from_raw(
         career_reflection_requirement(),
         "  ## Question 0?\n\nA thoughtful answer.  ",
@@ -65,8 +62,7 @@ def test_text_value_uses_text_column() -> None:
     assert value.kind is SubmissionValueKind.TEXT
     assert value.text_value == "## Question 0?\n\nA thoughtful answer."
     assert value.as_text == "## Question 0?\n\nA thoughtful answer."
-    assert value.to_columns() == {
-        "submitted_value": "## Question 0?\n\nA thoughtful answer.",
+    assert value.to_payload() == {
         "submission_value_kind": "text",
         "github_url": None,
         "token_value": None,
@@ -76,20 +72,13 @@ def test_text_value_uses_text_column() -> None:
 
 
 @pytest.mark.unit
-def test_text_value_round_trips_through_columns() -> None:
+def test_text_value_round_trips_through_payload() -> None:
     original = SubmittedValue.from_raw(
         career_reflection_requirement(),
         "Reflection body text.",
     )
 
-    restored = SubmittedValue.from_columns(
-        kind=original.kind.value,
-        github_url=None,
-        token_value=None,
-        deployed_url=None,
-        text_value=original.text_value,
-        legacy_value=original.as_text,
-    )
+    restored = SubmittedValue.from_payload(original.to_payload())
 
     assert restored.kind is SubmissionValueKind.TEXT
     assert restored.text_value == "Reflection body text."
@@ -135,14 +124,14 @@ def test_deployed_url_rejects_whitespace() -> None:
 
 
 @pytest.mark.unit
-def test_payload_round_trip_rejects_legacy_mismatch() -> None:
+def test_payload_rejects_multiple_typed_values() -> None:
     payload = {
         "submission_value_kind": "github_url",
         "github_url": "https://github.com/user",
-        "token_value": None,
+        "token_value": "unexpected-token",
         "deployed_url": None,
-        "submitted_value": "https://github.com/other",
+        "text_value": None,
     }
 
-    with pytest.raises(ValueError, match="Legacy submitted_value"):
+    with pytest.raises(ValueError, match="Invalid typed value"):
         SubmittedValue.from_payload(payload)

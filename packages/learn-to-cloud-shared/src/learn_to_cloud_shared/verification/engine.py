@@ -997,7 +997,7 @@ async def run_profile(
     context = StepContext(
         job=job,
         repository=job.target,
-        submitted_value=job.typed_submitted_value.as_text,
+        submitted_value=job.submitted_value.as_text,
         repo_files=repo_files,
     )
 

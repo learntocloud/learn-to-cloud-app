@@ -20,6 +20,7 @@ from learn_to_cloud_shared.models import VerificationAttemptOutcome
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptStatusRow,
 )
+from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.testing.requirement_factories import (
     journal_api_verifier_requirement,
     repo_fork_requirement,
@@ -29,7 +30,7 @@ from learn_to_cloud_shared.verification_workflow import PreparedVerificationAtte
 
 
 # --------------------------------------------------------------------------- #
-# Orchestration driver (mirrors the legacy orchestration test harness)
+# Orchestration driver
 # --------------------------------------------------------------------------- #
 
 
@@ -97,7 +98,7 @@ def _prepared_payload(requirement: Any, value: str) -> dict[str, object]:
         user_id=1,
         github_username="alice",
         requirement=requirement,
-        submitted_value=value,
+        submitted_value=SubmittedValue.from_raw(requirement, value),
     )
     return job.to_payload()
 

@@ -17,9 +17,9 @@ from opentelemetry import trace
 
 from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.schemas import ValidationResult
+from learn_to_cloud_shared.verification.errors import github_error_to_result
 from learn_to_cloud_shared.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
-    github_error_to_validation_result,
 )
 from learn_to_cloud_shared.verification.github_metadata import (
     GitHubMetadata,
@@ -32,7 +32,6 @@ __all__ = [
     "check_github_url_exists",
     "check_repo_is_fork_of",
     "default_github_metadata",
-    "github_error_to_validation_result",
     "validate_profile_readme",
     "validate_repo_fork",
 ]
@@ -130,7 +129,7 @@ async def check_repo_is_fork_of(
     except httpx.HTTPStatusError as e:
         span = trace.get_current_span()
         span.record_exception(e)
-        return github_error_to_validation_result(
+        return github_error_to_result(
             e,
             event="fork_check.api_error",
             context={"username": username, "repo": repo_name},

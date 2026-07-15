@@ -191,8 +191,7 @@ class TestSubmissionValidationErrors:
 class TestAlreadyValidatedShortCircuit:
     @pytest.mark.asyncio
     async def test_already_validated_raises_error(self):
-        """Authoritative-or-legacy succeeded (via ``are_all_requirements_succeeded``)
-        short-circuits before any attempt is created."""
+        """A succeeded attempt short-circuits before another attempt is created."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
