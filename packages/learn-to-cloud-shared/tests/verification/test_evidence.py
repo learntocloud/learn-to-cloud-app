@@ -5,7 +5,9 @@ import pytest
 from learn_to_cloud_shared.verification.evidence import (
     apply_evidence_cap,
     collect_repo_file_evidence,
+    collect_repo_pattern_evidence,
     collect_submitted_text_evidence,
+    select_repo_paths,
 )
 from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
 from learn_to_cloud_shared.verification.tasks.base import (
@@ -21,6 +23,7 @@ def _task(
     max_files: int = 10,
     max_file_size_bytes: int = 50 * 1024,
     max_total_bytes: int = 200 * 1024,
+    path_patterns: list[str] | None = None,
 ) -> VerificationTask:
     return VerificationTask(
         id="task-1",
@@ -28,6 +31,7 @@ def _task(
         name="Test task",
         evidence=EvidencePolicy(
             source=source,
+            path_patterns=path_patterns or [],
             max_files=max_files,
             max_file_size_bytes=max_file_size_bytes,
             max_total_bytes=max_total_bytes,
@@ -96,3 +100,42 @@ async def test_collect_repo_file_evidence_skips_missing_and_caps():
     )
     assert [item.path for item in bundle.items] == ["present.txt"]
     assert bundle.source == "repo_files"
+
+
+def test_select_repo_paths_prioritizes_exact_paths_before_directories():
+    selected = select_repo_paths(
+        [
+            "infra/z.tf",
+            ".github/workflows/ci.yml",
+            "Dockerfile",
+            "infra/a.tf",
+        ],
+        ["Dockerfile", ".github/workflows/", "infra/"],
+        max_files=3,
+    )
+
+    assert selected == [
+        "Dockerfile",
+        ".github/workflows/ci.yml",
+        "infra/a.tf",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_collect_repo_pattern_evidence_preserves_paths_and_caps():
+    repo_files = InMemoryRepoFiles(
+        {
+            "Dockerfile": "FROM python",
+            "infra/a.tf": "resource a",
+            "infra/b.tf": "resource b",
+        }
+    )
+    bundle = await collect_repo_pattern_evidence(
+        repo_files,
+        "owner",
+        "repo",
+        _task(max_files=2, path_patterns=["Dockerfile", "infra/"]),
+    )
+
+    assert [item.path for item in bundle.items] == ["Dockerfile", "infra/a.tf"]
+    assert [item.content for item in bundle.items] == ["FROM python", "resource a"]

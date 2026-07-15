@@ -7,10 +7,10 @@ carrying its own collector:
    task's :class:`EvidencePolicy`, enforce ``max_files`` /
    ``max_file_size_bytes`` / ``max_total_bytes`` and build the
    :class:`EvidenceBundle`. No network.
-2. **get-content**, keyed by :class:`EvidenceSource`: ``repo_files`` fetches
-   from GitHub (:func:`collect_repo_file_evidence`); ``submitted_text`` is a
-   no-network passthrough (:func:`collect_submitted_text_evidence`). A phase
-   may use either or both.
+2. **select/get-content**, keyed by :class:`EvidenceSource`: ``repo_files``
+   supports exact paths or bounded path-pattern discovery before fetching from
+   GitHub; ``submitted_text`` is a no-network passthrough. A phase may use
+   either or both.
 3. **selection** per phase lives with the profile/task (which paths, which
    source), not here.
 """
@@ -94,6 +94,78 @@ async def collect_repo_file_evidence(
             continue
         fetched.append((path, content))
     return apply_evidence_cap(task, fetched)
+
+
+def select_repo_paths(
+    all_files: Iterable[str],
+    patterns: Iterable[str],
+    *,
+    max_files: int,
+) -> list[str]:
+    """Select exact paths first, then directory-prefix matches."""
+    ordered_files = sorted(all_files, key=str.casefold)
+    ordered_patterns = list(patterns)
+    exact_patterns = [
+        pattern for pattern in ordered_patterns if not pattern.endswith("/")
+    ]
+    directory_patterns = [
+        pattern for pattern in ordered_patterns if pattern.endswith("/")
+    ]
+    selected: list[str] = []
+    selected_normalized: set[str] = set()
+
+    for pattern in exact_patterns:
+        match = next(
+            (
+                path
+                for path in ordered_files
+                if path.casefold() == pattern.casefold()
+                and path.casefold() not in selected_normalized
+            ),
+            None,
+        )
+        if match is not None:
+            selected.append(match)
+            selected_normalized.add(match.casefold())
+
+    for path in ordered_files:
+        normalized_path = path.casefold()
+        if normalized_path in selected_normalized:
+            continue
+        if any(
+            normalized_path.startswith(pattern.casefold())
+            for pattern in directory_patterns
+        ):
+            selected.append(path)
+            selected_normalized.add(normalized_path)
+        if len(selected) >= max_files:
+            break
+
+    return selected[:max_files]
+
+
+async def collect_repo_pattern_evidence(
+    repo_files: RepoFiles,
+    owner: str,
+    repo: str,
+    task: VerificationTask,
+    branch: str = "main",
+) -> EvidenceBundle:
+    """Discover task path patterns in the tree, then fetch bounded evidence."""
+    all_files = await repo_files.tree(owner, repo, branch)
+    selected = select_repo_paths(
+        all_files,
+        task.evidence.path_patterns,
+        max_files=task.evidence.max_files,
+    )
+    return await collect_repo_file_evidence(
+        repo_files,
+        owner,
+        repo,
+        selected,
+        task,
+        branch,
+    )
 
 
 def collect_submitted_text_evidence(

@@ -17,6 +17,7 @@ from learn_to_cloud_shared.verification.llm_grading import (
 )
 from learn_to_cloud_shared.verification.tasks import (
     PHASE3_LLM_TASKS,
+    PHASE5_LLM_TASKS,
     PHASE6_LLM_TASKS,
     PHASE7_LLM_TASKS,
     LLMGradingDecision,
@@ -172,6 +173,32 @@ def test_apply_llm_grading_decisions_fails_when_score_is_below_threshold():
     assert updated.validation_result.task_results[-1].next_steps == (
         "Add a Dependabot updates entry."
     )
+
+
+@pytest.mark.unit
+def test_phase5_holistic_review_enforces_strict_threshold():
+    updated = apply_llm_grading_decisions(
+        _run_result(),
+        [
+            LLMGradingDecisionPayload(
+                task=PHASE5_LLM_TASKS[0],
+                decision=LLMGradingDecision(
+                    passed=True,
+                    score=0.79,
+                    confidence=0.9,
+                    feedback="Most areas are sound, but the manifests conflict.",
+                    next_steps="Align the image and port configuration.",
+                    evidence_refs=["Dockerfile", "k8s/deployment.yaml"],
+                ),
+            )
+        ],
+    )
+
+    assert updated.validation_result.is_valid is False
+    assert updated.validation_result.task_results is not None
+    result = updated.validation_result.task_results[-1]
+    assert result.task_name == "DevOps Implementation Review"
+    assert result.passed is False
 
 
 @pytest.mark.unit
