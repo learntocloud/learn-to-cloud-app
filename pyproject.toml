@@ -42,7 +42,7 @@ set -e
 [tool.poe.tasks.package-smoke]
 help = "Build and validate the installed shared runtime package"
 shell = """
-set -euo pipefail
+set -eu
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
 uv build --package learn-to-cloud-shared --wheel --out-dir "$tmpdir"
