@@ -2,14 +2,15 @@
 
 Plain shared-package code (no Durable imports) that the Durable activities
 call. A submission type maps to a :class:`VerificationProfile`: an ordered
-list of :class:`Step`s, each naming a registered **check** (code) plus typed
-**params** (data). :func:`run_profile` looks up the profile, runs its steps in
-order, short-circuits on a failed gate, accumulates
+list of :class:`Step`s whose typed params select a registered **check**.
+:func:`run_profile` looks up the profile, runs its steps in order,
+short-circuits on a failed gate, accumulates
 :class:`EvidenceBundle`s, and produces one aggregate ``ValidationResult``.
 
-Checks are registered by name in ``_CHECK_REGISTRY`` via
-:func:`register_check`. Adding a verification behavior becomes "register a
-check, declare a profile," not "touch an orchestrator and a validator."
+Checks are registered by params type in ``_CHECK_REGISTRY`` via
+:func:`register_check`. The params type is the single dispatch key, so adding a
+verification behavior cannot drift across a separate union, registry name, and
+profile step name.
 
 Every submission type resolves to a :class:`VerificationProfile`; a
 registry-exhaustiveness test guarantees no type is left unmapped.
@@ -19,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
-from typing import Annotated, Literal
+from typing import ClassVar
 
 from opentelemetry import trace
 from pydantic import Field
@@ -76,6 +77,7 @@ from learn_to_cloud_shared.verification.token_base import (
     verify_networking_token,
 )
 from learn_to_cloud_shared.verification_workflow import (
+    GradingDisposition,
     PreparedVerificationAttempt,
     VerificationRunResult,
 )
@@ -83,17 +85,23 @@ from learn_to_cloud_shared.verification_workflow import (
 _tracer = trace.get_tracer(__name__)
 
 # ---------------------------------------------------------------------------
-# Step params: per-check models in a discriminated union keyed by ``check``.
+# Step params: each model type selects exactly one registered check.
 # ---------------------------------------------------------------------------
 
 
-class CIStatusParams(FrozenModel):
+class CheckParams(FrozenModel):
+    """Base for typed check configuration and its stable diagnostic name."""
+
+    check_name: ClassVar[str]
+
+
+class CIStatusParams(CheckParams):
     """Params for the ``github_ci_passing`` gate (workflow file is fixed)."""
 
-    check: Literal["github_ci_passing"] = "github_ci_passing"
+    check_name = "github_ci_passing"
 
 
-class LLMRubricReviewParams(FrozenModel):
+class LLMRubricReviewParams(CheckParams):
     """Params for the terminal ``llm_rubric_review`` step.
 
     Carries the rubric ``task`` (criteria + grader) and the exact repository
@@ -101,53 +109,53 @@ class LLMRubricReviewParams(FrozenModel):
     keeps evidence deterministic and matches the prescribed capstone files.
     """
 
-    check: Literal["llm_rubric_review"] = "llm_rubric_review"
+    check_name = "llm_rubric_review"
     task: VerificationTask
     evidence_paths: tuple[str, ...]
 
 
-class DeploymentArchitectureGateParams(FrozenModel):
+class DeploymentArchitectureGateParams(CheckParams):
     """Params for the Phase 4 ``deployment_architecture_gate`` (no config).
 
     The gate reads the description length and deploy-script path from the
     requirement's ``type_config`` at runtime, so it carries no data.
     """
 
-    check: Literal["deployment_architecture_gate"] = "deployment_architecture_gate"
+    check_name = "deployment_architecture_gate"
 
 
-class DeploymentArchitectureReviewParams(FrozenModel):
+class DeploymentArchitectureReviewParams(CheckParams):
     """Params for the Phase 4 ``deployment_architecture_review`` rubric step.
 
     Bundles the learner's forked ``deploy.sh`` with their architecture
     description for the LLM rubric grader.
     """
 
-    check: Literal["deployment_architecture_review"] = "deployment_architecture_review"
+    check_name = "deployment_architecture_review"
     task: VerificationTask
 
 
-class DeployedApiCheckParams(FrozenModel):
+class DeployedApiCheckParams(CheckParams):
     """Params for the deterministic ``deployed_api_check`` (no config).
 
     The check probes the submitted base URL's health surface; the target URL
     is the submitted value, so it carries no data.
     """
 
-    check: Literal["deployed_api_check"] = "deployed_api_check"
+    check_name = "deployed_api_check"
 
 
-class DevopsAnalysisCheckParams(FrozenModel):
+class DevopsAnalysisCheckParams(CheckParams):
     """Params for the deterministic ``devops_analysis_check`` (no config).
 
     The check runs the Phase 5 DevOps workflow against the fork resolved from
     the requirement plus the learner's username, so it carries no data.
     """
 
-    check: Literal["devops_analysis_check"] = "devops_analysis_check"
+    check_name = "devops_analysis_check"
 
 
-class CodeQLStatusParams(FrozenModel):
+class CodeQLStatusParams(CheckParams):
     """Params for the Phase 6 ``codeql_status`` gate (no config).
 
     The gate verifies the fork's CodeQL workflow ran green on the current
@@ -155,95 +163,76 @@ class CodeQLStatusParams(FrozenModel):
     so it carries no data.
     """
 
-    check: Literal["codeql_status"] = "codeql_status"
+    check_name = "codeql_status"
 
 
-class SecurityScanningReviewParams(FrozenModel):
+class SecurityScanningReviewParams(CheckParams):
     """Params for the Phase 6 ``security_scanning_review`` rubric step.
 
     Bundles the fork's security-scanning config files for the LLM rubric
     grader; carries the rubric ``task``.
     """
 
-    check: Literal["security_scanning_review"] = "security_scanning_review"
+    check_name = "security_scanning_review"
     task: VerificationTask
 
 
-class CareerReflectionGateParams(FrozenModel):
+class CareerReflectionGateParams(CheckParams):
     """Params for the Phase 7 ``career_reflection_gate`` (no config).
 
     The gate only rejects empty submissions; the rubric does the real grading.
     """
 
-    check: Literal["career_reflection_gate"] = "career_reflection_gate"
+    check_name = "career_reflection_gate"
 
 
-class CareerReflectionReviewParams(FrozenModel):
+class CareerReflectionReviewParams(CheckParams):
     """Params for the Phase 7 ``career_reflection_review`` text rubric step.
 
     Bundles the learner's free-text reflection as evidence; carries the rubric
     ``task``. Text-only, so the grading request uses the no-repo prompt.
     """
 
-    check: Literal["career_reflection_review"] = "career_reflection_review"
+    check_name = "career_reflection_review"
     task: VerificationTask
 
 
-class ProfileReadmeCheckParams(FrozenModel):
+class ProfileReadmeCheckParams(CheckParams):
     """Params for the deterministic Phase 0 ``profile_readme_check`` (no config).
 
     The check confirms the learner's ``<username>/<username>`` profile README
     repo resolves; the target is built from the username, so it carries no data.
     """
 
-    check: Literal["profile_readme_check"] = "profile_readme_check"
+    check_name = "profile_readme_check"
 
 
-class RepoForkCheckParams(FrozenModel):
+class RepoForkCheckParams(CheckParams):
     """Params for the deterministic Phase 1/2 ``repo_fork_check`` (no config).
 
     The check confirms the learner's repo is a fork of the required upstream;
     fork identity and upstream come from the target, so it carries no data.
     """
 
-    check: Literal["repo_fork_check"] = "repo_fork_check"
+    check_name = "repo_fork_check"
 
 
-class CtfTokenCheckParams(FrozenModel):
+class CtfTokenCheckParams(CheckParams):
     """Params for the deterministic Phase 1 ``ctf_token_check`` (no config).
 
     The check verifies the submitted CTF token against the learner's username.
     """
 
-    check: Literal["ctf_token_check"] = "ctf_token_check"
+    check_name = "ctf_token_check"
 
 
-class NetworkingTokenCheckParams(FrozenModel):
+class NetworkingTokenCheckParams(CheckParams):
     """Params for the deterministic Phase 2 ``networking_token_check`` (no config).
 
     The check verifies the submitted networking token against the username.
     """
 
-    check: Literal["networking_token_check"] = "networking_token_check"
-
-
-StepParams = Annotated[
-    CIStatusParams
-    | LLMRubricReviewParams
-    | DeploymentArchitectureGateParams
-    | DeploymentArchitectureReviewParams
-    | DeployedApiCheckParams
-    | DevopsAnalysisCheckParams
-    | CodeQLStatusParams
-    | SecurityScanningReviewParams
-    | CareerReflectionGateParams
-    | CareerReflectionReviewParams
-    | ProfileReadmeCheckParams
-    | RepoForkCheckParams
-    | CtfTokenCheckParams
-    | NetworkingTokenCheckParams,
-    Field(discriminator="check"),
-]
+    check_name = "networking_token_check"
 
 
 # ---------------------------------------------------------------------------
@@ -251,16 +240,11 @@ StepParams = Annotated[
 # ---------------------------------------------------------------------------
 
 
-class Step(FrozenModel):
-    """One ordered gate in a profile: a registered check plus its params.
+@dataclass(frozen=True, slots=True)
+class Step:
+    """One ordered profile step selected by its typed params."""
 
-    ``check`` is the registry key (which code runs); ``params`` is the typed
-    per-check config. They are kept separate, per the engine sketch, so the
-    dispatch key and the param schema evolve independently.
-    """
-
-    check: str
-    params: StepParams
+    params: CheckParams
     task_id: str
 
 
@@ -311,29 +295,31 @@ class VerificationProfile:
     rubric: LLMRubricGraderConfig | None = None
 
 
-CheckFn = Callable[[StepContext, StepParams], Awaitable[StepResult]]
+CheckFn = Callable[[StepContext, CheckParams], Awaitable[StepResult]]
 
-_CHECK_REGISTRY: dict[str, CheckFn] = {}
+_CHECK_REGISTRY: dict[type[CheckParams], CheckFn] = {}
 
 
-def register_check(name: str) -> Callable[[CheckFn], CheckFn]:
-    """Register a check under ``name``. Raises if the name is already taken."""
+def register_check(
+    params_type: type[CheckParams],
+) -> Callable[[CheckFn], CheckFn]:
+    """Register the check selected by ``params_type``."""
 
     def decorator(fn: CheckFn) -> CheckFn:
-        if name in _CHECK_REGISTRY:
-            raise ValueError(f"Check already registered: {name}")
-        _CHECK_REGISTRY[name] = fn
+        if params_type in _CHECK_REGISTRY:
+            raise ValueError(f"Check already registered: {params_type.check_name}")
+        _CHECK_REGISTRY[params_type] = fn
         return fn
 
     return decorator
 
 
-def check_for(name: str) -> CheckFn:
-    """Return the check registered under ``name`` or raise ``KeyError``."""
+def check_for(params: CheckParams) -> CheckFn:
+    """Return the check registered for ``params`` or raise ``KeyError``."""
     try:
-        return _CHECK_REGISTRY[name]
+        return _CHECK_REGISTRY[type(params)]
     except KeyError:
-        raise KeyError(f"No check registered for {name!r}") from None
+        raise KeyError(f"No check registered for {params.check_name!r}") from None
 
 
 # ---------------------------------------------------------------------------
@@ -341,10 +327,10 @@ def check_for(name: str) -> CheckFn:
 # ---------------------------------------------------------------------------
 
 
-@register_check("github_ci_passing")
+@register_check(CIStatusParams)
 async def _check_github_ci_passing(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Gate on a green CI run on the fork's ``main`` branch."""
     target = context.repository
@@ -367,10 +353,10 @@ async def _check_github_ci_passing(
     )
 
 
-@register_check("llm_rubric_review")
+@register_check(LLMRubricReviewParams)
 async def _check_llm_rubric_review(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Fetch exact-path evidence for a terminal LLM rubric review.
 
@@ -398,10 +384,10 @@ async def _check_llm_rubric_review(
     )
 
 
-@register_check("deployed_api_check")
+@register_check(DeployedApiCheckParams)
 async def _check_deployed_api(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 4 gate: probe the submitted API base URL."""
     result = await validate_deployed_api(context.submitted_value)
@@ -412,10 +398,10 @@ async def _check_deployed_api(
     )
 
 
-@register_check("devops_analysis_check")
+@register_check(DevopsAnalysisCheckParams)
 async def _check_devops_analysis(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 5 gate: run the DevOps workflow on the fork."""
     target = context.repository
@@ -438,10 +424,10 @@ async def _check_devops_analysis(
     )
 
 
-@register_check("codeql_status")
+@register_check(CodeQLStatusParams)
 async def _check_codeql_status(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 6 gate: CodeQL green on the fork's current main HEAD."""
     target = context.repository
@@ -464,10 +450,10 @@ async def _check_codeql_status(
     )
 
 
-@register_check("security_scanning_review")
+@register_check(SecurityScanningReviewParams)
 async def _check_security_scanning_review(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Bundle the fork's security-scanning config files for rubric grading."""
     assert isinstance(params, SecurityScanningReviewParams)
@@ -489,10 +475,10 @@ async def _check_security_scanning_review(
     )
 
 
-@register_check("career_reflection_gate")
+@register_check(CareerReflectionGateParams)
 async def _check_career_reflection_gate(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 7 gate: reject empty reflection submissions."""
     result = validate_career_reflection(context.submitted_value)
@@ -503,10 +489,10 @@ async def _check_career_reflection_gate(
     )
 
 
-@register_check("career_reflection_review")
+@register_check(CareerReflectionReviewParams)
 async def _check_career_reflection_review(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Bundle the learner's free-text reflection for text rubric grading."""
     assert isinstance(params, CareerReflectionReviewParams)
@@ -519,10 +505,10 @@ async def _check_career_reflection_review(
     )
 
 
-@register_check("profile_readme_check")
+@register_check(ProfileReadmeCheckParams)
 async def _check_profile_readme(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 0 gate: the profile README repo resolves."""
     target = context.repository
@@ -547,10 +533,10 @@ async def _check_profile_readme(
     )
 
 
-@register_check("repo_fork_check")
+@register_check(RepoForkCheckParams)
 async def _check_repo_fork(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 1/2 gate: the learner's repo forks the upstream."""
     target = context.repository
@@ -575,10 +561,10 @@ async def _check_repo_fork(
     )
 
 
-@register_check("ctf_token_check")
+@register_check(CtfTokenCheckParams)
 async def _check_ctf_token(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 1 gate: verify the submitted CTF token."""
     result = verify_ctf_token(
@@ -591,10 +577,10 @@ async def _check_ctf_token(
     )
 
 
-@register_check("networking_token_check")
+@register_check(NetworkingTokenCheckParams)
 async def _check_networking_token(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 2 gate: verify the submitted networking token."""
     result = verify_networking_token(
@@ -607,10 +593,10 @@ async def _check_networking_token(
     )
 
 
-@register_check("deployment_architecture_gate")
+@register_check(DeploymentArchitectureGateParams)
 async def _check_deployment_architecture_gate(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Phase 4 gate: description meets min length and ``deploy.sh`` exists."""
     result = await validate_deployment_architecture(
@@ -626,10 +612,10 @@ async def _check_deployment_architecture_gate(
     )
 
 
-@register_check("deployment_architecture_review")
+@register_check(DeploymentArchitectureReviewParams)
 async def _check_deployment_architecture_review(
     context: StepContext,
-    params: StepParams,
+    params: CheckParams,
 ) -> StepResult:
     """Bundle the fork's ``deploy.sh`` and the architecture description.
 
@@ -688,12 +674,10 @@ _JOURNAL_API_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
         Step(
-            check="github_ci_passing",
             params=CIStatusParams(),
             task_id="journal-api-implementation-ci",
         ),
         Step(
-            check="llm_rubric_review",
             params=LLMRubricReviewParams(
                 task=JOURNAL_API_FINAL_RUBRIC_TASK,
                 evidence_paths=JOURNAL_API_IMPORTANT_PATHS,
@@ -714,12 +698,10 @@ _DEPLOYMENT_ARCHITECTURE_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
         Step(
-            check="deployment_architecture_gate",
             params=DeploymentArchitectureGateParams(),
             task_id="deployment-architecture-gate",
         ),
         Step(
-            check="deployment_architecture_review",
             params=DeploymentArchitectureReviewParams(
                 task=DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
             ),
@@ -738,7 +720,6 @@ _DEPLOYED_API_PROFILE = VerificationProfile(
     requires_username=False,
     steps=(
         Step(
-            check="deployed_api_check",
             params=DeployedApiCheckParams(),
             task_id="deployed-api-check",
         ),
@@ -752,7 +733,6 @@ _DEVOPS_ANALYSIS_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
         Step(
-            check="devops_analysis_check",
             params=DevopsAnalysisCheckParams(),
             task_id="devops-analysis-check",
         ),
@@ -769,12 +749,10 @@ _SECURITY_SCANNING_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
         Step(
-            check="codeql_status",
             params=CodeQLStatusParams(),
             task_id="codeql-status-gate",
         ),
         Step(
-            check="security_scanning_review",
             params=SecurityScanningReviewParams(task=SECURITY_SCANNING_RUBRIC_TASK),
             task_id=SECURITY_SCANNING_RUBRIC_TASK.id,
         ),
@@ -792,12 +770,10 @@ _CAREER_REFLECTION_PROFILE = VerificationProfile(
     requires_username=False,
     steps=(
         Step(
-            check="career_reflection_gate",
             params=CareerReflectionGateParams(),
             task_id="career-reflection-gate",
         ),
         Step(
-            check="career_reflection_review",
             params=CareerReflectionReviewParams(task=CAREER_REFLECTION_RUBRIC_TASK),
             task_id=CAREER_REFLECTION_RUBRIC_TASK.id,
         ),
@@ -812,7 +788,6 @@ _PROFILE_README_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
         Step(
-            check="profile_readme_check",
             params=ProfileReadmeCheckParams(),
             task_id="profile-readme-check",
         ),
@@ -826,7 +801,6 @@ _REPO_FORK_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
         Step(
-            check="repo_fork_check",
             params=RepoForkCheckParams(),
             task_id="repo-fork-check",
         ),
@@ -840,7 +814,6 @@ _CTF_TOKEN_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
         Step(
-            check="ctf_token_check",
             params=CtfTokenCheckParams(),
             task_id="ctf-token-check",
         ),
@@ -854,7 +827,6 @@ _NETWORKING_TOKEN_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
         Step(
-            check="networking_token_check",
             params=NetworkingTokenCheckParams(),
             task_id="networking-token-check",
         ),
@@ -877,13 +849,44 @@ def _steps_for(profile: VerificationProfile) -> tuple[Step, ...]:
 def _aggregate(step_results: list[StepResult]) -> ValidationResult:
     """Fold step results into one ``ValidationResult``.
 
-    A ``validation_result`` passthrough (a deterministic gate) is authoritative
-    and returned unchanged. Rubric profiles aggregate from per-step task
-    results.
+    One deterministic gate is returned unchanged. Multiple gates fold in
+    declaration order: the last gate supplies the decisive message while all
+    gate outcomes and task feedback contribute to the aggregate.
     """
-    for result in step_results:
-        if result.validation_result is not None:
-            return result.validation_result
+    authoritative_results = [
+        result.validation_result
+        for result in step_results
+        if result.validation_result is not None
+    ]
+    if len(authoritative_results) == 1:
+        return authoritative_results[0]
+    if authoritative_results:
+        decisive_result = authoritative_results[-1]
+        task_results = [
+            task_result
+            for validation_result in authoritative_results
+            for task_result in (validation_result.task_results or [])
+        ]
+
+        def latest_value(field: str) -> bool | str | None:
+            for validation_result in reversed(authoritative_results):
+                value = getattr(validation_result, field)
+                if value is not None:
+                    return value
+            return None
+
+        return decisive_result.model_copy(
+            update={
+                "is_valid": all(result.is_valid for result in authoritative_results),
+                "username_match": latest_value("username_match"),
+                "repo_exists": latest_value("repo_exists"),
+                "task_results": task_results or None,
+                "verification_completed": all(
+                    result.verification_completed for result in authoritative_results
+                ),
+                "cloud_provider": latest_value("cloud_provider"),
+            }
+        )
 
     task_results = [r.task_result for r in step_results if r.task_result is not None]
     passed = all(r.passed for r in step_results)
@@ -912,8 +915,7 @@ def _grading_requests_for(
     a migrated profile signals "no grading needed" to the orchestrator.
 
     A task whose evidence source is ``submitted_text`` grades free text with no
-    repository (Phase 7); every other task grades repository evidence and is
-    skipped when the job has no GitHub target.
+    repository (Phase 7); every other task requires a repository target.
     """
     target = job.target
     requests: list[LLMGradingRequest] = []
@@ -932,7 +934,9 @@ def _grading_requests_for(
             )
         else:
             if target is None or not target.repo:
-                continue
+                raise ValueError(
+                    f"Rubric task {task.id!r} requires a GitHub repository target"
+                )
             message = build_repo_rubric_message(
                 requirement_slug=job.requirement.slug,
                 requirement_name=job.requirement.name,
@@ -952,6 +956,23 @@ def _grading_requests_for(
     return requests
 
 
+def _grading_disposition_for(
+    profile: VerificationProfile,
+    step_results: list[StepResult],
+    grading_requests: list[LLMGradingRequest],
+) -> GradingDisposition:
+    """Explain why this run will or will not enter LLM grading."""
+    if profile.rubric is None:
+        if grading_requests:
+            raise ValueError("Non-rubric profile produced grading requests")
+        return GradingDisposition.NOT_REQUIRED
+    if grading_requests:
+        return GradingDisposition.REQUESTED
+    if any(not result.passed and result.stop_on_fail for result in step_results):
+        return GradingDisposition.SKIPPED_GATE_FAILED
+    raise ValueError("Rubric profile completed without a grading request")
+
+
 async def run_profile(
     job: PreparedVerificationAttempt,
     *,
@@ -963,9 +984,10 @@ async def run_profile(
     rest. Evidence bundles accumulate across steps, are visible to later steps
     via ``evidence_so_far``, and are carried on the returned run result.
 
-    Every registered profile records its LLM grading requests on the result
-    (``grading_requests`` is a list, possibly empty). An unregistered type
-    (which the exhaustiveness test forbids) returns a clean error result.
+    Every result records both its LLM grading requests and a
+    ``grading_disposition`` explaining why grading was requested or skipped.
+    An unregistered type (which the exhaustiveness test forbids) returns a
+    clean error result.
     """
     profile = _resolve_profile(job)
     if profile is None:
@@ -979,6 +1001,7 @@ async def run_profile(
             ),
             evidence=None,
             grading_requests=[],
+            grading_disposition=(GradingDisposition.SKIPPED_UNKNOWN_SUBMISSION_TYPE),
         )
 
     if profile.requires_username and not job.github_username:
@@ -991,6 +1014,7 @@ async def run_profile(
             ),
             evidence=None,
             grading_requests=[],
+            grading_disposition=GradingDisposition.SKIPPED_MISSING_USERNAME,
         )
 
     steps = _steps_for(profile)
@@ -1004,7 +1028,7 @@ async def run_profile(
     step_results: list[StepResult] = []
     bundles: list[EvidenceBundle] = []
     for step in steps:
-        result = await check_for(step.check)(context, step.params)
+        result = await check_for(step.params)(context, step.params)
         step_results.append(result)
         if result.evidence:
             bundles.extend(result.evidence)
@@ -1017,10 +1041,14 @@ async def run_profile(
 
     deterministic_result = _aggregate(step_results)
     grading_requests = _grading_requests_for(job, deterministic_result, step_results)
+    grading_disposition = _grading_disposition_for(
+        profile, step_results, grading_requests
+    )
 
     return VerificationRunResult(
         attempt=job,
         validation_result=deterministic_result,
         evidence=bundles or None,
         grading_requests=grading_requests,
+        grading_disposition=grading_disposition,
     )

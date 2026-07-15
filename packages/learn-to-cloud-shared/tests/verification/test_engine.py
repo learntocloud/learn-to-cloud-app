@@ -11,6 +11,7 @@ from learn_to_cloud_shared.testing.requirement_factories import (
 )
 from learn_to_cloud_shared.verification import engine as engine_module
 from learn_to_cloud_shared.verification.engine import (
+    CheckParams,
     CIStatusParams,
     Step,
     StepContext,
@@ -24,7 +25,42 @@ from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
     EvidenceItem,
 )
-from learn_to_cloud_shared.verification_workflow import PreparedVerificationAttempt
+from learn_to_cloud_shared.verification_workflow import (
+    GradingDisposition,
+    PreparedVerificationAttempt,
+)
+
+
+class PassingCheckParams(CheckParams):
+    check_name = "test_gate_pass"
+
+
+class HardFailParams(CheckParams):
+    check_name = "hard_fail"
+
+
+class NeverRunsParams(CheckParams):
+    check_name = "never_runs"
+
+
+class SoftFailParams(CheckParams):
+    check_name = "soft_fail"
+
+
+class AfterSoftParams(CheckParams):
+    check_name = "after_soft"
+
+
+class EmitEvidenceParams(CheckParams):
+    check_name = "emit_evidence"
+
+
+class ReadEvidenceParams(CheckParams):
+    check_name = "read_evidence"
+
+
+class UnknownCheckParams(CheckParams):
+    check_name = "does-not-exist"
 
 
 def _job(requirement=None) -> PreparedVerificationAttempt:
@@ -40,8 +76,8 @@ def _job(requirement=None) -> PreparedVerificationAttempt:
     )
 
 
-def _step(check: str, task_id: str) -> Step:
-    return Step(check=check, params=CIStatusParams(), task_id=task_id)
+def _step(params: CheckParams, task_id: str) -> Step:
+    return Step(params=params, task_id=task_id)
 
 
 def _profile(*steps: Step) -> VerificationProfile:
@@ -56,7 +92,7 @@ async def test_run_profile_uses_declared_steps(monkeypatch):
         items=[EvidenceItem(path="a.txt", content="x")],
     )
 
-    @register_check("test_gate_pass")
+    @register_check(PassingCheckParams)
     async def _gate(context: StepContext, params) -> StepResult:
         return StepResult(
             passed=True,
@@ -67,7 +103,7 @@ async def test_run_profile_uses_declared_steps(monkeypatch):
     monkeypatch.setattr(
         engine_module,
         "profile_for",
-        lambda _t: _profile(_step("test_gate_pass", "gate")),
+        lambda _t: _profile(_step(PassingCheckParams(), "gate")),
     )
 
     result = await run_profile(_job())
@@ -83,12 +119,12 @@ async def test_run_profile_uses_declared_steps(monkeypatch):
 async def test_failed_gate_short_circuits(monkeypatch):
     ran: list[str] = []
 
-    @register_check("hard_fail")
+    @register_check(HardFailParams)
     async def _first(context: StepContext, params) -> StepResult:
         ran.append("first")
         return StepResult(passed=False, stop_on_fail=True)
 
-    @register_check("never_runs")
+    @register_check(NeverRunsParams)
     async def _second(context: StepContext, params) -> StepResult:
         ran.append("second")
         return StepResult(passed=True)
@@ -96,7 +132,10 @@ async def test_failed_gate_short_circuits(monkeypatch):
     monkeypatch.setattr(
         engine_module,
         "profile_for",
-        lambda _t: _profile(_step("hard_fail", "a"), _step("never_runs", "b")),
+        lambda _t: _profile(
+            _step(HardFailParams(), "a"),
+            _step(NeverRunsParams(), "b"),
+        ),
     )
 
     result = await run_profile(_job())
@@ -109,12 +148,12 @@ async def test_failed_gate_short_circuits(monkeypatch):
 async def test_stop_on_fail_false_continues(monkeypatch):
     ran: list[str] = []
 
-    @register_check("soft_fail")
+    @register_check(SoftFailParams)
     async def _soft(context: StepContext, params) -> StepResult:
         ran.append("soft")
         return StepResult(passed=False, stop_on_fail=False)
 
-    @register_check("after_soft")
+    @register_check(AfterSoftParams)
     async def _after(context: StepContext, params) -> StepResult:
         ran.append("after")
         return StepResult(passed=True)
@@ -122,7 +161,10 @@ async def test_stop_on_fail_false_continues(monkeypatch):
     monkeypatch.setattr(
         engine_module,
         "profile_for",
-        lambda _t: _profile(_step("soft_fail", "a"), _step("after_soft", "b")),
+        lambda _t: _profile(
+            _step(SoftFailParams(), "a"),
+            _step(AfterSoftParams(), "b"),
+        ),
     )
 
     result = await run_profile(_job())
@@ -131,16 +173,74 @@ async def test_stop_on_fail_false_continues(monkeypatch):
     assert result.validation_result.is_valid is False
 
 
+def test_multiple_authoritative_results_keep_latest_message_and_all_feedback():
+    first_task = TaskResult(task_name="Files", passed=True, feedback="present")
+    second_task = TaskResult(task_name="Image", passed=True, feedback="pullable")
+
+    result = engine_module._aggregate(
+        [
+            StepResult(
+                passed=True,
+                validation_result=ValidationResult(
+                    is_valid=True,
+                    message="Required files exist",
+                    username_match=True,
+                    task_results=[first_task],
+                ),
+            ),
+            StepResult(
+                passed=True,
+                validation_result=ValidationResult(
+                    is_valid=True,
+                    message="Container image is pullable",
+                    repo_exists=True,
+                    task_results=[second_task],
+                ),
+            ),
+        ]
+    )
+
+    assert result.is_valid is True
+    assert result.message == "Container image is pullable"
+    assert result.username_match is True
+    assert result.repo_exists is True
+    assert result.task_results == [first_task, second_task]
+
+
+def test_later_authoritative_failure_is_not_hidden_by_an_earlier_pass():
+    result = engine_module._aggregate(
+        [
+            StepResult(
+                passed=True,
+                validation_result=ValidationResult(
+                    is_valid=True,
+                    message="Required files exist",
+                ),
+            ),
+            StepResult(
+                passed=False,
+                validation_result=ValidationResult(
+                    is_valid=False,
+                    message="Container image is not pullable",
+                ),
+            ),
+        ]
+    )
+
+    assert result.is_valid is False
+    assert result.message == "Container image is not pullable"
+
+
 @pytest.mark.asyncio
 async def test_later_step_sees_prior_evidence(monkeypatch):
     seen: list[int] = []
     bundle = EvidenceBundle(task_id="a", source="repo_files")
 
-    @register_check("emit_evidence")
+    @register_check(EmitEvidenceParams)
     async def _emit(context: StepContext, params) -> StepResult:
         return StepResult(passed=True, evidence=[bundle])
 
-    @register_check("read_evidence")
+    @register_check(ReadEvidenceParams)
     async def _read(context: StepContext, params) -> StepResult:
         seen.append(len(context.evidence_so_far))
         return StepResult(passed=True)
@@ -148,7 +248,10 @@ async def test_later_step_sees_prior_evidence(monkeypatch):
     monkeypatch.setattr(
         engine_module,
         "profile_for",
-        lambda _t: _profile(_step("emit_evidence", "a"), _step("read_evidence", "b")),
+        lambda _t: _profile(
+            _step(EmitEvidenceParams(), "a"),
+            _step(ReadEvidenceParams(), "b"),
+        ),
     )
 
     await run_profile(_job())
@@ -165,19 +268,22 @@ async def test_unregistered_type_returns_unknown_result(monkeypatch):
     assert result.validation_result.is_valid is False
     assert "Unknown submission type" in result.validation_result.message
     assert result.grading_requests == []
+    assert (
+        result.grading_disposition == GradingDisposition.SKIPPED_UNKNOWN_SUBMISSION_TYPE
+    )
 
 
 def test_register_check_rejects_duplicates():
     with pytest.raises(ValueError, match="already registered"):
 
-        @register_check("github_ci_passing")
+        @register_check(CIStatusParams)
         async def _dupe(context, params):  # pragma: no cover - registration fails
             return StepResult(passed=True)
 
 
 def test_check_for_unknown_raises():
     with pytest.raises(KeyError):
-        check_for("does-not-exist")
+        check_for(UnknownCheckParams())
 
 
 # ---------------------------------------------------------------------------
@@ -228,6 +334,7 @@ async def test_journal_profile_records_grading_requests_when_ci_passes(monkeypat
     assert result.evidence is not None and len(result.evidence) == 1
     assert result.grading_requests is not None
     assert len(result.grading_requests) == 1
+    assert result.grading_disposition == GradingDisposition.REQUESTED
     request = result.grading_requests[0]
     assert request.task.id == JOURNAL_API_FINAL_RUBRIC_TASK.id
     assert "journal-api-implementation" in request.message
@@ -247,6 +354,7 @@ async def test_journal_profile_skips_grading_when_ci_fails(monkeypatch):
     assert result.validation_result.is_valid is False
     assert result.validation_result.message == "CI is red"
     assert result.grading_requests == []
+    assert result.grading_disposition == GradingDisposition.SKIPPED_GATE_FAILED
     assert result.evidence is None
 
 
@@ -385,6 +493,7 @@ async def test_deployed_api_profile_passes_through_deterministic_result(monkeypa
     assert result.validation_result.is_valid is True
     assert result.validation_result.message == "API is healthy"
     assert result.grading_requests == []
+    assert result.grading_disposition == GradingDisposition.NOT_REQUIRED
     assert result.evidence is None
 
 
@@ -657,6 +766,7 @@ async def test_profile_requiring_username_short_circuits_when_missing():
     assert result.validation_result.username_match is False
     assert "GitHub username is required" in result.validation_result.message
     assert result.grading_requests == []
+    assert result.grading_disposition == GradingDisposition.SKIPPED_MISSING_USERNAME
 
 
 # ---------------------------------------------------------------------------
@@ -675,10 +785,7 @@ def test_every_submission_type_has_a_registered_profile():
 
 
 # ---------------------------------------------------------------------------
-# Every registered profile step must round-trip through the StepParams
-# discriminated union and reference a registered check. This fails in CI (not
-# only in the Functions host) if a new check is added without a StepParams
-# union arm, e.g. the Phase 6 ``codeql_status`` gate.
+# Every profile step's params type must own a registered check.
 # ---------------------------------------------------------------------------
 
 
@@ -690,10 +797,7 @@ def test_every_registered_profile_step_is_valid():
 
     for submission_type, profile in _PROFILE_REGISTRY.items():
         for step in profile.steps:
-            assert step.check in _CHECK_REGISTRY, (
-                f"{submission_type}: step check '{step.check}' is not registered"
+            params_type = type(step.params)
+            assert params_type in _CHECK_REGISTRY, (
+                f"{submission_type}: check '{params_type.check_name}' is not registered"
             )
-            # Re-validating the dumped step forces the discriminated union to
-            # resolve the params type; a missing union arm raises here.
-            rebuilt = Step.model_validate(step.model_dump())
-            assert rebuilt.params.check == step.check

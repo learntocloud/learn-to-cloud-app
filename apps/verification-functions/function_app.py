@@ -191,6 +191,7 @@ def _set_verification_span_attributes(
     requirement_slug: str | None = None,
     submission_type: str | None = None,
     status: str | None = None,
+    grading_disposition: str | None = None,
 ) -> None:
     """Add verification identity to the current span when telemetry is enabled."""
     span = otel_trace.get_current_span()
@@ -206,6 +207,8 @@ def _set_verification_span_attributes(
         span.set_attribute("verification.submission_type", submission_type)
     if status:
         span.set_attribute("verification.status", status)
+    if grading_disposition:
+        span.set_attribute("verification.grading_disposition", grading_disposition)
     if user_id is not None:
         user_id_text = str(user_id)
         span.set_attribute("enduser.id", user_id_text)
@@ -234,6 +237,11 @@ def _set_result_span_attributes(result: VerificationRunResult) -> None:
         requirement_slug=attempt.requirement.slug,
         submission_type=attempt.requirement.submission_type.value,
         status=outcome_for_validation(result.validation_result),
+        grading_disposition=(
+            result.grading_disposition.value
+            if result.grading_disposition is not None
+            else None
+        ),
     )
 
 
