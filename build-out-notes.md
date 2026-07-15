@@ -55,12 +55,21 @@ its tests are removed.
 ## PR 9/10: Deployment-safe contract split
 
 The plan combined removal of every legacy caller with the table-drop migration
-in PR 9. The deployment workflow runs migrations before deploying new API and
-Functions revisions, so that ordering could drop tables while PR 8 replicas
-were still serving traffic.
+in PR 9. The deployment workflow runs migrations before updating the API, so
+that ordering could drop tables while PR 8 replicas were still serving traffic.
 
 The contract is therefore split into two deployments. PR 9 removes runtime and
 pipeline callers while leaving the drained tables and their unused ORM
 definitions in place. PR 10 removes those definitions alongside the final
 schema drop and its migration assertions, and must deploy after the PR 9 API
 and Functions revisions are fully active.
+
+## Post-merge deploy recovery
+
+The PR 9 deployment failed before migrations because an image smoke check still
+loaded authored curriculum YAML. Runtime images now intentionally omit that
+source content, so the check now loads the packaged curriculum artifact.
+
+The failure also exposed that Functions deployed before image validation and
+database migrations. Functions deployment now follows successful migrations,
+preventing new Function code from running against an older schema.
