@@ -11,8 +11,8 @@ Usage from the ``api/`` directory::
     uv run python scripts/reconcile_verification_backfill.py
 
 Exit codes:
-    0  Fully reconciled (no divergences).
-    1  Divergences found (see the printed report).
+    0  Fully reconciled and no legacy verification work remains.
+    1  Divergences or undrained legacy work found (see the printed report).
     2  Could not connect / query error.
 """
 
@@ -43,7 +43,7 @@ async def _main() -> int:
         await engine.dispose()
 
     print(format_report(report))
-    return 0 if report.ok else 1
+    return 0 if report.contract_ready else 1
 
 
 def main() -> int:

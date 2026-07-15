@@ -10,8 +10,8 @@ A verification job is identified by the presence of its row in
    prior run), returns the same execution result without doing more
    work.
 2. ``run_profile`` runs the engine (no DB writes).
-3. ``persist_verification_result`` writes the ``Submission`` and links
-   it to the job via ``VerificationJobRepository.link_submission``.
+3. ``persist_verification_result`` writes the ``Submission``, links it to the
+   job, and compare-and-sets the matching unified attempt for the drain cohort.
    Idempotent against retries via the ``ALREADY_LINKED`` short-circuit.
 
 The requirement definition and ``github_username`` snapshot travel with
@@ -23,6 +23,7 @@ snapshot.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from uuid import UUID
@@ -33,7 +34,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import (
     Submission,
+    VerificationAttemptOutcome,
     VerificationJob,
+)
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    VerificationAttemptRepository,
 )
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     LinkResult,
@@ -56,6 +61,7 @@ from learn_to_cloud_shared.verification.grading_requests import LLMGradingReques
 from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle
 
 tracer = trace.get_tracer(__name__)
+logger = logging.getLogger(__name__)
 
 VALIDATION_FAILED_ERROR_CODE = "validation_failed"
 VERIFICATION_INCOMPLETE_ERROR_CODE = "verification_incomplete"
@@ -334,6 +340,51 @@ def _code_for_outcome(outcome: str, fallback: str | None = None) -> str:
     return fallback or VERIFICATION_INCOMPLETE_ERROR_CODE
 
 
+def _outcome_for_submission(submission: Submission) -> VerificationAttemptOutcome:
+    if submission.is_validated:
+        return VerificationAttemptOutcome.SUCCEEDED
+    if submission.verification_completed:
+        return VerificationAttemptOutcome.FAILED
+    return VerificationAttemptOutcome.SERVER_ERROR
+
+
+async def _sync_legacy_submission_to_attempt(
+    db: AsyncSession,
+    *,
+    job_id: UUID,
+    submission: Submission,
+) -> bool:
+    """Finalize the matching attempt when an old orchestration drains."""
+    repo = VerificationAttemptRepository(db)
+    status = await repo.get_status(job_id)
+    if status is None:
+        logger.warning(
+            "verification.legacy_attempt_missing",
+            extra={"job_id": str(job_id), "submission_id": submission.id},
+        )
+        return False
+
+    outcome = _outcome_for_submission(submission)
+    result = await repo.finalize(
+        job_id,
+        outcome=outcome,
+        error_code=_code_for_outcome(outcome.value),
+        validation_message=submission.validation_message,
+        terminal_source="legacy_orchestrator",
+        feedback_json=submission.feedback_json,
+    )
+    logger.warning(
+        "verification.legacy_result_bridged",
+        extra={
+            "job_id": str(job_id),
+            "submission_id": submission.id,
+            "outcome": result.state.outcome,
+            "cas_won": result.won,
+        },
+    )
+    return True
+
+
 def _outcome_from_submission(submission: Submission) -> str:
     if submission.is_validated:
         return _OUTCOME_SUCCEEDED
@@ -401,6 +452,14 @@ async def prepare_verification_job(
     ``submissions`` here -- no curriculum or users reads.
     """
     normalized_job_id = _coerce_job_id(job_id)
+    logger.warning(
+        "verification.legacy_read_used",
+        extra={
+            "path": "legacy_orchestrator_prepare",
+            "table": "verification_jobs",
+            "job_id": str(normalized_job_id),
+        },
+    )
 
     with tracer.start_as_current_span(
         "prepare_verification_job",
@@ -433,6 +492,12 @@ async def prepare_verification_job(
                     submission=submission,
                     requirement=requirement,
                 )
+                await _sync_legacy_submission_to_attempt(
+                    db,
+                    job_id=normalized_job_id,
+                    submission=submission,
+                )
+                await db.commit()
                 span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)
                 return VerificationJobPreparation(terminal_result=result)
@@ -510,10 +575,24 @@ async def persist_verification_result(
                     submission=submission,
                     requirement=job.requirement,
                 )
+                await _sync_legacy_submission_to_attempt(
+                    db,
+                    job_id=job.id,
+                    submission=submission,
+                )
+                await db.commit()
                 span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)
                 return result
 
+            logger.warning(
+                "verification.legacy_write_used",
+                extra={
+                    "path": "legacy_orchestrator",
+                    "table": "submissions",
+                    "job_id": str(job.id),
+                },
+            )
             submission = await persist_validation_result(
                 db,
                 user_id=job.user_id,
@@ -551,10 +630,21 @@ async def persist_verification_result(
                         submission=canonical_submission,
                         requirement=job.requirement,
                     )
+                    await _sync_legacy_submission_to_attempt(
+                        fresh_db,
+                        job_id=job.id,
+                        submission=canonical_submission,
+                    )
+                    await fresh_db.commit()
                 span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)
                 return result
 
+            await _sync_legacy_submission_to_attempt(
+                db,
+                job_id=job.id,
+                submission=submission,
+            )
             await db.commit()
 
         outcome = _outcome_for(validation_result)

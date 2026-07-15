@@ -1,22 +1,12 @@
-"""Step progress service for learning step management.
+"""Learning-step completion service."""
 
-After the Phase E follow-up that dropped legacy id columns, the unit of
-identity for steps is ``step.uuid``. The HTMX endpoints take a step
-UUID directly; the topic context is recovered (when needed for
-rendering) by walking the loaded curriculum tree.
-
-Writes go to both the legacy ``step_progress`` table and the
-curriculum-decoupled ``learner_step_completions`` table (PR5 of the
-verification/progress refactor) so PR6 can cut progress reads over to the
-new table without a backfill race. Reads stay on ``step_progress`` until
-that cutover.
-"""
-
+import logging
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from learn_to_cloud_shared.content_service import get_topic_containing_step
 from learn_to_cloud_shared.models import utcnow
+from learn_to_cloud_shared.progress_reads import resolve_completed_step_uuids
 from learn_to_cloud_shared.repositories import (
     LearnerStepCompletionRepository,
     StepProgressRepository,
@@ -27,6 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
     from learn_to_cloud_shared.schemas import Topic
+
+logger = logging.getLogger(__name__)
 
 
 class StepValidationError(Exception):
@@ -60,10 +52,10 @@ async def get_valid_completed_steps(
     topic: "Topic",
 ) -> set[UUID]:
     """Get completed step UUIDs filtered to steps that exist in this topic."""
-    step_repo = StepProgressRepository(db)
-    return await step_repo.get_completed_step_uuids(
-        user_id, (step.uuid for step in topic.learning_steps)
+    completed, _ = await resolve_completed_step_uuids(
+        db, user_id, (step.uuid for step in topic.learning_steps)
     )
+    return completed
 
 
 async def complete_step(
@@ -83,19 +75,7 @@ async def complete_step(
     topic, step = _find_step(step_uuid)
 
     completed_at = utcnow()
-    completion_repo = LearnerStepCompletionRepository(db)
-    step_repo = StepProgressRepository(db)
-
-    # Write the authoritative row first: the legacy step_progress insert's
-    # mirror trigger (migration 0049) then finds the row already present and
-    # no-ops. Both writes are ON CONFLICT DO NOTHING against the same
-    # (user_id, step_uuid) key, so this is idempotent regardless of order.
-    await completion_repo.create_if_not_exists(
-        user_id=user_id,
-        step_uuid=step.uuid,
-        completed_at=completed_at,
-    )
-    step_progress = await step_repo.create_if_not_exists(
+    completion = await LearnerStepCompletionRepository(db).create_if_not_exists(
         user_id=user_id,
         step_uuid=step.uuid,
         completed_at=completed_at,
@@ -109,7 +89,7 @@ async def complete_step(
 
     completed = await get_valid_completed_steps(db, user_id, topic)
 
-    if step_progress is None:
+    if completion is None:
         span.set_attribute("step.action", "already_completed")
         return (
             StepCompletionResult(
@@ -127,7 +107,7 @@ async def complete_step(
         StepCompletionResult(
             topic_slug=topic.slug,
             step_slug=step.slug,
-            completed_at=step_progress.completed_at,
+            completed_at=completion.completed_at,
         ),
         topic,
         completed,
@@ -148,15 +128,19 @@ async def uncomplete_step(
     """
     topic, step = _find_step(step_uuid)
 
-    completion_repo = LearnerStepCompletionRepository(db)
-    step_repo = StepProgressRepository(db)
-
-    # Delete the authoritative row first for the same reason as the insert
-    # order in complete_step: whichever delete (this one or the legacy
-    # step_progress mirror trigger) runs second finds nothing left to
-    # remove and is a harmless no-op.
-    await completion_repo.delete(user_id=user_id, step_uuid=step.uuid)
-    deleted = await step_repo.delete_step(user_id, step.uuid)
+    authoritative_deleted = await LearnerStepCompletionRepository(db).delete(
+        user_id=user_id, step_uuid=step.uuid
+    )
+    # Until the legacy fallback is removed, an old row would otherwise make
+    # this step appear complete again. This delete-through creates no new
+    # legacy state and is removed with the fallback in the contract layer.
+    legacy_deleted = await StepProgressRepository(db).delete_step(user_id, step.uuid)
+    if legacy_deleted:
+        logger.warning(
+            "step.legacy_delete_through_used",
+            extra={"user_id": user_id, "step_uuid": str(step.uuid)},
+        )
+    deleted = max(authoritative_deleted, legacy_deleted)
 
     span = trace.get_current_span()
     span.set_attribute("step.uuid", str(step.uuid))

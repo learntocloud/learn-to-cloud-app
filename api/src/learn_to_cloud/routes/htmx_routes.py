@@ -195,35 +195,80 @@ async def _render_processing_card(
     )
 
 
-async def _delete_terminal_job(
+async def _terminalize_failed_attempt(
     request: Request,
     token_data: VerificationStatusToken,
     status: str,
 ) -> bool:
-    """Drop the verification_jobs row after Durable reaches terminal failure.
-
-    Replaces the older ``mark_server_error`` / ``mark_cancelled`` writes:
-    the user-facing failure message comes from Durable's runtime status
-    in the poller, not from a Postgres re-read, so we don't need to copy
-    Durable's terminal state back into Postgres. Deleting frees the
-    partial unique index so the user can retry.
-
-    The delete is guarded — if the persist activity won a race and
-    attached a Submission first, ``delete_active`` returns False and we
-    leave the row alone.
-    """
+    """Persist a terminal Durable failure without orphaning legacy state."""
     session_maker = request.app.state.session_maker
+    attempt_id = UUID(token_data.job_id)
     async with session_maker() as session:
-        repository = VerificationJobRepository(session)
-        job_id = UUID(token_data.job_id)
-        deleted = await repository.delete_active(job_id)
-        await session.commit()
-    if not deleted:
-        logger.info(
-            "verification.poller.delete_skipped",
-            extra={"job_id": str(job_id), "runtime_status": status},
+        attempt_repo = VerificationAttemptRepository(session)
+        attempt = await attempt_repo.get_status(attempt_id)
+        if attempt is None:
+            # A job can predate the drain bridge or lose an active-row
+            # uniqueness race. With no attempt provenance to preserve, remove
+            # only that orphaned active job.
+            deleted = await VerificationJobRepository(session).delete_active(attempt_id)
+            await session.commit()
+            if deleted:
+                logger.warning(
+                    "verification.legacy_write_used",
+                    extra={
+                        "path": "orphaned_terminal_job_cleanup",
+                        "table": "verification_jobs",
+                        "job_id": str(attempt_id),
+                        "runtime_status": status,
+                    },
+                )
+            return deleted
+
+        cancelled = status in {"terminated", "canceled"}
+        result = await attempt_repo.finalize(
+            attempt_id,
+            outcome="cancelled" if cancelled else "server_error",
+            error_code="cancelled" if cancelled else "server_error",
+            validation_message=(
+                "Verification was cancelled."
+                if cancelled
+                else "Verification failed before recording a result."
+            ),
+            terminal_source="legacy_poller",
+            feedback_json=None,
         )
-    return deleted
+        if not result.won:
+            logger.info(
+                "verification.poller.finalize_skipped",
+                extra={
+                    "attempt_id": str(attempt_id),
+                    "runtime_status": status,
+                    "outcome": result.state.outcome,
+                },
+            )
+            return False
+        deleted_job = await VerificationJobRepository(session).delete_active(attempt_id)
+        await session.commit()
+        if deleted_job:
+            logger.warning(
+                "verification.legacy_write_used",
+                extra={
+                    "path": "terminal_job_cleanup",
+                    "table": "verification_jobs",
+                    "job_id": str(attempt_id),
+                    "runtime_status": status,
+                },
+            )
+        logger.info(
+            "verification.poller.attempt_terminalized",
+            extra={
+                "attempt_id": str(attempt_id),
+                "runtime_status": status,
+                "outcome": result.state.outcome,
+                "cas_won": result.won,
+            },
+        )
+    return True
 
 
 async def _render_step_toggle(
@@ -322,9 +367,8 @@ async def htmx_submit_verification(
 
     Every submission type runs through Durable Functions:
     :func:`create_verification_attempt` validates the request and creates a
-    ``VerificationAttempt`` (plus its compatibility ``VerificationJob``); we
-    start the versioned attempt orchestration and return a spinner card that
-    polls for status.
+    ``VerificationAttempt``; we start the versioned attempt orchestration and
+    return a spinner card that polls for status.
     """
     user_id = current_user.user_id
     github_username = current_user.github_username
@@ -443,11 +487,8 @@ async def _start_async_attempt_and_render(
 ) -> HTMLResponse:
     """Start the Durable attempt orchestration and render the spinner.
 
-    Posts no body -- the PR4 attempt starter loads identity, the
-    requirement snapshot, and the submitted value straight from the
-    ``verification_attempts`` row keyed by ``attempt_submission.attempt_id``,
-    which is shared with the compatibility ``verification_jobs`` row created
-    in the same transaction.
+    Posts no body -- the attempt starter loads identity, the requirement
+    snapshot, and the submitted value straight from ``verification_attempts``.
 
     On the rare concurrent-submit case (``created=False``) the original
     submit already kicked off Durable; we skip the start call and let
@@ -455,10 +496,8 @@ async def _start_async_attempt_and_render(
     original start never actually succeeded, the poller will see a 404
     from Durable and surface the error so the user can retry.
 
-    On a Durable start-call failure that never reached Functions (config
-    error, or a transport error before the request landed), deletes the
-    just-created attempt and legacy job rows so neither blocks the user's
-    retry -- nothing ran, so there is nothing worth retaining.
+    On a Durable start-call failure that never reached Functions, deletes the
+    just-created attempt so it does not block the learner's retry.
     """
     try:
         if attempt_submission.created:
@@ -501,15 +540,9 @@ async def _start_async_attempt_and_render(
         # after Functions has claimed and started it, in which case the row
         # must remain for the orchestration to finalize.
         async with session_maker() as write_session:
-            attempt_deleted = await VerificationAttemptRepository(
-                write_session
-            ).delete_active(
+            await VerificationAttemptRepository(write_session).delete_active(
                 attempt_submission.attempt_id,
             )
-            if attempt_deleted:
-                await VerificationJobRepository(write_session).delete_active(
-                    attempt_submission.attempt_id,
-                )
             await write_session.commit()
         # A config error means the verification service is misconfigured on our
         # side, so retrying will never help. A start error is usually a
@@ -586,8 +619,8 @@ async def htmx_verification_job_status(
         )
 
     if status in _DURABLE_FAILURE_STATUSES:
-        deleted = await _delete_terminal_job(request, token_data, status)
-        if not deleted:
+        terminalized = await _terminalize_failed_attempt(request, token_data, status)
+        if not terminalized:
             return HTMLResponse(_reload_verification_html())
 
         requirement = get_requirement_by_slug(token_data.requirement_slug)

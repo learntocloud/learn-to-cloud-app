@@ -198,6 +198,8 @@ class TestDivergences:
 
         assert len(report.active_uniqueness_violations) == 1
         assert report.active_uniqueness_violations[0].active_count == 2
+        assert len(report.active_legacy_attempts) == 2
+        assert not report.contract_ready
 
     async def test_legacy_only_job_and_submission(self, db_session: AsyncSession):
         await _make_user(db_session)
@@ -209,6 +211,47 @@ class TestDivergences:
 
         assert job_id in report.legacy_only_jobs
         assert submission_id in report.legacy_only_submissions
+        assert job_id not in report.unlinked_legacy_jobs
+
+    async def test_job_linked_submission_is_not_legacy_only(
+        self, db_session: AsyncSession
+    ):
+        await _make_user(db_session)
+        req = await _make_requirement(db_session)
+        submission_id = await _make_submission(db_session, req)
+        job_id = await _make_job(db_session, req, result_submission_id=submission_id)
+        db_session.add(
+            _attempt(
+                req,
+                attempt_id=job_id,
+                legacy_job_id=job_id,
+                legacy_submission_id=None,
+            )
+        )
+        await db_session.flush()
+
+        report = await run_reconciliation(db_session)
+
+        assert submission_id not in report.legacy_only_submissions
+
+    async def test_terminal_unlinked_job_is_drained(self, db_session: AsyncSession):
+        await _make_user(db_session)
+        req = await _make_requirement(db_session)
+        job_id = await _make_job(db_session, req, result_submission_id=None)
+        db_session.add(
+            _attempt(
+                req,
+                attempt_id=job_id,
+                outcome="server_error",
+                legacy_job_id=job_id,
+            )
+        )
+        await db_session.flush()
+
+        report = await run_reconciliation(db_session)
+
+        assert job_id not in report.unlinked_legacy_jobs
+        assert report.contract_ready
 
     async def test_dangling_provenance(self, db_session: AsyncSession):
         await _make_user(db_session)
@@ -218,6 +261,7 @@ class TestDivergences:
             _attempt(
                 req,
                 attempt_id=attempt_id,
+                outcome=None,
                 legacy_job_id=uuid.uuid4(),  # points at a non-existent job
             )
         )
@@ -226,6 +270,27 @@ class TestDivergences:
         report = await run_reconciliation(db_session)
 
         assert attempt_id in report.dangling_job_provenance
+
+    async def test_terminal_attempt_may_retain_deleted_job_id(
+        self, db_session: AsyncSession
+    ):
+        await _make_user(db_session)
+        req = await _make_requirement(db_session)
+        attempt_id = uuid.uuid4()
+        db_session.add(
+            _attempt(
+                req,
+                attempt_id=attempt_id,
+                outcome="server_error",
+                legacy_job_id=uuid.uuid4(),
+            )
+        )
+        await db_session.flush()
+
+        report = await run_reconciliation(db_session)
+
+        assert attempt_id not in report.dangling_job_provenance
+        assert report.ok
 
     async def test_reconstructed_attempt_without_provenance_is_flagged(
         self, db_session: AsyncSession
@@ -287,6 +352,8 @@ class TestDivergences:
         report = await run_reconciliation(db_session)
 
         assert (USER_ID, extra_step) in report.step_completions_extra
+        assert report.ok
+        assert report.drain_observations["authoritative_only_step_completions"] == 1
 
 
 class TestFormatReport:
@@ -295,6 +362,8 @@ class TestFormatReport:
         rendered = format_report(report)
         assert "OK -- fully reconciled" in rendered
         assert "verification_attempts" in rendered
+        assert "Drain observations" in rendered
+        assert "CONTRACT READY: yes" in rendered
 
     def test_divergent_report_flags_result(self):
         report = ReconciliationReport(

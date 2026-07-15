@@ -15,17 +15,17 @@ Trust boundary and idempotency:
    unchanged.
 2. :func:`finalize_verification_attempt` writes the terminal outcome with a
    compare-and-set (``UPDATE ... WHERE outcome IS NULL RETURNING``) so replays
-   and competing finalizers never overwrite a result, then mirrors the legacy
-   ``submissions`` row for a linked legacy ``verification_jobs`` so old API
-   readers stay correct.
+   and competing finalizers never overwrite a result. Attempts from before the
+   writer cutover still mirror their linked legacy job during the drain.
 3. :func:`terminalize_verification_attempt` is the authoritative failure path
    (orchestrator/activity exception, or the stale-attempt reconciler): it
-   compare-and-sets a ``server_error`` / ``cancelled`` outcome and mirrors the
-   legacy submission the same idempotent way.
+   compare-and-sets a ``server_error`` / ``cancelled`` outcome and applies the
+   same conditional drain mirror.
 """
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -65,6 +65,7 @@ from learn_to_cloud_shared.verification_job_executor import (
 )
 
 tracer = trace.get_tracer(__name__)
+logger = logging.getLogger(__name__)
 
 _SNAPSHOT_SOURCE_SUBMITTED = "submitted"
 _ORCHESTRATOR_TERMINAL_SOURCE = "orchestrator"
@@ -186,7 +187,7 @@ async def finalize_verification_attempt(
     *,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> AttemptTerminalState:
-    """Persist an attempt's real verification outcome (CAS) + legacy mirror."""
+    """Persist an attempt's real verification outcome via compare-and-set."""
     run_result = run_result.without_evidence()
     job = run_result.job
     validation_result = run_result.validation_result
@@ -223,7 +224,7 @@ async def terminalize_verification_attempt(
     terminal_source: str,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> AttemptTerminalState:
-    """Compare-and-set a failure/cancellation outcome + legacy mirror.
+    """Compare-and-set a failure/cancellation outcome.
 
     Used by the orchestrator's exception path and the stale-attempt
     reconciler. Never overwrites an already-terminal attempt.
@@ -306,6 +307,14 @@ async def _ensure_legacy_mirror(
         if job is None or job.result_submission_id is not None:
             return
 
+        logger.warning(
+            "verification.legacy_write_used",
+            extra={
+                "path": "attempt_terminal_mirror",
+                "table": "submissions",
+                "attempt_id": str(attempt_id),
+            },
+        )
         submission = await _create_mirror_submission(db, state)
         link = await job_repo.link_submission(job.id, submission.id)
         if link is LinkResult.LINKED:

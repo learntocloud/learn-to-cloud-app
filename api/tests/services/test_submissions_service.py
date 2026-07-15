@@ -287,10 +287,6 @@ class TestAlreadyValidatedShortCircuit:
                 "VerificationAttemptRepository",
                 autospec=True,
             ) as mock_attempt_repo_class,
-            patch(
-                "learn_to_cloud.services.submissions_service.VerificationJobRepository",
-                autospec=True,
-            ) as mock_job_repo_class,
         ):
             mock_attempt = _mock_attempt()
             mock_attempt_repo = MagicMock()
@@ -298,10 +294,6 @@ class TestAlreadyValidatedShortCircuit:
                 return_value=(mock_attempt, True)
             )
             mock_attempt_repo_class.return_value = mock_attempt_repo
-
-            mock_job_repo = MagicMock()
-            mock_job_repo.create = AsyncMock(return_value=MagicMock())
-            mock_job_repo_class.return_value = mock_job_repo
 
             result = await create_verification_attempt(
                 session_maker=mock_session_maker,
@@ -314,7 +306,6 @@ class TestAlreadyValidatedShortCircuit:
             assert isinstance(result, VerificationAttemptSubmission)
             assert result.attempt_id == mock_attempt.id
             assert result.created is True
-            mock_job_repo.create.assert_awaited_once()
 
 
 @pytest.mark.unit
@@ -387,10 +378,6 @@ class TestSequentialPhaseGating:
                 "VerificationAttemptRepository",
                 autospec=True,
             ) as mock_attempt_repo_class,
-            patch(
-                "learn_to_cloud.services.submissions_service.VerificationJobRepository",
-                autospec=True,
-            ) as mock_job_repo_class,
         ):
             mock_attempt = _mock_attempt()
             mock_attempt_repo = MagicMock()
@@ -398,10 +385,6 @@ class TestSequentialPhaseGating:
                 return_value=(mock_attempt, True)
             )
             mock_attempt_repo_class.return_value = mock_attempt_repo
-
-            mock_job_repo = MagicMock()
-            mock_job_repo.create = AsyncMock(return_value=MagicMock())
-            mock_job_repo_class.return_value = mock_job_repo
 
             result = await create_verification_attempt(
                 session_maker=mock_session_maker,
@@ -443,10 +426,6 @@ class TestCreateVerificationAttempt:
                 autospec=True,
             ) as mock_attempt_repo_class,
             patch(
-                "learn_to_cloud.services.submissions_service.VerificationJobRepository",
-                autospec=True,
-            ) as mock_job_repo_class,
-            patch(
                 "learn_to_cloud.services.submissions_service._current_traceparent",
                 return_value=(
                     "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
@@ -458,10 +437,6 @@ class TestCreateVerificationAttempt:
                 return_value=(mock_attempt, True)
             )
             mock_attempt_repo_class.return_value = mock_attempt_repo
-
-            mock_job_repo = MagicMock()
-            mock_job_repo.create = AsyncMock(return_value=MagicMock())
-            mock_job_repo_class.return_value = mock_job_repo
 
             result = await create_verification_attempt(
                 session_maker=mock_session_maker,
@@ -475,15 +450,11 @@ class TestCreateVerificationAttempt:
         assert result.attempt_id == mock_attempt.id
         assert result.created is True
         mock_attempt_repo.create_or_get_active.assert_awaited_once()
-        mock_job_repo.create.assert_awaited_once()
-        job_create_await_args = mock_job_repo.create.await_args
-        assert job_create_await_args is not None
-        assert job_create_await_args.kwargs["id"] == mock_attempt.id
         expected_traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
         attempt_create_await_args = mock_attempt_repo.create_or_get_active.await_args
         assert attempt_create_await_args is not None
         assert attempt_create_await_args.kwargs["traceparent"] == expected_traceparent
-        assert job_create_await_args.kwargs["traceparent"] == expected_traceparent
+        assert attempt_create_await_args.kwargs["legacy_job_id"] is None
 
     @pytest.mark.asyncio
     async def test_returns_verification_attempt_submission(self):
@@ -507,20 +478,12 @@ class TestCreateVerificationAttempt:
                 "VerificationAttemptRepository",
                 autospec=True,
             ) as mock_attempt_repo_class,
-            patch(
-                "learn_to_cloud.services.submissions_service.VerificationJobRepository",
-                autospec=True,
-            ) as mock_job_repo_class,
         ):
             mock_attempt_repo = MagicMock()
             mock_attempt_repo.create_or_get_active = AsyncMock(
                 return_value=(mock_attempt, True)
             )
             mock_attempt_repo_class.return_value = mock_attempt_repo
-
-            mock_job_repo = MagicMock()
-            mock_job_repo.create = AsyncMock(return_value=MagicMock())
-            mock_job_repo_class.return_value = mock_job_repo
 
             result = await create_verification_attempt(
                 session_maker=mock_session_maker,
@@ -536,9 +499,7 @@ class TestCreateVerificationAttempt:
         mock_attempt_repo.create_or_get_active.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_concurrent_submit_reuses_active_attempt_without_new_job(self):
-        """When the attempt repo reports ``created=False`` (an active attempt
-        already exists), no second compatibility job row is created."""
+    async def test_concurrent_submit_reuses_active_attempt(self):
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.JOURNAL_API_VERIFIER,
@@ -559,20 +520,12 @@ class TestCreateVerificationAttempt:
                 "VerificationAttemptRepository",
                 autospec=True,
             ) as mock_attempt_repo_class,
-            patch(
-                "learn_to_cloud.services.submissions_service.VerificationJobRepository",
-                autospec=True,
-            ) as mock_job_repo_class,
         ):
             mock_attempt_repo = MagicMock()
             mock_attempt_repo.create_or_get_active = AsyncMock(
                 return_value=(mock_attempt, False)
             )
             mock_attempt_repo_class.return_value = mock_attempt_repo
-
-            mock_job_repo = MagicMock()
-            mock_job_repo.create = AsyncMock()
-            mock_job_repo_class.return_value = mock_job_repo
 
             result = await create_verification_attempt(
                 session_maker=mock_session_maker,
@@ -584,7 +537,6 @@ class TestCreateVerificationAttempt:
 
         assert result.attempt_id == mock_attempt.id
         assert result.created is False
-        mock_job_repo.create.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_preconditions_still_enforced(self):
@@ -973,18 +925,12 @@ class TestRunSubmitSmokeCheck:
                 "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
                 new=_gating_mock(mock_requirement.uuid, already_validated=False),
             ) as mock_gate,
-            patch(
-                "learn_to_cloud.services.submissions_service.VerificationJobRepository",
-                autospec=True,
-            ) as mock_job_repo_class,
         ):
             result = await run_submit_smoke_check(mock_session_maker)
 
         assert result["requirement_slug"] == mock_requirement.slug
         # Reads use the synthetic, non-existent user id.
         mock_gate.assert_awaited_once_with(ANY, SMOKE_USER_ID, [mock_requirement.uuid])
-        # The canary never creates a verification job (no writes).
-        mock_job_repo_class.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_smoke_check_propagates_read_errors(self):
