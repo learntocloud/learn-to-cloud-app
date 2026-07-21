@@ -23,7 +23,7 @@ members = [
 # CI, the devcontainer, and local development all run.
 dev = [
     "poethepoet>=0.48.0",
-    "prek>=0.4.8",
+    "prek>=0.4.10",
 ]
 
 [tool.poe.tasks.static]
