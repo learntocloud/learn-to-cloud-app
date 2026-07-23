@@ -270,6 +270,31 @@ def test_step_checkbox_keeps_keyboard_events_from_toggling_accordion():
 
 
 @pytest.mark.unit
+def test_community_page_renders_public_progress_and_canonical_footer_link():
+    community = SimpleNamespace(
+        funnel=[
+            SimpleNamespace(
+                label="Total accounts",
+                count=42,
+                pct_of_total=100.0,
+                pct_of_previous=None,
+                is_total=True,
+            )
+        ],
+        graduates=[],
+        repo_updates=[],
+    )
+
+    html = _render("pages/community.html", community=community, user=None)
+
+    assert "Learn to Cloud community" in html
+    assert "Total accounts" in html
+    assert "42" in html
+    assert 'href="/community"' in html
+    assert 'href="/stats"' not in html
+
+
+@pytest.mark.unit
 class TestDashboardPhaseRow:
     """The phase-row state/labels in pages/dashboard.html."""
 

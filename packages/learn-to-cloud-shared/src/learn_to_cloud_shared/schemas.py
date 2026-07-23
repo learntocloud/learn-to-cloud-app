@@ -698,14 +698,14 @@ class DashboardData(FrozenModel):
 
 
 class CommunityMember(FrozenModel):
-    """A learner shown publicly on the /stats page."""
+    """A learner shown publicly on the community page."""
 
     github_username: str
     avatar_url: str | None = None
 
 
 class FunnelLevel(FrozenModel):
-    """One level of the /stats progress funnel.
+    """One level of the community progress funnel.
 
     ``pct_of_total`` is relative to total accounts (drives the funnel
     width); ``pct_of_previous`` is the conversion from the level above
@@ -742,10 +742,6 @@ class CommunityPageData(FrozenModel):
     funnel: list[FunnelLevel]
     graduates: list[CommunityMember]
     repo_updates: list[RepoUpdate]
-
-
-# Preserve the current /stats consumer while the public page migrates.
-StatsPageData = CommunityPageData
 
 
 class PhaseProgress(FrozenModel):
