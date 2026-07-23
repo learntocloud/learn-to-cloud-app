@@ -6,7 +6,10 @@ from types import SimpleNamespace
 import pytest
 
 from learn_to_cloud.core.templates import templates
-from learn_to_cloud.rendering.context import build_requirement_card_context
+from learn_to_cloud.rendering.context import (
+    COMMUNITY_LINKS,
+    build_requirement_card_context,
+)
 
 _ENV = templates.env
 
@@ -285,13 +288,44 @@ def test_community_page_renders_public_progress_and_canonical_footer_link():
         repo_updates=[],
     )
 
-    html = _render("pages/community.html", community=community, user=None)
+    html = _render(
+        "pages/community.html",
+        community=community,
+        community_links=COMMUNITY_LINKS,
+        user=None,
+    )
 
     assert "Learn to Cloud community" in html
     assert "Total accounts" in html
     assert "42" in html
     assert 'href="/community"' in html
     assert 'href="/stats"' not in html
+
+
+@pytest.mark.unit
+def test_community_page_renders_safe_external_resource_links():
+    community = SimpleNamespace(funnel=[], graduates=[], repo_updates=[])
+
+    html = _render(
+        "pages/community.html",
+        community=community,
+        community_links=COMMUNITY_LINKS,
+        user=None,
+    )
+
+    expected_links = {
+        "https://github.com/learntocloud/learn-to-cloud-app/discussions",
+        "https://youtube.com/made-by-gps",
+        "https://github.com/learntocloud/learn-to-cloud-app",
+        "https://x.com/madebygps",
+        "https://x.com/learntocloud",
+    }
+    for url in expected_links:
+        assert f'href="{url}"' in html
+    assert html.count('rel="noopener noreferrer"') >= len(expected_links)
+    assert "GitHub Discussions" in html
+    assert "Follow @madebygps" in html
+    assert "Follow @learntocloud" in html
 
 
 @pytest.mark.unit
