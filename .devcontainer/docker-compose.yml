@@ -6,6 +6,16 @@ services:
     volumes:
       - ..:/workspaces/learn-to-cloud-app:cached
       - copilot_home:/home/vscode/.copilot
+      # Forward the host's Docker socket so the Docker CLI inside this container
+      # talks to the host Docker daemon (Docker outside of Docker). The
+      # docker-outside-of-docker feature expects it at /var/run/docker-host.sock
+      # and its init script links it to /var/run/docker.sock with the right
+      # permissions for the non-root user.
+      - /var/run/docker.sock:/var/run/docker-host.sock
+    # The docker-outside-of-docker feature installs this init script. Compose
+    # does not chain feature entrypoints automatically, so we set it explicitly;
+    # it prepares the Docker socket and then runs the command below.
+    entrypoint: /usr/local/share/docker-init.sh
     command: sleep infinity
     depends_on:
       db:
