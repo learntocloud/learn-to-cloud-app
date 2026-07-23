@@ -8,7 +8,7 @@ import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from learn_to_cloud_shared.content_service import (
     get_curriculum_overview,
     get_phase_by_slug,
@@ -33,9 +33,9 @@ from learn_to_cloud.rendering.context import (
     build_topic_nav,
     feedback_tasks_and_passed,
 )
+from learn_to_cloud.services.community_service import get_community_page_data
 from learn_to_cloud.services.dashboard_service import get_dashboard_data
 from learn_to_cloud.services.progress_service import fetch_phase_progress
-from learn_to_cloud.services.stats_service import get_stats_page_data
 from learn_to_cloud.services.steps_service import get_valid_completed_steps
 from learn_to_cloud.services.submissions_service import get_phase_submission_context
 from learn_to_cloud.services.users_service import get_user_by_id
@@ -317,21 +317,27 @@ async def account_page(
     )
 
 
-@router.get("/stats", response_class=HTMLResponse, summary="Community stats")
-async def stats_page(
+@router.get("/community", response_class=HTMLResponse, summary="Community")
+async def community_page(
     request: Request,
     db: DbSession,
     user_id: OptionalUserId,
 ) -> HTMLResponse:
-    """Public community stats: phase funnel, completers, curriculum updates."""
+    """Public community progress, graduates, and curriculum updates."""
     user = await _get_user_or_none(db, user_id)
-    stats = await get_stats_page_data(db)
+    community = await get_community_page_data(db)
 
     return templates.TemplateResponse(
         request,
-        "pages/stats.html",
-        _template_context(request, user=user, stats=stats),
+        "pages/community.html",
+        _template_context(request, user=user, community=community),
     )
+
+
+@router.get("/stats", include_in_schema=False)
+async def stats_page_redirect() -> RedirectResponse:
+    """Redirect the former stats URL to the community page."""
+    return RedirectResponse(url="/community", status_code=308)
 
 
 @router.get("/faq", response_class=HTMLResponse, summary="FAQ")

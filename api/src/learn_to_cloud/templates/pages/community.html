@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Stats - Learn to Cloud{% endblock %}
-{% block description %}Community stats for Learn to Cloud — how many learners are progressing through each phase, who has finished the whole curriculum, and the latest updates.{% endblock %}
+{% block title %}Community - Learn to Cloud{% endblock %}
+{% block description %}Meet the Learn to Cloud community, explore learner progress, celebrate curriculum graduates, and see the latest updates.{% endblock %}
 
 {% block content %}
 <div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Community stats</h1>
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Learn to Cloud community</h1>
     <p class="text-gray-600 dark:text-gray-400 mt-2">
-        How the community is progressing through the curriculum, and what's new.
+        See how learners are progressing through the curriculum and celebrate those who have completed it.
     </p>
 </div>
 
@@ -18,7 +18,7 @@
     </p>
 
     <div class="max-w-2xl mx-auto space-y-2" role="img" aria-label="Progress funnel">
-        {% for level in stats.funnel %}
+        {% for level in community.funnel %}
         <div class="flex items-center gap-3 sm:gap-4">
             {# Label #}
             <div class="w-28 sm:w-44 flex-shrink-0 text-right">
@@ -59,15 +59,15 @@
 <section class="mb-12">
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">
         Curriculum graduates
-        <span class="ml-1 text-base font-normal text-gray-500 dark:text-gray-400">({{ stats.graduates | length }})</span>
+        <span class="ml-1 text-base font-normal text-gray-500 dark:text-gray-400">({{ community.graduates | length }})</span>
     </h2>
     <p class="text-base text-gray-500 dark:text-gray-400 mb-4">
         Learners who have verified every project across all phases.
     </p>
 
-    {% if stats.graduates %}
+    {% if community.graduates %}
     <ul class="flex flex-wrap gap-2">
-        {% for member in stats.graduates %}
+        {% for member in community.graduates %}
         <li>
             <a href="https://github.com/{{ member.github_username }}" target="_blank" rel="noopener noreferrer"
                class="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 py-1 pl-1 pr-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
@@ -93,7 +93,7 @@
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Latest curriculum updates</h2>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {% for repo in stats.repo_updates %}
+        {% for repo in community.repo_updates %}
         <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-col">
             <a href="{{ repo.url }}" target="_blank" rel="noopener noreferrer"
                class="text-base font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">

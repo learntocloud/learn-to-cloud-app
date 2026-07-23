@@ -1,4 +1,4 @@
-"""Stats service — assembles the public /stats page payload.
+"""Assemble aggregate data for the public community experience.
 
 The phase funnel and the graduate list come from a single completion
 aggregate (``VerificationAttemptRepository.list_phase_completions``) plus a
@@ -6,11 +6,11 @@ total account count and one batched user load. Because phase submissions
 are gated on the previous phase, completions are nested (completers of
 phase N are a subset of phase N-1), so the funnel is monotone and
 "graduates" are simply the learners who appear in every completable phase.
-The latest-commit panel is fetched (and cached) separately via the shared
-GitHub helper.
+The latest-commit panel is fetched and cached separately via the shared GitHub
+helper.
 
-Completions come from succeeded ``verification_attempts``; stats stay
-verification-only and do not count learning steps.
+Completions come from succeeded ``verification_attempts`` and do not count
+learning steps.
 """
 
 import logging
@@ -27,16 +27,16 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
 )
 from learn_to_cloud_shared.schemas import (
     CommunityMember,
+    CommunityPageData,
     FunnelLevel,
-    StatsPageData,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
 
-async def get_stats_page_data(db: AsyncSession) -> StatsPageData:
-    """Build the full /stats payload."""
+async def get_community_page_data(db: AsyncSession) -> CommunityPageData:
+    """Build the aggregate community page payload."""
     phases = get_curriculum_overview()
     phase_names = {phase.order: phase.name for phase in phases}
 
@@ -105,7 +105,7 @@ async def get_stats_page_data(db: AsyncSession) -> StatsPageData:
 
     repo_updates = await get_latest_curriculum_commits()
 
-    return StatsPageData(
+    return CommunityPageData(
         total_accounts=total_accounts,
         funnel=funnel,
         graduates=graduates,

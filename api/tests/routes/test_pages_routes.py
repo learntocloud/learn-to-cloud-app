@@ -7,6 +7,8 @@ Tests cover:
 - GET /phase/{id}/{topic} — topic detail (requires auth)
 - GET /dashboard — user dashboard (requires auth)
 - GET /account — account settings (requires auth)
+- GET /community — community page (public)
+- GET /stats — permanent redirect to the community page
 - GET /faq — FAQ page (public)
 - GET /privacy — privacy page (public)
 - GET /terms — terms page (public)
@@ -24,13 +26,14 @@ import pytest
 
 from learn_to_cloud.routes.pages_routes import (
     account_page,
+    community_page,
     curriculum_page,
     dashboard_page,
     faq_page,
     home_page,
     phase_page,
     privacy_page,
-    stats_page,
+    stats_page_redirect,
     terms_page,
     topic_page,
 )
@@ -434,13 +437,13 @@ class TestPublicPages:
 
 
 @pytest.mark.unit
-class TestStatsPage:
-    """Tests for GET /stats (public)."""
+class TestCommunityPage:
+    """Tests for the public community routes."""
 
-    async def test_stats_renders_with_stats_context(self, _patch_templates):
+    async def test_community_renders_with_community_context(self, _patch_templates):
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
-        mock_stats = MagicMock()
+        mock_community = MagicMock()
 
         with (
             patch(
@@ -449,14 +452,20 @@ class TestStatsPage:
                 return_value=None,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.get_stats_page_data",
+                "learn_to_cloud.routes.pages_routes.get_community_page_data",
                 autospec=True,
-                return_value=mock_stats,
+                return_value=mock_community,
             ),
         ):
-            await stats_page(request, mock_db, user_id=None)
+            await community_page(request, mock_db, user_id=None)
 
-        assert template.call_args[0][1] == "pages/stats.html"
+        assert template.call_args[0][1] == "pages/community.html"
         ctx = template.call_args[0][2]
-        assert ctx["stats"] is mock_stats
+        assert ctx["community"] is mock_community
         assert ctx["user"] is None
+
+    async def test_stats_redirects_permanently_to_community(self):
+        response = await stats_page_redirect()
+
+        assert response.status_code == 308
+        assert response.headers["location"] == "/community"
