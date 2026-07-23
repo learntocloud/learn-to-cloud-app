@@ -1,4 +1,4 @@
-"""Unit tests for the curriculum GitHub commit helper (/stats panel)."""
+"""Unit tests for the community curriculum-update helper."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 

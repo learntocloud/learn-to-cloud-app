@@ -1,4 +1,4 @@
-"""Integration tests for the public stats payload."""
+"""Integration tests for the public community payload."""
 
 from unittest.mock import AsyncMock, patch
 
@@ -8,7 +8,7 @@ from learn_to_cloud_shared.content_service import get_requirement_counts_by_phas
 from learn_to_cloud_shared.models import User, VerificationAttempt, utcnow
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud.services.stats_service import get_stats_page_data
+from learn_to_cloud.services.community_service import get_community_page_data
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -58,12 +58,12 @@ async def test_graduates_are_full_curriculum_completers(
     await _complete_phase(db_session, user_id=60002, phase_order=completable[0])
 
     with patch(
-        "learn_to_cloud.services.stats_service.get_latest_curriculum_commits",
+        "learn_to_cloud.services.community_service.get_latest_curriculum_commits",
         new=AsyncMock(return_value=[]),
     ):
-        stats = await get_stats_page_data(db_session)
+        community = await get_community_page_data(db_session)
 
-    assert [member.github_username for member in stats.graduates] == ["grad"]
+    assert [member.github_username for member in community.graduates] == ["grad"]
 
 
 async def test_funnel_uses_authoritative_attempts_and_excludes_empty_phases(
@@ -76,12 +76,12 @@ async def test_funnel_uses_authoritative_attempts_and_excludes_empty_phases(
     await _complete_phase(db_session, user_id=60003, phase_order=first_completable)
 
     with patch(
-        "learn_to_cloud.services.stats_service.get_latest_curriculum_commits",
+        "learn_to_cloud.services.community_service.get_latest_curriculum_commits",
         new=AsyncMock(return_value=[]),
     ):
-        stats = await get_stats_page_data(db_session)
+        community = await get_community_page_data(db_session)
 
-    assert stats.total_accounts == 1
-    assert stats.funnel[0].label == "Total accounts"
-    assert stats.funnel[1].count == 1
-    assert len(stats.funnel) == 1 + sum(count > 0 for count in counts.values())
+    assert community.total_accounts == 1
+    assert community.funnel[0].label == "Total accounts"
+    assert community.funnel[1].count == 1
+    assert len(community.funnel) == 1 + sum(count > 0 for count in counts.values())

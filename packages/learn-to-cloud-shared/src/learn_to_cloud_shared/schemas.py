@@ -735,13 +735,17 @@ class RepoUpdate(FrozenModel):
     committed_at: datetime | None = None
 
 
-class StatsPageData(FrozenModel):
-    """Complete /stats payload (service-layer response model)."""
+class CommunityPageData(FrozenModel):
+    """Aggregate data shown on the public community page."""
 
     total_accounts: int
     funnel: list[FunnelLevel]
     graduates: list[CommunityMember]
     repo_updates: list[RepoUpdate]
+
+
+# Preserve the current /stats consumer while the public page migrates.
+StatsPageData = CommunityPageData
 
 
 class PhaseProgress(FrozenModel):

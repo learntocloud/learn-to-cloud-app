@@ -1,8 +1,8 @@
-"""Latest-commit lookups for the curriculum repos (powers /stats).
+"""Latest-commit lookups for the public community experience.
 
 Reuses the resilient ``github_api_get`` seam (auth headers, retry, and
 5xx/429 mapping) rather than hand-rolling httpx. Results are cached in a
-short-lived process-level ``TTLCache`` because the /stats page is public
+short-lived process-level ``TTLCache`` because the page is public
 and the unauthenticated GitHub API is rate limited (60 req/hr/IP). Any
 lookup failure degrades to an ``unavailable`` entry so the page still
 renders.
@@ -21,7 +21,7 @@ from learn_to_cloud_shared.verification.github_http import github_api_get
 
 logger = logging.getLogger(__name__)
 
-# Curriculum repos surfaced on /stats, in display order.
+# Curriculum repos surfaced on the community page, in display order.
 CURRICULUM_REPOS: tuple[tuple[str, str], ...] = (
     ("learntocloud", "learn-to-cloud-app"),
     ("learntocloud", "linux-ctfs"),
@@ -83,7 +83,7 @@ async def _fetch_latest_commit(owner: str, repo: str) -> RepoUpdate:
         return _parse_commit(owner, repo, commits[0])
     except (httpx.HTTPError, ValueError, KeyError, IndexError) as exc:
         logger.warning(
-            "stats.github_commit_failed",
+            "community.github_commit_failed",
             extra={"repo": f"{owner}/{repo}", "error": str(exc)},
         )
         return _unavailable(owner, repo)
