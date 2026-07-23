@@ -462,6 +462,7 @@ class TestCommunityPage:
         assert template.call_args[0][1] == "pages/community.html"
         ctx = template.call_args[0][2]
         assert ctx["community"] is mock_community
+        assert len(ctx["community_links"]) == 5
         assert ctx["user"] is None
 
     async def test_stats_redirects_permanently_to_community(self):

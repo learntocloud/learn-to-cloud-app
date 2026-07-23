@@ -25,6 +25,7 @@ from learn_to_cloud_shared.requirements import (
 from learn_to_cloud.core.auth import OptionalUserId, UserId
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.context import (
+    COMMUNITY_LINKS,
     FAQS,
     HELP_LINKS,
     build_phase_topics,
@@ -330,7 +331,12 @@ async def community_page(
     return templates.TemplateResponse(
         request,
         "pages/community.html",
-        _template_context(request, user=user, community=community),
+        _template_context(
+            request,
+            user=user,
+            community=community,
+            community_links=COMMUNITY_LINKS,
+        ),
     )
 
 
