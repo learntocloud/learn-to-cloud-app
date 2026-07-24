@@ -5,4 +5,4 @@
 # steps, objectives, or requirements). The compiler enforces that this
 # value strictly increases relative to the previously committed
 # curriculum.json artifact -- it will refuse to compile otherwise.
-curriculum_version: 2
+curriculum_version: 3

@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "4123a7ef3474c99f07d446cd70964906355daf2cb0ba89782be0452b4a49b8b9",
-  "curriculum_version": 2,
+  "content_hash": "20e4df2d67da7f6c2948b4cbd3c9226683c4d29ff33208adb39dedc69819718f",
+  "curriculum_version": 3,
   "phases": [
     {
       "capstone": null,
@@ -815,17 +815,45 @@
               "uuid": "21e322f4-9fae-4609-af79-13fb33f828a0"
             },
             {
-              "action": "practice",
+              "action": "read",
               "checklist": [],
               "code": null,
-              "description": "Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Don't feel like you have to make a very fancy README\u2014write a brief description on who you are and add links to your socials.",
+              "description": "Install Git and verify it works in your terminal so you are ready for local-to-remote workflow steps.",
               "done_when": null,
               "options": [],
               "order": 7,
+              "slug": "phase1-topic1-read-install-git",
+              "tips": [],
+              "title": "Install Git",
+              "url": "https://github.com/git-guides/install-git",
+              "uuid": "9b574f74-bef8-4f8c-b87a-c7d24753def9"
+            },
+            {
+              "action": "practice",
+              "checklist": [],
+              "code": null,
+              "description": "Required. Complete one introductory GitHub Skills course (for example, Introduction to Git) before moving to the local Git workflow.",
+              "done_when": null,
+              "options": [],
+              "order": 8,
+              "slug": "phase1-topic1-practice-complete-a-github-skills-path",
+              "tips": [],
+              "title": "Complete an introductory GitHub Skills course",
+              "url": "https://learn.github.com/skills",
+              "uuid": "d2184bd4-a077-4de8-8f88-0f1a640a6806"
+            },
+            {
+              "action": "practice",
+              "checklist": [],
+              "code": null,
+              "description": "Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Use Git Guides as your command reference for clone, status, add, commit, and push while you work. Don't feel like you have to make a very fancy README\u2014write a brief description on who you are and add links to your socials.",
+              "done_when": null,
+              "options": [],
+              "order": 9,
               "slug": "phase1-topic1-practice-practice-git-workflow",
               "tips": [],
               "title": "Practice Git workflow",
-              "url": null,
+              "url": "https://github.com/git-guides/git-overview",
               "uuid": "4a41c7e9-a0aa-4ab4-b47d-8760d92c6ffc"
             },
             {
@@ -835,7 +863,7 @@
               "description": "Open the Learn to Cloud discussions page and bookmark it. If you ever have questions while working through the curriculum, this is the primary place to ask, share progress, and get support.",
               "done_when": null,
               "options": [],
-              "order": 8,
+              "order": 10,
               "slug": "phase1-topic1-practice-join-the-learn-to",
               "tips": [],
               "title": "Join the Learn to Cloud community",
@@ -2531,7 +2559,7 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API. Important: Follow the development workflow \u2014 create a feature branch for each task, run the tests, then open a Pull Request to merge into main. You'll need to submit each merged PR link for verification.",
+              "description": "Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API. If you need a quick refresher on GitHub workflows, complete a GitHub Skills course at https://learn.github.com/skills and use Git command references at https://github.com/git-guides/git-overview. Important: Follow the development workflow \u2014 create a feature branch for each task, run the tests, then open a Pull Request to merge into main. You'll need to submit each merged PR link for verification.",
               "done_when": null,
               "options": [],
               "order": 1,
