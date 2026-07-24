@@ -78,16 +78,16 @@ learning_steps:
 - uuid: d2184bd4-a077-4de8-8f88-0f1a640a6806
   order: 8
   action: 'Practice:'
-  title: Complete an introductory GitHub Learn path
+  title: Complete an introductory GitHub Skills course
   url: https://learn.github.com/skills
-  description: Required. Complete one introductory GitHub Learn path (for example, Intro to Git) before moving to the local Git workflow.
+  description: Required. Complete one introductory GitHub Skills course (for example, Intro to Git) before moving to the local Git workflow.
   slug: phase1-topic1-practice-complete-a-github-skills-path
 - uuid: 4a41c7e9-a0aa-4ab4-b47d-8760d92c6ffc
   order: 9
   action: 'Practice:'
+  title: Practice Git workflow
   url: https://github.com/git-guides/git-overview
   description: Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Use Git Guides as your command reference for clone, status, add, commit, and push while you work. Don't feel like you have to make a very fancy README—write a brief description on who you are and add links to your socials.
-  title: Practice Git workflow
   slug: phase1-topic1-practice-practice-git-workflow
 - uuid: e2b87158-c3d4-4aae-b6ee-b38d48fce103
   order: 10

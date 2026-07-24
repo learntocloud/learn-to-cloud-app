@@ -1,6 +1,6 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "c88e33e551d9d6682d38fe1e2c8c80a864a7ebfcbca1d2fd6b4755075168eca4",
+  "content_hash": "e99735afb6c84f87dab1e9da790eccf0c6add8b20c8f8caa0cedee2f9244f1db",
   "curriculum_version": 3,
   "phases": [
     {
@@ -832,13 +832,13 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Required. Complete one introductory GitHub Learn path (for example, Intro to Git) before moving to the local Git workflow.",
+              "description": "Required. Complete one introductory GitHub Skills course (for example, Intro to Git) before moving to the local Git workflow.",
               "done_when": null,
               "options": [],
               "order": 8,
               "slug": "phase1-topic1-practice-complete-a-github-skills-path",
               "tips": [],
-              "title": "Complete an introductory GitHub Learn path",
+              "title": "Complete an introductory GitHub Skills course",
               "url": "https://learn.github.com/skills",
               "uuid": "d2184bd4-a077-4de8-8f88-0f1a640a6806"
             },
@@ -2559,7 +2559,7 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API. If you need a quick refresher on GitHub workflows, complete a GitHub Skills path at https://learn.github.com/skills and use Git command references at https://github.com/git-guides/git-overview. Important: Follow the development workflow \u2014 create a feature branch for each task, run the tests, then open a Pull Request to merge into main. You'll need to submit each merged PR link for verification.",
+              "description": "Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API. If you need a quick refresher on GitHub workflows, complete a GitHub Skills course at https://learn.github.com/skills and use Git command references at https://github.com/git-guides/git-overview. Important: Follow the development workflow \u2014 create a feature branch for each task, run the tests, then open a Pull Request to merge into main. You'll need to submit each merged PR link for verification.",
               "done_when": null,
               "options": [],
               "order": 1,
