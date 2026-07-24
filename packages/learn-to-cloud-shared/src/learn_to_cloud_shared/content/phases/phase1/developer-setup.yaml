@@ -80,7 +80,7 @@ learning_steps:
   action: 'Practice:'
   title: Complete an introductory GitHub Skills course
   url: https://learn.github.com/skills
-  description: Required. Complete one introductory GitHub Skills course (for example, Intro to Git) before moving to the local Git workflow.
+  description: Required. Complete one introductory GitHub Skills course (for example, Introduction to Git) before moving to the local Git workflow.
   slug: phase1-topic1-practice-complete-a-github-skills-path
 - uuid: 4a41c7e9-a0aa-4ab4-b47d-8760d92c6ffc
   order: 9

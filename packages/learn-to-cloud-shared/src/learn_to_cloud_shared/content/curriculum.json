@@ -1,6 +1,6 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "e99735afb6c84f87dab1e9da790eccf0c6add8b20c8f8caa0cedee2f9244f1db",
+  "content_hash": "20e4df2d67da7f6c2948b4cbd3c9226683c4d29ff33208adb39dedc69819718f",
   "curriculum_version": 3,
   "phases": [
     {
@@ -832,7 +832,7 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Required. Complete one introductory GitHub Skills course (for example, Intro to Git) before moving to the local Git workflow.",
+              "description": "Required. Complete one introductory GitHub Skills course (for example, Introduction to Git) before moving to the local Git workflow.",
               "done_when": null,
               "options": [],
               "order": 8,
