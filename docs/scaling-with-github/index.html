@@ -77,23 +77,23 @@
   </div>
   <div class="feature-grid" style="margin-top: 16px; text-align: center; grid-template-columns: 1fr 1fr 1fr 1fr;">
     <div class="feature-card" style="text-align: center;">
-      <p class="big-number">1</p>
-      <p class="big-number-label">Engineer (sometimes 2)</p>
+      <p class="big-number">8</p>
+      <p class="big-number-label">Curriculum phases</p>
     </div>
     <div class="feature-card" style="text-align: center;">
-      <p class="big-number">~3,000</p>
-      <p class="big-number-label">Active users</p>
+      <p class="big-number">3</p>
+      <p class="big-number-label">Python workspace packages</p>
     </div>
     <div class="feature-card" style="text-align: center;">
-      <p class="big-number">18ms</p>
-      <p class="big-number-label">P95 latency</p>
+      <p class="big-number">10</p>
+      <p class="big-number-label">Repository skills</p>
     </div>
     <div class="feature-card" style="text-align: center;">
-      <p class="big-number">0</p>
-      <p class="big-number-label">5xx errors (24h)</p>
+      <p class="big-number">6</p>
+      <p class="big-number-label">Custom agents</p>
     </div>
   </div>
-  <p style="margin-top: 20px; font-size: 0.75em; text-align: center;">Team of 1. This is how it gets done.</p>
+  <p style="margin-top: 20px; font-size: 0.75em; text-align: center;">A small team, backed by repeatable automation.</p>
 </section>
 
 <!-- ============================================================ -->
@@ -204,7 +204,7 @@
   <pre><code class="language-markdown"># Project Instructions
 
 ## Tech Stack
-- Backend: FastAPI 0.115 + Python 3.13, async throughout
+- Backend: FastAPI 0.139+ + Python 3.13, async throughout
 - Database: PostgreSQL 16 via async SQLAlchemy 2.0
 - Frontend: Jinja2 templates + HTMX + Tailwind CSS v4
 - Auth: GitHub OAuth via Authlib
@@ -329,7 +329,7 @@ Routes (HTTP) → Services (Business Logic) → Repositories (DB)
 <section>
   <h3 class="section-title">Phase 3</h3>
   <h2>🔨 Build</h2>
-  <p>Continuous integration: every push is validated automatically</p>
+  <p>Continuous integration: relevant changes are validated automatically</p>
   <p class="dim" style="font-size: 0.6em; margin-top: 24px; letter-spacing: 2px;">↓ DEMO</p>
 </section>
 
@@ -341,22 +341,23 @@ Routes (HTTP) → Services (Business Logic) → Repositories (DB)
         <tr><th>Job</th><th>Trigger</th><th>What It Does</th></tr>
       </thead>
       <tbody>
-        <tr><td class="blue">changes</td><td>Every push</td><td>Detect which folders changed (skip unnecessary work)</td></tr>
+        <tr><td class="blue">changes</td><td>Push + PR</td><td>Detect code and infrastructure changes</td></tr>
         <tr><td class="blue">dependency-review</td><td>PRs only</td><td>Block PRs with vulnerable dependencies</td></tr>
-        <tr><td class="blue">ci</td><td>Every push + PR</td><td>Lint → format → type-check → test with coverage</td></tr>
-        <tr><td class="blue">terraform</td><td>Main only</td><td>Plan + apply infrastructure changes</td></tr>
-        <tr><td class="blue">deploy</td><td>Main only</td><td>Build Docker → push to ACR → update Container App</td></tr>
+        <tr><td class="blue">ci</td><td>Code changes</td><td>Static checks, content validation, migrations, and tests</td></tr>
+        <tr><td class="blue">terraform-ci</td><td>Infra changes</td><td>Format, initialize, validate, and test Terraform</td></tr>
+        <tr><td class="blue">terraform</td><td>Main + manual</td><td>Plan infrastructure; apply only on main</td></tr>
+        <tr><td class="blue">deploy</td><td>Main + manual</td><td>Build images, migrate, and update Azure services</td></tr>
       </tbody>
     </table>
   </div>
   <div class="feature-grid" style="margin-top: 16px;">
     <div class="feature-card">
       <h4>Path Filtering</h4>
-      <p>Only deploy when api/, content/, or infra/ files change</p>
+      <p>Application deploys run only for code, package, or infrastructure changes</p>
     </div>
     <div class="feature-card">
       <h4>Concurrency Control</h4>
-      <p>New push cancels in-progress deploys, no wasted builds</p>
+      <p>PR runs cancel when superseded; active production deploys finish safely</p>
     </div>
   </div>
 </section>
@@ -365,6 +366,8 @@ Routes (HTTP) → Services (Business Logic) → Repositories (DB)
   <h2>The CI Job</h2>
   <p class="file-path">.github/workflows/deploy.yml</p>
   <pre><code class="language-yaml">  ci:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -374,25 +377,20 @@ Routes (HTTP) → Services (Business Logic) → Repositories (DB)
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: learntocloud
         ports: ["5432:5432"]
+<!--
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud
-    defaults:
-      run:
-        working-directory: api
+-->
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version-file: "api/pyproject.toml"
-      - uses: astral-sh/setup-uv@v7
-      - run: uv sync --locked
-      - uses: astral-sh/ruff-action@v3
-        with: { src: "./api", args: "check" }
-      - uses: astral-sh/ruff-action@v3
-        with: { src: "./api", args: "format --check" }
-      - run: uv run ty check --python .venv/bin/python
-      - run: uv run pytest tests/ -v --tb=short --cov=. --cov-report=xml</code></pre>
-  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Every push triggers lint, format, type-check, and tests against a real PostgreSQL instance.</p>
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8
+      - run: uv sync --all-packages --locked
+      - run: uv run poe static
+      - run: uv run poe package-smoke
+      - run: cd api &amp;&amp; uv run alembic upgrade head
+      - run: uv run poe test</code></pre>
+  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Relevant pushes and pull requests run one workspace-wide quality gate against PostgreSQL.</p>
 </section>
 
 <!-- ============================================================ -->
@@ -410,15 +408,16 @@ Routes (HTTP) → Services (Business Logic) → Repositories (DB)
   <p class="file-path">.github/skills/validate/SKILL.md</p>
   <pre><code class="language-markdown"># Validate Python Changes
 
-## Step 0: Kill any existing API processes
-## Step 1: Run Ruff Lint
-## Step 2: Run Ruff Format Check
-## Step 3: Run ty Type Check
-## Step 4: Start the API
-## Step 5: Smoke Test Endpoints
+## Step 1: Run the workspace static checks
+  uv run poe static
+## Step 2: Start the API
+## Step 3: Smoke test endpoints
   curl -s http://localhost:8000/health
   curl -s http://localhost:8000/ready
-## Step 6: Kill the API</code></pre>
+  curl -s http://localhost:8000/openapi.json
+## Step 4: Stop the API
+## Step 5: Run workspace tests when logic changed
+  uv run poe test</code></pre>
   <p class="dim" style="font-size: 0.65em; margin-top: 12px;">Static analysis catches lint errors. Starting the API catches import errors, circular imports, and route registration bugs.</p>
 </section>
 
@@ -488,14 +487,12 @@ End-to-end workflow: run prek checks, fix failures, commit,
 push, and monitor the GitHub Actions deploy pipeline through
 to a healthy production readiness check.
 
-## Step 0: Match User's Energy
-Reply with "LFG 🚀 I'll ship it"
-
-## Step 1: Run Prek (all pre-commit hooks)
-## Step 2: Fix Any Failures (auto-fix + re-run)
-## Step 3: Stage All Changes + Commit
-## Step 4: Push + Monitor Deploy Workflow
-## Step 5: Verify Production Health</code></pre>
+## Step 1: Confirm branch and GitHub authentication
+## Step 2: Run uv run poe check
+## Step 3: Stage and commit with the required trailer
+## Step 4: Push and open a pull request
+## Step 5: Monitor deployment after merge
+## Step 6: Verify production health</code></pre>
   <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Say "ship it": Copilot runs lint, commits, pushes, monitors the deploy, and checks prod health.</p>
 </section>
 
@@ -514,7 +511,7 @@ Reply with "LFG 🚀 I'll ship it"
   <div class="feature-grid">
     <div class="feature-card">
       <h4>🔍 CodeQL</h4>
-      <p>Semantic static analysis on every push, PR, and weekly schedule. Covers OWASP Top 10.</p>
+      <p>Semantic static analysis on relevant pushes, pull requests, and a weekly schedule. Covers OWASP Top 10.</p>
     </div>
     <div class="feature-card">
       <h4>🔐 Secret Scanning</h4>
@@ -568,19 +565,19 @@ Reply with "LFG 🚀 I'll ship it"
   <p class="file-path">.github/skills/check-prod/SKILL.md</p>
   <pre><code class="language-markdown"># Production Health Check
 
-10 checks. One verdict. All read-only. Uses Azure CLI.
+14 checks. One verdict. All read-only. Uses Azure CLI.
 
 ## Verdict Logic
 🔴 Critical - Non-200 readiness, 5xx errors, DB CPU > 80%
 ⚠️  Warning  - P95 > 500ms, DB CPU 50-80%, failed availability
 ✅ Healthy  - None of the above
 
-## The 10 Checks
- 1. Container App status       6. DB CPU, memory, storage
- 2. Availability tests (24h)   7. Active DB connections
- 3. Request latency P95        8. Fired alerts (24h)
- 4. Error rates 4xx/5xx        9. Container restarts
- 5. Unhandled exceptions      10. Dependency health</code></pre>
+## Coverage
+- Readiness and Azure resource health
+- Availability, request health, and error trends
+- Exceptions, dependencies, and database metrics
+- Container metrics, stability, alerts, and console errors
+- Authentication and verification business signals</code></pre>
 </section>
 
 <section>
@@ -591,7 +588,7 @@ Reply with "LFG 🚀 I'll ship it"
         <tr><th>You Say</th><th>Copilot Does</th></tr>
       </thead>
       <tbody>
-        <tr><td class="green">"check prod"</td><td>10-point health check: errors, latency, DB, alerts</td></tr>
+        <tr><td class="green">"check prod"</td><td>14-point health check: errors, latency, DB, alerts</td></tr>
         <tr><td class="green">"debug deploy"</td><td>Diagnose CI/CD failures: state locks, auth, quotas</td></tr>
         <tr><td class="green">"query db"</td><td>Production PostgreSQL queries with Entra ID auth</td></tr>
         <tr><td class="green">"validate changes"</td><td>Lint → format → type-check → start API → smoke test</td></tr>
@@ -630,19 +627,14 @@ Reply with "LFG 🚀 I'll ship it"
           <td>Scans content YAML for broken external URLs</td>
         </tr>
         <tr>
-          <td class="blue">Cross-Repo Overview</td>
-          <td>Daily (5am)</td>
-          <td>Issue/PR dashboard across 4 repos</td>
+          <td class="blue">Agentic Maintenance</td>
+          <td>Daily</td>
+          <td>Cleans up expiring workflow outputs and maintenance state</td>
         </tr>
         <tr>
-          <td class="blue">Community Thanks</td>
-          <td>Weekly (Sun)</td>
-          <td>Aggregates issue reporters for shoutouts</td>
-        </tr>
-        <tr>
-          <td class="blue">Deck Updater</td>
-          <td>Every push</td>
-          <td>Keeps this presentation in sync with the repo</td>
+          <td class="blue">Pages</td>
+          <td>Docs changes</td>
+          <td>Validates, builds, and publishes this documentation site</td>
         </tr>
       </tbody>
     </table>
@@ -677,14 +669,16 @@ Reply with "LFG 🚀 I'll ship it"
 │   ├── check-prod/SKILL.md          # ⚙️ Operate: health check
 │   ├── debug-deploy/SKILL.md        # ⚙️ Operate: diagnose failures
 │   ├── query-prod-db/SKILL.md       # ⚙️ Operate: production queries
-│   └── reset-local-submissions/SKILL.md  # 🧪 Test: reset verification state
+│   ├── reset-local-submissions/SKILL.md  # 🧪 Test: reset verification state
+│   ├── reset-prod-submissions/SKILL.md   # ⚙️ Operate: reset production state
+│   ├── review-pr-comments/SKILL.md       # ⌨️ Code: address review feedback
+│   ├── review-terraform/SKILL.md         # 🔒 Secure: validate infrastructure
+│   └── write-migration/SKILL.md          # ⌨️ Code: safe schema changes
 └── workflows/
     ├── deploy.yml                   # 🔨 Build + 🚀 Deploy: CI/CD
     ├── codeql.yml                   # 🔒 Secure: static analysis
     ├── content-link-auditor.md      # 📡 Monitor: broken link scan
-    ├── cross-repo-issues-overview.md # 📡 Monitor: issue dashboard
-    ├── discussion-answer-thanks.md  # 📡 Monitor: community recognition
-    └── update-deck.md               # 📡 Monitor: keep deck current</code></pre>
+    └── pages.yml                    # 📡 Monitor: publish documentation</code></pre>
 </section>
 
 <section class="center-slide">
@@ -695,16 +689,16 @@ Reply with "LFG 🚀 I'll ship it"
       <p class="big-number-label">SDLC phases with AI</p>
     </div>
     <div class="feature-card" style="text-align: center;">
-      <p class="big-number">0</p>
-      <p class="big-number-label">Manual deploys</p>
+      <p class="big-number">2</p>
+      <p class="big-number-label">Deployment pipelines</p>
     </div>
     <div class="feature-card" style="text-align: center;">
-      <p class="big-number">6</p>
+      <p class="big-number">10</p>
       <p class="big-number-label">Copilot skills</p>
     </div>
     <div class="feature-card" style="text-align: center;">
-      <p class="big-number">100%</p>
-      <p class="big-number-label">Markdown config</p>
+      <p class="big-number">5</p>
+      <p class="big-number-label">Reusable prompt files</p>
     </div>
   </div>
   <p style="margin-top: 32px; font-size: 0.9em;">
@@ -713,13 +707,13 @@ Reply with "LFG 🚀 I'll ship it"
 </section>
 
 <section class="center-slide" data-background-gradient="radial-gradient(circle at 80% 50%, #0d2137 0%, #0d1117 70%)">
-  <h2>This Deck Updates Itself</h2>
+  <h2>Keep the Deck Current</h2>
   <div class="highlight-box" style="text-align: left; display: inline-block;">
-    <p style="font-size: 0.8em;">Pushes to <code>main</code> that change repo config trigger a Copilot Workflow that:</p>
+    <p style="font-size: 0.8em;">Changes to repository automation should update this presentation in the same pull request:</p>
     <ol style="list-style: decimal; padding-left: 1.5em; font-size: 0.75em; margin-top: 12px;">
-      <li style="margin: 0.4em 0;">Scans the repo for skills, agents, prompts, and workflows</li>
-      <li style="margin: 0.4em 0;">Compares what exists against what's in the deck</li>
-      <li style="margin: 0.4em 0;">Opens a PR if anything is out of date</li>
+      <li style="margin: 0.4em 0;">Compare skills, agents, prompts, and workflows</li>
+      <li style="margin: 0.4em 0;">Update examples and durable repository counts</li>
+      <li style="margin: 0.4em 0;">Let the Pages workflow validate and publish the result</li>
     </ol>
   </div>
   <p style="margin-top: 32px;" class="dim">
