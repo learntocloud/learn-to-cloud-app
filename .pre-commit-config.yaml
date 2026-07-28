@@ -35,6 +35,12 @@ repos:
         language: system
         files: ^api/alembic/versions/.*\.py$
         pass_filenames: false
+      - id: docs-links
+        name: documentation links
+        entry: bash -c 'python -m unittest discover -s scripts/tests && python scripts/check_docs.py'
+        language: system
+        files: ^(docs/|scripts/check_docs\.py$|scripts/tests/test_check_docs\.py$)
+        pass_filenames: false
 
   # General file hygiene + check-yaml
   - repo: https://github.com/pre-commit/pre-commit-hooks

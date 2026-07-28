@@ -157,6 +157,8 @@ Or use VS Code's **"API + Verification"** compound launch configuration.
 ## Contributing
 
 See the [Contributing Guide](docs/contributing.md) for linting, testing, the dog-food QA agent, Copilot skills, and architecture conventions.
+Published architecture and operations docs are available on
+[GitHub Pages](https://learntocloud.github.io/learn-to-cloud-app/).
 
 ## Deployment
 
