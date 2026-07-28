@@ -37,21 +37,23 @@ echo "🐍 Setting up the Python workspace environment..."
 uv sync --all-packages --locked
 
 # Install Playwright MCP server + browser for dogfooding.
-# Install `playwright` globally alongside the MCP package so the subsequent
-# `playwright install` call doesn't emit the "install your project's
-# dependencies first" warning (npx looks for playwright in the cwd's
-# package.json, and the repo root has none).
 echo "🎭 Installing Playwright MCP + browser..."
-npm install -g playwright @playwright/mcp@latest
+npm install -g @playwright/mcp@latest
+# Install the browser through `playwright-mcp` rather than a standalone
+# `playwright` CLI. The MCP server bundles its own playwright-core, and a
+# separately installed CLI can resolve a different browser revision — the MCP
+# server then reports the browser as "not installed" even though one is in the
+# cache. Going through playwright-mcp keeps the revisions in lockstep.
+#
+# Chromium (rather than the `chrome` channel) is the only option that works on
+# both architectures: Google Chrome has no ARM64 Linux build, while Playwright
+# ships Chromium builds for both x64 and ARM64. This matches the
+# `--browser chromium` arg in `.mcp.json` and `.vscode/mcp.json`.
+#
 # `--with-deps` installs the OS libraries (libatk, libnss, etc.) the browser
-# needs to actually launch; without them Chromium/Chrome fail with
+# needs to actually launch; without them Chromium fails with
 # "error while loading shared libraries". The flag uses sudo internally.
-if [ "$(uname -m)" = "aarch64" ]; then
-    # Google Chrome has no ARM64 Linux build; use Playwright's bundled Chromium instead
-    playwright install --with-deps chromium
-else
-    playwright install --with-deps chrome
-fi
+playwright-mcp install-browser chromium --with-deps
 
 # Install Aspire CLI for the MCP server (aspire agent mcp).
 # Installed via the standalone script so we don't need .NET SDK or the VS Code
