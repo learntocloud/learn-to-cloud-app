@@ -112,6 +112,31 @@ resource "azurerm_function_app_flex_consumption" "verification" {
     identity_ids = [azurerm_user_assigned_identity.verification_functions.id]
   }
 
+  auth_settings_v2 {
+    auth_enabled           = true
+    runtime_version        = "~1"
+    require_authentication = true
+    unauthenticated_action = "Return401"
+    require_https          = true
+
+    active_directory_v2 {
+      client_id            = local.verification_functions_auth_client_id
+      tenant_auth_endpoint = "https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/v2.0"
+      allowed_audiences = [
+        local.verification_functions_auth_client_id,
+        local.verification_functions_auth_audience,
+      ]
+      allowed_applications = [
+        azurerm_user_assigned_identity.api.client_id,
+      ]
+      allowed_identities = [
+        azurerm_user_assigned_identity.api.principal_id,
+      ]
+    }
+
+    login {}
+  }
+
   app_settings = {
     AZURE_CLIENT_ID                          = azurerm_user_assigned_identity.verification_functions.client_id
     DATABASE__URL                            = ""
@@ -141,57 +166,6 @@ resource "azurerm_function_app_flex_consumption" "verification" {
     azurerm_role_assignment.verification_functions_foundry,
     azapi_resource.foundry_model_deployment,
     azurerm_postgresql_flexible_server_database.main,
-  ]
-}
-
-resource "azapi_update_resource" "verification_auth_settings" {
-  type      = "Microsoft.Web/sites/config@2022-09-01"
-  name      = "authsettingsV2"
-  parent_id = azurerm_function_app_flex_consumption.verification.id
-
-  body = {
-    properties = {
-      platform = {
-        enabled        = true
-        runtimeVersion = "~1"
-      }
-      globalValidation = {
-        requireAuthentication       = true
-        unauthenticatedClientAction = "Return401"
-      }
-      httpSettings = {
-        requireHttps = true
-      }
-      identityProviders = {
-        azureActiveDirectory = {
-          enabled = true
-          registration = {
-            clientId     = local.verification_functions_auth_client_id
-            openIdIssuer = "https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/v2.0"
-          }
-          validation = {
-            allowedAudiences = [
-              local.verification_functions_auth_client_id,
-              local.verification_functions_auth_audience,
-            ]
-            defaultAuthorizationPolicy = {
-              allowedApplications = [
-                azurerm_user_assigned_identity.api.client_id,
-              ]
-              allowedPrincipals = {
-                identities = [
-                  azurerm_user_assigned_identity.api.principal_id,
-                ]
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  depends_on = [
-    azurerm_function_app_flex_consumption.verification,
   ]
 
   lifecycle {
