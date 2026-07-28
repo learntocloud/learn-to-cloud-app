@@ -151,7 +151,8 @@ docker compose run --rm api-multiworker python -m alembic upgrade head
 docker compose up api-multiworker
 ```
 
-Alternatively, create a one-off migration service in `docker-compose.yml` (see below).
+`api-multiworker` is a diagnostic Compose service rather than the normal local
+development path. For day-to-day work, run Alembic directly from `api/`.
 
 ## Tips
 

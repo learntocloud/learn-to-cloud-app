@@ -2,7 +2,9 @@
 
 ## Development Setup
 
-The devcontainer handles everything automatically — see the [README](../README.md) for Quick Start instructions.
+The devcontainer handles everything automatically. See the
+[README Quick Start](https://github.com/learntocloud/learn-to-cloud-app#quick-start)
+for setup instructions.
 
 ## Quality Gates
 
@@ -102,6 +104,11 @@ The project ships several Copilot agent skills in `.github/skills/`:
 | `check-prod` | "check prod" | Check Azure health, errors, latency |
 | `debug-deploy` | "debug deploy" | Diagnose CI/CD and Terraform failures |
 | `query-prod-db` | "query prod db" | Run ad-hoc queries against production DB |
+| `reset-local-submissions` | "reset local submissions" | Reset local verification state |
+| `reset-prod-submissions` | "reset prod submissions" | Reset production verification state |
+| `review-pr-comments` | "review PR comments" | Triage and address PR feedback |
+| `review-terraform` | "review terraform" | Validate Terraform changes |
+| `write-migration` | "write migration" | Create safe Alembic migrations |
 
 ## Architecture
 
@@ -143,7 +150,7 @@ It's fine to bundle them in one PR when the code change is purely
 additive and the old code path doesn't break without the new schema
 (e.g., adding a nullable column that nothing reads yet).
 
-See [docs/migrations.md](migrations.md) for more on how migrations work.
+See [Database Migrations](migrations.html) for more on how migrations work.
 
 ## Editing curriculum content
 
@@ -160,5 +167,23 @@ To change it:
    ```
 3. Open a PR. CI runs the same validators.
 
-See [`docs/curriculum.md`](curriculum.md) for the full packaged-artifact
+See [Curriculum Architecture](curriculum.html) for the full packaged-artifact
 architecture.
+
+## GitHub Pages
+
+Repository documentation is published from `docs/` at
+`https://learntocloud.github.io/learn-to-cloud-app/`. The Pages workflow:
+
+1. Runs `python scripts/check_docs.py`.
+2. Builds the Markdown and static HTML with Jekyll.
+3. Deploys the generated site to the `github-pages` environment.
+
+Pull requests build the site without deploying it. Merges to `main` that touch
+the docs, validator, or Pages workflow publish automatically. Maintainers can
+also use the workflow's **Run workflow** action for a manual publish.
+
+Repository settings must keep **Pages > Build and deployment > Source** set to
+**GitHub Actions**. After publishing, verify the
+[documentation root](https://learntocloud.github.io/learn-to-cloud-app/) and
+[presentation](https://learntocloud.github.io/learn-to-cloud-app/scaling-with-github/).

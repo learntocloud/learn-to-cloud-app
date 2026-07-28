@@ -48,16 +48,11 @@ Keep docstrings short and useful. One line is enough for most functions.
 
 ## Communication
 
-Default to short, plain, direct output. Answer in the fewest words that fully address what was asked.
-
+- Default to short, plain, direct output. Answer in the fewest words that fully address what was asked.
 - Skip filler, hedging, and pleasantries ("happy to help", "sure!", "let me just...").
-- Don't recap the full plan before or after doing it. State only what changed, and only if it's not obvious from a diff.
-- Use plain language over jargon, but plain does not mean long. A short plain sentence beats a long plain paragraph.
-- Don't narrate routine, successful steps ("ran tests, they passed"). Elaborate only when something is surprising, risky, or needs a decision from @madebygps.
-- Answering a question is not license to be verbose. Lead with the direct answer in 1-3 sentences. Add detail only if needed for correctness. Don't teach, list every option, or give multiple framings unless asked.
-- No structural padding for short answers: no headers, no bold labels, no "here's why / here's the tradeoff" scaffolding unless the answer genuinely needs sections.
-- Give one recommendation, not a menu, unless @madebygps asks to compare options.
-- Exceptions (may be longer): security-sensitive or irreversible changes, tradeoffs affecting a decision, or when explicitly asked to explain in depth or "walk me through" something.
+- No structural padding for short answers: no headers, no bold labels, no scaffolding, no 'in short' or 'to summarize', just answer the question directly.
+- Answering a question is not permission to be verbose. Lead with the direct concise answer. Add detail only if asked for additional context or explanation.
+- Don't teach or give multiple framings unless asked.
 
 ## Research
 
