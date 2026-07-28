@@ -1,13 +1,14 @@
 ---
 name: plan-terraform
-description: Run and review the Azure-backed Terraform plan for an open pull request using the existing deploy workflow. Use when the user says "plan terraform PR", "run the terraform plan", "check the terraform provider PR", "is this terraform PR safe to merge", or asks to validate an infrastructure PR against production state.
+description: Run and review a local Azure-backed Terraform plan for an open pull request. Use when the user says "plan terraform PR", "run the terraform plan", "check the terraform provider PR", "is this terraform PR safe to merge", or asks to validate an infrastructure PR against production state.
 ---
 
 # Plan Terraform Pull Request
 
-Run Terraform plans in GitHub Actions so they use the repository's pinned
-tooling, Azure OIDC identity, variables, secrets, and remote state. Never run
-`terraform apply` or merge the pull request as part of this skill.
+Run Terraform plans locally with the authenticated Azure CLI against the
+remote development state. Use a temporary detached worktree so the user's
+current branch and files remain untouched. Never run `terraform apply` or
+merge the pull request as part of this skill.
 
 ## Inputs
 
@@ -24,47 +25,72 @@ Otherwise, ask which pull request to plan.
      --json state,baseRefName,headRefName,headRepositoryOwner,files,url
    ```
 
-2. Update the pull request branch with the latest `main`:
+2. Update the pull request branch with the latest `main`, then record its
+   current head SHA:
 
    ```bash
    gh pr update-branch <pr-number>
+   gh pr view <pr-number> --json headRefOid --jq .headRefOid
    ```
 
-   Re-read the pull request after the update and use its current
-   `headRefName`.
-
-3. Dispatch the existing deploy workflow on the pull request branch:
+3. Confirm local prerequisites:
 
    ```bash
-   gh workflow run deploy.yml --ref <head-ref>
+   az account show
+   terraform version
    ```
 
-4. Find the new manual run for that branch. Do not select a run created before
-   the dispatch:
+   The Azure subscription must match the repository's
+   `AZURE_SUBSCRIPTION_ID` variable. Stop if the user is not authenticated or
+   the subscriptions differ.
+
+4. Create a detached worktree for the exact pull request SHA under the current
+   Copilot session's `files/` directory:
 
    ```bash
-   gh run list \
-     --workflow deploy.yml \
-     --branch <head-ref> \
-     --event workflow_dispatch \
-     --limit 5 \
-     --json databaseId,createdAt,status,conclusion,url
+   git fetch origin
+   git worktree add --detach <session-files>/terraform-pr-<pr-number> <head-sha>
    ```
 
-5. Wait for the run and fail if any job fails:
+5. Read the non-secret Terraform inputs from GitHub repository variables:
 
    ```bash
-   gh run watch <run-id> --exit-status
+   gh variable list --json name,value
    ```
 
-6. Inspect the Terraform job logs:
+   Required values are `AZURE_ENV_NAME`, `AZURE_LOCATION`,
+   `AZURE_SUBSCRIPTION_ID`, `POSTGRES_ENTRA_ADMIN_OBJECT_ID`,
+   `POSTGRES_ENTRA_ADMIN_PRINCIPAL_NAME`, and
+   `POSTGRES_ENTRA_ADMIN_PRINCIPAL_TYPE`.
+
+6. Read `github_client_id` from the API Container App's
+   `OAUTH__CLIENT_ID` environment variable. Read `smoke_test_token` from the
+   `smoke-test-token` Container App secret using `--show-values`. Capture both
+   directly into shell variables and never print them.
+
+7. From the temporary worktree's `infra/` directory, initialize the remote
+   backend using the environment-specific state key:
 
    ```bash
-   gh run view <run-id> --log
+   terraform init \
+     -backend-config="key=learn-to-cloud-${AZURE_ENV_NAME}.tfstate"
    ```
 
-   Report the plan summary and every resource action. A successful workflow
-   does not by itself mean the pull request is safe.
+8. Export the same `TF_VAR_*` inputs used by `.github/workflows/deploy.yml`,
+   then run:
+
+   ```bash
+   terraform plan -input=false -lock-timeout=120s -no-color
+   ```
+
+   Do not save a plan file. Report the plan summary and every resource action.
+
+9. Remove the temporary worktree after the plan, including when initialization
+   or planning fails:
+
+   ```bash
+   git worktree remove <session-files>/terraform-pr-<pr-number>
+   ```
 
 ## Decision Rules
 
@@ -79,8 +105,8 @@ Otherwise, ask which pull request to plan.
 
 ## Safety
 
-- Never run the workflow on `main`; that path can apply the saved plan.
 - Never run `terraform apply`, `terraform force-unlock`, or modify state.
 - Never print repository or environment secrets.
-- If branch update, workflow dispatch, Azure login, or state access fails,
-  report the failure instead of falling back to a local plan.
+- Never run the plan from the repository's primary worktree.
+- If Azure login, variable discovery, secret retrieval, backend
+  initialization, or state access fails, report the failure and clean up.
