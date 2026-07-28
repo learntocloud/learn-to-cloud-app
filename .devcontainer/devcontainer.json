@@ -9,7 +9,7 @@
       "installTools": false
     },
     "ghcr.io/devcontainers/features/node:2.0.0": {
-      "version": "20",
+      "version": "22",
       "INSTALLYARNUSINGAPT": false
     },
     "ghcr.io/devcontainers/features/azure-cli:1": {
