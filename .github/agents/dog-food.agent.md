@@ -1,7 +1,6 @@
 ---
 name: dog-food
 description: Launch the local app and use Playwright to perform read-only QA across public, authenticated, and phase-submission flows.
-infer: false
 tools: ['execute/runInTerminal', 'read/readFile', 'playwright/*']
 ---
 
