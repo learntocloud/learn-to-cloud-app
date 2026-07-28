@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Install gh-aw extension
         run: curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
