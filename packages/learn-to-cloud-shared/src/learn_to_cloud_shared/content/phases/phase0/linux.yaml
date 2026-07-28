@@ -18,7 +18,7 @@ learning_steps:
   order: 1
   action: 'Watch:'
   title: Linux Documentary (The Story of Linux)
-  url: https://www.youtube.com/watch?v=XMm0HsmOTFI
+  url: https://www.youtube.com/watch?v=zPt_e9Cdk08
   description: Watch this documentary for the history, ecosystem, and culture behind Linux so you understand why it became the foundation of modern cloud infrastructure.
   slug: phase0-topic1-watch-linux-documentary-the-story
 - uuid: 65563a74-3a18-4dfa-b312-ee07661b6756

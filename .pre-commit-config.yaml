@@ -21,7 +21,7 @@ repos:
     hooks:
       - id: ty
         name: ty type check
-        entry: bash -c 'uv run --project api ty check --exclude scripts --exclude tests api && (cd packages/learn-to-cloud-shared && uv run --project . ty check --exclude tests .) && uv run --project apps/verification-functions ty check apps/verification-functions'
+        entry: bash -c 'uv run --project api ty check --exclude scripts --exclude tests api && (cd packages/learn-to-cloud-shared && uv run --project . ty check --exclude tests .) && uv run --project apps/verification-functions ty check --exclude apps/verification-functions/tests apps/verification-functions'
         language: system
         files: ^(api|apps/verification-functions|packages/learn-to-cloud-shared)/.*\.py$
         pass_filenames: false
@@ -35,15 +35,21 @@ repos:
         language: system
         files: ^api/alembic/versions/.*\.py$
         pass_filenames: false
+      - id: docs-links
+        name: documentation links
+        entry: bash -c 'python -m unittest discover -s scripts/tests && python scripts/check_docs.py'
+        language: system
+        files: ^(docs/|scripts/check_docs\.py$|scripts/tests/test_check_docs\.py$)
+        pass_filenames: false
 
   # General file hygiene + check-yaml
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^api/htmlcov/
+        exclude: ^(api/htmlcov/|\.github/workflows/.*\.lock\.yml$|\.github/workflows/agentics-maintenance\.yml$)
       - id: end-of-file-fixer
-        exclude: ^(api/htmlcov/|.*\.svg$)
+        exclude: ^(api/htmlcov/|.*\.svg$|\.github/workflows/.*\.lock\.yml$|\.github/workflows/agentics-maintenance\.yml$)
       - id: check-json
         exclude: ^\.vscode/
       - id: check-added-large-files

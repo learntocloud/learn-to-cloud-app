@@ -27,13 +27,17 @@ from uuid import uuid4
 
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import (
+    CareerReflectionConfig,
+    CareerReflectionQuestion,
+    CareerReflectionRequirement,
     CtfTokenConfig,
     CtfTokenRequirement,
     DeployedApiConfig,
     DeployedApiRequirement,
+    DeploymentArchitectureConfig,
+    DeploymentArchitectureRequirement,
     DevopsAnalysisConfig,
     DevopsAnalysisRequirement,
-    GithubProfileRequirement,
     JournalApiVerifierConfig,
     JournalApiVerifierRequirement,
     NetworkingTokenConfig,
@@ -44,21 +48,6 @@ from learn_to_cloud_shared.schemas import (
     SecurityScanningConfig,
     SecurityScanningRequirement,
 )
-
-
-def github_profile_requirement(
-    *,
-    slug: str = "github-profile",
-    name: str = "Test GitHub profile requirement",
-    description: str = "Test description",
-) -> GithubProfileRequirement:
-    return GithubProfileRequirement(
-        uuid=uuid4(),
-        slug=slug,
-        submission_type=SubmissionType.GITHUB_PROFILE,
-        name=name,
-        description=description,
-    )
 
 
 def profile_readme_requirement(
@@ -195,6 +184,56 @@ def security_scanning_requirement(
     )
 
 
+def career_reflection_requirement(
+    *,
+    slug: str = "career-reflection",
+    name: str = "Test career reflection requirement",
+    description: str = "Test description",
+    min_answer_length: int = 200,
+    question_count: int = 3,
+) -> CareerReflectionRequirement:
+    questions = [
+        CareerReflectionQuestion(id=f"q{index}", prompt=f"Question {index}?")
+        for index in range(question_count)
+    ]
+    return CareerReflectionRequirement(
+        uuid=uuid4(),
+        slug=slug,
+        submission_type=SubmissionType.CAREER_REFLECTION,
+        name=name,
+        description=description,
+        type_config=CareerReflectionConfig(
+            questions=questions,
+            min_answer_length=min_answer_length,
+        ),
+    )
+
+
+def deployment_architecture_requirement(
+    *,
+    slug: str = "deployment-architecture",
+    name: str = "Test deployment architecture requirement",
+    description: str = "Test description",
+    required_repo: str = "owner/journal-starter",
+    min_answer_length: int = 200,
+    deploy_script_path: str = "deploy.sh",
+    prompt: str = "Describe your deployment architecture.",
+) -> DeploymentArchitectureRequirement:
+    return DeploymentArchitectureRequirement(
+        uuid=uuid4(),
+        slug=slug,
+        submission_type=SubmissionType.DEPLOYMENT_ARCHITECTURE,
+        name=name,
+        description=description,
+        type_config=DeploymentArchitectureConfig(
+            required_repo=required_repo,
+            prompt=prompt,
+            min_answer_length=min_answer_length,
+            deploy_script_path=deploy_script_path,
+        ),
+    )
+
+
 def make_requirement(
     submission_type: SubmissionType,
     *,
@@ -212,10 +251,6 @@ def make_requirement(
     responsible for passing the right combinations.
     """
     match submission_type:
-        case SubmissionType.GITHUB_PROFILE:
-            return github_profile_requirement(
-                slug=slug, name=name, description=description
-            )
         case SubmissionType.PROFILE_README:
             return profile_readme_requirement(
                 slug=slug, name=name, description=description
@@ -259,6 +294,17 @@ def make_requirement(
                 name=name,
                 description=description,
                 required_repo=required_repo or "owner/sec-repo",
+            )
+        case SubmissionType.CAREER_REFLECTION:
+            return career_reflection_requirement(
+                slug=slug, name=name, description=description
+            )
+        case SubmissionType.DEPLOYMENT_ARCHITECTURE:
+            return deployment_architecture_requirement(
+                slug=slug,
+                name=name,
+                description=description,
+                required_repo=required_repo or "owner/journal-starter",
             )
         case _:
             raise ValueError(

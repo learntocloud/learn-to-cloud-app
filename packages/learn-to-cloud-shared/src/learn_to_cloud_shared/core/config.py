@@ -97,6 +97,20 @@ class HttpConfig(FrozenConfig):
     external_api_timeout: float = 15.0
 
 
+class ReconcilerConfig(FrozenConfig):
+    """Stale verification-attempt reconciler config.
+
+    ``stale_attempt_min_age_minutes`` is the age past which an attempt that is
+    still ``active`` (``outcome IS NULL``) is inspected against Durable and
+    terminalized if abandoned. It must comfortably exceed the normal
+    verification window (submit -> orchestrate -> finalize, plus retries) so a
+    healthy in-flight run is never mistaken for abandoned.
+    """
+
+    stale_attempt_min_age_minutes: int = Field(default=30, ge=1)
+    batch_limit: int = Field(default=200, ge=1)
+
+
 class ContentConfig(FrozenConfig):
     """Authored curriculum content config."""
 
@@ -115,9 +129,8 @@ class ContentConfig(FrozenConfig):
             return source_content
 
         raise RuntimeError(
-            "CONTENT__DIR is required because curriculum YAML is not packaged "
-            "with learn-to-cloud-shared. Set CONTENT__DIR to the copied "
-            "content/phases directory in jobs that sync or validate YAML."
+            "CONTENT__DIR is required when authored curriculum YAML is not "
+            "available from the source tree."
         )
 
 
@@ -222,6 +235,7 @@ class WorkerSettings(BaseSettings):
     labs: LabsConfig = LabsConfig()
     http: HttpConfig = HttpConfig()
     content: ContentConfig = ContentConfig()
+    reconciler: ReconcilerConfig = ReconcilerConfig()
 
 
 class WebSettings(BaseSettings):

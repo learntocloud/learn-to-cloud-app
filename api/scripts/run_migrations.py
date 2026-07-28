@@ -9,30 +9,17 @@ Runs the full deploy-gate sequence:
    replacement for the previous custom ``_verify_schema_at_head`` check
    removed from ``env.py``.
 3. ``alembic check`` — assert the live schema matches ``Base.metadata``
-   (autogenerate dry-run). Catches model fields added without
-   corresponding migrations.
-4. ``python -m learn_to_cloud_shared.cli.sync_curriculum`` — populate
-   curriculum DB tables from the migration image's copied YAML directory
-   (issue #463 / Phase B).
-   Runs as a subprocess so migration and sync concerns stay isolated.
+   (autogenerate dry-run). Catches model fields added without corresponding
+   migrations.
 
-Steps 1-3 share the same ``Config`` instance and run in the same Python
+The steps share the same ``Config`` instance and run in the same Python
 process, so the ``DefaultAzureCredential`` token cache is hit for the
 second and third calls — only one IMDS roundtrip happens per job.
-
-The sync CLI lives inside the installed package
-(``learn_to_cloud_shared.cli.sync_curriculum``) rather than a filesystem
-script. The migration image copies curriculum YAML separately and points
-``CONTENT__DIR`` at that path, so the API image does not need to ship YAML.
-``python -m`` finds the module via the wheel's import path, which is
-portable across local devcontainer, CI, and production.
 """
 
 from __future__ import annotations
 
 import logging
-import subprocess
-import sys
 
 import alembic.command
 import alembic.config
@@ -40,30 +27,11 @@ import alembic.config
 logger = logging.getLogger(__name__)
 
 
-def _run_curriculum_sync() -> None:
-    """Run the curriculum YAML -> DB sync as a separate subprocess.
-
-    The sync has separate runtime concerns from Alembic, so keep it in a
-    fresh interpreter and fail this deploy gate if sync fails.
-    """
-    logger.info("Running curriculum sync via subprocess")
-    result = subprocess.run(
-        [sys.executable, "-m", "learn_to_cloud_shared.cli.sync_curriculum"],
-        check=False,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Curriculum sync failed with exit code {result.returncode}; "
-            "see stderr above. Migration job fails so the deploy is gated."
-        )
-
-
 def main() -> None:
     cfg = alembic.config.Config("alembic.ini")
     alembic.command.upgrade(cfg, "head")
     alembic.command.current(cfg, check_heads=True)
     alembic.command.check(cfg)
-    _run_curriculum_sync()
 
 
 if __name__ == "__main__":

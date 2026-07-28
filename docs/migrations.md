@@ -151,7 +151,8 @@ docker compose run --rm api-multiworker python -m alembic upgrade head
 docker compose up api-multiworker
 ```
 
-Alternatively, create a one-off migration service in `docker-compose.yml` (see below).
+`api-multiworker` is a diagnostic Compose service rather than the normal local
+development path. For day-to-day work, run Alembic directly from `api/`.
 
 ## Tips
 
@@ -339,21 +340,3 @@ reasons. The big ones for the curriculum migrations:
 - `adding-not-nullable-field` — `SET NOT NULL` is in fact safe when
   preceded by a validated `CHECK (col IS NOT NULL)` constraint
   (squawk's static checker can't see the prior CHECK).
-
-## Curriculum content sync
-
-The curriculum tables (`phases`, `topics`, `steps`,
-`learning_objectives`, `requirements`) are populated by a separate
-sync step on every deploy. See
-[`docs/curriculum.md`](./curriculum.md) for the full flow. The
-short version:
-
-1. Migrations job runs `alembic upgrade head` and the usual checks.
-2. Same job then runs
-   `python -m learn_to_cloud_shared.cli.sync_curriculum`, which
-   upserts curriculum rows from packaged YAML.
-3. Sync soft-deletes (sets `deleted_at`) rather than hard-deletes
-   curriculum rows so user state FK references stay valid.
-
-Schema changes to curriculum tables are normal Alembic migrations;
-content changes go through the YAML sync.

@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../schemas/phase.schema.json
+uuid: b73ba847-5c51-449e-9e61-4b96af6175f3
+slug: phase7
+name: Interview & Job Prep
+description: Finishing this curriculum proves discipline, but it does not make you unique. What makes you stand out is what you explored, improved, and built beyond the outline, and this phase helps you turn that into interviews and opportunities. A lot of it is inspired by Cassidoo's [getting-a-gig](https://github.com/cassidoo/getting-a-gig) guide and her excellent [weekly newsletter](https://cassidoo.co/newsletter/), and by [some thoughts I wrote in a community discussion](https://github.com/learntocloud/learn-to-cloud-app/discussions/330#discussioncomment-16742472).
+short_description: Turn your cloud skills into a job. Network, tailor your resume, prepare your interview stories, and learn to talk about your work with confidence.
+order: 7
+topics:
+- you-are-not-unique
+- resume-and-applications
+- interview-prep
+- networking
+- job-search-capstone
+hands_on_verification:
+  requirements:
+  - career-reflection

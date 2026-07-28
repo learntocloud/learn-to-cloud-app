@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+from uuid import UUID
 
 import httpx
 from azure.core.exceptions import AzureError
 from learn_to_cloud_shared.core.azure_auth import get_token as get_azure_token
 from learn_to_cloud_shared.core.config import get_web_settings
-from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
 
 
 class DurableVerificationConfigError(Exception):
@@ -40,32 +40,16 @@ class DurableStatusResult:
     custom_status: object | None = None
 
 
-async def start_verification_orchestration(
-    prepared: PreparedVerificationJob,
+async def _post_start_request(
+    url: str,
+    *,
+    headers: dict[str, str],
+    timeout: float,
 ) -> DurableStartResult:
-    """Start the Durable orchestration for a persisted verification job.
-
-    Posts the full :class:`PreparedVerificationJob` payload to the
-    Functions starter so the orchestration has everything it needs to
-    run without reading curriculum tables. The Functions side still
-    validates the immutable fields (``user_id``, ``requirement_uuid``,
-    ``submitted_value``) against the ``verification_jobs`` row before
-    starting -- the payload is trusted only for the requirement
-    *definition* and ``github_username`` snapshot.
-    """
-    settings = get_web_settings()
-    base_url, token_scope = _verification_endpoint_config(settings)
-
-    token = await _get_verification_token(token_scope)
-
-    url = f"{base_url}/api/verification/jobs/{prepared.id}/start"
-    headers = {"Authorization": f"Bearer {token}"}
-    body: dict[str, Any] = prepared.to_payload()
-
-    timeout = settings.http.external_api_timeout
+    """POST a Durable starter request and parse its ``{"id": ...}`` response."""
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(url, headers=headers, json=body)
+            response = await client.post(url, headers=headers)
     except httpx.HTTPError as exc:
         raise DurableVerificationStartError("Durable starter request failed.") from exc
 
@@ -90,17 +74,32 @@ async def start_verification_orchestration(
     return DurableStartResult(instance_id=instance_id)
 
 
-async def get_verification_orchestration_status(
+async def start_verification_attempt_orchestration(
+    attempt_id: UUID,
+) -> DurableStartResult:
+    """Start a Durable orchestration using only the persisted attempt ID."""
+    settings = get_web_settings()
+    base_url, token_scope = _verification_endpoint_config(settings)
+    headers = await _verification_auth_headers(token_scope)
+
+    url = f"{base_url}/api/verification/attempts/{attempt_id}/start"
+    return await _post_start_request(
+        url,
+        headers=headers,
+        timeout=settings.http.external_api_timeout,
+    )
+
+
+async def get_verification_attempt_status(
     instance_id: str,
 ) -> DurableStatusResult:
-    """Fetch Durable orchestration status through the Function app proxy."""
+    """Fetch an attempt's Durable status through the Function app proxy."""
     settings = get_web_settings()
     base_url, token_scope = _verification_endpoint_config(settings)
 
-    token = await _get_verification_token(token_scope)
+    headers = await _verification_auth_headers(token_scope)
 
-    url = f"{base_url}/api/verification/jobs/{instance_id}/status"
-    headers = {"Authorization": f"Bearer {token}"}
+    url = f"{base_url}/api/verification/attempts/{instance_id}/status"
 
     timeout = settings.http.external_api_timeout
     try:
@@ -134,16 +133,34 @@ async def get_verification_orchestration_status(
     )
 
 
-def _verification_endpoint_config(settings: Any) -> tuple[str, str]:
+def _verification_endpoint_config(settings: Any) -> tuple[str, str | None]:
     base_url = settings.verification_functions.base_url.rstrip("/")
-    token_scope = settings.verification_functions.token_scope
 
-    if not base_url or not token_scope:
+    if not base_url:
+        raise DurableVerificationConfigError(
+            "Verification Functions endpoint is not configured."
+        )
+
+    # The local Functions host runs with AuthLevel.ANONYMOUS, so no bearer token
+    # is needed (or obtainable) in development. Everywhere else the API
+    # authenticates with a managed-identity token for the configured scope.
+    if settings.is_development:
+        return base_url, None
+
+    token_scope = settings.verification_functions.token_scope
+    if not token_scope:
         raise DurableVerificationConfigError(
             "Verification Functions endpoint is not configured."
         )
 
     return base_url, token_scope
+
+
+async def _verification_auth_headers(token_scope: str | None) -> dict[str, str]:
+    if token_scope is None:
+        return {}
+    token = await _get_verification_token(token_scope)
+    return {"Authorization": f"Bearer {token}"}
 
 
 async def _get_verification_token(token_scope: str) -> str:

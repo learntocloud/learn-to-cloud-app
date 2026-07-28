@@ -19,24 +19,19 @@ from uuid import UUID
 from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse
 from learn_to_cloud_shared.core.database import DbSession
-from learn_to_cloud_shared.repositories.verification_job_repository import (
-    VerificationJobRepository,
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    VerificationAttemptRepository,
 )
+from learn_to_cloud_shared.requirements import get_requirement_by_slug
 from learn_to_cloud_shared.schemas import (
-    HandsOnRequirement,
+    CareerReflectionRequirement,
+    DeploymentArchitectureRequirement,
     SubmissionData,
-    SubmissionResult,
 )
-from learn_to_cloud_shared.submission_values import submission_value_from_columns
-from learn_to_cloud_shared.verification.execution import (
-    SubmissionAlreadyInFlightError,
-)
-from learn_to_cloud_shared.verification.requirements import get_requirement_by_slug
-from learn_to_cloud_shared.verification.url_derivation import (
+from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
     is_derivable,
 )
-from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 if TYPE_CHECKING:
@@ -54,8 +49,8 @@ from learn_to_cloud.services.durable_verification_client import (
     DurableVerificationConfigError,
     DurableVerificationStartError,
     DurableVerificationStatusError,
-    get_verification_orchestration_status,
-    start_verification_orchestration,
+    get_verification_attempt_status,
+    start_verification_attempt_orchestration,
 )
 from learn_to_cloud.services.steps_service import (
     StepValidationError,
@@ -67,9 +62,8 @@ from learn_to_cloud.services.submissions_service import (
     InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
-    SyncVerificationResult,
-    VerificationJobSubmission,
-    create_verification_job,
+    VerificationAttemptSubmission,
+    create_verification_attempt,
 )
 from learn_to_cloud.services.users_service import (
     UserNotFoundError,
@@ -91,16 +85,20 @@ _USER_FACING_ERRORS = (
     InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
-    SubmissionAlreadyInFlightError,
 )
 
 _DURABLE_START_ERROR_MESSAGE = (
-    "Verification could not be started. This attempt was not counted — "
-    "please try again."
+    "Verification could not be started. This attempt was not counted, please try again."
+)
+_DURABLE_UNAVAILABLE_ERROR_MESSAGE = (
+    "Verification is temporarily unavailable because of a problem on our side, "
+    "not something you did. Retrying won't fix it. Please report it by opening "
+    "an issue at https://github.com/learntocloud/learn-to-cloud-app/issues."
 )
 _DURABLE_TERMINAL_ERROR_MESSAGE = (
     "Verification failed because the verification service hit an internal error. "
-    "This attempt was not counted. Please try again."
+    "Please try again in a few minutes. If it keeps failing, open an issue at "
+    "https://github.com/learntocloud/learn-to-cloud-app/issues."
 )
 
 _ACTIVE_DURABLE_STATUSES = {"pending", "running", "continuedasnew"}
@@ -108,6 +106,48 @@ _TERMINAL_DURABLE_STATUSES = {"completed", "failed", "terminated", "canceled"}
 _DURABLE_FAILURE_STATUSES = {"failed", "terminated", "canceled"}
 _INITIAL_STATUS_DELAY_SECONDS = 2
 _RUNNING_STATUS_DELAY_SECONDS = 5
+
+# Per-answer cap for career reflection submissions. Three answers plus their
+# question headers must stay under the 20,000-character text value limit.
+_MAX_REFLECTION_ANSWER_LENGTH = 6000
+
+
+def _combine_reflection_answers(
+    requirement: CareerReflectionRequirement,
+    answers: list[str],
+) -> str:
+    """Validate the per-question reflection answers and combine them into text.
+
+    Each answer is matched to its question, checked against the configured
+    minimum and maximum length, and joined under a Markdown header so the LLM
+    grader can tell which answer belongs to which prompt.
+
+    Raises:
+        ValueError: With a learner-facing message if the answers are missing,
+            too short, or too long.
+    """
+    questions = list(requirement.type_config.questions)
+    min_length = requirement.type_config.min_answer_length
+
+    cleaned = [answer.strip() for answer in answers]
+    if len(cleaned) != len(questions):
+        raise ValueError("Please answer all of the reflection questions.")
+
+    sections: list[str] = []
+    for question, answer in zip(questions, cleaned, strict=True):
+        if len(answer) < min_length:
+            raise ValueError(
+                f"Each answer needs at least {min_length} characters. "
+                "Add more detail and try again."
+            )
+        if len(answer) > _MAX_REFLECTION_ANSWER_LENGTH:
+            raise ValueError(
+                "One of your answers is too long. Please keep each answer "
+                f"under {_MAX_REFLECTION_ANSWER_LENGTH} characters."
+            )
+        sections.append(f"## {question.prompt}\n\n{answer}")
+
+    return "\n\n".join(sections)
 
 
 router = APIRouter(prefix="/htmx", tags=["htmx"], include_in_schema=False)
@@ -129,14 +169,13 @@ def _status_error_response(message: str, *, status_code: int = 400) -> HTMLRespo
 
 async def _render_processing_card(
     request: Request,
-    db: DbSession,
     current_user: AuthenticatedUser,
     token_data: VerificationStatusToken,
     token: str,
     *,
     delay_seconds: int,
 ) -> HTMLResponse:
-    requirement = await get_requirement_by_slug(db, token_data.requirement_slug)
+    requirement = get_requirement_by_slug(token_data.requirement_slug)
     if requirement is None:
         return HTMLResponse(_reload_verification_html())
 
@@ -153,35 +192,54 @@ async def _render_processing_card(
     )
 
 
-async def _delete_terminal_job(
+async def _terminalize_failed_attempt(
     request: Request,
     token_data: VerificationStatusToken,
     status: str,
 ) -> bool:
-    """Drop the verification_jobs row after Durable reaches terminal failure.
-
-    Replaces the older ``mark_server_error`` / ``mark_cancelled`` writes:
-    the user-facing failure message comes from Durable's runtime status
-    in the poller, not from a Postgres re-read, so we don't need to copy
-    Durable's terminal state back into Postgres. Deleting frees the
-    partial unique index so the user can retry.
-
-    The delete is guarded — if the persist activity won a race and
-    attached a Submission first, ``delete_active`` returns False and we
-    leave the row alone.
-    """
+    """Persist a terminal Durable failure."""
     session_maker = request.app.state.session_maker
+    attempt_id = UUID(token_data.job_id)
     async with session_maker() as session:
-        repository = VerificationJobRepository(session)
-        job_id = UUID(token_data.job_id)
-        deleted = await repository.delete_active(job_id)
-        await session.commit()
-    if not deleted:
-        logger.info(
-            "verification.poller.delete_skipped",
-            extra={"job_id": str(job_id), "runtime_status": status},
+        attempt_repo = VerificationAttemptRepository(session)
+        attempt = await attempt_repo.get_status(attempt_id)
+        if attempt is None:
+            return False
+
+        cancelled = status in {"terminated", "canceled"}
+        result = await attempt_repo.finalize(
+            attempt_id,
+            outcome="cancelled" if cancelled else "server_error",
+            error_code="cancelled" if cancelled else "server_error",
+            validation_message=(
+                "Verification was cancelled."
+                if cancelled
+                else "Verification failed before recording a result."
+            ),
+            terminal_source="poller",
+            feedback_json=None,
         )
-    return deleted
+        if not result.won:
+            logger.info(
+                "verification.poller.finalize_skipped",
+                extra={
+                    "attempt_id": str(attempt_id),
+                    "runtime_status": status,
+                    "outcome": result.state.outcome,
+                },
+            )
+            return False
+        await session.commit()
+        logger.info(
+            "verification.poller.attempt_terminalized",
+            extra={
+                "attempt_id": str(attempt_id),
+                "runtime_status": status,
+                "outcome": result.state.outcome,
+                "cas_won": result.won,
+            },
+        )
+    return True
 
 
 async def _render_step_toggle(
@@ -270,28 +328,23 @@ async def htmx_uncomplete_step(
 @limiter.limit("10/minute")
 async def htmx_submit_verification(
     request: Request,
-    db: DbSession,
     current_user: CurrentUser,
     requirement_slug: Annotated[str, Form(max_length=100)],
     submitted_value: Annotated[str, Form(max_length=2048)] = "",
+    answers: Annotated[list[str] | None, Form()] = None,
+    architecture_description: Annotated[str, Form(max_length=20000)] = "",
 ) -> HTMLResponse:
     """Submit a hands-on verification.
 
-    Routes to one of two execution paths based on the requirement's
-    submission type:
-
-    * Sync (phases 0-2) — :func:`create_verification_job` runs validation
-      inside this request and persists the ``Submission`` row. The response
-      reloads the page so the just-updated card and any newly-unlocked
-      requirement render with fresh server-side state.
-    * Async (phases 3-6) — :func:`create_verification_job` returns a
-      ``VerificationJobSubmission`` and we start a Durable orchestration,
-      then return a spinner card that polls for status.
+    Every submission type runs through Durable Functions:
+    :func:`create_verification_attempt` validates the request and creates a
+    ``VerificationAttempt``; we start the versioned attempt orchestration and
+    return a spinner card that polls for status.
     """
     user_id = current_user.user_id
     github_username = current_user.github_username
 
-    requirement = await get_requirement_by_slug(db, requirement_slug)
+    requirement = get_requirement_by_slug(requirement_slug)
 
     session_maker = request.app.state.session_maker
 
@@ -302,6 +355,7 @@ async def htmx_submit_verification(
         feedback_passed: int = 0,
         server_error: bool = False,
         server_error_message: str | None = None,
+        server_error_retryable: bool = True,
         error_banner: str | None = None,
         processing: bool = False,
         verification_status_token: str | None = None,
@@ -319,6 +373,7 @@ async def htmx_submit_verification(
                 feedback_passed=feedback_passed,
                 server_error=server_error,
                 server_error_message=server_error_message,
+                server_error_retryable=server_error_retryable,
                 error_banner=error_banner,
                 processing=processing,
                 verification_status_token=verification_status_token,
@@ -329,7 +384,15 @@ async def htmx_submit_verification(
     # ── Derive the canonical submission value ──────────────────────────
     if requirement is not None:
         try:
-            if is_derivable(requirement.submission_type):
+            if isinstance(requirement, CareerReflectionRequirement):
+                user_input = _combine_reflection_answers(requirement, answers or [])
+            elif isinstance(requirement, DeploymentArchitectureRequirement):
+                user_input = architecture_description.strip()
+                if not user_input:
+                    return _render_card(
+                        error_banner="Please write a description before submitting."
+                    )
+            elif is_derivable(requirement.submission_type):
                 user_input = None
             else:
                 user_input = submitted_value
@@ -347,9 +410,9 @@ async def htmx_submit_verification(
     else:
         derived_value = submitted_value
 
-    # ── Dispatch to sync or async execution path ───────────────────────
+    # ── Create the unified verification attempt ─────────────────────────
     try:
-        dispatch_result = await create_verification_job(
+        attempt_submission = await create_verification_attempt(
             session_maker=session_maker,
             user_id=user_id,
             requirement_slug=requirement_slug,
@@ -372,99 +435,51 @@ async def htmx_submit_verification(
             server_error=True,
             server_error_message=(
                 "An unexpected error occurred during verification. "
-                "This attempt was not counted — please try again."
+                "This attempt was not counted, please try again."
             ),
         )
 
-    if isinstance(dispatch_result, SyncVerificationResult):
-        return _render_sync_result(
-            user_id=user_id,
-            requirement=requirement,
-            result=dispatch_result.submission_result,
-        )
-
-    return await _start_async_job_and_render(
+    return await _start_async_attempt_and_render(
         session_maker=session_maker,
         user_id=user_id,
         requirement_slug=requirement_slug,
-        job_submission=dispatch_result,
+        attempt_submission=attempt_submission,
         render_card=_render_card,
     )
 
 
-def _render_sync_result(
-    *,
-    user_id: int,
-    requirement: HandsOnRequirement | None,
-    result: SubmissionResult,
-) -> HTMLResponse:
-    """Render the response for a sync verification that already finished.
-
-    The ``Submission`` row is already persisted; we reload the phase page
-    so the card, progress bar, and any newly-unlocked next requirement
-    all render from fresh server state. Reload trigger matches the
-    pattern used by :func:`_reload_verification_html` for async
-    completion so behavior is consistent across paths.
-    """
-    logger.info(
-        "htmx.submit.sync_completed",
-        extra={
-            "user_id": user_id,
-            "submission_id": result.submission.id,
-            "requirement_slug": requirement.slug if requirement is not None else None,
-            "submission_type": (
-                requirement.submission_type.value if requirement is not None else None
-            ),
-            "is_valid": result.is_valid,
-            "verification_completed": result.submission.verification_completed,
-            "is_server_error": result.is_server_error,
-        },
-    )
-    return HTMLResponse(_reload_verification_html())
-
-
-async def _start_async_job_and_render(
+async def _start_async_attempt_and_render(
     *,
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_slug: str,
-    job_submission: VerificationJobSubmission,
+    attempt_submission: VerificationAttemptSubmission,
     render_card: Callable[..., HTMLResponse],
 ) -> HTMLResponse:
-    """Start a Durable orchestration for an async job and render the spinner.
+    """Start the Durable attempt orchestration and render the spinner.
 
-    Builds the full :class:`PreparedVerificationJob` payload from the
-    validated requirement + github_username carried on
-    ``job_submission`` and posts it to the Functions starter. Functions
-    validates the immutable fields against the ``verification_jobs``
-    row before starting; the payload is trusted for the requirement
-    definition + username snapshot so Functions never needs to read
-    curriculum or users tables.
+    Posts no body -- the attempt starter loads identity, the requirement
+    snapshot, and the submitted value straight from ``verification_attempts``.
 
     On the rare concurrent-submit case (``created=False``) the original
     submit already kicked off Durable; we skip the start call and let
-    the poller discover the existing instance via ``job.id``. If that
+    the poller discover the existing instance via the shared id. If that
     original start never actually succeeded, the poller will see a 404
     from Durable and surface the error so the user can retry.
 
-    On Durable start failure deletes the just-created row so the
-    partial unique index doesn't block the user's retry.
+    On a Durable start-call failure that never reached Functions, deletes the
+    just-created attempt so it does not block the learner's retry.
     """
     try:
-        if job_submission.created:
-            prepared = PreparedVerificationJob(
-                id=job_submission.job.id,
-                user_id=user_id,
-                github_username=job_submission.github_username,
-                requirement=job_submission.requirement,
-                submitted_value=submission_value_from_columns(job_submission.job),
+        if attempt_submission.created:
+            await start_verification_attempt_orchestration(
+                attempt_submission.attempt_id
             )
-            await start_verification_orchestration(prepared)
 
         status_token = create_verification_status_token(
             user_id=user_id,
-            job_id=job_submission.job.id,
-            instance_id=str(job_submission.job.id),
+            job_id=attempt_submission.attempt_id,
+            instance_id=str(attempt_submission.attempt_id),
             requirement_slug=requirement_slug,
         )
 
@@ -492,28 +507,36 @@ async def _start_async_job_and_render(
                 ),
             },
         )
-        # Delete the just-created row so the partial unique index doesn't
-        # block the user's retry. Durable owns terminal-state messaging
-        # now; we just need to free the in-flight slot.
+        # Only an unclaimed attempt is safe to remove. A timeout can happen
+        # after Functions has claimed and started it, in which case the row
+        # must remain for the orchestration to finalize.
         async with session_maker() as write_session:
-            await VerificationJobRepository(write_session).delete_active(
-                job_submission.job.id,
+            await VerificationAttemptRepository(write_session).delete_active(
+                attempt_submission.attempt_id,
             )
             await write_session.commit()
+        # A config error means the verification service is misconfigured on our
+        # side, so retrying will never help. A start error is usually a
+        # transient hiccup in the Functions app, so retrying is worth it.
+        if isinstance(exc, DurableVerificationConfigError):
+            return render_card(
+                server_error=True,
+                server_error_message=_DURABLE_UNAVAILABLE_ERROR_MESSAGE,
+                server_error_retryable=False,
+            )
         return render_card(
             server_error=True,
             server_error_message=_DURABLE_START_ERROR_MESSAGE,
         )
 
 
-@router.get("/verification/jobs/status", response_class=HTMLResponse)
-async def htmx_verification_job_status(
+@router.get("/verification/attempts/status", response_class=HTMLResponse)
+async def htmx_verification_attempt_status(
     request: Request,
-    db: DbSession,
     token: Annotated[str, Query(max_length=4096)],
     current_user: CurrentUser,
 ) -> HTMLResponse:
-    """Return a polling card or reload trigger based on Durable job status."""
+    """Return a polling card or reload trigger based on Durable attempt status."""
     user_id = current_user.user_id
     try:
         token_data = load_verification_status_token(
@@ -531,9 +554,7 @@ async def htmx_verification_job_status(
         )
 
     try:
-        durable_status = await get_verification_orchestration_status(
-            token_data.instance_id
-        )
+        durable_status = await get_verification_attempt_status(token_data.instance_id)
     except (DurableVerificationConfigError, DurableVerificationStatusError) as exc:
         record_span_exception(
             exc,
@@ -560,7 +581,6 @@ async def htmx_verification_job_status(
     if status in _ACTIVE_DURABLE_STATUSES:
         return await _render_processing_card(
             request,
-            db,
             current_user,
             token_data,
             token,
@@ -568,11 +588,11 @@ async def htmx_verification_job_status(
         )
 
     if status in _DURABLE_FAILURE_STATUSES:
-        deleted = await _delete_terminal_job(request, token_data, status)
-        if not deleted:
+        terminalized = await _terminalize_failed_attempt(request, token_data, status)
+        if not terminalized:
             return HTMLResponse(_reload_verification_html())
 
-        requirement = await get_requirement_by_slug(db, token_data.requirement_slug)
+        requirement = get_requirement_by_slug(token_data.requirement_slug)
         if requirement is None:
             return HTMLResponse(_reload_verification_html())
 
@@ -584,6 +604,7 @@ async def htmx_verification_job_status(
                 github_username=current_user.github_username,
                 server_error=True,
                 server_error_message=_DURABLE_TERMINAL_ERROR_MESSAGE,
+                server_error_retryable=False,
             ),
         )
 

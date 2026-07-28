@@ -1,74 +1,35 @@
-"""Prepare and apply durable LLM grading for verification jobs."""
+"""Apply durable LLM grading decisions to verification job results.
+
+Migrated engine profiles record their grading requests on the verify result
+via the engine's rubric-review steps, so evidence collection and prompt
+assembly live in the engine, not here. This module now only merges the
+grader's decisions back into the run result and formats grader-outage and
+content-filter results.
+"""
 
 from __future__ import annotations
 
-import json
-
-from learn_to_cloud_shared.schemas import (
-    FrozenModel,
-    HandsOnRequirement,
-    ValidationResult,
-)
-from learn_to_cloud_shared.verification.journal_api import (
-    collect_journal_api_implementation_evidence,
-)
-from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
-from learn_to_cloud_shared.verification.repo_utils import validate_repo_url
-from learn_to_cloud_shared.verification.security_scanning import (
-    collect_security_scanning_evidence,
+from learn_to_cloud_shared.verification.grading_requests import (
+    LLMGradingDecisionPayload,
+    LLMGradingRequest,
 )
 from learn_to_cloud_shared.verification.tasks import (
-    PHASE3_LLM_TASKS,
-    PHASE6_LLM_TASKS,
     GradingResult,
     LLMGradingDecision,
     VerificationTask,
     require_llm_rubric_grader,
 )
-from learn_to_cloud_shared.verification.url_derivation import (
-    fork_name_from_required_repo,
-)
-from learn_to_cloud_shared.verification_job_executor import (
+from learn_to_cloud_shared.verification_workflow import (
     VerificationRunResult,
 )
 
-
-class LLMGradingRequest(FrozenModel):
-    """One durable agent grading request."""
-
-    task: VerificationTask
-    message: str
-    thread_id: str
-
-
-class LLMGradingDecisionPayload(FrozenModel):
-    """A structured LLM decision paired with its task definition."""
-
-    task: VerificationTask
-    decision: LLMGradingDecision
-
-
-async def collect_llm_grading_requests(
-    run_result: VerificationRunResult,
-    repo_files: RepoFiles | None = None,
-) -> list[LLMGradingRequest]:
-    """Collect evidence and prompts for tasks that require LLM grading."""
-    if not run_result.validation_result.verification_completed:
-        return []
-
-    tasks = _llm_tasks_for_requirement(run_result.job.requirement)
-    if not tasks:
-        return []
-
-    repo_files = repo_files or default_repo_files()
-
-    if run_result.job.requirement.slug == "security-scanning":
-        return await _collect_phase6_requests(run_result, tasks, repo_files)
-
-    if run_result.job.requirement.slug == "journal-api-implementation":
-        return await _collect_phase3_requests(run_result, tasks, repo_files)
-
-    return []
+__all__ = [
+    "LLMGradingDecisionPayload",
+    "LLMGradingRequest",
+    "apply_llm_grading_decisions",
+    "llm_grading_content_filtered_result",
+    "llm_grading_unavailable_result",
+]
 
 
 def apply_llm_grading_decisions(
@@ -100,152 +61,66 @@ def apply_llm_grading_decisions(
         }
     )
     return VerificationRunResult(
-        job=run_result.job,
+        attempt=run_result.attempt,
         validation_result=validation_result,
+        grading_disposition=run_result.grading_disposition,
     )
 
 
 def llm_grading_unavailable_result(
     run_result: VerificationRunResult,
-    detail: str,
 ) -> VerificationRunResult:
-    """Return a server-error validation result for LLM grader failures."""
+    """Return a server-error validation result for LLM grader failures.
+
+    The user-facing message stays generic; callers are responsible for
+    recording the real cause in telemetry.
+    """
     validation_result = run_result.validation_result.model_copy(
         update={
             "is_valid": False,
-            "message": "LLM verification grading failed. Please try again later.",
+            "message": (
+                "Automated grading is temporarily unavailable. This is a "
+                "problem on our end, not yours. Please report it so we can "
+                "fix it."
+            ),
             "verification_completed": False,
         }
     )
     return VerificationRunResult(
-        job=run_result.job,
+        attempt=run_result.attempt,
         validation_result=validation_result,
+        grading_disposition=run_result.grading_disposition,
     )
 
 
-async def _collect_phase6_requests(
+def llm_grading_content_filtered_result(
     run_result: VerificationRunResult,
-    tasks: list[VerificationTask],
-    repo_files: RepoFiles,
-) -> list[LLMGradingRequest]:
-    github_username = run_result.job.github_username
-    if github_username is None:
-        return []
+) -> VerificationRunResult:
+    """Return an actionable result when content safety blocked every retry.
 
-    expected_name = _expected_fork_name(run_result.job.requirement)
-    repo_result = validate_repo_url(
-        run_result.job.typed_submitted_value.as_text,
-        github_username,
-        expected_name,
+    Azure's safety filter occasionally blocks a submission's free text. When
+    it blocks every retry the cause is usually phrasing that looks like
+    instructions or code, so the message asks the learner to rephrase and
+    try again rather than blaming our systems.
+    """
+    validation_result = run_result.validation_result.model_copy(
+        update={
+            "is_valid": False,
+            "message": (
+                "We could not automatically review your answers because they "
+                "tripped our content safety filter. This sometimes happens "
+                "with certain phrasing. Please rewrite your answers in plain "
+                "language, avoiding anything that reads like commands, code, "
+                "or instructions, and submit again. If it keeps happening, "
+                "report it so we can help."
+            ),
+            "verification_completed": False,
+        }
     )
-    if isinstance(repo_result, ValidationResult):
-        return []
-
-    owner, repo = repo_result
-    file_paths = await repo_files.tree(owner, repo)
-    requests: list[LLMGradingRequest] = []
-    for task in tasks:
-        evidence = await collect_security_scanning_evidence(
-            owner,
-            repo,
-            file_paths,
-            task,
-            repo_files=repo_files,
-        )
-        requests.append(
-            LLMGradingRequest(
-                task=task,
-                message=_build_grading_message(
-                    run_result=run_result,
-                    task=task,
-                    owner=owner,
-                    repo=repo,
-                    evidence=evidence.model_dump(mode="json"),
-                ),
-                thread_id=f"{run_result.job.id}-{task.id}",
-            )
-        )
-    return requests
-
-
-async def _collect_phase3_requests(
-    run_result: VerificationRunResult,
-    tasks: list[VerificationTask],
-    repo_files: RepoFiles,
-) -> list[LLMGradingRequest]:
-    if not run_result.validation_result.is_valid:
-        return []
-
-    github_username = run_result.job.github_username
-    if github_username is None:
-        return []
-
-    expected_name = _expected_fork_name(run_result.job.requirement)
-    repo_result = validate_repo_url(
-        run_result.job.typed_submitted_value.as_text,
-        github_username,
-        expected_name,
-    )
-    if isinstance(repo_result, ValidationResult):
-        return []
-
-    owner, repo = repo_result
-    file_paths = await repo_files.tree(owner, repo)
-    requests: list[LLMGradingRequest] = []
-    for task in tasks:
-        evidence = await collect_journal_api_implementation_evidence(
-            owner,
-            repo,
-            file_paths,
-            task,
-            repo_files=repo_files,
-        )
-        requests.append(
-            LLMGradingRequest(
-                task=task,
-                message=_build_grading_message(
-                    run_result=run_result,
-                    task=task,
-                    owner=owner,
-                    repo=repo,
-                    evidence=evidence.model_dump(mode="json"),
-                ),
-                thread_id=f"{run_result.job.id}-{task.id}",
-            )
-        )
-    return requests
-
-
-def _build_grading_message(
-    *,
-    run_result: VerificationRunResult,
-    task: VerificationTask,
-    owner: str,
-    repo: str,
-    evidence: dict[str, object],
-) -> str:
-    grader = require_llm_rubric_grader(task)
-    payload = {
-        "requirement": {
-            "id": run_result.job.requirement.slug,
-            "name": run_result.job.requirement.name,
-        },
-        "task": {
-            "id": task.id,
-            "name": task.name,
-            "criteria": task.criteria,
-            "rubric_id": grader.rubric_id,
-            "prompt_version": grader.prompt_version,
-            "passing_score": grader.passing_score,
-        },
-        "repository": {"owner": owner, "name": repo},
-        "deterministic_result": run_result.validation_result.model_dump(mode="json"),
-        "evidence": evidence,
-    }
-    return (
-        "Grade this Learn to Cloud verification task using only the JSON payload. "
-        "Return a structured grading decision that follows the configured schema.\n\n"
-        f"{json.dumps(payload, sort_keys=True)}"
+    return VerificationRunResult(
+        attempt=run_result.attempt,
+        validation_result=validation_result,
+        grading_disposition=run_result.grading_disposition,
     )
 
 
@@ -272,22 +147,3 @@ def _decision_to_grading_result(
         rubric_version=grader.rubric_id,
         evidence_refs=decision.evidence_refs,
     )
-
-
-def _llm_tasks_for_requirement(
-    requirement: HandsOnRequirement,
-) -> list[VerificationTask]:
-    if requirement.slug == "security-scanning":
-        return PHASE6_LLM_TASKS
-    if requirement.slug == "journal-api-implementation":
-        return PHASE3_LLM_TASKS
-    return []
-
-
-def _expected_fork_name(requirement: HandsOnRequirement) -> str | None:
-    if not requirement.required_repo:
-        return None
-    try:
-        return fork_name_from_required_repo(requirement.required_repo)
-    except ValueError:
-        return None

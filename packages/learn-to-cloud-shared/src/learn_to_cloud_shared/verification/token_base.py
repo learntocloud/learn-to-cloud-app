@@ -50,9 +50,12 @@ def verify_lab_token(
     For networking labs, cloud_provider is extracted from challenge_type.
     """
     try:
-        # Decode
+        # Decode. Strip all whitespace first: terminals/editors can wrap or
+        # copy tokens with embedded newlines, tabs, or stray spaces, and
+        # base64 with validate=True rejects any of those otherwise.
+        cleaned_token = "".join(token.split())
         try:
-            decoded = base64.b64decode(token, validate=True).decode("utf-8")
+            decoded = base64.b64decode(cleaned_token, validate=True).decode("utf-8")
             token_data = json.loads(decoded)
         except (ValueError, json.JSONDecodeError, binascii.Error):
             return _fail("Invalid token format. Could not decode the token.")

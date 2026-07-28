@@ -8,30 +8,33 @@ import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from learn_to_cloud_shared.content_service import (
-    get_all_phases,
+    get_curriculum_overview,
     get_phase_by_slug,
 )
 from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.models import User
-from learn_to_cloud_shared.repositories.verification_job_repository import (
-    VerificationJobRepository,
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    VerificationAttemptRepository,
 )
-from learn_to_cloud_shared.verification.requirements import (
+from learn_to_cloud_shared.requirements import (
     is_phase_verification_locked,
 )
 
 from learn_to_cloud.core.auth import OptionalUserId, UserId
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.context import (
+    COMMUNITY_LINKS,
     FAQS,
     HELP_LINKS,
     build_phase_topics,
     build_progress_dict,
     build_requirement_card_context,
     build_topic_nav,
+    feedback_tasks_and_passed,
 )
+from learn_to_cloud.services.community_service import get_community_page_data
 from learn_to_cloud.services.dashboard_service import get_dashboard_data
 from learn_to_cloud.services.progress_service import fetch_phase_progress
 from learn_to_cloud.services.steps_service import get_valid_completed_steps
@@ -72,7 +75,7 @@ async def home_page(
 ) -> HTMLResponse:
     """Home page with phase overview."""
     user = await _get_user_or_none(db, user_id)
-    phases = await get_all_phases(db)
+    phases = get_curriculum_overview()
 
     return templates.TemplateResponse(
         request,
@@ -89,7 +92,7 @@ async def curriculum_page(
 ) -> HTMLResponse:
     """Full curriculum overview with all phases and topics."""
     user = await _get_user_or_none(db, user_id)
-    phases = await get_all_phases(db)
+    phases = get_curriculum_overview()
 
     return templates.TemplateResponse(
         request,
@@ -111,7 +114,7 @@ async def phase_page(
 ) -> HTMLResponse:
     """Single phase detail with topics and verification (requires auth)."""
     user = await _get_user_or_none(db, user_id)
-    phase = await get_phase_by_slug(db, f"phase{phase_id}")
+    phase = get_phase_by_slug(f"phase{phase_id}")
     if phase is None:
         return templates.TemplateResponse(
             request,
@@ -121,7 +124,7 @@ async def phase_page(
         )
 
     detail = await fetch_phase_progress(db, user_id, phase)
-    topics, progress = build_phase_topics(phase, detail)
+    topics = build_phase_topics(phase, detail)
 
     requirements = []
     hands_on = phase.hands_on_verification
@@ -132,42 +135,52 @@ async def phase_page(
     submissions_by_req = sub_context.submissions_by_req
     feedback_by_req = sub_context.feedback_by_req
     requirements_by_uuid = {req.uuid: req for req in requirements}
-    active_jobs = await VerificationJobRepository(db).get_active_for_requirements(
+    active_attempts = await VerificationAttemptRepository(
+        db
+    ).get_active_for_requirements(
         user_id,
         requirements_by_uuid.keys(),
     )
     active_jobs_by_req = {
-        requirements_by_uuid[job.requirement_uuid].slug: job
-        for job in active_jobs
-        if job.requirement_uuid in requirements_by_uuid
+        requirements_by_uuid[attempt.requirement_uuid].slug: attempt
+        for attempt in active_attempts
+        if attempt.requirement_uuid in requirements_by_uuid
     }
-    # The Durable orchestration instance id IS the job UUID — we always
-    # pass ``instance_id=job.id`` to the starter, so we don't need to read
-    # back the now-dead ``orchestration_instance_id`` column.
+    # The Durable orchestration instance id is the attempt UUID, so the status
+    # token keys off that same id.
     verification_status_tokens_by_req = {
-        requirements_by_uuid[job.requirement_uuid].slug: (
+        requirements_by_uuid[attempt.requirement_uuid].slug: (
             create_verification_status_token(
                 user_id=user_id,
-                job_id=job.id,
-                instance_id=str(job.id),
-                requirement_slug=requirements_by_uuid[job.requirement_uuid].slug,
+                job_id=attempt.id,
+                instance_id=str(attempt.id),
+                requirement_slug=requirements_by_uuid[attempt.requirement_uuid].slug,
             )
         )
-        for job in active_jobs
-        if job.requirement_uuid in requirements_by_uuid
+        for attempt in active_attempts
+        if attempt.requirement_uuid in requirements_by_uuid
     }
 
-    # Pre-compute per-requirement derived URLs so the Jinja template never
-    # builds GitHub URLs. Uses the same helper as the HTMX submit route to
-    # guarantee a single source of truth.
+    # Pre-compute one verification-card context per requirement -- derived
+    # URL, card state, and banner text all in one place, so the template
+    # never re-derives a card's flags from raw submission fields (also the
+    # single source of truth the locked and unlocked branches both read).
     github_username = user.github_username if user else None
-    derived_urls_by_req: dict[str, str | None] = {}
+    card_contexts_by_req: dict[str, dict] = {}
     for req in requirements:
-        card_ctx = build_requirement_card_context(
+        feedback_tasks, feedback_passed = feedback_tasks_and_passed(
+            feedback_by_req.get(req.slug)
+        )
+        active_job = active_jobs_by_req.get(req.slug)
+        card_contexts_by_req[req.slug] = build_requirement_card_context(
             requirement=req,
             github_username=github_username,
+            submission=submissions_by_req.get(req.slug),
+            feedback_tasks=feedback_tasks,
+            feedback_passed=feedback_passed,
+            processing=active_job is not None,
+            verification_status_token=verification_status_tokens_by_req.get(req.slug),
         )
-        derived_urls_by_req[req.slug] = card_ctx["derived_url"]
 
     # Sequential phase gating — check if prerequisite phase is complete
     verification_locked, prerequisite_phase_id = await is_phase_verification_locked(
@@ -183,12 +196,8 @@ async def phase_page(
             phase=phase,
             topics=topics,
             requirements=requirements,
-            submissions_by_req=submissions_by_req,
-            feedback_by_req=feedback_by_req,
-            active_jobs_by_req=active_jobs_by_req,
-            verification_status_tokens_by_req=verification_status_tokens_by_req,
-            derived_urls_by_req=derived_urls_by_req,
-            progress=progress,
+            card_contexts_by_req=card_contexts_by_req,
+            phase_progress=detail,
             verification_locked=verification_locked,
             prerequisite_phase_id=prerequisite_phase_id,
         ),
@@ -210,7 +219,7 @@ async def topic_page(
     """Single topic with learning steps (requires auth)."""
     user = await _get_user_or_none(db, user_id)
     phase_slug = f"phase{phase_id}"
-    phase = await get_phase_by_slug(db, phase_slug)
+    phase = get_phase_by_slug(phase_slug)
     topic = None
     if phase is not None:
         topic = next((t for t in phase.topics if t.slug == topic_slug), None)
@@ -307,6 +316,34 @@ async def account_page(
         "pages/account.html",
         _template_context(request, user=user),
     )
+
+
+@router.get("/community", response_class=HTMLResponse, summary="Community")
+async def community_page(
+    request: Request,
+    db: DbSession,
+    user_id: OptionalUserId,
+) -> HTMLResponse:
+    """Public community progress, graduates, and curriculum updates."""
+    user = await _get_user_or_none(db, user_id)
+    community = await get_community_page_data(db)
+
+    return templates.TemplateResponse(
+        request,
+        "pages/community.html",
+        _template_context(
+            request,
+            user=user,
+            community=community,
+            community_links=COMMUNITY_LINKS,
+        ),
+    )
+
+
+@router.get("/stats", include_in_schema=False)
+async def stats_page_redirect() -> RedirectResponse:
+    """Redirect the former stats URL to the community page."""
+    return RedirectResponse(url="/community", status_code=308)
 
 
 @router.get("/faq", response_class=HTMLResponse, summary="FAQ")

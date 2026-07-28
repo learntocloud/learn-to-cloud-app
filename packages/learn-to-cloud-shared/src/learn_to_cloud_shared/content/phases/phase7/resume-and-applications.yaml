@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 2587efd9-e847-4fc9-84a9-e002a7ea0d81
+slug: resume-and-applications
+name: Resume & Applications
+description: Research the roles you actually want, then tailor your resume to match them and close the obvious skill gaps.
+learning_objectives:
+- uuid: 0fd19471-a03c-41c7-85ee-1e99777865e6
+  text: Research the roles you want and the skills they actually ask for.
+  order: 1
+- uuid: 2c916e32-917f-4ad7-a4ae-361df666fc82
+  text: Tailor your resume to the specific roles you're applying for.
+  order: 2
+learning_steps:
+- uuid: 54424b10-748a-4a44-9890-93216576ff81
+  order: 1
+  action: 'Practice:'
+  title: Research the roles you actually want
+  description: Before editing your resume, collect real listings for roles you want and extract the recurring skills, tools, and responsibilities.
+  checklist:
+  - "**Collect 5 to 10 real listings.** Roles you'd genuinely be excited to get (cloud support, junior cloud/DevOps engineer, cloud associate)"
+  - "**List the recurring skills.** Note the tools and technologies that appear again and again across listings"
+  - "**Spot the patterns.** These recurring requirements tell you what to emphasize and what to learn"
+  - "**Save 2 to 3 strong examples.** Keep listings you can reuse when tailoring your resume and preparing interview answers"
+  - "**Commit to applying broadly.** Do not filter yourself out over title perfection if the role is a reasonable fit"
+  done_when: You have a written list of target roles, recurring skills, and a clear commitment to apply broadly.
+  slug: phase7-resume-practice-research-target-roles
+- uuid: 973e6244-6566-4adf-af29-451143d179fb
+  order: 2
+  action: 'Practice:'
+  title: Tailor your resume and close obvious gaps
+  description: Use your role research to tailor your resume, then close the biggest skill gaps so you can speak confidently about what target roles require.
+  checklist:
+  - "**Match their language.** Mirror the skills and tools from the listings where you genuinely have them"
+  - "**Skip the generic objective.** Use that space for specific projects, results, and relevant experience"
+  - "**Lead with your differentiators.** Put the work from your uniqueness statement front and center: the improvements, experiments, and ownership choices that were genuinely yours"
+  - "**Make it easy to scan.** Clear section headings and visible links to GitHub, LinkedIn, and your portfolio"
+  - "**Only list what you can back up.** For each skill on your resume, make sure you understand the basics, and spend a little time closing the gaps on anything you can't (you'll rehearse explaining these out loud in Interview Preparation)"
+  - '**Read and apply one idea.** Review [Getting a Gig: Your Resume](https://github.com/cassidoo/getting-a-gig/blob/main/README.md#your-resume) and apply one improvement immediately'
+  tips:
+  - type: tip
+    text: It's normal not to have professional experience with everything. The goal is to never be caught completely unable to talk about a skill the role explicitly asks for.
+  done_when: Your resume is tailored to target roles and you can explain the key skills those roles ask for.
+  slug: phase7-resume-practice-tailor-and-close-gaps

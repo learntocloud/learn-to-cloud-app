@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=../../../schemas/requirement.schema.json
+uuid: 96327def-780b-4209-8ef1-b0d85b34357f
+slug: profile-readme
+submission_type: profile_readme
+name: Create Your GitHub Profile README
+description: On github.com, create a new repository named exactly after your username. GitHub turns it into your profile README automatically, and you will use this same account to submit verification work in every phase.

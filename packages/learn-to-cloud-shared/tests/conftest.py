@@ -10,6 +10,13 @@ os.environ.setdefault(
 os.environ.setdefault("GITHUB__TOKEN", "test_github_token")
 os.environ.setdefault("LABS__VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
 os.environ.setdefault("ENVIRONMENT", "development")
+# Env vars beat a developer's local .env in pydantic-settings' source
+# priority (init kwargs > env vars > dotenv > secrets file), so pinning
+# these here keeps tests isolated from real OAuth/session values that may
+# be set in a local .env for running the app.
+os.environ.setdefault("OAUTH__CLIENT_ID", "")
+os.environ.setdefault("OAUTH__CLIENT_SECRET", "")
+os.environ.setdefault("SESSION__SECRET_KEY", "")
 
 import pytest
 import pytest_asyncio

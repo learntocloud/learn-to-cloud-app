@@ -6,7 +6,6 @@ from uuid import uuid4
 import pytest
 from learn_to_cloud_shared.schemas import (
     LearningStep,
-    Phase,
     Topic,
 )
 
@@ -33,41 +32,32 @@ def _make_topic(steps: list[LearningStep] | None = None) -> Topic:
     )
 
 
-def _make_phase(topic: Topic) -> Phase:
-    return Phase(
-        uuid=uuid4(),
-        slug="phase0",
-        name="P0",
-        order=0,
-        topics=[topic],
-    )
-
-
 @pytest.mark.unit
 class TestCompleteStep:
     @pytest.mark.asyncio
     async def test_first_completion_creates_record(self):
         step = _make_step()
         topic = _make_topic([step])
-        phase = _make_phase(topic)
         mock_progress = MagicMock(
             user_id=1, step_uuid=step.uuid, completed_at=MagicMock()
         )
 
         with (
             patch(
-                "learn_to_cloud.services.steps_service.get_all_phases",
-                new_callable=AsyncMock,
-                return_value=(phase,),
+                "learn_to_cloud.services.steps_service.get_topic_containing_step",
+                return_value=(topic, step),
             ),
             patch(
-                "learn_to_cloud.services.steps_service.StepProgressRepository",
+                "learn_to_cloud.services.steps_service.LearnerStepCompletionRepository",
                 autospec=True,
-            ) as MockRepo,
+            ) as MockCompletionRepo,
+            patch(
+                "learn_to_cloud.services.steps_service.resolve_completed_step_uuids",
+                new=AsyncMock(return_value={step.uuid}),
+            ),
         ):
-            repo = MockRepo.return_value
-            repo.create_if_not_exists = AsyncMock(return_value=mock_progress)
-            repo.get_completed_step_uuids = AsyncMock(return_value={step.uuid})
+            completion_repo = MockCompletionRepo.return_value
+            completion_repo.create_if_not_exists = AsyncMock(return_value=mock_progress)
 
             result, returned_topic, completed = await complete_step(
                 AsyncMock(), user_id=1, step_uuid=step.uuid
@@ -76,14 +66,18 @@ class TestCompleteStep:
         assert result.step_slug == step.slug
         assert returned_topic.uuid == topic.uuid
         assert step.uuid in completed
+        completion_repo.create_if_not_exists.assert_awaited_once()
+        completion_await_args = completion_repo.create_if_not_exists.await_args
+        assert completion_await_args is not None
+        completion_kwargs = completion_await_args.kwargs
+        assert completion_kwargs["user_id"] == 1
+        assert completion_kwargs["step_uuid"] == step.uuid
 
     @pytest.mark.asyncio
     async def test_unknown_step_raises(self):
-        phase = _make_phase(_make_topic())
         with patch(
-            "learn_to_cloud.services.steps_service.get_all_phases",
-            new_callable=AsyncMock,
-            return_value=(phase,),
+            "learn_to_cloud.services.steps_service.get_topic_containing_step",
+            return_value=None,
         ):
             with pytest.raises(StepNotFoundError):
                 await complete_step(AsyncMock(), user_id=1, step_uuid=uuid4())
@@ -95,22 +89,23 @@ class TestUncompleteStep:
     async def test_existing_step_deleted(self):
         step = _make_step()
         topic = _make_topic([step])
-        phase = _make_phase(topic)
 
         with (
             patch(
-                "learn_to_cloud.services.steps_service.get_all_phases",
-                new_callable=AsyncMock,
-                return_value=(phase,),
+                "learn_to_cloud.services.steps_service.get_topic_containing_step",
+                return_value=(topic, step),
             ),
             patch(
-                "learn_to_cloud.services.steps_service.StepProgressRepository",
+                "learn_to_cloud.services.steps_service.LearnerStepCompletionRepository",
                 autospec=True,
-            ) as MockRepo,
+            ) as MockCompletionRepo,
+            patch(
+                "learn_to_cloud.services.steps_service.resolve_completed_step_uuids",
+                new=AsyncMock(return_value=set()),
+            ),
         ):
-            repo = MockRepo.return_value
-            repo.delete_step = AsyncMock(return_value=1)
-            repo.get_completed_step_uuids = AsyncMock(return_value=set())
+            completion_repo = MockCompletionRepo.return_value
+            completion_repo.delete = AsyncMock(return_value=1)
 
             deleted, returned_topic, returned_step, completed = await uncomplete_step(
                 AsyncMock(), user_id=1, step_uuid=step.uuid
@@ -119,6 +114,7 @@ class TestUncompleteStep:
         assert deleted == 1
         assert returned_step.uuid == step.uuid
         assert completed == set()
+        completion_repo.delete.assert_awaited_once_with(user_id=1, step_uuid=step.uuid)
 
 
 @pytest.mark.unit
@@ -130,14 +126,12 @@ class TestGetValidCompletedSteps:
         topic = _make_topic([s1, s2])
 
         with patch(
-            "learn_to_cloud.services.steps_service.StepProgressRepository",
-            autospec=True,
-        ) as MockRepo:
-            repo = MockRepo.return_value
-            repo.get_completed_step_uuids = AsyncMock(return_value={s1.uuid})
-
+            "learn_to_cloud.services.steps_service.resolve_completed_step_uuids",
+            new=AsyncMock(return_value={s1.uuid}),
+        ) as resolve:
             result = await get_valid_completed_steps(
                 AsyncMock(), user_id=1, topic=topic
             )
 
         assert result == {s1.uuid}
+        resolve.assert_awaited_once()

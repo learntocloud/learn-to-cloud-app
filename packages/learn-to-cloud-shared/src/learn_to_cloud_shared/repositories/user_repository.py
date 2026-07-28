@@ -1,6 +1,8 @@
 """User repository for database operations."""
 
-from sqlalchemy import delete, select
+from collections.abc import Iterable
+
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +29,23 @@ class UserRepository:
         """Get a user by their ID (GitHub numeric user ID)."""
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
+
+    async def get_by_ids(self, user_ids: Iterable[int]) -> list[User]:
+        """Batch-fetch users by id in a single query.
+
+        Order is unspecified; callers that need a stable order should sort
+        the result. Returns an empty list for an empty id set.
+        """
+        ids = list(user_ids)
+        if not ids:
+            return []
+        result = await self.db.execute(select(User).where(User.id.in_(ids)))
+        return list(result.scalars().all())
+
+    async def count(self) -> int:
+        """Count all user accounts."""
+        result = await self.db.execute(select(func.count()).select_from(User))
+        return result.scalar_one()
 
     async def get_or_create(
         self,

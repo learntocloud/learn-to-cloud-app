@@ -6,11 +6,14 @@ for the dashboard page.
 
 import logging
 
-from learn_to_cloud_shared.content_service import get_all_phases
+from learn_to_cloud_shared.content_service import (
+    get_curriculum_overview,
+    get_phase_by_slug,
+)
 from learn_to_cloud_shared.schemas import (
     ContinuePhaseData,
     DashboardData,
-    Phase,
+    PhaseOverview,
     PhaseProgressData,
     PhaseSummaryData,
 )
@@ -19,27 +22,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from learn_to_cloud.services.progress_service import (
     fetch_user_progress,
     phase_progress_to_data,
+    resolve_continue_destination,
 )
 
 logger = logging.getLogger(__name__)
 
 
 def _build_phase_summary(
-    phase: Phase,
+    phase: PhaseOverview,
     progress_data: PhaseProgressData | None,
 ) -> PhaseSummaryData:
-    """Build PhaseSummaryData from a Phase and computed values."""
+    """Build PhaseSummaryData from a PhaseOverview and computed progress."""
     return PhaseSummaryData(
-        id=phase.order,
+        order=phase.order,
         name=phase.name,
         slug=phase.slug,
-        description=phase.description,
-        short_description=phase.short_description,
-        order=phase.order,
-        topics_count=len(phase.topics),
-        objectives=list(phase.objectives),
-        capstone=phase.capstone,
-        hands_on_verification=phase.hands_on_verification,
         progress=progress_data,
     )
 
@@ -53,18 +50,19 @@ async def get_dashboard_data(
     Returns phase list, overall stats, and continue-phase pointer.
     For unauthenticated users, returns phases only with zeroed stats.
     """
-    phases = await get_all_phases(db)
+    phases = get_curriculum_overview()
 
     if user_id is None:
         return DashboardData(
             phases=[_build_phase_summary(phase, None) for phase in phases],
-            overall_percentage=0.0,
+            learning_percentage=0.0,
+            verification_percentage=0.0,
             phases_completed=0,
             total_phases=len(phases),
             is_program_complete=False,
         )
 
-    user_progress = await fetch_user_progress(db, user_id, phases=phases)
+    user_progress = await fetch_user_progress(db, user_id, phase_overview=phases)
 
     phase_summaries = [
         _build_phase_summary(
@@ -81,11 +79,15 @@ async def get_dashboard_data(
         current_id = user_progress.current_phase
         current = next((p for p in phases if p.order == current_id), None)
         if current is not None:
+            destination_url = f"/phase/{current.order}"
+            current_detail = get_phase_by_slug(current.slug)
+            if current_detail is not None:
+                destination_url = await resolve_continue_destination(
+                    db, user_id, current_detail
+                )
             continue_phase = ContinuePhaseData(
-                phase_id=current.order,
-                name=current.name,
-                slug=current.slug,
-                order=current.order,
+                destination_url=destination_url,
+                label=f"Phase {current.order}: {current.name}",
             )
 
     logger.debug(
@@ -98,7 +100,8 @@ async def get_dashboard_data(
 
     return DashboardData(
         phases=phase_summaries,
-        overall_percentage=round(user_progress.overall_percentage, 1),
+        learning_percentage=round(user_progress.overall_learning_percentage, 1),
+        verification_percentage=round(user_progress.overall_verification_percentage, 1),
         phases_completed=user_progress.phases_completed,
         total_phases=user_progress.total_phases,
         is_program_complete=user_progress.is_program_complete,

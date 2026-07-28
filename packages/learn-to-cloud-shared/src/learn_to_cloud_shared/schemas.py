@@ -1,15 +1,13 @@
-"""Pydantic schemas for API request/response validation.
+"""Shared data types for API validation and cross-service payloads.
 
-This module contains all Pydantic schemas used throughout the application.
-Schemas are used both for API request/response validation and as
-service-layer response models.
-
-All schemas use frozen=True for immutability where appropriate.
+Holds the Pydantic models used for API request/response validation and
+service-layer responses. Models use ``frozen=True`` for immutability where
+appropriate.
 """
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Literal, get_args
 from uuid import UUID
 
 from pydantic import (
@@ -192,12 +190,12 @@ class UserResponse(UserBase):
 # Variation between submission types lives inside ``type_config``.
 # Pydantic validates per-type config via a discriminated union, so YAML
 # authors get parse errors for mismatched fields (e.g., placeholder on a
-# github_profile requirement).
+# profile_readme requirement).
 # ---------------------------------------------------------------------------
 
 
 class EmptyConfig(StrictFrozenModel):
-    """No type-specific config (used by github_profile, profile_readme)."""
+    """No type-specific config (used by profile_readme)."""
 
 
 class RepoConfig(StrictFrozenModel):
@@ -250,6 +248,50 @@ class DeployedApiConfig(PlaceholderConfig):
     """Config for deployed_api requirements."""
 
 
+class CareerReflectionQuestion(StrictFrozenModel):
+    """One reflection prompt the learner answers in the app."""
+
+    id: str = Field(description="Stable id for this question.")
+    prompt: str = Field(description="The reflection prompt shown to the learner.")
+
+
+class CareerReflectionConfig(StrictFrozenModel):
+    """Config for career_reflection requirements."""
+
+    questions: list[CareerReflectionQuestion] = Field(
+        description="Reflection prompts the learner answers in the app.",
+        min_length=1,
+    )
+    min_answer_length: int = Field(
+        default=200,
+        ge=1,
+        description="Minimum characters required for each answer.",
+    )
+
+
+class DeploymentArchitectureConfig(RepoConfig):
+    """Config for deployment_architecture requirements.
+
+    The learner writes a free-text architecture description in the app; the
+    grader fetches ``deploy_script_path`` from the learner's fork of
+    ``required_repo`` and an LLM rubric checks the description against what the
+    script actually provisions.
+    """
+
+    prompt: str = Field(
+        description="The architecture-description prompt shown to the learner.",
+    )
+    min_answer_length: int = Field(
+        default=200,
+        ge=1,
+        description="Minimum characters required for the description.",
+    )
+    deploy_script_path: str = Field(
+        default="deploy.sh",
+        description="Repo-relative path to the deployment script to grade.",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Hands-on requirement subclasses, one per active SubmissionType
 # (issue #470)
@@ -267,30 +309,6 @@ class _RequirementBase(StrictFrozenModel):
     slug: str
     name: str
     description: str
-
-    @property
-    def required_repo(self) -> str | None:
-        """Backwards-compat shim: read ``type_config.required_repo`` if any.
-
-        Lets dispatcher/url_derivation/templates keep reading
-        ``requirement.required_repo`` directly while consumers migrate
-        to typed ``type_config`` access. Plain ``@property`` (not
-        ``@computed_field``) so it does NOT appear in
-        ``model_dump()`` output and round-trip serialization works.
-        """
-        cfg = getattr(self, "type_config", None)
-        return getattr(cfg, "required_repo", None) if cfg is not None else None
-
-    @property
-    def placeholder(self) -> str | None:
-        """Backwards-compat shim: read ``type_config.placeholder`` if any."""
-        cfg = getattr(self, "type_config", None)
-        return getattr(cfg, "placeholder", None) if cfg is not None else None
-
-
-class GithubProfileRequirement(_RequirementBase):
-    submission_type: Literal[SubmissionType.GITHUB_PROFILE]
-    type_config: EmptyConfig = Field(default_factory=EmptyConfig)
 
 
 class ProfileReadmeRequirement(_RequirementBase):
@@ -333,16 +351,27 @@ class SecurityScanningRequirement(_RequirementBase):
     type_config: SecurityScanningConfig
 
 
+class CareerReflectionRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.CAREER_REFLECTION]
+    type_config: CareerReflectionConfig
+
+
+class DeploymentArchitectureRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.DEPLOYMENT_ARCHITECTURE]
+    type_config: DeploymentArchitectureConfig
+
+
 HandsOnRequirement = Annotated[
-    GithubProfileRequirement
-    | ProfileReadmeRequirement
+    ProfileReadmeRequirement
     | RepoForkRequirement
     | CtfTokenRequirement
     | NetworkingTokenRequirement
     | JournalApiVerifierRequirement
     | DeployedApiRequirement
     | DevopsAnalysisRequirement
-    | SecurityScanningRequirement,
+    | SecurityScanningRequirement
+    | CareerReflectionRequirement
+    | DeploymentArchitectureRequirement,
     Field(discriminator="submission_type"),
 ]
 
@@ -352,11 +381,31 @@ HandsOnRequirement = Annotated[
 HandsOnRequirementAdapter = TypeAdapter(HandsOnRequirement)
 
 
+# The submission types this code version can render, derived from the
+# discriminated union's members so it can never drift from the union. Used by
+# the content loader as a tolerant reader: during a rolling deploy the DB may
+# already hold a newer submission_type this revision doesn't know, and those
+# rows must be ignored rather than 500 the whole page.
+def _known_submission_types() -> frozenset[str]:
+    union = get_args(HandsOnRequirement)[0]
+    tags: set[str] = set()
+    for member in get_args(union):
+        literal = get_args(member.model_fields["submission_type"].annotation)[0]
+        tags.add(literal.value if isinstance(literal, SubmissionType) else str(literal))
+    return frozenset(tags)
+
+
+KNOWN_HANDS_ON_SUBMISSION_TYPES: frozenset[str] = _known_submission_types()
+
+
 class HealthResponse(BaseModel):
     """Health check response."""
 
     status: str
     service: str
+    curriculum_version: int | None = None
+    artifact_schema_version: int | None = None
+    content_hash: str | None = None
 
 
 class StepCompletionResult(FrozenModel):
@@ -484,7 +533,7 @@ class PhaseHandsOnVerificationOverview(FrozenModel):
 class Phase(FrozenModel):
     """A phase in the curriculum.
 
-    Phases use ``slug`` (e.g. ``"phase0"``) and ``order`` (int ``0..6``)
+    Phases use ``slug`` (e.g. ``"phase0"``) and ``order`` (int ``0..7``)
     as their human keys. The slug is what shows up in URLs and is the
     primary lookup key; ``order`` drives display ordering and is also
     used in URL paths today (``/phase/{order}``).
@@ -506,6 +555,29 @@ class Phase(FrozenModel):
     topics: list[Topic] = Field(default_factory=list)
 
 
+class TopicOverview(FrozenModel):
+    """Browse-level topic summary: name only, no steps/objectives."""
+
+    uuid: UUID
+    slug: str
+    name: str
+
+
+class PhaseOverview(FrozenModel):
+    """Browse-level phase summary for home/curriculum listing pages.
+
+    No topics-with-steps, no requirements: only what those pages render.
+    """
+
+    uuid: UUID
+    order: int
+    name: str
+    slug: str
+    description: str = ""
+    short_description: str = ""
+    topics: list[TopicOverview] = Field(default_factory=list)
+
+
 class TopicProgressData(FrozenModel):
     """Progress status for a topic (service-layer response model)."""
 
@@ -515,114 +587,225 @@ class TopicProgressData(FrozenModel):
     status: str  # "not_started", "in_progress", "completed"
 
 
-class PhaseProgressData(FrozenModel):
-    """Progress status for a phase (service-layer response model)."""
+class LearningProgress(FrozenModel):
+    """A learner's checked-step progress, scoped to current catalog steps.
+
+    ``steps_completed`` intersects stored ``learner_step_completions`` UUIDs
+    with the catalog's current active step UUIDs, so a retired step never
+    inflates progress.
+    """
 
     steps_completed: int
     steps_required: int
-    hands_on_validated: int
-    hands_on_required: int
-    percentage: float
+
+    @computed_field
+    @property
+    def is_complete(self) -> bool:
+        """A zero-step phase is learning-complete by definition."""
+        return self.steps_completed >= self.steps_required
+
+    @computed_field
+    @property
+    def percentage(self) -> float:
+        if self.steps_required == 0:
+            return 100.0
+        return round(min(100.0, (self.steps_completed / self.steps_required) * 100), 1)
+
+
+class VerificationProgress(FrozenModel):
+    """A learner's succeeded-attempt progress, scoped to current requirements.
+
+    ``requirements_verified`` intersects distinct requirement UUIDs with a
+    ``succeeded`` ``verification_attempts`` outcome against the catalog's
+    current active requirement UUIDs -- a ``failed``/``server_error``/
+    ``cancelled`` outcome never counts, and a retired requirement UUID never
+    inflates progress.
+    """
+
+    requirements_verified: int
+    requirements_required: int
+
+    @computed_field
+    @property
+    def is_complete(self) -> bool:
+        """A zero-requirement phase is verification-complete by definition."""
+        return self.requirements_verified >= self.requirements_required
+
+    @computed_field
+    @property
+    def percentage(self) -> float:
+        if self.requirements_required == 0:
+            return 100.0
+        return round(
+            min(100.0, (self.requirements_verified / self.requirements_required) * 100),
+            1,
+        )
+
+
+class PhaseProgressData(FrozenModel):
+    """Progress status for a phase (service-layer response model)."""
+
+    learning: LearningProgress
+    verification: VerificationProgress
+    is_complete: bool
     status: str  # "not_started", "in_progress", "completed"
 
 
 class PhaseSummaryData(FrozenModel):
-    """Phase summary data (service-layer response model)."""
+    """Phase summary data for the dashboard (service-layer response model).
 
-    id: int
+    Trimmed to exactly what ``dashboard.html`` renders: order, name,
+    and progress. Full phase content (description, objectives,
+    capstone, requirements) belongs to the phase detail view, not the
+    dashboard list.
+    """
+
+    order: int
     name: str
     slug: str
-    description: str
-    short_description: str
-    order: int
-    topics_count: int
-    objectives: list[str] = Field(default_factory=list)
-    capstone: PhaseCapstoneOverview | None = None
-    hands_on_verification: PhaseHandsOnVerificationOverview | None = None
     progress: PhaseProgressData | None = None
 
 
 class ContinuePhaseData(FrozenModel):
-    """Pointer to the user's current in-progress phase."""
+    """Where the dashboard's "Continue" action should take the learner.
 
-    phase_id: int
-    name: str
-    slug: str
-    order: int
+    ``destination_url`` already resolves to the specific place that matters
+    -- the first unchecked learning step's topic, or the phase's
+    verification section once every step is checked -- so templates never
+    need to re-derive a phase link from separate id/order/slug fields.
+    """
+
+    destination_url: str
+    label: str
 
 
 class DashboardData(FrozenModel):
-    """Complete dashboard payload (service-layer response model)."""
+    """Complete dashboard payload (service-layer response model).
+
+    Exposes two item-weighted totals across all phases' *current* steps and
+    requirements, rather than one blended percentage -- see
+    ``UserProgress.overall_learning_percentage`` /
+    ``overall_verification_percentage``.
+    """
 
     phases: list[PhaseSummaryData]
-    overall_percentage: float
+    learning_percentage: float
+    verification_percentage: float
     phases_completed: int
     total_phases: int
     is_program_complete: bool
     continue_phase: ContinuePhaseData | None = None
 
 
-class PhaseRequirements(FrozenModel):
-    """Requirements to complete a phase."""
+class CommunityMember(FrozenModel):
+    """A learner shown publicly on the community page."""
 
-    phase_id: int
+    github_username: str
+    avatar_url: str | None = None
+
+
+class FunnelLevel(FrozenModel):
+    """One level of the community progress funnel.
+
+    ``pct_of_total`` is relative to total accounts (drives the funnel
+    width); ``pct_of_previous`` is the conversion from the level above
+    (``None`` for the top level).
+    """
+
+    label: str
+    count: int
+    pct_of_total: float
+    pct_of_previous: float | None = None
+    is_total: bool = False
+
+
+class RepoUpdate(FrozenModel):
+    """Latest commit for a curriculum repo (service-layer response model).
+
+    ``available`` is False when the GitHub lookup failed (rate limit,
+    network error); the page still renders the repo with a fallback.
+    """
+
     name: str
-    topics: int
-    steps: int
+    url: str
+    available: bool = True
+    commit_message: str | None = None
+    commit_author: str | None = None
+    commit_url: str | None = None
+    committed_at: datetime | None = None
+
+
+class CommunityPageData(FrozenModel):
+    """Aggregate data shown on the public community page."""
+
+    total_accounts: int
+    funnel: list[FunnelLevel]
+    graduates: list[CommunityMember]
+    repo_updates: list[RepoUpdate]
 
 
 class PhaseProgress(FrozenModel):
     """User's progress for a single phase.
 
-    Unified model used by both dashboard and phase detail views.
-    When topic_progress is populated, provides per-topic breakdown.
+    Unified model used by both dashboard and phase detail views. Holds
+    learning and verification as two separate, typed measures rather than
+    one blended percentage -- a phase is complete only when *both* are
+    complete (see ``is_complete``). When ``topic_progress`` is populated,
+    provides per-topic breakdown.
     """
 
     phase_id: int
-    steps_completed: int
-    steps_required: int
-    hands_on_validated: int  # count of validated requirements
-    hands_on_required: int  # count of required requirements
+    learning: LearningProgress
+    verification: VerificationProgress
     topic_progress: dict[UUID, TopicProgressData] | None = None
 
     @computed_field
     @property
     def is_complete(self) -> bool:
-        """Phase is complete when all requirements are met."""
-        return (
-            self.steps_completed >= self.steps_required
-            and self.hands_on_validated >= self.hands_on_required
-        )
+        """Phase is complete only when learning AND verification are both complete."""
+        return self.learning.is_complete and self.verification.is_complete
 
     @computed_field
     @property
     def status(self) -> str:
-        """Phase status string."""
+        """Phase status, naming which of the two measures still needs work.
+
+        ``learning_complete`` and ``verification_complete`` name the
+        *finished* measure -- a learner reads "learning complete" as
+        "verification is what's left", not as a description of what they
+        just did. ``verification_complete`` covers the (rarer, sequential
+        gating is verification-only) case where a learner verifies before
+        checking off every step.
+
+        Only distinguished when the phase has real work on *both* axes --
+        a phase with zero steps or zero requirements is trivially complete
+        on that axis (see ``LearningProgress``/``VerificationProgress``),
+        and labelling that trivial truth as "complete" would misrepresent a
+        phase the learner hasn't touched at all.
+        """
+        has_any_work = (
+            self.learning.steps_required > 0
+            or self.verification.requirements_required > 0
+        )
+        if not has_any_work:
+            return "not_started"
         if self.is_complete:
             return "completed"
-        if self.steps_completed > 0 or self.hands_on_validated > 0:
+        has_both_axes = (
+            self.learning.steps_required > 0
+            and self.verification.requirements_required > 0
+        )
+        if has_both_axes:
+            if self.learning.is_complete:
+                return "learning_complete"
+            if self.verification.is_complete:
+                return "verification_complete"
+        if (
+            self.learning.steps_completed > 0
+            or self.verification.requirements_verified > 0
+        ):
             return "in_progress"
         return "not_started"
-
-    @computed_field
-    @property
-    def percentage(self) -> float:
-        """Phase completion percentage (steps + hands-on)."""
-        total = self.steps_required + self.hands_on_required
-        if total == 0:
-            return 0.0
-        completed = min(self.steps_completed, self.steps_required) + min(
-            self.hands_on_validated, self.hands_on_required
-        )
-        return round((completed / total) * 100, 1)
-
-    @computed_field
-    @property
-    def step_percentage(self) -> float:
-        """Percentage of steps completed."""
-        if self.steps_required == 0:
-            return 100.0
-        return round(min(100.0, (self.steps_completed / self.steps_required) * 100), 1)
 
 
 class UserProgress(FrozenModel):
@@ -635,7 +818,7 @@ class UserProgress(FrozenModel):
     @computed_field
     @property
     def phases_completed(self) -> int:
-        """Count of fully completed phases."""
+        """Count of fully completed phases (learning AND verification)."""
         return sum(1 for p in self.phases.values() if p.is_complete)
 
     @computed_field
@@ -655,24 +838,34 @@ class UserProgress(FrozenModel):
 
     @computed_field
     @property
-    def overall_percentage(self) -> float:
-        """Overall completion percentage across all phases."""
-        if not self.phases:
-            return 0.0
-
-        total_steps = sum(p.steps_required for p in self.phases.values())
-        total_hands_on = sum(p.hands_on_required for p in self.phases.values())
-        completed_steps = sum(p.steps_completed for p in self.phases.values())
-        completed_hands_on = sum(p.hands_on_validated for p in self.phases.values())
-
-        if total_steps + total_hands_on == 0:
-            return 0.0
-
-        total = total_steps + total_hands_on
-        completed = min(completed_steps, total_steps) + min(
-            completed_hands_on, total_hands_on
+    def overall_learning_percentage(self) -> float:
+        """Item-weighted learning percentage across all phases' current steps."""
+        total_required = sum(p.learning.steps_required for p in self.phases.values())
+        if total_required == 0:
+            return 100.0
+        completed = sum(
+            min(p.learning.steps_completed, p.learning.steps_required)
+            for p in self.phases.values()
         )
-        return round((completed / total) * 100, 1)
+        return round((completed / total_required) * 100, 1)
+
+    @computed_field
+    @property
+    def overall_verification_percentage(self) -> float:
+        """Item-weighted verification percentage across all phases' requirements."""
+        total_required = sum(
+            p.verification.requirements_required for p in self.phases.values()
+        )
+        if total_required == 0:
+            return 100.0
+        completed = sum(
+            min(
+                p.verification.requirements_verified,
+                p.verification.requirements_required,
+            )
+            for p in self.phases.values()
+        )
+        return round((completed / total_required) * 100, 1)
 
 
 class SubmissionData(FrozenModel):
@@ -684,9 +877,11 @@ class SubmissionData(FrozenModel):
     in the app reads them off ``SubmissionData`` either -- callers
     that need them have the corresponding ``HandsOnRequirement``
     in scope.
+
+    Sourced from the latest terminal ``verification_attempts`` row.
     """
 
-    id: int
+    id: UUID
     submitted_value: str
     extracted_username: str | None = None
     is_validated: bool
@@ -724,8 +919,8 @@ class SubmissionResult(FrozenModel):
 class TaskResult(FrozenModel):
     """Result of verifying a single task in a multi-task verification.
 
-    Used by PR_REVIEW, DEVOPS_ANALYSIS, and SECURITY_SCANNING validations
-    to provide detailed per-task feedback.
+    Used by DEVOPS_ANALYSIS and SECURITY_SCANNING validations to provide
+    detailed per-task feedback.
     """
 
     task_name: str
@@ -769,13 +964,3 @@ class ValidationResult(FrozenModel):
     task_results: list[TaskResult] | None = None
     verification_completed: bool = True
     cloud_provider: str | None = None
-
-
-class ParsedGitHubUrl(FrozenModel):
-    """Parsed components of a GitHub URL."""
-
-    username: str
-    repo_name: str | None = None
-    file_path: str | None = None
-    is_valid: bool = True
-    error: str | None = None

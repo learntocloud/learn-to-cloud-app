@@ -85,7 +85,6 @@ def alembic_engine():
         conn.execute(text(f"DROP DATABASE IF EXISTS {MIGRATION_DB}"))
         conn.execute(text(f"CREATE DATABASE {MIGRATION_DB}"))
     admin_eng.dispose()
-
     mig_url = _sync_url().rsplit("/", 1)[0] + f"/{MIGRATION_DB}"
     engine = create_engine(mig_url)
     yield engine
@@ -103,3 +102,64 @@ def alembic_engine():
         )
         conn.execute(text(f"DROP DATABASE IF EXISTS {MIGRATION_DB}"))
     admin_eng.dispose()
+
+
+def test_contract_removes_legacy_database_objects(
+    alembic_runner, alembic_engine
+) -> None:
+    alembic_runner.migrate_up_to("0055_drop_legacy_curriculum_contract")
+
+    dropped_tables = {
+        "verification_jobs",
+        "submissions",
+        "step_progress",
+        "requirements",
+        "learning_objectives",
+        "steps",
+        "topics",
+        "phases",
+    }
+    with alembic_engine.connect() as conn:
+        remaining_tables = set(
+            conn.execute(
+                text(
+                    """
+                    SELECT table_name
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                    """
+                )
+            ).scalars()
+        )
+        attempt_columns = set(
+            conn.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'verification_attempts'
+                    """
+                )
+            ).scalars()
+        )
+        temporary_functions = set(
+            conn.execute(
+                text(
+                    """
+                    SELECT proname
+                    FROM pg_proc
+                    WHERE proname IN (
+                        'mirror_step_progress_to_completions',
+                        'bridge_legacy_verification_job_to_attempt',
+                        'terminalize_deleted_legacy_verification_job'
+                    )
+                    """
+                )
+            ).scalars()
+        )
+
+    assert dropped_tables.isdisjoint(remaining_tables)
+    assert "legacy_job_id" not in attempt_columns
+    assert "legacy_submission_id" not in attempt_columns
+    assert temporary_functions == set()

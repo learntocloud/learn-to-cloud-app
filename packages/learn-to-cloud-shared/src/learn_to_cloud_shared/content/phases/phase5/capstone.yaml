@@ -65,7 +65,9 @@ learning_steps:
   description: Apply the GitHub Actions workflow you built in the CI/CD Pipelines topic. It should trigger on every push to `main` with at least three jobs.
   checklist:
   - "**Test job** — Run linting and tests with a PostgreSQL 15 service container, run `database_setup.sql` before pytest, install `uv` using `astral-sh/setup-uv`"
-  - "**Build & Push job** — Build the Docker image and push to your container registry, tagged with commit SHA and `latest`"
+  - "**Build & Push job** — Build the Docker image and push it to your cloud container registry, tagged with commit SHA and `latest`"
+  - "**Public verification copy** — Also push the image as `ghcr.io/<your-github-username>/journal-api:latest` so automated verification can confirm the build succeeded"
+  - "**Public GHCR package** — After the first push, open the package settings on GitHub and change the package visibility to public"
   - "**Deploy job** — Connect to your K8s cluster, `sed`-substitute the image placeholder, apply manifests from `k8s/`"
   - "**`AZURE_CREDENTIALS` secret** — output of `az ad sp create-for-rbac --sdk-auth`"
   - "**`ACR_LOGIN_SERVER` secret** — your ACR login server URL"
@@ -73,6 +75,9 @@ learning_steps:
   - "**`ACR_PASSWORD` secret** — ACR password"
   - "**`AZURE_RESOURCE_GROUP` secret** — your resource group name"
   - "**`AKS_CLUSTER_NAME` secret** — your AKS cluster name"
+  tips:
+  - type: note
+    text: Keep your cloud registry and IAM-based Kubernetes pull path for the real deployment. The public GHCR image is an additional copy used only by automated verification; private GHCR packages cannot be verified.
   done_when: Pushing to `main` triggers the workflow, all three jobs pass, and your image is pushed to the registry.
   slug: phase5-topic6-build-cicd-pipeline
 

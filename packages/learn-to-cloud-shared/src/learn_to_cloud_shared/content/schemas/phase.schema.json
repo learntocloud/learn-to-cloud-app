@@ -1,5 +1,94 @@
 {
   "$defs": {
+    "CareerReflectionConfig": {
+      "additionalProperties": false,
+      "description": "Config for career_reflection requirements.",
+      "properties": {
+        "min_answer_length": {
+          "default": 200,
+          "description": "Minimum characters required for each answer.",
+          "minimum": 1,
+          "title": "Min Answer Length",
+          "type": "integer"
+        },
+        "questions": {
+          "description": "Reflection prompts the learner answers in the app.",
+          "items": {
+            "$ref": "#/$defs/CareerReflectionQuestion"
+          },
+          "minItems": 1,
+          "title": "Questions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "questions"
+      ],
+      "title": "CareerReflectionConfig",
+      "type": "object"
+    },
+    "CareerReflectionQuestion": {
+      "additionalProperties": false,
+      "description": "One reflection prompt the learner answers in the app.",
+      "properties": {
+        "id": {
+          "description": "Stable id for this question.",
+          "title": "Id",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "The reflection prompt shown to the learner.",
+          "title": "Prompt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "prompt"
+      ],
+      "title": "CareerReflectionQuestion",
+      "type": "object"
+    },
+    "CareerReflectionRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string"
+        },
+        "submission_type": {
+          "const": "career_reflection",
+          "title": "Submission Type",
+          "type": "string"
+        },
+        "type_config": {
+          "$ref": "#/$defs/CareerReflectionConfig"
+        },
+        "uuid": {
+          "format": "uuid",
+          "title": "Uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uuid",
+        "slug",
+        "name",
+        "description",
+        "submission_type",
+        "type_config"
+      ],
+      "title": "CareerReflectionRequirement",
+      "type": "object"
+    },
     "CtfTokenConfig": {
       "additionalProperties": false,
       "description": "Config for ctf_token requirements.",
@@ -120,6 +209,81 @@
       "title": "DeployedApiRequirement",
       "type": "object"
     },
+    "DeploymentArchitectureConfig": {
+      "additionalProperties": false,
+      "description": "Config for deployment_architecture requirements.\n\nThe learner writes a free-text architecture description in the app; the\ngrader fetches ``deploy_script_path`` from the learner's fork of\n``required_repo`` and an LLM rubric checks the description against what the\nscript actually provisions.",
+      "properties": {
+        "deploy_script_path": {
+          "default": "deploy.sh",
+          "description": "Repo-relative path to the deployment script to grade.",
+          "title": "Deploy Script Path",
+          "type": "string"
+        },
+        "min_answer_length": {
+          "default": 200,
+          "description": "Minimum characters required for the description.",
+          "minimum": 1,
+          "title": "Min Answer Length",
+          "type": "integer"
+        },
+        "prompt": {
+          "description": "The architecture-description prompt shown to the learner.",
+          "title": "Prompt",
+          "type": "string"
+        },
+        "required_repo": {
+          "description": "Upstream repo (owner/name) the learner forks from.",
+          "title": "Required Repo",
+          "type": "string"
+        }
+      },
+      "required": [
+        "required_repo",
+        "prompt"
+      ],
+      "title": "DeploymentArchitectureConfig",
+      "type": "object"
+    },
+    "DeploymentArchitectureRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string"
+        },
+        "submission_type": {
+          "const": "deployment_architecture",
+          "title": "Submission Type",
+          "type": "string"
+        },
+        "type_config": {
+          "$ref": "#/$defs/DeploymentArchitectureConfig"
+        },
+        "uuid": {
+          "format": "uuid",
+          "title": "Uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uuid",
+        "slug",
+        "name",
+        "description",
+        "submission_type",
+        "type_config"
+      ],
+      "title": "DeploymentArchitectureRequirement",
+      "type": "object"
+    },
     "DevopsAnalysisConfig": {
       "additionalProperties": false,
       "description": "Config for devops_analysis requirements.",
@@ -178,48 +342,9 @@
     },
     "EmptyConfig": {
       "additionalProperties": false,
-      "description": "No type-specific config (used by github_profile, profile_readme).",
+      "description": "No type-specific config (used by profile_readme).",
       "properties": {},
       "title": "EmptyConfig",
-      "type": "object"
-    },
-    "GithubProfileRequirement": {
-      "additionalProperties": false,
-      "properties": {
-        "description": {
-          "title": "Description",
-          "type": "string"
-        },
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "slug": {
-          "title": "Slug",
-          "type": "string"
-        },
-        "submission_type": {
-          "const": "github_profile",
-          "title": "Submission Type",
-          "type": "string"
-        },
-        "type_config": {
-          "$ref": "#/$defs/EmptyConfig"
-        },
-        "uuid": {
-          "format": "uuid",
-          "title": "Uuid",
-          "type": "string"
-        }
-      },
-      "required": [
-        "uuid",
-        "slug",
-        "name",
-        "description",
-        "submission_type"
-      ],
-      "title": "GithubProfileRequirement",
       "type": "object"
     },
     "JournalApiVerifierConfig": {
@@ -532,10 +657,11 @@
           "items": {
             "discriminator": {
               "mapping": {
+                "career_reflection": "#/$defs/CareerReflectionRequirement",
                 "ctf_token": "#/$defs/CtfTokenRequirement",
                 "deployed_api": "#/$defs/DeployedApiRequirement",
+                "deployment_architecture": "#/$defs/DeploymentArchitectureRequirement",
                 "devops_analysis": "#/$defs/DevopsAnalysisRequirement",
-                "github_profile": "#/$defs/GithubProfileRequirement",
                 "journal_api_verifier": "#/$defs/JournalApiVerifierRequirement",
                 "networking_token": "#/$defs/NetworkingTokenRequirement",
                 "profile_readme": "#/$defs/ProfileReadmeRequirement",
@@ -545,9 +671,6 @@
               "propertyName": "submission_type"
             },
             "oneOf": [
-              {
-                "$ref": "#/$defs/GithubProfileRequirement"
-              },
               {
                 "$ref": "#/$defs/ProfileReadmeRequirement"
               },
@@ -571,6 +694,12 @@
               },
               {
                 "$ref": "#/$defs/SecurityScanningRequirement"
+              },
+              {
+                "$ref": "#/$defs/CareerReflectionRequirement"
+              },
+              {
+                "$ref": "#/$defs/DeploymentArchitectureRequirement"
               }
             ]
           },
@@ -863,7 +992,7 @@
       "type": "object"
     }
   },
-  "description": "A phase in the curriculum.\n\nPhases use ``slug`` (e.g. ``\"phase0\"``) and ``order`` (int ``0..6``)\nas their human keys. The slug is what shows up in URLs and is the\nprimary lookup key; ``order`` drives display ordering and is also\nused in URL paths today (``/phase/{order}``).",
+  "description": "A phase in the curriculum.\n\nPhases use ``slug`` (e.g. ``\"phase0\"``) and ``order`` (int ``0..7``)\nas their human keys. The slug is what shows up in URLs and is the\nprimary lookup key; ``order`` drives display ordering and is also\nused in URL paths today (``/phase/{order}``).",
   "properties": {
     "capstone": {
       "anyOf": [

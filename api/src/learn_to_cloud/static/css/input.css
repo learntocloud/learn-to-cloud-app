@@ -48,6 +48,18 @@
     min-width: 0;
 }
 
+/* Inline links inside a phase description (rendered from markdown) */
+.phase-description a {
+    color: theme(--color-blue-600);
+    text-decoration: underline;
+}
+.phase-description a:hover {
+    text-decoration: none;
+}
+.dark .phase-description a {
+    color: theme(--color-blue-400);
+}
+
 /* Tip / Hint — green */
 .callout-tip {
     background-color: theme(--color-green-50);

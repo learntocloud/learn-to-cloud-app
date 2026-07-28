@@ -1,5 +1,6 @@
 {
   "IsEncrypted": false,
+  "_comment_PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION": "Local dev only. Forces protobuf's pure-Python implementation to avoid an upstream Azure Functions bug where the Python 3.13 worker segfaults (exit code 139) loading protobuf's native extension on arm64 dev containers. Not used in production (this file is never deployed). See Azure/azure-functions-python-worker#1797.",
   "Values": {
     "AzureWebJobsStorage": "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;",
     "FUNCTIONS_WORKER_RUNTIME": "python",
@@ -9,8 +10,9 @@
     "DEBUG": "true",
     "GITHUB__TOKEN": "",
     "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
-    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://aspire-dashboard:18889",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://aspire-dashboard:18888",
     "OTEL_SERVICE_NAME": "learn-to-cloud-verification-functions",
+    "PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION": "python",
     "FOUNDRY_PROJECT_ENDPOINT": "",
     "FOUNDRY_MODEL_DEPLOYMENT_NAME": "",
     "AzureWebJobsSecretStorageType": "Files",

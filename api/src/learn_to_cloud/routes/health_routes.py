@@ -1,22 +1,68 @@
 """Health check endpoints."""
 
 import logging
+from pathlib import Path
 
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.core.database import check_db_connection
 from learn_to_cloud_shared.schemas import HealthResponse
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette import status
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 
+# api/alembic.ini, four directories up from this file (routes -> learn_to_cloud
+# -> src -> api). Same relative depth in the devcontainer source tree and in
+# the api-runtime Docker image, where PYTHONPATH=/app/src.
+_ALEMBIC_INI = Path(__file__).parent.parent.parent.parent / "alembic.ini"
+
+
+def get_code_alembic_head() -> str | None:
+    """Resolve the Alembic head revision baked into this deployment's code.
+
+    Returns None if the script directory can't be resolved, so schema-drift
+    detection is best-effort and never blocks application startup.
+    """
+    try:
+        script = ScriptDirectory.from_config(Config(str(_ALEMBIC_INI)))
+        return script.get_current_head()
+    except Exception:
+        logger.exception("health.alembic_head.resolve_failed")
+        return None
+
+
+async def _get_db_alembic_head(engine: AsyncEngine) -> str | None:
+    """Fetch the Alembic revision currently recorded in the database."""
+    async with engine.connect() as conn:
+        result = await conn.execute(text("SELECT version_num FROM alembic_version"))
+        row = result.first()
+        await conn.rollback()
+        return row[0] if row else None
+
 
 @router.get("/health", summary="Health check")
 async def health() -> HealthResponse:
-    """Health check endpoint."""
-    return HealthResponse(status="healthy", service="learn-to-cloud-api")
+    """Health check endpoint.
+
+    Includes the compiled curriculum artifact's identity (schema
+    version, authored version, content hash) -- loaded once per process
+    and guaranteed present because startup fails fast if it can't load.
+    """
+    catalog = get_curriculum_catalog()
+    return HealthResponse(
+        status="healthy",
+        service="learn-to-cloud-api",
+        curriculum_version=catalog.curriculum_version,
+        artifact_schema_version=catalog.artifact_schema_version,
+        content_hash=catalog.content_hash,
+    )
 
 
 @router.get(
@@ -64,7 +110,32 @@ async def ready(request: Request) -> HealthResponse:
             detail="Database unavailable",
         ) from e
 
-    return HealthResponse(status="ready", service="learn-to-cloud-api")
+    # Schema drift is a paging signal, not a readiness failure: log a warning
+    # for the Azure Monitor alert to pick up, but never fail this probe over
+    # it. Failing here would just cycle pods without fixing the drift.
+    code_head = getattr(request.app.state, "alembic_code_head", None)
+    if code_head is not None:
+        try:
+            db_head = await _get_db_alembic_head(request.app.state.engine)
+        except Exception as e:
+            logger.warning(
+                "health.ready.schema_drift_check_failed", extra={"error": str(e)}
+            )
+        else:
+            if db_head != code_head:
+                logger.warning(
+                    "health.ready.schema_drift",
+                    extra={"db_head": db_head, "code_head": code_head},
+                )
+
+    catalog = get_curriculum_catalog()
+    return HealthResponse(
+        status="ready",
+        service="learn-to-cloud-api",
+        curriculum_version=catalog.curriculum_version,
+        artifact_schema_version=catalog.artifact_schema_version,
+        content_hash=catalog.content_hash,
+    )
 
 
 @router.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)

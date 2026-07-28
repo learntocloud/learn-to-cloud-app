@@ -14,7 +14,9 @@
       "args": [
         "--headless",
         "--isolated",
-        "--no-sandbox"
+        "--no-sandbox",
+        "--browser",
+        "chromium"
       ]
     }
   }

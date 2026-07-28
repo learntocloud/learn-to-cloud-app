@@ -15,6 +15,7 @@ These are unit tests: no HTTP client, no real OAuth, no database.
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from authlib.integrations.starlette_client import OAuthError
 from fastapi.responses import RedirectResponse
@@ -191,6 +192,45 @@ class TestCallbackRoute:
         assert result.status_code == 302
         assert result.headers["location"] == "/"
         # Session should remain empty
+        assert "user_id" not in request.session
+
+    async def test_callback_handles_connect_timeout_on_token_exchange(self):
+        """httpx.ConnectTimeout during token exchange redirects to / (not 500)."""
+        request = _mock_request(session={})
+        mock_github = MagicMock()
+        mock_github.authorize_access_token = AsyncMock(
+            side_effect=httpx.ConnectTimeout("connect timed out")
+        )
+
+        with patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth:
+            mock_oauth.create_client.return_value = mock_github
+
+            result = await callback(request)
+
+        assert isinstance(result, RedirectResponse)
+        assert result.status_code == 302
+        assert result.headers["location"] == "/"
+        assert "user_id" not in request.session
+
+    async def test_callback_handles_connect_timeout_on_profile_fetch(self):
+        """httpx.ConnectTimeout fetching the user profile redirects to / (not 500)."""
+        request = _mock_request(session={})
+        mock_github = MagicMock()
+        mock_github.authorize_access_token = AsyncMock(
+            return_value={"access_token": "gho_fake"}
+        )
+        mock_github.get = AsyncMock(
+            side_effect=httpx.ConnectTimeout("connect timed out")
+        )
+
+        with patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth:
+            mock_oauth.create_client.return_value = mock_github
+
+            result = await callback(request)
+
+        assert isinstance(result, RedirectResponse)
+        assert result.status_code == 302
+        assert result.headers["location"] == "/"
         assert "user_id" not in request.session
 
     async def test_callback_redirects_home_when_github_not_configured(self):

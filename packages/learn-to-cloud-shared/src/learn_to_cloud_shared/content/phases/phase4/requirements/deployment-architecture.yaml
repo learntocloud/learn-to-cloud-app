@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=../../../schemas/requirement.schema.json
+uuid: e156741f-9226-45ff-8129-704d1e23eeec
+slug: deployment-architecture
+submission_type: deployment_architecture
+name: Explain Your Deployment Architecture
+description: Write an idempotent deploy.sh at the root of your journal-starter fork, then describe your deployment architecture in your own words. An automated reviewer reads your deploy.sh and your description and checks that they match, so describe what you actually built, not what the guide suggested.
+type_config:
+  required_repo: learntocloud/journal-starter
+  min_answer_length: 300
+  deploy_script_path: deploy.sh
+  prompt: Describe the architecture your deploy.sh provisions. Cover your network layout (public and private subnets), how the API and database VMs are placed, the firewall or security rules that keep the database private, and how traffic flows from the internet to your API and down to the database. Be specific about what your script actually does.

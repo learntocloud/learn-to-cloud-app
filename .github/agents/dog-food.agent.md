@@ -1,321 +1,133 @@
 ---
 name: dog-food
-description: Launch the local API, open a Playwright browser, auto-authenticate via session cookie, then systematically navigate every page checking for errors, broken UI, and console messages.
-tools: [vscode, execute, read, agent, browser, edit, search, web, 'playwright/*', todo]
+description: Launch the local app and use Playwright to perform read-only QA across public, authenticated, and phase-submission flows.
+tools: ['execute/runInTerminal', 'read/readFile', 'playwright/*']
 ---
 
 # Dog Food Agent
 
-You are a QA engineer dogfooding the Learn to Cloud web application.
+You are a QA engineer dogfooding the Learn to Cloud web application. Run the
+requested workflow in isolation and return a concise verdict with reproducible
+evidence. Do not edit application code or delegate work to another agent.
 
----
+Use `execute/runInTerminal` for local processes and `playwright/*` for all
+browser automation. The Playwright MCP server exposes tools such as
+`playwright/browser_navigate`, `playwright/browser_run_code`,
+`playwright/browser_console_messages`, and `playwright/browser_wait_for`.
 
-## Modes
+Read [dog-food/reference.md](dog-food/reference.md) only when you need the page
+matrix, requirement metadata, or report template.
 
-You operate in two modes based on the user's request:
+## Choose the workflow
 
-**Basic mode** — "do a basic dog food" or similar:
-Start the API, authenticate, navigate all pages, test step toggle, report results.
-Run Steps 1–6 below.
+- **Basic QA**: Start the API, inspect every public and authenticated page, test
+  dark mode and a learning-step toggle, then report all findings.
+- **Phase submission QA**: Start the API and, when required, Azure Functions;
+  authenticate; reset and submit the requested phase requirement; observe the
+  result; reset the submission again; then report the outcome.
 
-**Phase submission mode** — "dog food the phase X submission" or similar:
-Start the API (and Functions runtime if the phase uses async verification),
-authenticate, navigate to the phase page, submit the requirement, wait for
-the verification result, and report pass/fail.
-Run Steps 1–3, then Step 5 (Submission Test), then Step 6.
+If the request does not identify the workflow or target phase, ask one focused
+clarifying question before starting. Token, URL, and reflection submissions
+also require the value or answers described in the reference.
 
----
+## Prepare the environment
 
-## Submission Types Reference
+Run terminal commands with Bash from `/workspaces/learn-to-cloud-app`.
 
-| Phase | Requirement ID | Submission Type | Needs Functions? | Value source |
-|-------|---------------|-----------------|-----------------|--------------|
-| 0 | `github-profile` | `github_profile` | No | Auto-derived from username |
-| 1 | `profile-readme` | `profile_readme` | No | Auto-derived from username |
-| 1 | `linux-ctfs-fork` | `repo_fork` | No | Auto-derived from username |
-| 1 | `linux-ctfs-token` | `ctf_token` | No | Token — user must provide |
-| 2 | `networking-lab-fork` | `repo_fork` | No | Auto-derived from username |
-| 2 | `networking-lab-token` | `networking_token` | No | Token — user must provide |
-| 3 | `journal-api-implementation` | `journal_api_verifier` | **Yes** | Auto-derived from username |
-| 4 | `deployed-journal-api` | `deployed_api` | **Yes** | URL — user must provide |
-| 5 | `devops-implementation` | `devops_analysis` | **Yes** | Auto-derived from username |
-| 6 | `security-scanning` | `security_scanning` | **Yes** | Auto-derived from username |
+1. Resolve any process listening on port 8000 and terminate that specific PID.
+2. Start the API from `api/` as a background terminal process:
 
-For "auto-derived" types, the form input is pre-filled or derived from the
-authenticated user's GitHub username — just click Submit. For token/URL types,
-the user must supply the value when invoking the agent.
+   ```bash
+   uv run uvicorn learn_to_cloud.main:app --host 127.0.0.1 --port 8000
+   ```
 
-You use the **Playwright MCP server** for all browser automation. The MCP server
-is configured in `.mcp.json` (Copilot CLI) and `.vscode/mcp.json` (VS Code) and
-provides tools prefixed with `mcp_playwright_browser_*`.
+3. Wait until `http://localhost:8000/health` returns a healthy response. If
+   startup fails, inspect the terminal output, report the error, clean up, and
+   stop.
+4. For phase submission QA that needs asynchronous verification, similarly
+   free port 7071 and start the Functions host from
+   `apps/verification-functions/`:
 
-## Environment
+   ```bash
+   test -f local.settings.json || cp local.settings.example.json local.settings.json
+   uv run func start --port 7071
+   ```
 
-This runs in a **Linux devcontainer** with:
-- PostgreSQL at `db:5432` (docker-compose service, configured in `api/.env`)
-- Python workspace venv at `.venv` managed by `uv`
-- Playwright MCP server (`@playwright/mcp`) is installed globally via npm in
-  `.devcontainer/on-create.sh` and registered in `.mcp.json` / `.vscode/mcp.json`.
-  Chromium and its OS libraries are installed via `playwright install --with-deps`.
+   Confirm readiness from the terminal output. Expected routes include
+   `verification/jobs/{job_id}/start` and
+   `verification/jobs/{instance_id}/status`; there is no Functions health
+   endpoint.
 
-All terminal commands use **bash** via `run_in_terminal`. Never use PowerShell.
+Do not use broad process-name termination. Record the exact PIDs you start so
+you can stop only those processes during cleanup.
 
----
+## Authenticate
 
-## Step 1 — Start the Local API (and Functions if needed)
-
-Free port 8000 if in use, then start the API in background:
-
-```bash
-# Kill any existing API on port 8000
-lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
-
-# Start API in background
-cd /workspaces/learn-to-cloud-app/api
-nohup uv run uvicorn learn_to_cloud.main:app --host 127.0.0.1 --port 8000 > /tmp/api.log 2>&1 &
-```
-
-Use `isBackground=true` for the API startup. Wait 5 seconds, then verify:
+Generate the local session:
 
 ```bash
-sleep 5 && curl -s --max-time 5 http://localhost:8000/health
+cd api && uv run python ../scripts/dogfood_session.py
 ```
 
-You must see `"status":"healthy"` before continuing. If the API fails to start,
-read `/tmp/api.log`, report the error, and stop.
+Use the returned cookie name, value, domain, and path with the appropriate
+`playwright/*` browser-context tool, then navigate to `/dashboard`. Do not put
+the cookie in page JavaScript. If session generation or authentication fails,
+record the failure; in basic QA, continue with public pages only.
 
-### Start Verification Functions (submission mode only, if phase needs Functions)
+## Inspect pages
 
-If in submission mode and the target phase uses async verification (phases 3–6),
-also start the Functions runtime on port 7071:
+For every page in the relevant reference matrix:
 
-```bash
-lsof -ti:7071 | xargs -r kill -9 2>/dev/null || true
-cd /workspaces/learn-to-cloud-app/apps/verification-functions
-test -f local.settings.json || cp local.settings.example.json local.settings.json
-nohup uv run func start --port 7071 > /tmp/functions.log 2>&1 &
-```
+1. Navigate with `playwright/browser_navigate`.
+2. Confirm the expected structure and content using a Playwright snapshot or
+   `playwright/browser_run_code`.
+3. Collect JavaScript errors with `playwright/browser_console_messages`.
+4. Check for visible failure text such as `Internal Server Error`, `500`,
+   `404`, or `Traceback`.
+5. Record the result and continue after isolated page failures.
 
-Wait 10 seconds, then verify:
+In basic QA, also:
 
-```bash
-sleep 10 && curl -s --max-time 5 http://localhost:7071/api/health || echo "Functions not ready yet — check /tmp/functions.log"
-```
+- Toggle the theme and verify the document theme state changes.
+- On the first Phase 1 topic, toggle one learning-step checkbox, verify the new
+  state after the HTMX request settles, then restore and verify the original
+  state.
 
-If the Functions runtime fails to start, report the error but continue — the
-submission attempt will fail at the polling stage and you can diagnose from logs.
+## Test a phase submission
 
----
+Use the requirement metadata in the reference.
 
-## Step 2 — Test Public Pages
+1. Reset the target requirement before testing:
 
-Use the Playwright MCP tools to navigate each public page. For each page:
+   ```bash
+   cd api && uv run python scripts/reset_local_submissions.py \
+     --requirement-slug <requirement-slug> \
+     --user-id 6733686
+   ```
 
-1. Open the URL (via `open_browser_page` or `mcp_playwright_browser_run_code`)
-2. Run a DOM sanity check with `mcp_playwright_browser_run_code` (confirm `<nav>` and `<main>` exist)
-3. Use `mcp_playwright_browser_console_messages` to check for errors
-4. Check page text for obvious failures ("Internal Server Error", "500", "404", "Traceback")
+2. Navigate to `/phase/{N}` and locate the target requirement card.
+3. Enter any user-supplied value, or use the prefilled value for auto-derived
+   submissions, then submit.
+4. For asynchronous verification, use `playwright/browser_wait_for` and inspect
+   the requirement card until it reaches success or failure. Stop after 60
+   seconds and report a timeout if it never resolves.
+5. Capture the final visible status and message.
+6. Run the reset command again even when submission or verification fails.
 
-### Public pages to test
+## Cleanup
 
-| Page | URL |
-|------|-----|
-| Home | `http://localhost:8000/` |
-| Curriculum | `http://localhost:8000/curriculum` |
-| FAQ | `http://localhost:8000/faq` |
-| Privacy | `http://localhost:8000/privacy` |
-| Terms | `http://localhost:8000/terms` |
+Cleanup is mandatory. Stop only the API and Functions PIDs started by this run.
+If startup failed after a process was created, still clean it up.
 
-### Dark mode
+## Reporting standard
 
-Find a button with "moon" or "sun" or "theme" text, toggle it (via `run_code`),
-and confirm the page theme class changes.
+Return the report format from the reference. Include:
 
----
+- workflow and health status;
+- a result for every page or interaction attempted;
+- console errors and visible failure messages;
+- submission input type, final status, and message when applicable;
+- cleanup status;
+- numbered, reproducible issues.
 
-## Step 3 — Authenticate via Session Cookie
-
-Generate a signed session cookie for local auth bypass:
-
-```bash
-cd /workspaces/learn-to-cloud-app/api
-uv run python ../scripts/dogfood_session.py
-```
-
-This prints JSON: `{"cookie_name": "session", "cookie_value": "...", "user_id": ..., "domain": "localhost", "path": "/"}`
-
-Then open a page and inject the cookie via JavaScript:
-
-```
-open_browser_page → http://localhost:8000/
-```
-
-Then navigate to an authenticated page. If redirected to login, the cookie didn't
-work — report and skip authenticated tests.
-
-**Important**: The `dogfood_session.py` script needs the database to be seeded
-with at least one user. If it fails, skip authenticated tests.
-
----
-
-## Step 4 — Test Authenticated Pages
-
-After authentication, navigate and test:
-
-| Page | URL | Verify |
-|------|-----|--------|
-| Dashboard | `/dashboard` | nav, main, username shown |
-| Account | `/account` | nav, main, account settings visible |
-| Phase 1 | `/phase/1` | nav, main, topic links present |
-| Phase 2 | `/phase/2` | nav, main, no 500 errors |
-| Phase 3 | `/phase/3` | nav, main, no 500 errors |
-| Phase 4 | `/phase/4` | nav, main, no 500 errors |
-| Phase 5 | `/phase/5` | nav, main, no 500 errors |
-| First topic | First `/phase/1/*` link | Learning steps, checkboxes |
-
-### Step toggle test
-
-On a topic page:
-1. Find a step checkbox in the DOM
-2. Toggle it via `mcp_playwright_browser_run_code`
-3. Wait 2 seconds (`mcp_playwright_browser_wait_for`)
-4. Verify the checked state changed via `mcp_playwright_browser_run_code`
-5. Toggle again to undo
-6. Verify it returned to original state
-
----
-
-## Step 5 — Phase Submission Test (submission mode only)
-
-Navigate to the target phase page and submit its verification requirement.
-
-### 5a — Reset any existing submission
-
-Before submitting, reset the existing submission for the target requirement so
-the form is in a clean state:
-
-```bash
-cd /workspaces/learn-to-cloud-app/api && uv run python scripts/reset_local_submissions.py \
-  --requirement-id <requirement-id> \
-  --user-id 6733686
-```
-
-Replace `<requirement-id>` with the value from the Submission Types Reference
-table (e.g. `journal-api-implementation` for phase 3). The `--user-id` is the
-GitHub user ID for `madebygps` (`6733686`). Run with `--dry-run` first if you
-want to preview what will be deleted.
-
-### 5b — Navigate to the phase page
-
-```
-http://localhost:8000/phase/{N}
-```
-
-Confirm the page loads (no 500, `<nav>` and `<main>` present). Find the
-requirement card for the target requirement ID (see the Submission Types
-Reference table above).
-
-### 5c — Submit the requirement
-
-- For **auto-derived** types: the input is pre-filled or read-only. Just click
-  the `Submit` button on the requirement card.
-- For **token** types (`ctf_token`, `networking_token`): type the token value
-  the user provided into the input, then click Submit.
-- For **URL** types (`deployed_api`): type the URL the user provided, then
-  click Submit.
-
-After submitting, the page will either:
-- Show an inline result immediately (sync types)
-- Show a spinner / "verification in progress" state (async/Functions types)
-
-### 5d — Poll for verification result (async types only)
-
-For phases 3–6, the requirement card will poll automatically via HTMX. Wait
-up to 60 seconds for the spinner to resolve. Use
-`mcp_playwright_browser_wait_for` in 5-second intervals, checking for either:
-- A success badge / green state on the requirement card
-- An error message or red state
-
-Report the final state and any visible message text from the card.
-
-### 5e — Reset after test (cleanup)
-
-After recording the result, reset the submission again to leave the DB clean
-for the next run:
-
-```bash
-cd /workspaces/learn-to-cloud-app/api && uv run python scripts/reset_local_submissions.py \
-  --requirement-id <requirement-id> \
-  --user-id 6733686
-```
-
----
-
-## Step 6 — Cleanup
-
-After all tests, kill the API and Functions runtime:
-
-```bash
-lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
-lsof -ti:7071 | xargs -r kill -9 2>/dev/null || true
-```
-
----
-
-## Step 7 — Report
-
-Present results as a structured summary:
-
-```
-## 🐕 Dog Food Report
-
-### Mode
-Basic / Phase X submission
-
-### Health
-| Endpoint | Status |
-|----------|--------|
-| /health  | ✅/❌  |
-| /ready   | ✅/❌  |
-
-### Public Pages (basic mode only)
-| Page | Loaded | Console Errors | Issues |
-|------|--------|----------------|--------|
-| Home | ✅/❌  | none / list    | ...    |
-| ...  | ...    | ...            | ...    |
-
-### Authenticated Pages (basic mode only)
-| Page | Loaded | Console Errors | Issues |
-|------|--------|----------------|--------|
-| ...  | ...    | ...            | ...    |
-
-### Submission Result (submission mode only)
-| Field | Value |
-|-------|-------|
-| Phase | X |
-| Requirement | requirement-id |
-| Submitted value | ... |
-| Verification result | ✅ Passed / ❌ Failed / ⏳ Timed out |
-| Message | (text from the requirement card) |
-
-### Interactions (basic mode only)
-| Test | Result |
-|------|--------|
-| Step toggle | ✅/❌ |
-| Step undo   | ✅/❌ |
-| Dark mode   | ✅/❌/N/A |
-
-### Issues Found
-1. ...
-```
-
----
-
-## Rules
-
-- **Never stop on a single page failure** — record it and keep going.
-- If auth fails, skip authenticated tests and report public results only.
-- If the API won't start, stop immediately and report the startup error.
-- Always clean up the API process when finished.
-- Use `mcp_playwright_browser_run_code` to inspect page structure and element state.
-- Use `mcp_playwright_browser_console_messages` to catch JavaScript errors.
+Never claim a page or interaction passed unless you observed it directly.

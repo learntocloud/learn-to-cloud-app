@@ -42,6 +42,85 @@ resource "azurerm_monitor_action_group" "critical" {
 }
 
 # ---------------------------------------------------------------------------
+# Availability test (synthetic uptime probe)
+# ---------------------------------------------------------------------------
+
+# Every alert below is a scheduled query over telemetry the app emits while it
+# is running, so none of them fire on a "hard down" outage: a boot crashloop, an
+# ingress/TLS/DNS breakage, or a full platform outage where zero telemetry
+# flows. This standard web test is the one signal that pings the app from
+# outside and pages when it is completely unreachable.
+#
+# It targets /health (pure liveness, always 200) and NOT /ready, which returns
+# 503 on transient DB/schema issues that already have their own alerts; pointing
+# the availability test at /ready would double-page and add noise.
+resource "azurerm_application_insights_standard_web_test" "availability" {
+  name                    = "webtest-ltc-availability-${var.environment}"
+  resource_group_name     = azurerm_resource_group.main.name
+  location                = azurerm_resource_group.main.location
+  application_insights_id = azurerm_application_insights.main.id
+  description             = "Synthetic uptime probe against https://learntocloud.guide/health"
+  enabled                 = true
+  frequency               = 300
+  timeout                 = 30
+  retry_enabled           = true
+  tags                    = local.tags
+
+  # Central US (Chicago) + West US (San Jose). Two regions is enough coverage
+  # for a dev learning platform; full 3+ geo coverage is out of scope.
+  geo_locations = ["us-il-ch1-azr", "us-ca-sjc-azr"]
+
+  request {
+    url                              = "https://learntocloud.guide/health"
+    http_verb                        = "GET"
+    parse_dependent_requests_enabled = false
+    follow_redirects_enabled         = true
+  }
+
+  validation_rules {
+    expected_status_code = 200
+    ssl_check_enabled    = true
+  }
+}
+
+resource "azurerm_monitor_metric_alert" "availability" {
+  name                = "alert-ltc-availability-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  description         = "Alert when the availability web test reports less than 100% success (API unreachable)"
+  severity            = 1
+  enabled             = true
+  frequency           = "PT5M"
+  window_size         = "PT5M"
+  tags                = local.tags
+
+  # A metric alert can only span a single target resource type. Scope it to the
+  # App Insights component (where the availabilityResults metric lands) and set
+  # target_resource_type/location explicitly; mixing the web-test resource type
+  # into scopes makes Azure reject the alert with a 400.
+  scopes                   = [azurerm_application_insights.main.id]
+  target_resource_type     = "microsoft.insights/components"
+  target_resource_location = azurerm_resource_group.main.location
+
+  criteria {
+    metric_namespace = "microsoft.insights/components"
+    metric_name      = "availabilityResults/availabilityPercentage"
+    aggregation      = "Average"
+    operator         = "LessThan"
+    threshold        = 100
+
+    dimension {
+      name     = "availabilityResult/name"
+      operator = "Include"
+      values   = [azurerm_application_insights_standard_web_test.availability.name]
+    }
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.critical.id
+  }
+}
+
+# ---------------------------------------------------------------------------
 # Log Alerts (scheduled query rules v2)
 # ---------------------------------------------------------------------------
 
@@ -246,6 +325,151 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_durable_
     failing_periods {
       minimum_failing_periods_to_trigger_alert = 1
       number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
+# The verification submit handler catches DurableVerificationConfigError and
+# returns a 200 page with an error banner, so the 5xx-based alerts above never
+# see it. A config error means verification is misconfigured on our side and is
+# broken for every learner until someone fixes it, so we page on the very first
+# occurrence by matching the structured log event and its error_type dimension.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_verification_config_error" {
+  name                = "alert-ltc-api-verification-config-error-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when the verification submit path hits a configuration error (returns 200, so no 5xx alert fires)"
+  severity            = 1
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      traces
+      | extend ErrorType = tostring(customDimensions.error_type)
+      | where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-${var.environment}")
+          or cloud_RoleName has "learn-to-cloud-api"
+          or cloud_RoleName has "ca-ltc-api"
+      | where message has "htmx.submit.durable_start_failed"
+      | where ErrorType == "DurableVerificationConfigError"
+    QUERY
+    time_aggregation_method = "Count"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
+# verification.attempt is a custom OTel counter emitted by validate_submission
+# (packages/learn-to-cloud-shared/.../verification/dispatcher.py) for every
+# inline and background verification, labelled by submission_type and result
+# (pass/fail/error). A clean validator failure never produces a 5xx, so the
+# request-based alerts above would miss a failure-rate spike entirely.
+#
+# AppMetrics isn't recognized by alert-rule validation until the workspace
+# schema catches up after the first write, so a bare `AppMetrics` reference
+# (or `union isfuzzy=true AppMetrics` alone) fails apply with a hard 400 if no
+# custom metric has landed yet, since fuzzy union only suppresses the error
+# when at least one union operand resolves. Unioning in an empty literal
+# datatable with the same columns we read (Name, Sum, Properties) guarantees
+# one operand always resolves, so the rule deploys cleanly with or without
+# AppMetrics data and produces identical results once the table exists.
+# Verified directly against the live dev Application Insights resource: the
+# bare/fuzzy-only query reproduces "BadArgumentError: invalid properties",
+# the datatable version returns a clean (empty) result with only a non-fatal
+# resolution warning.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_failure_rate" {
+  name                = "alert-ltc-verification-attempt-failure-rate-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when verification attempts fail/error at a high rate over an hour"
+  severity            = 2
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT1H"
+  window_duration       = "PT1H"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      union isfuzzy=true AppMetrics, (datatable(Name: string, Sum: real, Properties: dynamic)[])
+      | where Name == "verification.attempt"
+      | extend result = tostring(Properties['result'])
+      | summarize Total = sum(Sum), Failed = sumif(Sum, result in ("fail", "error"))
+      | where Total >= 5
+      | project FailureRatePct = round(100.0 * Failed / Total, 1)
+    QUERY
+    time_aggregation_method = "Maximum"
+    metric_measure_column   = "FailureRatePct"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 50
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
+# Tier 3 follow-up from the #432 post-mortem: page if the production DB's
+# applied Alembic head ever falls out of sync with the head baked into the
+# deployed code (manual psql access, a half-applied migration, a future
+# regression). /ready already compares the two on every poll and logs
+# health.ready.schema_drift on mismatch without failing the probe itself, so
+# this alert is the thing that actually pages a human; the readiness probe's
+# 200/503 contract stays reserved for "can this pod serve traffic".
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "schema_drift" {
+  name                = "alert-ltc-schema-drift-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when the deployed DB's Alembic head diverges from the deployed code's Alembic head for more than 10 minutes"
+  severity            = 2
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      traces
+      | where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-${var.environment}")
+          or cloud_RoleName has "learn-to-cloud-api"
+          or cloud_RoleName has "ca-ltc-api"
+      | where message has "health.ready.schema_drift"
+    QUERY
+    time_aggregation_method = "Count"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 3
+      number_of_evaluation_periods             = 3
     }
   }
 

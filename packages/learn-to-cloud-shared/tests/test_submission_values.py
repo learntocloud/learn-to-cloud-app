@@ -8,9 +8,10 @@ from learn_to_cloud_shared.submission_values import (
     value_kind_for_submission_type,
 )
 from learn_to_cloud_shared.testing.requirement_factories import (
+    career_reflection_requirement,
     ctf_token_requirement,
     deployed_api_requirement,
-    github_profile_requirement,
+    profile_readme_requirement,
 )
 
 
@@ -18,13 +19,12 @@ from learn_to_cloud_shared.testing.requirement_factories import (
 @pytest.mark.parametrize(
     ("submission_type", "expected"),
     [
-        (SubmissionType.GITHUB_PROFILE, SubmissionValueKind.GITHUB_URL),
+        (SubmissionType.PROFILE_README, SubmissionValueKind.GITHUB_URL),
         (SubmissionType.JOURNAL_API_VERIFIER, SubmissionValueKind.GITHUB_URL),
         (SubmissionType.CTF_TOKEN, SubmissionValueKind.TOKEN),
         (SubmissionType.DEPLOYED_API, SubmissionValueKind.DEPLOYED_URL),
-        (SubmissionType.JOURNAL_API_RESPONSE, SubmissionValueKind.TEXT),
-        ("ci_status", SubmissionValueKind.GITHUB_URL),
-        ("iac_token", SubmissionValueKind.TOKEN),
+        (SubmissionType.CAREER_REFLECTION, SubmissionValueKind.TEXT),
+        (SubmissionType.DEPLOYMENT_ARCHITECTURE, SubmissionValueKind.TEXT),
     ],
 )
 def test_value_kind_for_submission_type(
@@ -35,22 +35,53 @@ def test_value_kind_for_submission_type(
 
 
 @pytest.mark.unit
-def test_github_url_value_uses_github_column() -> None:
+def test_github_url_value_uses_typed_payload() -> None:
     value = SubmittedValue.from_raw(
-        github_profile_requirement(),
+        profile_readme_requirement(),
         " https://github.com/user ",
     )
 
     assert value.kind is SubmissionValueKind.GITHUB_URL
     assert value.github_url == "https://github.com/user"
-    assert value.to_columns() == {
-        "submitted_value": "https://github.com/user",
+    assert value.to_payload() == {
         "submission_value_kind": "github_url",
         "github_url": "https://github.com/user",
         "token_value": None,
         "deployed_url": None,
         "text_value": None,
     }
+
+
+@pytest.mark.unit
+def test_text_value_uses_typed_payload() -> None:
+    value = SubmittedValue.from_raw(
+        career_reflection_requirement(),
+        "  ## Question 0?\n\nA thoughtful answer.  ",
+    )
+
+    assert value.kind is SubmissionValueKind.TEXT
+    assert value.text_value == "## Question 0?\n\nA thoughtful answer."
+    assert value.as_text == "## Question 0?\n\nA thoughtful answer."
+    assert value.to_payload() == {
+        "submission_value_kind": "text",
+        "github_url": None,
+        "token_value": None,
+        "deployed_url": None,
+        "text_value": "## Question 0?\n\nA thoughtful answer.",
+    }
+
+
+@pytest.mark.unit
+def test_text_value_round_trips_through_payload() -> None:
+    original = SubmittedValue.from_raw(
+        career_reflection_requirement(),
+        "Reflection body text.",
+    )
+
+    restored = SubmittedValue.from_payload(original.to_payload())
+
+    assert restored.kind is SubmissionValueKind.TEXT
+    assert restored.text_value == "Reflection body text."
 
 
 @pytest.mark.unit
@@ -80,7 +111,7 @@ def test_deployed_url_value_uses_deployed_url_column() -> None:
 )
 def test_github_url_requires_github_url(raw_value: str) -> None:
     with pytest.raises(ValueError, match="GitHub URL"):
-        SubmittedValue.from_raw(github_profile_requirement(), raw_value)
+        SubmittedValue.from_raw(profile_readme_requirement(), raw_value)
 
 
 @pytest.mark.unit
@@ -93,15 +124,14 @@ def test_deployed_url_rejects_whitespace() -> None:
 
 
 @pytest.mark.unit
-def test_payload_round_trip_rejects_legacy_mismatch() -> None:
+def test_payload_rejects_multiple_typed_values() -> None:
     payload = {
         "submission_value_kind": "github_url",
         "github_url": "https://github.com/user",
-        "token_value": None,
+        "token_value": "unexpected-token",
         "deployed_url": None,
         "text_value": None,
-        "submitted_value": "https://github.com/other",
     }
 
-    with pytest.raises(ValueError, match="Legacy submitted_value"):
+    with pytest.raises(ValueError, match="Invalid typed value"):
         SubmittedValue.from_payload(payload)

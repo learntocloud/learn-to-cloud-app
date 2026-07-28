@@ -9,7 +9,7 @@ The ``journal-starter`` repo includes a GitHub Actions workflow
 fork, they inherit the workflow.  A green CI on ``main`` proves all
 tests pass — which is the honest acceptance gate.
 
-URL validation and ownership checks are handled by the dispatcher
+URL validation and ownership checks are handled by the engine gate
 before this module is called.
 
 Workflow::
@@ -27,9 +27,9 @@ import httpx
 from opentelemetry import trace
 
 from learn_to_cloud_shared.schemas import ValidationResult
+from learn_to_cloud_shared.verification.errors import github_error_to_result
 from learn_to_cloud_shared.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
-    github_error_to_validation_result,
 )
 from learn_to_cloud_shared.verification.workflow_runs import (
     WorkflowRuns,
@@ -49,7 +49,7 @@ async def verify_ci_status(
 ) -> ValidationResult:
     """Verify that CI tests pass on the learner's fork's main branch.
 
-    URL validation and ownership checks are handled by the dispatcher
+    URL validation and ownership checks are handled by the engine gate
     before this function is called.
 
     Args:
@@ -89,7 +89,7 @@ async def verify_ci_status(
                     ),
                 )
             span.record_exception(e)
-            return github_error_to_validation_result(
+            return github_error_to_result(
                 e,
                 event="ci_status.api_error",
                 context={"owner": owner, "repo": repo},

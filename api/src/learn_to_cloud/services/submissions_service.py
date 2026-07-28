@@ -1,7 +1,7 @@
 """Submissions service for hands-on verification submissions.
 
 This module handles:
-- Verification job creation with pre-validation
+- Verification attempt creation with pre-validation
 - Data transformation helpers used by other services (e.g. progress)
 - Already-validated short-circuit (skip re-verification for passed requirements)
 
@@ -11,33 +11,35 @@ Routes should delegate submission business logic to this module.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from learn_to_cloud_shared.models import VerificationJob
-from learn_to_cloud_shared.repositories.submission_repository import (
-    SubmissionRepository,
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
+from learn_to_cloud_shared.progress_reads import are_all_requirements_succeeded
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    AttemptAlreadyValidatedError,
+    VerificationAttemptRepository,
 )
-from learn_to_cloud_shared.repositories.verification_job_repository import (
-    VerificationJobRepository,
+from learn_to_cloud_shared.requirements import (
+    RequirementIndex,
+    get_prerequisite_phase,
+    load_requirement_index,
 )
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
     Phase,
     PhaseSubmissionContext,
     SubmissionData,
-    SubmissionResult,
 )
 from learn_to_cloud_shared.submission_values import SubmittedValue
-from learn_to_cloud_shared.verification.dispatcher import is_sync_verifiable
 from learn_to_cloud_shared.verification.execution import (
-    execute_sync_submission_validation,
-    to_submission_data,
+    attempt_to_submission_data,
 )
-from learn_to_cloud_shared.verification.requirements import (
-    RequirementIndex,
-    get_prerequisite_phase,
-    load_requirement_index,
+from learn_to_cloud_shared.verification_attempt_snapshot import (
+    ATTEMPT_PAYLOAD_VERSION,
+    build_requirement_snapshot,
+    compute_snapshot_hash,
 )
+from opentelemetry.propagate import inject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
@@ -48,9 +50,8 @@ async def get_phase_submission_context(
 ) -> PhaseSubmissionContext:
     """Build submission context for rendering a phase page.
 
-    Fetches the latest submission per requirement for the user in
-    ``phase``, converts each to a ``SubmissionData`` DTO, and parses
-    stored feedback JSON into template-ready summaries.
+    Fetches the latest terminal attempt per requirement and converts it to
+    template-ready submission and feedback data.
 
     Takes the resolved ``Phase`` rather than a phase id so we can pull
     each requirement's UUID, slug, and submission_type out of the
@@ -63,42 +64,43 @@ async def get_phase_submission_context(
             req.uuid: req for req in phase.hands_on_verification.requirements
         }
 
-    repo = SubmissionRepository(db)
-    raw_submissions = await repo.get_latest_for_requirements(
+    attempt_repo = VerificationAttemptRepository(db)
+    latest_attempts = await attempt_repo.get_latest_terminal_for_requirements(
         user_id, requirements_by_uuid.keys()
     )
 
     submissions_by_req: dict[str, SubmissionData] = {}
     feedback_by_req: dict[str, dict[str, object]] = {}
 
-    for sub in raw_submissions:
-        requirement = requirements_by_uuid.get(sub.requirement_uuid)
-        if requirement is None:
-            # Defensive: get_latest_for_requirements only returns rows whose
-            # uuid is in the input list, but if curriculum drift slips one
-            # past us we skip silently rather than crash the phase page.
-            continue
-        sub_data = to_submission_data(sub)
-        submissions_by_req[requirement.slug] = sub_data
-
+    def _record_feedback(
+        requirement_slug: str, feedback_json: list[dict] | None
+    ) -> None:
         # Surface rubric feedback for both passing and failing submissions
         # (#425). Stored as JSONB (#459) so the rows arrive as a list of
         # TaskResult dicts and we don't need json.loads / try / except.
-        if sub.feedback_json:
-            tasks = [
-                {
-                    "name": t.get("task_name", ""),
-                    "passed": t.get("passed", False),
-                    "message": t.get("feedback", ""),
-                    "next_steps": t.get("next_steps", ""),
-                }
-                for t in sub.feedback_json
-            ]
-            passed = sum(1 for t in tasks if t["passed"])
-            feedback_by_req[requirement.slug] = {
-                "tasks": tasks,
-                "passed": passed,
+        if not feedback_json:
+            return
+        tasks = [
+            {
+                "name": t.get("task_name", ""),
+                "passed": t.get("passed", False),
+                "message": t.get("feedback", ""),
+                "next_steps": t.get("next_steps", ""),
             }
+            for t in feedback_json
+        ]
+        passed = sum(1 for t in tasks if t["passed"])
+        feedback_by_req[requirement_slug] = {"tasks": tasks, "passed": passed}
+
+    for attempt in latest_attempts:
+        requirement = requirements_by_uuid.get(attempt.requirement_uuid)
+        if requirement is None:
+            # Defensive: get_latest_terminal_for_requirements only returns
+            # rows whose uuid is in the input list, but if curriculum drift
+            # slips one past us we skip silently rather than crash the page.
+            continue
+        submissions_by_req[requirement.slug] = attempt_to_submission_data(attempt)
+        _record_feedback(requirement.slug, attempt.feedback_json)
 
     return PhaseSubmissionContext(
         submissions_by_req=submissions_by_req,
@@ -138,37 +140,18 @@ class _PreValidationContext:
 
 
 @dataclass(frozen=True, slots=True)
-class VerificationJobSubmission:
-    """Result of creating or reusing a verification job (async Durable path).
+class VerificationAttemptSubmission:
+    """Result of creating or reusing a verification attempt."""
 
-    Carries the validated requirement (and the github_username used at
-    submit time) so the route can build a complete
-    ``PreparedVerificationJob`` payload for the Durable starter without
-    re-deriving anything from the request.
-    """
-
-    job: VerificationJob
+    attempt_id: UUID
     created: bool
-    requirement: HandsOnRequirement
-    github_username: str | None
 
 
-@dataclass(frozen=True, slots=True)
-class SyncVerificationResult:
-    """Result of running a sync verification inside the FastAPI request.
-
-    Returned by :func:`create_verification_job` for submission types whose
-    validators finish in well under a second (phases 0-2). No Durable
-    Functions orchestration is started — the ``Submission`` row is already
-    persisted by the time this is returned.
-    """
-
-    submission_result: SubmissionResult
-
-
-# Tagged union returned by ``create_verification_job``. Callers use
-# ``isinstance`` to pick the rendering path.
-SubmissionDispatchResult = VerificationJobSubmission | SyncVerificationResult
+def _current_traceparent() -> str | None:
+    """Return the active W3C trace parent when telemetry is available."""
+    carrier: dict[str, str] = {}
+    inject(carrier)
+    return carrier.get("traceparent")
 
 
 async def _check_submission_preconditions(
@@ -181,26 +164,28 @@ async def _check_submission_preconditions(
 
     Validates requirement existence, already-validated status, and phase gating.
 
-    Opens a short-lived DB session for reads, then releases it before returning.
+    Opens a short-lived DB session for the learner-state reads (existing
+    attempt and prior-phase verification), then releases it before returning.
+    ``create_or_get_active`` still re-checks "already succeeded" under its
+    advisory lock, so this is a fast-fail before the heavier snapshot work,
+    not the only guard against a duplicate validated submission.
     """
-    async with session_maker() as read_session:
-        index = await load_requirement_index(read_session)
-        requirement = index.by_slug.get(requirement_slug)
-        if not requirement:
-            raise RequirementNotFoundError(f"Requirement not found: {requirement_slug}")
+    index = load_requirement_index()
+    requirement = index.by_slug.get(requirement_slug)
+    if not requirement:
+        raise RequirementNotFoundError(f"Requirement not found: {requirement_slug}")
 
-        phase_order = index.phase_order_by_req_slug.get(requirement_slug)
-        if phase_order is None:
-            raise RequirementNotFoundError(
-                f"Requirement not mapped to a phase: {requirement_slug}"
-            )
-
-        submission_repo = SubmissionRepository(read_session)
-
-        existing = await submission_repo.get_by_user_and_requirement(
-            user_id, requirement.uuid
+    phase_order = index.phase_order_by_req_slug.get(requirement_slug)
+    if phase_order is None:
+        raise RequirementNotFoundError(
+            f"Requirement not mapped to a phase: {requirement_slug}"
         )
-        if existing is not None and existing.is_validated:
+
+    async with session_maker() as read_session:
+        already_succeeded = await are_all_requirements_succeeded(
+            read_session, user_id, [requirement.uuid]
+        )
+        if already_succeeded:
             raise AlreadyValidatedError("You have already completed this requirement.")
 
         # Sequential phase gating
@@ -208,8 +193,8 @@ async def _check_submission_preconditions(
         if prereq_phase is not None:
             prereq_req_uuids = index.requirement_uuids_for_phase(prereq_phase)
             if prereq_req_uuids:
-                all_done = await submission_repo.are_all_requirements_validated(
-                    user_id, prereq_req_uuids
+                all_done = await are_all_requirements_succeeded(
+                    read_session, user_id, prereq_req_uuids
                 )
                 if not all_done:
                     raise PriorPhaseNotCompleteError(
@@ -226,19 +211,23 @@ async def _check_submission_preconditions(
     )
 
 
-async def create_verification_job(
+async def create_verification_attempt(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_slug: str,
     submitted_value: str,
     github_username: str | None,
-) -> SubmissionDispatchResult:
-    """Validate request preconditions and dispatch to the right execution path.
+) -> VerificationAttemptSubmission:
+    """Validate request preconditions and create the unified verification attempt.
 
-    Returns a :class:`SyncVerificationResult` for submission types whose
-    validators run inside the FastAPI request (phases 0-2). Returns a
-    :class:`VerificationJobSubmission` for types that go through Durable
-    Functions (phases 3-6).
+    Every submission type runs through Durable Functions. This validates the
+    request, then -- inside one transaction, guarded by a transaction-scoped
+    Postgres advisory lock on ``(user_id, requirement_uuid)`` -- creates or
+    reuses the authoritative ``VerificationAttempt`` row.
+
+    The advisory lock serializes concurrent submits for the same
+    requirement so two racing requests can never both pass the active/succeeded
+    checks and create two active attempts.
     """
     ctx = await _check_submission_preconditions(
         session_maker,
@@ -251,31 +240,38 @@ async def create_verification_job(
     except ValueError as exc:
         raise InvalidSubmittedValueError(str(exc)) from exc
 
-    if is_sync_verifiable(ctx.requirement.submission_type):
-        submission_result = await execute_sync_submission_validation(
-            session_maker=session_maker,
-            user_id=user_id,
-            requirement=ctx.requirement,
-            submitted_value=typed_value.as_text,
-            github_username=github_username,
-        )
-        return SyncVerificationResult(submission_result=submission_result)
+    catalog = get_curriculum_catalog()
+    requirement_snapshot = build_requirement_snapshot(ctx.requirement)
+    requirement_snapshot_hash = compute_snapshot_hash(requirement_snapshot)
+    attempt_id = uuid4()
+    traceparent = _current_traceparent()
 
     async with session_maker() as write_session:
-        repo = VerificationJobRepository(write_session)
-        job, created = await repo.create_or_get_active(
-            user_id=user_id,
-            requirement_uuid=ctx.requirement.uuid,
-            submitted_value=typed_value,
-        )
+        attempt_repo = VerificationAttemptRepository(write_session)
+        try:
+            attempt, created = await attempt_repo.create_or_get_active(
+                id=attempt_id,
+                user_id=user_id,
+                requirement_uuid=ctx.requirement.uuid,
+                artifact_schema_version=catalog.artifact_schema_version,
+                curriculum_version=catalog.curriculum_version,
+                content_hash=catalog.content_hash,
+                requirement_snapshot=requirement_snapshot,
+                requirement_snapshot_hash=requirement_snapshot_hash,
+                payload_version=ATTEMPT_PAYLOAD_VERSION,
+                github_username_snapshot=github_username,
+                submitted_value=typed_value,
+                cloud_provider=None,
+                traceparent=traceparent,
+            )
+        except AttemptAlreadyValidatedError as exc:
+            raise AlreadyValidatedError(
+                "You have already completed this requirement."
+            ) from exc
+
         await write_session.commit()
 
-    return VerificationJobSubmission(
-        job=job,
-        created=created,
-        requirement=ctx.requirement,
-        github_username=github_username,
-    )
+    return VerificationAttemptSubmission(attempt_id=attempt.id, created=created)
 
 
 # Synthetic user id for the read-only smoke check. It is never a real
@@ -290,8 +286,8 @@ async def run_submit_smoke_check(
     """Exercise the verification submit read path without writing anything.
 
     Runs the same requirement loading, submissions read, phase gating, and
-    typed-value parsing that :func:`create_verification_job` performs for a
-    real submission, but against a synthetic user and an early phase, and
+    typed-value parsing that :func:`create_verification_attempt` performs for
+    a real submission, but against a synthetic user and an early phase, and
     stops before persisting anything.
 
     The goal is to catch a schema-versus-code mismatch (the class of bug
@@ -302,13 +298,11 @@ async def run_submit_smoke_check(
 
     Returns the slug it exercised so callers can log what was checked.
     """
-    async with session_maker() as read_session:
-        index = await load_requirement_index(read_session)
+    index = load_requirement_index()
 
     requirement = _pick_smoke_requirement(index)
 
-    # The synthetic user has no submissions, so preconditions read the
-    # requirement index and the submissions table, then return cleanly.
+    # The synthetic user has no attempts, so preconditions return cleanly.
     # An early-phase requirement has no prerequisite phase, so the
     # sequential gating check does not raise for the synthetic user.
     ctx = await _check_submission_preconditions(

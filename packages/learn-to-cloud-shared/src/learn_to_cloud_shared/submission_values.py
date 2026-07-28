@@ -4,46 +4,36 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Protocol
 from urllib.parse import urlparse
 
 from learn_to_cloud_shared.models import SubmissionType, SubmissionValueKind
 from learn_to_cloud_shared.schemas import HandsOnRequirement
 
 _GITHUB_URL_TYPES = {
-    SubmissionType.GITHUB_PROFILE.value,
     SubmissionType.PROFILE_README.value,
     SubmissionType.REPO_FORK.value,
-    SubmissionType.PR_REVIEW.value,
     SubmissionType.JOURNAL_API_VERIFIER.value,
     SubmissionType.DEVOPS_ANALYSIS.value,
     SubmissionType.SECURITY_SCANNING.value,
-    "ci_status",
 }
 _TOKEN_TYPES = {
     SubmissionType.CTF_TOKEN.value,
     SubmissionType.NETWORKING_TOKEN.value,
-    "iac_token",
 }
 _DEPLOYED_URL_TYPES = {SubmissionType.DEPLOYED_API.value}
 _TEXT_TYPES = {
-    SubmissionType.JOURNAL_API_RESPONSE.value,
-    SubmissionType.CODE_ANALYSIS.value,
+    SubmissionType.CAREER_REFLECTION.value,
+    SubmissionType.DEPLOYMENT_ARCHITECTURE.value,
 }
 
-
-class SubmittedValueColumns(Protocol):
-    submission_value_kind: str
-    github_url: str | None
-    token_value: str | None
-    deployed_url: str | None
-    text_value: str | None
-    submitted_value: str
+# Upper bound on stored free-text answers, guarding against abuse. The
+# three reflection answers are combined into one blob before storage.
+_MAX_TEXT_LENGTH = 20_000
 
 
 @dataclass(frozen=True, slots=True)
 class SubmittedValue:
-    """A submitted value normalized into its database storage shape."""
+    """A submitted value normalized into its typed representation."""
 
     kind: SubmissionValueKind
     github_url: str | None = None
@@ -66,9 +56,9 @@ class SubmittedValue:
             raise ValueError(f"Missing value for {self.kind.value}")
         return value
 
-    def to_columns(self) -> dict[str, str | None]:
+    def to_payload(self) -> dict[str, str | None]:
+        """Serialize the typed value for Durable workflow transport."""
         return {
-            "submitted_value": self.as_text,
             "submission_value_kind": self.kind.value,
             "github_url": self.github_url,
             "token_value": self.token_value,
@@ -76,11 +66,9 @@ class SubmittedValue:
             "text_value": self.text_value,
         }
 
-    def to_payload(self) -> dict[str, str | None]:
-        return self.to_columns()
-
     @classmethod
     def from_payload(cls, payload: object) -> SubmittedValue:
+        """Deserialize a typed Durable workflow value."""
         if not isinstance(payload, Mapping):
             raise TypeError("Expected submission_value payload object")
         payload_map: dict[str, object] = {}
@@ -91,19 +79,27 @@ class SubmittedValue:
         kind = payload_map.get("submission_value_kind")
         if not isinstance(kind, str):
             raise TypeError("Expected submission_value_kind payload field")
-        return cls.from_columns(
-            kind=kind,
-            github_url=_optional_str(payload_map.get("github_url"), "github_url"),
-            token_value=_optional_str(payload_map.get("token_value"), "token_value"),
-            deployed_url=_optional_str(
-                payload_map.get("deployed_url"),
-                "deployed_url",
-            ),
-            text_value=_optional_str(payload_map.get("text_value"), "text_value"),
-            legacy_value=_optional_str(
-                payload_map.get("submitted_value"),
-                "submitted_value",
-            ),
+        normalized_kind = SubmissionValueKind(kind)
+        github_url = _optional_str(payload_map.get("github_url"), "github_url")
+        token_value = _optional_str(payload_map.get("token_value"), "token_value")
+        deployed_url = _optional_str(
+            payload_map.get("deployed_url"),
+            "deployed_url",
+        )
+        text_value = _optional_str(payload_map.get("text_value"), "text_value")
+        _single_value_for_kind(
+            normalized_kind,
+            github_url=github_url,
+            token_value=token_value,
+            deployed_url=deployed_url,
+            text_value=text_value,
+        )
+        return cls(
+            kind=normalized_kind,
+            github_url=github_url,
+            token_value=token_value,
+            deployed_url=deployed_url,
+            text_value=text_value,
         )
 
     @classmethod
@@ -127,38 +123,33 @@ class SubmittedValue:
                 _validate_http_url(value, field_name="deployed API URL")
                 return cls(kind=kind, deployed_url=value)
             case SubmissionValueKind.TEXT:
+                _validate_text(value)
                 return cls(kind=kind, text_value=value)
 
     @classmethod
-    def from_columns(
+    def from_kind_and_value(
         cls,
-        *,
         kind: str | SubmissionValueKind,
-        github_url: str | None,
-        token_value: str | None,
-        deployed_url: str | None,
-        text_value: str | None,
-        legacy_value: str | None = None,
+        value: str,
     ) -> SubmittedValue:
+        """Build a typed value from a stored ``(kind, submitted_value)`` pair.
+
+        The ``verification_attempts`` table keeps only the kind and the single
+        canonical ``submitted_value`` text, so this routes that text into the
+        column the kind implies without re-parsing/validating it.
+        """
         normalized_kind = (
             kind if isinstance(kind, SubmissionValueKind) else SubmissionValueKind(kind)
         )
-        value = _single_value_for_kind(
-            normalized_kind,
-            github_url=github_url,
-            token_value=token_value,
-            deployed_url=deployed_url,
-            text_value=text_value,
-        )
-        if legacy_value is not None and legacy_value != value:
-            raise ValueError("Legacy submitted_value does not match typed value")
-        return cls(
-            kind=normalized_kind,
-            github_url=github_url,
-            token_value=token_value,
-            deployed_url=deployed_url,
-            text_value=text_value,
-        )
+        match normalized_kind:
+            case SubmissionValueKind.GITHUB_URL:
+                return cls(kind=normalized_kind, github_url=value)
+            case SubmissionValueKind.TOKEN:
+                return cls(kind=normalized_kind, token_value=value)
+            case SubmissionValueKind.DEPLOYED_URL:
+                return cls(kind=normalized_kind, deployed_url=value)
+            case SubmissionValueKind.TEXT:
+                return cls(kind=normalized_kind, text_value=value)
 
 
 def value_kind_for_submission_type(
@@ -180,17 +171,6 @@ def value_kind_for_submission_type(
     raise ValueError(f"Unknown submission_type for submitted value: {raw_type!r}")
 
 
-def submission_value_from_columns(row: SubmittedValueColumns) -> SubmittedValue:
-    return SubmittedValue.from_columns(
-        kind=row.submission_value_kind,
-        github_url=row.github_url,
-        token_value=row.token_value,
-        deployed_url=row.deployed_url,
-        text_value=row.text_value,
-        legacy_value=row.submitted_value,
-    )
-
-
 def _optional_str(value: object, field_name: str) -> str | None:
     if value is None:
         return None
@@ -205,7 +185,7 @@ def _single_value_for_kind(
     github_url: str | None,
     token_value: str | None,
     deployed_url: str | None,
-    text_value: str | None,
+    text_value: str | None = None,
 ) -> str:
     values = {
         SubmissionValueKind.GITHUB_URL: github_url,
@@ -218,6 +198,13 @@ def _single_value_for_kind(
     if value is None or any(item is not None for item in other_values):
         raise ValueError(f"Invalid typed value columns for {kind.value}")
     return value
+
+
+def _validate_text(value: str) -> None:
+    if len(value) > _MAX_TEXT_LENGTH:
+        raise ValueError(
+            f"Submitted text must be at most {_MAX_TEXT_LENGTH} characters.",
+        )
 
 
 def _validate_github_url(value: str) -> None:

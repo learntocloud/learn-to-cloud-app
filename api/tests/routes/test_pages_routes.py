@@ -7,6 +7,8 @@ Tests cover:
 - GET /phase/{id}/{topic} — topic detail (requires auth)
 - GET /dashboard — user dashboard (requires auth)
 - GET /account — account settings (requires auth)
+- GET /community — community page (public)
+- GET /stats — permanent redirect to the community page
 - GET /faq — FAQ page (public)
 - GET /privacy — privacy page (public)
 - GET /terms — terms page (public)
@@ -24,12 +26,14 @@ import pytest
 
 from learn_to_cloud.routes.pages_routes import (
     account_page,
+    community_page,
     curriculum_page,
     dashboard_page,
     faq_page,
     home_page,
     phase_page,
     privacy_page,
+    stats_page_redirect,
     terms_page,
     topic_page,
 )
@@ -82,8 +86,7 @@ class TestHomePage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_all_phases",
-                new_callable=AsyncMock,
+                "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
                 return_value=phases,
             ),
             patch(
@@ -110,8 +113,7 @@ class TestHomePage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_all_phases",
-                new_callable=AsyncMock,
+                "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
                 return_value=phases,
             ),
             patch(
@@ -138,8 +140,7 @@ class TestCurriculumPage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_all_phases",
-                new_callable=AsyncMock,
+                "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
                 return_value=phases,
             ),
             patch(
@@ -167,7 +168,6 @@ class TestPhasePage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                new_callable=AsyncMock,
                 return_value=None,
             ),
             patch(
@@ -197,7 +197,6 @@ class TestPhasePage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                new_callable=AsyncMock,
                 return_value=phase,
             ),
             patch(
@@ -212,7 +211,7 @@ class TestPhasePage:
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.build_phase_topics",
-                return_value=([], {}),
+                return_value=[],
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_submission_context",
@@ -220,7 +219,7 @@ class TestPhasePage:
                 return_value=mock_sub_context,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.VerificationJobRepository",
+                "learn_to_cloud.routes.pages_routes.VerificationAttemptRepository",
                 return_value=MagicMock(
                     get_active_for_requirements=AsyncMock(return_value=[]),
                 ),
@@ -252,7 +251,6 @@ class TestTopicPage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                new_callable=AsyncMock,
                 return_value=None,
             ),
             patch(
@@ -277,7 +275,6 @@ class TestTopicPage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                new_callable=AsyncMock,
                 return_value=phase,
             ),
             patch(
@@ -303,7 +300,6 @@ class TestTopicPage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                new_callable=AsyncMock,
                 return_value=phase,
             ),
             patch(
@@ -438,3 +434,39 @@ class TestPublicPages:
             await handler(request, mock_db, user_id=None)
 
         assert template.call_args[0][1] == template_name
+
+
+@pytest.mark.unit
+class TestCommunityPage:
+    """Tests for the public community routes."""
+
+    async def test_community_renders_with_community_context(self, _patch_templates):
+        request, template = _mock_request(_patch_templates)
+        mock_db = AsyncMock()
+        mock_community = MagicMock()
+
+        with (
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=None,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_community_page_data",
+                autospec=True,
+                return_value=mock_community,
+            ),
+        ):
+            await community_page(request, mock_db, user_id=None)
+
+        assert template.call_args[0][1] == "pages/community.html"
+        ctx = template.call_args[0][2]
+        assert ctx["community"] is mock_community
+        assert len(ctx["community_links"]) == 5
+        assert ctx["user"] is None
+
+    async def test_stats_redirects_permanently_to_community(self):
+        response = await stats_page_redirect()
+
+        assert response.status_code == 308
+        assert response.headers["location"] == "/community"

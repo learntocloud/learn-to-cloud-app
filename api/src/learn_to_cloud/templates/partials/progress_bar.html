@@ -1,17 +1,24 @@
-{# Reusable progress bar with percentage display.
+{# Accessible progress bar with visible text plus ARIA value attributes.
 
    Required context:
-     progress  – dict with 'percentage' key
+     value  – 0-100 percentage (float or int)
+     label  – visible text shown next to the bar (e.g. "3/5 steps checked")
    Optional:
-     progress_label  – text next to the bar (default: "X% complete")
-     progress_id     – id attribute for HTMX OOB swaps
-     oob             – if true, adds hx-swap-oob="true"
+     complete    – true renders the bar green instead of blue
+     aria_label  – accessible name; defaults to ``label``
+     id          – id attribute for HTMX OOB swaps
+     oob         – if true, adds hx-swap-oob="true"
 #}
-<div{% if progress_id %} id="{{ progress_id }}"{% endif %}{% if oob %} hx-swap-oob="true"{% endif %} class="mt-4 flex items-center gap-3">
-    <div class="flex-1 max-w-xs h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-        <div class="h-full {{ 'bg-green-500' if progress.is_complete is defined and progress.is_complete else 'bg-blue-600' }} rounded-full transition-all" style="width: {{ progress.percentage }}%"></div>
+<div{% if id %} id="{{ id }}"{% endif %}{% if oob %} hx-swap-oob="true"{% endif %} class="mt-4 flex items-center gap-3">
+    <div
+        class="flex-1 max-w-xs h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"
+        role="progressbar"
+        aria-valuenow="{{ value | round(0) | int }}"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-label="{{ aria_label | default(label) }}"
+    >
+        <div class="h-full {{ 'bg-green-500' if complete else 'bg-blue-600' }} rounded-full transition-all" style="width: {{ value }}%"></div>
     </div>
-    <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
-        {{ progress_label | default(progress.completed ~ '/' ~ progress.total ~ ' steps') }}
-    </span>
+    <span class="text-sm font-medium text-gray-600 dark:text-gray-400">{{ label }}</span>
 </div>

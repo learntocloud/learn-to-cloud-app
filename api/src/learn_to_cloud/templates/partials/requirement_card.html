@@ -1,14 +1,25 @@
+{# Requirement verification card. One ``card_state`` (from
+   build_requirement_card_context) drives the whole card instead of a
+   scattered combination of submission/processing/server_error flags:
+   'checking' | 'passed' | 'failed' | 'unavailable' | 'not_started'.
+
+   Required context (all provided by build_requirement_card_context):
+     requirement, submission, feedback_tasks, feedback_passed, card_state,
+     server_error, server_error_message, server_error_retryable,
+     error_banner, processing, verification_status_token,
+     verification_status_delay_seconds, derived_url
+#}
 {% from "macros/badges.html" import status_pill %}
 {% from "macros/callouts.html" import banner %}
 <div id="requirement-{{ requirement.slug }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
     <div class="flex items-center justify-between mb-2">
         <h4 class="font-medium text-gray-900 dark:text-gray-100">{{ requirement.name }}</h4>
-        {% if submission and submission.is_validated %}
+        {% if card_state == 'passed' %}
         {{ status_pill("✓ Verified", "success") }}
-        {% elif submission and not submission.is_validated and server_error %}
-        {{ status_pill("⚠ Service Error", "warning") }}
-        {% elif submission and not submission.is_validated %}
-        {{ status_pill("✗ Failed", "error") }}
+        {% elif card_state == 'unavailable' %}
+        {{ status_pill("⚠ Service unavailable", "warning") }}
+        {% elif card_state == 'failed' %}
+        {{ status_pill("Needs work", "error") }}
         {% endif %}
     </div>
 
@@ -16,43 +27,87 @@
     <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ requirement.description }}</p>
     {% endif %}
 
-    {% if processing and verification_status_token %}
+    {% if card_state == 'checking' and verification_status_token %}
     {# Verification in progress — poll the Durable status proxy until terminal. #}
     <div
-        hx-get="/htmx/verification/jobs/status?token={{ verification_status_token | urlencode }}"
+        hx-get="/htmx/verification/attempts/status?token={{ verification_status_token | urlencode }}"
         hx-trigger="load delay:{{ verification_status_delay_seconds | default(2) }}s"
         hx-target="#requirement-{{ requirement.slug }}"
         hx-swap="outerHTML"
         class="flex items-center gap-3 py-3"
+        role="status"
+        aria-live="polite"
     >
-        <div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+        <div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full" aria-hidden="true"></div>
         <span class="text-sm text-gray-600 dark:text-gray-400">
             Analyzing your code... this usually takes 30–60 seconds.
         </span>
     </div>
-    {% elif processing %}
-    <div class="text-amber-600 dark:text-amber-400 text-sm p-2">
+    {% elif card_state == 'checking' %}
+    <div class="text-amber-600 dark:text-amber-400 text-sm p-2" role="status">
         Verification is running. Refresh the page to check for results.
     </div>
-    {% elif not submission or not submission.is_validated %}
+    {% elif card_state != 'passed' %}
+    {% set is_reflection = requirement.submission_type == 'career_reflection' %}
+    {% set is_architecture = requirement.submission_type == 'deployment_architecture' %}
     <form
         hx-post="/htmx/github/submit"
         hx-target="#requirement-{{ requirement.slug }}"
         hx-swap="outerHTML"
         hx-indicator="#spinner-{{ requirement.slug }}"
         hx-disabled-elt="find button[type='submit']"
-        class="flex gap-2"
+        class="{% if is_reflection or is_architecture %}flex flex-col gap-4{% else %}flex gap-2{% endif %}"
     >
         <input type="hidden" name="requirement_slug" value="{{ requirement.slug }}">
 
-        {% if requirement.submission_type in ['ctf_token', 'networking_token'] %}
+        {% if is_reflection %}
+        {# Career reflection — one textarea per configured question. The answers
+           post as a repeated ``answers`` field, combined server-side into one
+           text submission and graded by the LLM rubric. #}
+        {% for question in requirement.type_config.questions %}
+        <div class="flex flex-col gap-1">
+            <label for="answer-{{ requirement.slug }}-{{ loop.index0 }}" class="text-sm font-medium text-gray-800 dark:text-gray-200">
+                {{ question.prompt }}
+            </label>
+            <textarea
+                id="answer-{{ requirement.slug }}-{{ loop.index0 }}"
+                name="answers"
+                rows="5"
+                minlength="{{ requirement.type_config.min_answer_length }}"
+                placeholder="Write at least {{ requirement.type_config.min_answer_length }} characters."
+                class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                required
+            ></textarea>
+        </div>
+        {% endfor %}
+        {% elif is_architecture %}
+        {# Deployment architecture — one long-text field describing the learner's
+           deploy.sh. Posts as ``architecture_description`` (not the 2048-capped
+           ``submitted_value``) and is graded against the fetched deploy.sh by
+           the LLM rubric. #}
+        <div class="flex flex-col gap-1">
+            <label for="architecture-{{ requirement.slug }}" class="text-sm font-medium text-gray-800 dark:text-gray-200">
+                {{ requirement.type_config.prompt }}
+            </label>
+            <textarea
+                id="architecture-{{ requirement.slug }}"
+                name="architecture_description"
+                rows="8"
+                minlength="{{ requirement.type_config.min_answer_length }}"
+                maxlength="20000"
+                placeholder="Write at least {{ requirement.type_config.min_answer_length }} characters."
+                class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                required
+            ></textarea>
+        </div>
+        {% elif requirement.submission_type in ['ctf_token', 'networking_token'] %}
         {# Token input — learner pastes the completion token. #}
         <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
         <input
             id="input-{{ requirement.slug }}"
             type="text"
             name="submitted_value"
-            placeholder="{{ requirement.placeholder | default('Paste your completion token here') }}"
+            placeholder="{{ requirement.type_config.placeholder | default('Paste your completion token here') }}"
             value=""
             class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             required
@@ -64,7 +119,7 @@
             id="input-{{ requirement.slug }}"
             type="url"
             name="submitted_value"
-            placeholder="{{ requirement.placeholder | default('https://your-api.example.com') }}"
+            placeholder="{{ requirement.type_config.placeholder | default('https://your-api.example.com') }}"
             value="{% if submission %}{{ submission.submitted_value }}{% endif %}"
             class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             required
@@ -111,16 +166,28 @@
     </form>
     {% endif %}
 
-    {% if server_error %}
+    {% if card_state == 'unavailable' %}
+    {# System/retryable fault -- not the learner's doing, so always worth
+       reporting and never blamed on them (covers both server_error and
+       cancelled outcomes). #}
     {{ banner(
         (server_error_message or 'The verification service encountered an error.')
-        + ' This attempt was not counted against your rate limit — you can try again immediately.',
-        'warning'
+        + (' This attempt was not counted against your rate limit, so you can try again immediately.'
+           if server_error_retryable
+           else ' This attempt was not counted against your rate limit.'),
+        'warning',
+        report=true,
+        report_title='Verification error: ' ~ requirement.name,
+        report_context='requirement=' ~ requirement.slug
     ) }}
-    {% endif %}
-
-    {% if error_banner %}
-    {{ banner(error_banner, 'error') }}
+    {% elif error_banner %}
+    {# A real learner-facing outcome: either a pre-submit validation issue,
+       or the rubric's reason a completed attempt didn't pass. #}
+    {{ banner(
+        error_banner,
+        'error',
+        report=false
+    ) }}
     {% endif %}
 
     {% if feedback_tasks %}

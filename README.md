@@ -6,7 +6,7 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 
 ## Features
 
-- 📚 All 7 phases of the Learn to Cloud curriculum
+- 📚 All 8 phases of the Learn to Cloud curriculum
 - ✅ Progress tracking with steps, questions, and hands-on projects
 - 🔐 Authentication via GitHub OAuth
 - 📊 Dashboard with progress visualization
@@ -55,7 +55,7 @@ The fastest way to get started on **Windows (WSL), macOS, or Linux** is with VS 
 |---------|-----|
 | App | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs (requires `DEBUG=true` in `.env`) |
-| PostgreSQL | `localhost:54320` (user: `postgres`, password: `postgres`) |
+| PostgreSQL | `localhost:55432` (user: `postgres`, password: `postgres`) |
 | Durable Task Scheduler Dashboard | http://localhost:8082 |
 | Aspire Dashboard | http://localhost:18888 |
 
@@ -136,8 +136,6 @@ Or use VS Code's **"API + Verification"** compound launch configuration.
 │   ├── src/
 │   │   └── learn_to_cloud/
 │   │       ├── main.py       # App entry point
-│   │       ├── models.py     # Compatibility imports for shared models
-│   │       ├── schemas.py    # Compatibility imports for shared schemas
 │   │       ├── routes/       # API + page endpoints
 │   │       ├── services/     # Business logic
 │   │       ├── repositories/ # Database queries
@@ -159,6 +157,8 @@ Or use VS Code's **"API + Verification"** compound launch configuration.
 ## Contributing
 
 See the [Contributing Guide](docs/contributing.md) for linting, testing, the dog-food QA agent, Copilot skills, and architecture conventions.
+Published architecture and operations docs are available on
+[GitHub Pages](https://learntocloud.github.io/learn-to-cloud-app/).
 
 ## Deployment
 

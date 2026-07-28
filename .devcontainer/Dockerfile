@@ -8,3 +8,11 @@ FROM mcr.microsoft.com/devcontainers/base:debian
 # owned by root, the vscode user cannot write to it, and "copilot plugin ..."
 # fails silently during onCreate (which aborts the whole devcontainer setup).
 RUN mkdir -p /home/vscode/.copilot && chown vscode:vscode /home/vscode/.copilot
+
+# Install the PostgreSQL command-line client (psql). The query-prod-db skill
+# uses psql to connect to the production database with Entra ID tokens. The base
+# image does not include it, so without this line the skill fails with
+# "psql: command not found".
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client \
+    && rm -rf /var/lib/apt/lists/*

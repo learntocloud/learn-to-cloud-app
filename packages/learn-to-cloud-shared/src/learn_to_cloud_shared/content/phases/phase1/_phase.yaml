@@ -7,7 +7,6 @@ short_description: Build practical Linux and Bash skills with Git, cloud CLI, SS
 order: 1
 hands_on_verification:
   requirements:
-  - profile-readme
   - linux-ctfs-fork
   - linux-ctfs-token
 topics:

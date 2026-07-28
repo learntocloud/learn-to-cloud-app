@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 
 from learn_to_cloud.routes.health_routes import health, ready
 
@@ -18,6 +19,16 @@ class TestHealthEndpoint:
         assert result.status == "healthy"
         assert result.service == "learn-to-cloud-api"
 
+    async def test_health_exposes_curriculum_artifact_identity(self):
+        """Health response includes the loaded artifact's identity fields."""
+        catalog = get_curriculum_catalog()
+
+        result = await health()
+
+        assert result.curriculum_version == catalog.curriculum_version
+        assert result.artifact_schema_version == catalog.artifact_schema_version
+        assert result.content_hash == catalog.content_hash
+
 
 @pytest.mark.unit
 class TestReadyEndpoint:
@@ -28,6 +39,7 @@ class TestReadyEndpoint:
         request = MagicMock()
         request.app.state.init_error = None
         request.app.state.init_done = True
+        request.app.state.alembic_code_head = None
 
         with patch(
             "learn_to_cloud.routes.health_routes.check_db_connection",
@@ -41,6 +53,24 @@ class TestReadyEndpoint:
             request.app.state.engine,
             request.app.state.settings.database,
         )
+
+    async def test_ready_exposes_curriculum_artifact_identity(self):
+        """Ready response includes the loaded artifact's identity fields."""
+        catalog = get_curriculum_catalog()
+        request = MagicMock()
+        request.app.state.init_error = None
+        request.app.state.init_done = True
+        request.app.state.alembic_code_head = None
+
+        with patch(
+            "learn_to_cloud.routes.health_routes.check_db_connection",
+            autospec=True,
+        ):
+            result = await ready(request)
+
+        assert result.curriculum_version == catalog.curriculum_version
+        assert result.artifact_schema_version == catalog.artifact_schema_version
+        assert result.content_hash == catalog.content_hash
 
     async def test_ready_returns_503_when_init_error(self):
         """Ready returns 503 when init_error is set."""
@@ -84,3 +114,121 @@ class TestReadyEndpoint:
 
         assert exc_info.value.status_code == 503
         assert exc_info.value.detail == "Database unavailable"
+
+    async def test_ready_logs_warning_on_schema_drift_but_still_200(self, caplog):
+        """Ready logs a warning and still returns 200 when heads mismatch."""
+        request = MagicMock()
+        request.app.state.init_error = None
+        request.app.state.init_done = True
+        request.app.state.alembic_code_head = "code_head_abc"
+
+        with (
+            patch(
+                "learn_to_cloud.routes.health_routes.check_db_connection",
+                autospec=True,
+            ),
+            patch(
+                "learn_to_cloud.routes.health_routes._get_db_alembic_head",
+                autospec=True,
+                return_value="db_head_xyz",
+            ),
+            caplog.at_level("WARNING"),
+        ):
+            result = await ready(request)
+
+        assert result.status == "ready"
+        assert "health.ready.schema_drift" in caplog.text
+
+    async def test_ready_no_warning_when_heads_match(self, caplog):
+        """Ready logs nothing extra when DB head matches code head."""
+        request = MagicMock()
+        request.app.state.init_error = None
+        request.app.state.init_done = True
+        request.app.state.alembic_code_head = "same_head"
+
+        with (
+            patch(
+                "learn_to_cloud.routes.health_routes.check_db_connection",
+                autospec=True,
+            ),
+            patch(
+                "learn_to_cloud.routes.health_routes._get_db_alembic_head",
+                autospec=True,
+                return_value="same_head",
+            ),
+            caplog.at_level("WARNING"),
+        ):
+            result = await ready(request)
+
+        assert result.status == "ready"
+        assert "health.ready.schema_drift" not in caplog.text
+
+    async def test_ready_returns_200_when_drift_check_itself_fails(self, caplog):
+        """A broken drift check never turns into a 503 for /ready."""
+        request = MagicMock()
+        request.app.state.init_error = None
+        request.app.state.init_done = True
+        request.app.state.alembic_code_head = "code_head_abc"
+
+        with (
+            patch(
+                "learn_to_cloud.routes.health_routes.check_db_connection",
+                autospec=True,
+            ),
+            patch(
+                "learn_to_cloud.routes.health_routes._get_db_alembic_head",
+                autospec=True,
+                side_effect=RuntimeError("alembic_version table missing"),
+            ),
+            caplog.at_level("WARNING"),
+        ):
+            result = await ready(request)
+
+        assert result.status == "ready"
+        assert "health.ready.schema_drift_check_failed" in caplog.text
+
+    async def test_ready_skips_drift_check_when_code_head_unknown(self):
+        """No drift check runs if the code head couldn't be resolved at startup."""
+        request = MagicMock()
+        request.app.state.init_error = None
+        request.app.state.init_done = True
+        request.app.state.alembic_code_head = None
+
+        with (
+            patch(
+                "learn_to_cloud.routes.health_routes.check_db_connection",
+                autospec=True,
+            ),
+            patch(
+                "learn_to_cloud.routes.health_routes._get_db_alembic_head",
+                autospec=True,
+            ) as mock_db_head,
+        ):
+            result = await ready(request)
+
+        assert result.status == "ready"
+        mock_db_head.assert_not_called()
+
+
+@pytest.mark.unit
+class TestGetCodeAlembicHead:
+    """Tests for get_code_alembic_head()."""
+
+    def test_returns_head_revision_from_script_directory(self):
+        """Resolves the real head from the repo's alembic/ script directory."""
+        from learn_to_cloud.routes.health_routes import get_code_alembic_head
+
+        head = get_code_alembic_head()
+        assert head is not None
+        assert isinstance(head, str)
+
+    def test_returns_none_when_script_directory_resolution_fails(self):
+        """Returns None instead of raising if Config/ScriptDirectory blow up."""
+        from learn_to_cloud.routes import health_routes
+
+        with patch.object(
+            health_routes.ScriptDirectory,
+            "from_config",
+            side_effect=RuntimeError("boom"),
+        ):
+            assert health_routes.get_code_alembic_head() is None

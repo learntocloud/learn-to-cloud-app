@@ -57,15 +57,13 @@ if [ -f api/.env ] && ! grep -q "^WEB_SECURITY__REQUIRE_HTTPS=" api/.env; then
     printf '\nWEB_SECURITY__REQUIRE_HTTPS=false\n' >> api/.env
 fi
 
-# Run database migrations and sync curriculum content
+# Run database migrations
 echo "🗄️  Running database migrations..."
 (cd api && uv run alembic upgrade head)
-echo "📚 Syncing curriculum content into database..."
-(cd api && uv run python -m learn_to_cloud_shared.cli.sync_curriculum)
 
 echo "✅ Setup complete!"
 echo ""
 echo "To start developing:"
 echo "  API: cd api && uv run uvicorn learn_to_cloud.main:app --reload"
 echo ""
-echo "Note: Database is provisioned by docker-compose (PostgreSQL on port 54320)."
+echo "Note: Database is provisioned by docker-compose (PostgreSQL on port 55432)."

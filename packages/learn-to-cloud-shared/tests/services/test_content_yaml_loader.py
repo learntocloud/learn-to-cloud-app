@@ -304,13 +304,6 @@ class TestGetAllPhases:
 
 
 # ---------------------------------------------------------------------------
-# Lookup-by-walking helpers used to live in this module. Phase C (#464)
-# moved them to the DB loader, where ``test_content_db_loader.py`` exercises
-# the same behavior against real curriculum tables.
-# ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
 # validate_content (cross-file validators -- issue #462)
 # ---------------------------------------------------------------------------
 

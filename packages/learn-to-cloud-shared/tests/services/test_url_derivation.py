@@ -1,4 +1,4 @@
-"""Unit tests for services.verification.url_derivation.
+"""Unit tests for submission_derivation.
 
 Covers derive_submission_value for all submission types and the
 is_derivable / fork_name_from_required_repo helpers.
@@ -8,7 +8,7 @@ import pytest
 
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import HandsOnRequirement
-from learn_to_cloud_shared.verification.url_derivation import (
+from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
     fork_name_from_required_repo,
     is_derivable,
@@ -35,7 +35,6 @@ class TestIsDerivable:
     @pytest.mark.parametrize(
         "sub_type",
         [
-            SubmissionType.GITHUB_PROFILE,
             SubmissionType.PROFILE_README,
             SubmissionType.REPO_FORK,
             SubmissionType.JOURNAL_API_VERIFIER,
@@ -52,6 +51,8 @@ class TestIsDerivable:
             SubmissionType.CTF_TOKEN,
             SubmissionType.NETWORKING_TOKEN,
             SubmissionType.DEPLOYED_API,
+            SubmissionType.CAREER_REFLECTION,
+            SubmissionType.DEPLOYMENT_ARCHITECTURE,
         ],
     )
     def test_non_derivable_types(self, sub_type: SubmissionType):
@@ -75,11 +76,38 @@ class TestForkNameFromRequiredRepo:
 
 
 @pytest.mark.unit
-class TestDeriveSubmissionValue:
-    def test_github_profile(self):
-        req = _req(SubmissionType.GITHUB_PROFILE)
-        assert derive_submission_value(req, "octocat") == "https://github.com/octocat"
+class TestBuildTarget:
+    def test_profile_readme_builds_self_repo_target(self):
+        from learn_to_cloud_shared.submission_derivation import build_target
 
+        target = build_target(_req(SubmissionType.PROFILE_README), "alice")
+        assert target is not None
+        assert target.owner == "alice"
+        assert target.repo == "alice"
+
+    def test_repo_fork_carries_forked_from(self):
+        from learn_to_cloud_shared.submission_derivation import build_target
+
+        req = _req(SubmissionType.REPO_FORK, required_repo="learntocloud/linux-ctfs")
+        target = build_target(req, "alice")
+        assert target is not None
+        assert target.owner == "alice"
+        assert target.repo == "linux-ctfs"
+        assert target.forked_from == "learntocloud/linux-ctfs"
+
+    def test_free_form_type_returns_none(self):
+        from learn_to_cloud_shared.submission_derivation import build_target
+
+        assert build_target(_req(SubmissionType.CTF_TOKEN), "alice") is None
+
+    def test_missing_username_returns_none(self):
+        from learn_to_cloud_shared.submission_derivation import build_target
+
+        assert build_target(_req(SubmissionType.PROFILE_README), None) is None
+
+
+@pytest.mark.unit
+class TestDeriveSubmissionValue:
     def test_profile_readme(self):
         req = _req(SubmissionType.PROFILE_README)
         assert (
@@ -157,6 +185,21 @@ class TestDeriveSubmissionValue:
             == "https://api.example.com"
         )
 
+    def test_career_reflection_passes_through(self):
+        req = _req(SubmissionType.CAREER_REFLECTION)
+        combined = "## Question 0?\n\nMy answer."
+        assert derive_submission_value(req, "alice", user_input=combined) == combined
+
+    def test_deployment_architecture_passes_through(self):
+        req = _req(
+            SubmissionType.DEPLOYMENT_ARCHITECTURE,
+            required_repo="learntocloud/journal-starter",
+        )
+        description = "My two-tier deployment: public API, private database."
+        assert (
+            derive_submission_value(req, "alice", user_input=description) == description
+        )
+
     def test_derivable_ignores_user_input(self):
         """Tampered submitted_value for derivable types is silently ignored.
 
@@ -164,10 +207,10 @@ class TestDeriveSubmissionValue:
         tries to post a crafted URL, the server ignores it and rebuilds the
         canonical URL from their github_username.
         """
-        req = _req(SubmissionType.GITHUB_PROFILE)
+        req = _req(SubmissionType.PROFILE_README)
         assert (
             derive_submission_value(
                 req, "alice", user_input="https://evil.example.com/pwn"
             )
-            == "https://github.com/alice"
+            == "https://github.com/alice/alice"
         )

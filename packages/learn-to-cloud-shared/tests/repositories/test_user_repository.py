@@ -91,3 +91,30 @@ class TestDelete:
         """Deleting a non-existent user should not raise."""
         repo = UserRepository(db_session)
         await repo.delete(88888888)
+
+
+class TestGetByIds:
+    async def test_returns_matching_users(self, db_session: AsyncSession):
+        repo = UserRepository(db_session)
+        await repo.upsert(41001, github_username="ida")
+        await repo.upsert(41002, github_username="idb")
+        await db_session.flush()
+
+        users = await repo.get_by_ids([41001, 41002, 99999999])
+        ids = {u.id for u in users}
+        assert ids == {41001, 41002}
+
+    async def test_returns_empty_for_empty_input(self, db_session: AsyncSession):
+        repo = UserRepository(db_session)
+        assert await repo.get_by_ids([]) == []
+
+
+class TestCount:
+    async def test_counts_users(self, db_session: AsyncSession):
+        repo = UserRepository(db_session)
+        before = await repo.count()
+        await repo.upsert(42001, github_username="counta")
+        await repo.upsert(42002, github_username="countb")
+        await db_session.flush()
+
+        assert await repo.count() == before + 2
