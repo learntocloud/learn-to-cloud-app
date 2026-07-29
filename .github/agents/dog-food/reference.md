@@ -1,6 +1,9 @@
 # Dog Food QA Reference
 
-Read only the section needed for the requested workflow.
+Read only the section you need. The page tables are a **coverage backstop**, not
+a checklist: pursue the user's goal first, then use these to make sure a run
+touched the main surface. "Expected evidence" is the minimum that proves a page
+rendered, not the full definition of working.
 
 ## Public pages
 
@@ -49,54 +52,48 @@ at least 200 characters.
 
 ## Report template
 
-```markdown
+Lead with findings. The tables exist so the reader knows what was covered; they
+are not the point of the report.
+
+````markdown
 ## Dog Food Report
 
-**Workflow:** Basic QA / Phase X submission QA
+**Goal:** what you set out to do
+**Verdict:** one sentence — did the goal succeed, partially succeed, or fail
 
-### Health
+### Defects
 
-| Service | Status | Evidence |
-|---------|--------|----------|
-| API | Passed/Failed | ... |
-| Functions | Passed/Failed/Not needed | ... |
-
-### Pages
-
-| Page | Loaded | Console errors | Server log evidence | Issues |
-|------|--------|----------------|---------------------|--------|
-| ... | Yes/No | None / details | None / exception + frame | ... |
-
-Fill "Server log evidence" from `/tmp/dogfood-api.log` for any page that did not
-load cleanly. Use `None` only when the page passed, or when the log genuinely
-contained nothing for that request (which is itself worth listing under Issues).
-
-### Interactions
-
-| Test | Result | Evidence |
-|------|--------|----------|
-| Dark mode | Passed/Failed/Not attempted | ... |
-| Step toggle and restore | Passed/Failed/Not attempted | ... |
-
-### Submission
-
-| Field | Value |
-|-------|-------|
-| Phase | ... |
-| Requirement | ... |
-| Input type | ... |
-| Result | Passed/Failed/Timed out |
-| Message | ... |
-| Server log evidence | None / API and Functions errors |
-
-### Cleanup
-
-API and Functions processes stopped: Yes/No
-
-### Issues Found
-
-Each issue: what you observed in the browser, the matching server-side error
-(exception type and application frame), and the steps to reproduce.
+Objective breakage. For each: what you did, what you saw, the server-side
+evidence (exception type and application frame), and how to reproduce.
 
 1. ...
-```
+
+### Friction
+
+Things that worked but shouldn't ship as-is: dead-looking controls, messages
+that don't say what to do next, flows that made you guess.
+
+1. ...
+
+### Coverage
+
+| Area | Exercised | Result |
+|------|-----------|--------|
+| Public pages | which ones | clean / see defect N |
+| Authenticated pages | which ones | clean / see defect N |
+| Interactions | dark mode, step toggle, ... | clean / see defect N |
+| Submission | phase + requirement | passed / failed / timed out |
+
+**Not exercised:** everything you did not reach, and why.
+
+### Environment
+
+| Item | Value |
+|------|-------|
+| API | healthy / failed, PID |
+| Functions | healthy / not needed / failed, PID |
+| Processes stopped | Yes/No |
+| Logs | `/tmp/dogfood-api.log`, `/tmp/dogfood-functions.log` |
+````
+
+This report is evidence of what was found, not proof the app is healthy.
