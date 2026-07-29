@@ -76,7 +76,7 @@ or invoke the agent directly with `@dog-food`. The agent will:
 
 Everything is pre-installed by the devcontainer (`on-create.sh`):
 - Playwright MCP server + Chromium (configured in `.mcp.json` for the Copilot CLI and `.vscode/mcp.json` for VS Code)
-- System libraries for headless Chromium (installed by `playwright-mcp install-browser --with-deps`)
+- System libraries for headless Chromium (installed by `playwright-mcp install-browser chromium --with-deps`)
 - Database seeded with at least one user (via `scripts/dogfood_session.py`)
 
 ### Cross-architecture support

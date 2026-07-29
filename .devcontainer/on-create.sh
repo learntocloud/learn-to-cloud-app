@@ -45,9 +45,11 @@ npm install -g @playwright/mcp@latest
 # server then reports the browser as "not installed" even though one is in the
 # cache. Going through playwright-mcp keeps the revisions in lockstep.
 #
-# Chromium (rather than the `chrome` channel) is the only option that works on
-# both architectures: Google Chrome has no ARM64 Linux build, while Playwright
-# ships Chromium builds for both x64 and ARM64. This matches the
+# Chromium (rather than the `chrome` channel) is the only Chromium-engine
+# option available on both architectures: Google Chrome has no ARM64 Linux
+# build, while Playwright ships Chromium builds for both x64 and ARM64.
+# Firefox and WebKit also run on both, but they would test a different engine
+# than the Chromium-based browsers most users are on. This matches the
 # `--browser chromium` arg in `.mcp.json` and `.vscode/mcp.json`.
 #
 # `--with-deps` installs the OS libraries (libatk, libnss, etc.) the browser
