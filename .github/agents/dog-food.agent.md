@@ -67,8 +67,8 @@ of just "the page failed".
    Set `PYTHONUNBUFFERED=1` here too if you need prompt output.
 
    Confirm readiness from `/tmp/dogfood-functions.log`. Expected routes include
-   `verification/jobs/{job_id}/start` and
-   `verification/jobs/{instance_id}/status`; there is no Functions health
+   `verification/attempts/{attempt_id}/start` and
+   `verification/attempts/{instance_id}/status`; there is no Functions health
    endpoint.
 
 Do not use broad process-name termination. Record the exact PIDs you start so
