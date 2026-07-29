@@ -32,6 +32,7 @@ from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
     is_derivable,
 )
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 if TYPE_CHECKING:
@@ -242,6 +243,54 @@ async def _terminalize_failed_attempt(
     return True
 
 
+async def _log_attempt_completion(
+    request: Request,
+    token_data: VerificationStatusToken,
+    user_id: int,
+    status: str,
+) -> None:
+    """Log the terminal state of an attempt the orchestration finalized.
+
+    The poller is the API's only view of an attempt that Functions finished on
+    its own, so without this a whole submission — success or ``server_error`` —
+    leaves no server-side trace on the API (#700).
+    """
+    attempt_id = UUID(token_data.job_id)
+    session_maker = request.app.state.session_maker
+    try:
+        async with session_maker() as session:
+            state = await VerificationAttemptRepository(session).get_terminal_state(
+                attempt_id
+            )
+    except SQLAlchemyError as exc:
+        # The learner's result is already persisted and the page is about to
+        # reload; a logging read must never turn that into a visible failure.
+        logger.warning(
+            "verification.attempt.completed_read_failed",
+            extra={
+                "user_id": user_id,
+                "requirement_slug": token_data.requirement_slug,
+                "attempt_id": str(attempt_id),
+                "error_type": type(exc).__name__,
+            },
+        )
+        return
+
+    extra = {
+        "user_id": user_id,
+        "requirement_slug": token_data.requirement_slug,
+        "attempt_id": str(attempt_id),
+        "runtime_status": status,
+        "outcome": state.outcome if state else None,
+        "error_code": state.error_code if state else None,
+        "terminal_source": state.terminal_source if state else None,
+    }
+    if state is None or state.outcome == "server_error":
+        logger.warning("verification.attempt.completed", extra=extra)
+    else:
+        logger.info("verification.attempt.completed", extra=extra)
+
+
 async def _render_step_toggle(
     request: Request,
     user_id: int,
@@ -439,6 +488,16 @@ async def htmx_submit_verification(
             ),
         )
 
+    logger.info(
+        "verification.attempt.created",
+        extra={
+            "user_id": user_id,
+            "requirement_slug": requirement_slug,
+            "attempt_id": str(attempt_submission.attempt_id),
+            "attempt_created": attempt_submission.created,
+        },
+    )
+
     return await _start_async_attempt_and_render(
         session_maker=session_maker,
         user_id=user_id,
@@ -609,6 +668,7 @@ async def htmx_verification_attempt_status(
         )
 
     if status in _TERMINAL_DURABLE_STATUSES:
+        await _log_attempt_completion(request, token_data, user_id, status)
         return HTMLResponse(_reload_verification_html())
 
     logger.warning(
