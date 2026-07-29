@@ -64,7 +64,7 @@ test our app
 or invoke the agent directly with `@dog-food`. The agent will:
 
 1. **Start the API** on port 8000 and verify `/health` + `/ready`
-2. **Install Chrome** if needed (headless, `--no-sandbox` for devcontainers)
+2. **Install Chromium** if needed (headless, `--no-sandbox` for devcontainers)
 3. **Test all public pages** — Home, Curriculum, FAQ, Privacy, Terms, Status
 4. **Toggle dark mode** and verify it works
 5. **Authenticate** via a signed session cookie (no real GitHub OAuth needed)
@@ -75,9 +75,25 @@ or invoke the agent directly with `@dog-food`. The agent will:
 ### Prerequisites
 
 Everything is pre-installed by the devcontainer (`on-create.sh`):
-- Playwright MCP server + Chrome (configured in `.vscode/mcp.json`)
-- System libraries for headless Chrome (installed in the `Dockerfile`)
+- Playwright MCP server + Chromium (configured in `.mcp.json` for the Copilot CLI and `.vscode/mcp.json` for VS Code)
+- System libraries for headless Chromium (installed by `playwright-mcp install-browser chromium --with-deps`)
 - Database seeded with at least one user (via `scripts/dogfood_session.py`)
+
+### Cross-architecture support
+
+The agent runs on both x86_64 and ARM64 (Apple Silicon) devcontainers because it
+uses **Chromium**, not the `chrome` channel — Google Chrome has no ARM64 Linux
+build, and pointing the MCP server at it there fails at launch.
+
+Two things must stay in sync, so change them together:
+
+- The `--browser chromium` arg in `.mcp.json` and `.vscode/mcp.json`.
+- The `playwright-mcp install-browser chromium` call in `on-create.sh`.
+
+Install the browser through `playwright-mcp`, not a separately installed
+`playwright` CLI. The MCP server bundles its own playwright-core and resolves a
+specific browser revision; a standalone CLI may install a different one, and the
+MCP server then reports the browser as not installed.
 
 ### Artifacts
 
@@ -88,10 +104,9 @@ Screenshots are saved to `.dogfood/` (gitignored). No artifacts pollute the repo
 | Component | File |
 |-----------|------|
 | Agent instructions | `.github/agents/dog-food.agent.md` |
-| MCP server config | `.vscode/mcp.json` |
+| MCP server config | `.mcp.json`, `.vscode/mcp.json` |
 | Session cookie generator | `scripts/dogfood_session.py` |
-| Chrome system deps | `.devcontainer/Dockerfile` |
-| Chrome + MCP install | `.devcontainer/on-create.sh` |
+| Chromium + MCP install | `.devcontainer/on-create.sh` |
 
 ## Copilot Skills
 
