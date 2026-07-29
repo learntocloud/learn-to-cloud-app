@@ -165,6 +165,47 @@ rendered error page. Two specifics about these logs:
 
 Use the requirement metadata in the reference.
 
+### Check Azure sign-in first
+
+Every requirement is graded by an LLM through Azure AI Foundry, which uses
+`DefaultAzureCredential`. Without a signed-in Azure identity, every submission
+terminates as `server_error` and you learn nothing about the requirement.
+
+Check before submitting anything:
+
+```bash
+az account show --output none && echo "azure ok"
+```
+
+If that fails, **stop the submission workflow immediately** and tell the user:
+
+> Azure sign-in is required to dogfood verification. Run `az login`, then ask me
+> to run this again.
+
+Report what you had already verified up to that point, clean up the processes
+you started, and do not submit. A run that submits without Azure credentials
+produces a `server_error` that looks like a product bug but isn't.
+
+### Mint the lab token when one is needed
+
+Phase 1 and Phase 2 requirements expect an HMAC-signed lab completion token. You
+do not need a real one: mint a locally valid token instead of asking the user
+for it.
+
+```bash
+cd api && LABS__VERIFICATION_SECRET=local_dev_secret_at_least_32_chars \
+  uv run python ../scripts/mint_lab_token.py --lab ctf --username <github_username>
+cd api && LABS__VERIFICATION_SECRET=local_dev_secret_at_least_32_chars \
+  uv run python ../scripts/mint_lab_token.py --lab networking --provider azure \
+    --username <github_username>
+```
+
+The username must match the signed-in dogfood user or verification rejects the
+token. These tokens are signed with the local development secret and are
+worthless anywhere else.
+
+### Run the submission
+
 1. Reset the target requirement first:
 
    ```bash
@@ -179,9 +220,11 @@ Use the requirement metadata in the reference.
    this agent's remit.
 
 2. Navigate to `/phase/{N}` and find the requirement card.
-3. Enter the user-supplied value, or use the prefilled value for auto-derived
-   submissions. If a prefilled field is read-only and holds something other than
-   what the user asked you to test, report that and do not try to force it.
+3. Enter the value: a minted token for Phases 1 and 2, a written answer you
+   compose for `deployment-architecture` and `career-reflection`, or the
+   prefilled value for auto-derived submissions. If a prefilled field is
+   read-only and holds something other than what the user asked you to test,
+   report that and do not try to force it.
 4. Submit, then poll the card until it reaches success or failure. Stop after 60
    seconds and report a timeout.
 5. Capture the final visible status and message, plus log evidence on any

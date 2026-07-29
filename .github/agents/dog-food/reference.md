@@ -41,9 +41,9 @@ requirement card in the app, trust the artifact and report the drift.
 |-------|------------------|-----------------|------------------|-------|
 | 0 | `profile-readme` | `profile_readme` | Yes | Auto-derived |
 | 1 | `linux-ctfs-fork` | `repo_fork` | Yes | Auto-derived |
-| 1 | `linux-ctfs-token` | `ctf_token` | Yes | User-provided token |
+| 1 | `linux-ctfs-token` | `ctf_token` | Yes | Minted locally (see below) |
 | 2 | `networking-lab-fork` | `repo_fork` | Yes | Auto-derived |
-| 2 | `networking-lab-token` | `networking_token` | Yes | User-provided token |
+| 2 | `networking-lab-token` | `networking_token` | Yes | Minted locally (see below) |
 | 3 | `journal-api-implementation` | `journal_api_verifier` | Yes | Auto-derived |
 | 4 | `deployed-journal-api` | `deployed_api` | Yes | User-provided URL |
 | 4 | `deployment-architecture` | `deployment_architecture` | Yes | Written answer, 300 characters minimum |
@@ -54,6 +54,11 @@ requirement card in the app, trust the artifact and report the drift.
 Auto-derived values come from the authenticated GitHub user, and the field is
 rendered read-only. If a prefilled repository is not the one you were asked to
 test, report it rather than trying to force the value.
+
+Lab tokens (`ctf_token`, `networking_token`) are minted locally with
+`scripts/mint_lab_token.py`; no real lab completion is required. The token
+carries the exact challenge count the verifier expects (18 for the CTF, 4 for
+the networking lab) and is bound to the GitHub username you are signed in as.
 
 `deployment-architecture` expects a description of the architecture the
 learner's `deploy.sh` provisions (network layout, VM placement, firewall rules,
