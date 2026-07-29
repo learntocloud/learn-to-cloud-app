@@ -63,9 +63,13 @@ at least 200 characters.
 
 ### Pages
 
-| Page | Loaded | Console errors | Issues |
-|------|--------|----------------|--------|
-| ... | Yes/No | None / details | ... |
+| Page | Loaded | Console errors | Server log evidence | Issues |
+|------|--------|----------------|---------------------|--------|
+| ... | Yes/No | None / details | None / exception + frame | ... |
+
+Fill "Server log evidence" from `/tmp/dogfood-api.log` for any page that did not
+load cleanly. Use `None` only when the page passed, or when the log genuinely
+contained nothing for that request (which is itself worth listing under Issues).
 
 ### Interactions
 
@@ -83,12 +87,16 @@ at least 200 characters.
 | Input type | ... |
 | Result | Passed/Failed/Timed out |
 | Message | ... |
+| Server log evidence | None / API and Functions errors |
 
 ### Cleanup
 
 API and Functions processes stopped: Yes/No
 
 ### Issues Found
+
+Each issue: what you observed in the browser, the matching server-side error
+(exception type and application frame), and the steps to reproduce.
 
 1. ...
 ```

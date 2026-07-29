@@ -34,15 +34,26 @@ also require the value or answers described in the reference.
 
 Run terminal commands with Bash from `/workspaces/learn-to-cloud-app`.
 
+Always tee server output to a log file. The browser only ever shows a generic
+error page for a server fault; the traceback that explains it lands in the
+process output. Capturing it is what makes a dog food report actionable instead
+of just "the page failed".
+
 1. Resolve any process listening on port 8000 and terminate that specific PID.
-2. Start the API from `api/` as a background terminal process:
+2. Start the API from `api/` as a background terminal process, logging to a
+   known path:
 
    ```bash
-   uv run uvicorn learn_to_cloud.main:app --host 127.0.0.1 --port 8000
+   PYTHONUNBUFFERED=1 uv run uvicorn learn_to_cloud.main:app \
+     --host 127.0.0.1 --port 8000 > /tmp/dogfood-api.log 2>&1
    ```
 
+   `PYTHONUNBUFFERED=1` matters: application logs go to stdout, which Python
+   block-buffers when redirected to a file, so without it the log can lag
+   several requests behind what the browser is doing.
+
 3. Wait until `http://localhost:8000/health` returns a healthy response. If
-   startup fails, inspect the terminal output, report the error, clean up, and
+   startup fails, read `/tmp/dogfood-api.log`, report the error, clean up, and
    stop.
 4. For phase submission QA that needs asynchronous verification, similarly
    free port 7071 and start the Functions host from
@@ -50,10 +61,12 @@ Run terminal commands with Bash from `/workspaces/learn-to-cloud-app`.
 
    ```bash
    test -f local.settings.json || cp local.settings.example.json local.settings.json
-   uv run func start --port 7071
+   uv run func start --port 7071 > /tmp/dogfood-functions.log 2>&1
    ```
 
-   Confirm readiness from the terminal output. Expected routes include
+   Set `PYTHONUNBUFFERED=1` here too if you need prompt output.
+
+   Confirm readiness from `/tmp/dogfood-functions.log`. Expected routes include
    `verification/jobs/{job_id}/start` and
    `verification/jobs/{instance_id}/status`; there is no Functions health
    endpoint.
@@ -84,7 +97,24 @@ For every page in the relevant reference matrix:
 3. Collect JavaScript errors with `playwright/browser_console_messages`.
 4. Check for visible failure text such as `Internal Server Error`, `500`,
    `404`, or `Traceback`.
-5. Record the result and continue after isolated page failures.
+5. On any visible failure, non-200 response, or unexplained console error,
+   immediately read the tail of `/tmp/dogfood-api.log` and capture the
+   traceback or error lines for that request. Do this before navigating away,
+   so the relevant lines are still at the end of the log:
+
+   ```bash
+   tail -n 60 /tmp/dogfood-api.log
+   ```
+
+   Report the exception type and the failing application frame, not just the
+   rendered error page. A page that returns 500 without a corresponding log
+   entry is itself a finding worth reporting.
+
+   The log holds application logs and unhandled-exception tracebacks, but not
+   per-request access lines: `uvicorn.access` is pinned to `WARNING` in
+   `learn_to_cloud_shared.core.logger`. Correlate by exception and ordering,
+   not by looking for a request line.
+6. Record the result and continue after isolated page failures.
 
 In basic QA, also:
 
@@ -111,13 +141,18 @@ Use the requirement metadata in the reference.
 4. For asynchronous verification, use `playwright/browser_wait_for` and inspect
    the requirement card until it reaches success or failure. Stop after 60
    seconds and report a timeout if it never resolves.
-5. Capture the final visible status and message.
+5. Capture the final visible status and message. On failure or timeout, read
+   both `/tmp/dogfood-api.log` and `/tmp/dogfood-functions.log` and include the
+   relevant errors. A timeout usually means the Functions host never picked up
+   the job or the orchestration raised, and only the logs show which.
 6. Run the reset command again even when submission or verification fails.
 
 ## Cleanup
 
 Cleanup is mandatory. Stop only the API and Functions PIDs started by this run.
-If startup failed after a process was created, still clean it up.
+If startup failed after a process was created, still clean it up. Leave
+`/tmp/dogfood-api.log` and `/tmp/dogfood-functions.log` in place so the user can
+inspect them after the report; the next run overwrites them.
 
 ## Reporting standard
 
@@ -126,8 +161,11 @@ Return the report format from the reference. Include:
 - workflow and health status;
 - a result for every page or interaction attempted;
 - console errors and visible failure messages;
+- the server-side traceback or error lines from `/tmp/dogfood-api.log` (and
+  `/tmp/dogfood-functions.log` when relevant) for every failure;
 - submission input type, final status, and message when applicable;
 - cleanup status;
 - numbered, reproducible issues.
 
 Never claim a page or interaction passed unless you observed it directly.
+Never report a failure as unexplained without checking the server logs first.
