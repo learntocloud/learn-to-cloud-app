@@ -50,12 +50,15 @@ def _submission(
     is_validated: bool,
     verification_completed: bool = False,
     validation_message: str | None = None,
+    submitted_value: str = "",
+    validated_at: datetime | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         is_validated=is_validated,
         verification_completed=verification_completed,
         validation_message=validation_message,
-        submitted_value="",
+        submitted_value=submitted_value,
+        validated_at=validated_at,
     )
 
 
@@ -210,11 +213,58 @@ class TestPhaseVerificationCardStates:
         req = _requirement("ci-status", "CI Status")
         submission = _submission(is_validated=True, verification_completed=True)
         html = self._render_phase([req], {"ci-status": submission})
-        # A passed requirement renders via the compact verified row, not the
+        # A passed requirement renders via the verified row, not the
         # full interactive card -- see partials/verified_requirement_row.html.
         assert 'id="requirement-ci-status"' in html
         assert "text-green-800 dark:text-green-200" in html
         assert "Verified" in html
+
+    def test_passed_keeps_requirement_context_visible(self):
+        """A verified requirement keeps its evidence on screen (#701)."""
+        req = _requirement("ci-status", "CI Status")
+        req.description = "Submit your Journal API fork URL"
+        submission = _submission(
+            is_validated=True,
+            verification_completed=True,
+            submitted_value="https://github.com/tester/journal-api",
+            validated_at=datetime(2026, 7, 29, 12, 0),
+        )
+        html = self._render_phase([req], {"ci-status": submission})
+
+        assert "Submit your Journal API fork URL" in html
+        assert "https://github.com/tester/journal-api" in html
+        assert "Verified Jul 29, 2026" in html
+        assert "report it" in html
+
+    def test_passed_does_not_echo_non_url_submissions(self):
+        """Tokens and long free text are not dumped back into the summary."""
+        req = _requirement("career-reflection", "Career Reflection")
+        submission = _submission(
+            is_validated=True,
+            verification_completed=True,
+            submitted_value="a very long written reflection " * 50,
+            validated_at=datetime(2026, 7, 29, 12, 0),
+        )
+        html = self._render_phase([req], {"career-reflection": submission})
+
+        assert "Graded:" not in html
+        assert "a very long written reflection" not in html
+        assert "Verified Jul 29, 2026" in html
+
+    def test_readonly_derived_url_is_explained(self):
+        """The auto-derived, read-only field says why it can't be edited (#701)."""
+        from learn_to_cloud_shared.models import SubmissionType
+
+        req = _requirement("journal-api", "Journal API")
+        req.submission_type = SubmissionType.JOURNAL_API_VERIFIER
+        req.type_config = SimpleNamespace(
+            placeholder=None, required_repo="learntocloud/journal-api"
+        )
+        html = self._render_phase([req], {})
+
+        assert "readonly" in html
+        assert "can't be edited" in html
+        assert "under an organization" in html
 
 
 @pytest.mark.unit

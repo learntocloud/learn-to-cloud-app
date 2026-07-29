@@ -164,6 +164,16 @@
             Checking...
         </span>
     </form>
+    {% if derived_url %}
+    {# The read-only field above is derived server-side, which is invisible to a
+       learner whose fork is named differently or lives under an org (#701). #}
+    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        This URL is built from your signed-in GitHub username and the repository this
+        requirement expects, so it can't be edited. If your fork has a different name
+        or lives under an organization, rename it or fork it to your own account
+        before verifying.
+    </p>
+    {% endif %}
     {% endif %}
 
     {% if card_state == 'unavailable' %}
