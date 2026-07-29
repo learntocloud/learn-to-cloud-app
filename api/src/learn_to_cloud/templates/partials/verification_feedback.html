@@ -5,7 +5,9 @@
      A failing grade opens expanded (#699): the per-dimension rationale is the
      only thing that tells a learner which rubric dimension failed and why, and
      hiding it behind a click pushes them toward guess-and-resubmit. A passing
-     grade stays collapsed — there is nothing to act on.
+     grade stays collapsed, but its header advertises any next_steps the grader
+     returned so the advice isn't lost — a verified requirement can't be
+     resubmitted, so this is the learner's only copy.
 
      Required context:
        feedback_tasks   – list of dicts with keys: name, passed, message
@@ -16,6 +18,7 @@
 {% set total = feedback_tasks | length %}
 {% set failed = total - feedback_passed %}
 {% set all_passed = (feedback_passed == total) %}
+{% set suggestions = feedback_tasks | selectattr('next_steps') | list | length %}
 {% set _panel_id = 'feedback-panel-' ~ (requirement_slug | default('default')) %}
 
 <div
@@ -36,7 +39,7 @@
         <span class="flex items-center gap-2">
             {% if all_passed %}
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-            All checks passed
+            All checks passed{% if suggestions %} — {{ suggestions }} suggestion{{ '' if suggestions == 1 else 's' }} to review{% endif %}
             {% else %}
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             {{ feedback_passed }}/{{ total }} checks passed — what to fix
@@ -83,6 +86,9 @@
                         <span class="font-medium text-gray-700 dark:text-gray-300">{{ task.name }}</span>
                         {% if task.message %}
                         <p class="text-gray-500 dark:text-gray-400 mt-0.5 break-words">{{ task.message }}</p>
+                        {% endif %}
+                        {% if task.next_steps %}
+                        <p class="text-amber-600 dark:text-amber-400 mt-1 text-xs italic break-words">➔ {{ task.next_steps }}</p>
                         {% endif %}
                     </div>
                 </div>

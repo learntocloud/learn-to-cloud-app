@@ -128,7 +128,7 @@ def test_failing_feedback_panel_opens_by_default():
 
 @pytest.mark.unit
 def test_passing_feedback_panel_stays_collapsed():
-    """A passing grade has nothing to act on, so it stays a summary."""
+    """A passing grade with no advice stays a bare summary."""
     html = _render(
         "partials/verification_feedback.html",
         feedback_tasks=[{"name": "Logging", "passed": True, "message": "Good."}],
@@ -138,6 +138,46 @@ def test_passing_feedback_panel_stays_collapsed():
 
     assert 'x-data="{ expanded: false }"' in html
     assert "All checks passed" in html
+    assert "suggestion" not in html
+
+
+@pytest.mark.unit
+def test_passing_feedback_panel_keeps_next_steps():
+    """A verified requirement can't be resubmitted, so its advice must survive."""
+    html = _render(
+        "partials/verification_feedback.html",
+        feedback_tasks=[
+            {
+                "name": "Error Handling",
+                "passed": True,
+                "message": "Endpoints return the right status codes.",
+                "next_steps": "Consider parsing the LLM JSON more defensively.",
+            },
+            {"name": "Logging", "passed": True, "message": "Good."},
+        ],
+        feedback_passed=2,
+        requirement_slug="journal-api-implementation",
+    )
+
+    assert "All checks passed — 1 suggestion to review" in html
+    assert "Consider parsing the LLM JSON more defensively." in html
+
+
+@pytest.mark.unit
+def test_passing_feedback_panel_pluralizes_suggestions():
+    html = _render(
+        "partials/verification_feedback.html",
+        feedback_tasks=[
+            {"name": "A", "passed": True, "message": "ok", "next_steps": "do x"},
+            {"name": "B", "passed": True, "message": "ok", "next_steps": "do y"},
+        ],
+        feedback_passed=2,
+        requirement_slug="journal-api-implementation",
+    )
+
+    assert "All checks passed — 2 suggestions to review" in html
+    assert "do x" in html
+    assert "do y" in html
 
 
 @pytest.mark.unit
