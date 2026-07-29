@@ -122,6 +122,10 @@ Or use VS Code's **"API + Verification"** compound launch configuration.
 **Notes:**
 - The API does not start local dependencies for you. Run `docker compose up -d db azurite dts` first.
 - Verification submissions require the Durable Functions host on port `7071`.
+- Stop the Functions host with `Ctrl+C`, or `kill -INT <pid>` if you started it in
+  the background. The Core Tools host installs no `SIGTERM` handler, so a plain
+  `kill` leaves it holding port `7071` and blocks the next run; `SIGINT` shuts it
+  down in about a second and works on the `uv run` wrapper PID too.
 - Manage dependencies with `docker compose start` / `docker compose stop`.
 
 | Service | URL |
