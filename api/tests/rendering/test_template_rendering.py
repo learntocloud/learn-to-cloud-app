@@ -103,6 +103,44 @@ def test_phase5_holistic_feedback_renders_in_shared_panel():
 
 
 @pytest.mark.unit
+def test_failing_feedback_panel_opens_by_default():
+    """A failed grade shows its per-dimension rationale without a click (#699)."""
+    html = _render(
+        "partials/verification_feedback.html",
+        feedback_tasks=[
+            {
+                "name": "Logging",
+                "passed": False,
+                "message": "No structured logging found.",
+                "next_steps": "Add a logger to the create endpoint.",
+            },
+            {"name": "Validation", "passed": True, "message": "Looks good."},
+        ],
+        feedback_passed=1,
+        requirement_slug="journal-api-implementation",
+    )
+
+    assert 'x-data="{ expanded: true }"' in html
+    assert "1/2 checks passed — what to fix" in html
+    assert "No structured logging found." in html
+    assert "Add a logger to the create endpoint." in html
+
+
+@pytest.mark.unit
+def test_passing_feedback_panel_stays_collapsed():
+    """A passing grade has nothing to act on, so it stays a summary."""
+    html = _render(
+        "partials/verification_feedback.html",
+        feedback_tasks=[{"name": "Logging", "passed": True, "message": "Good."}],
+        feedback_passed=1,
+        requirement_slug="journal-api-implementation",
+    )
+
+    assert 'x-data="{ expanded: false }"' in html
+    assert "All checks passed" in html
+
+
+@pytest.mark.unit
 class TestPhaseVerificationLocked:
     """The gated (`verification_locked`) branch of pages/phase.html."""
 
