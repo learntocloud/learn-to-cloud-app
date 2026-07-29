@@ -62,11 +62,16 @@ cd <workspace>/api && uv run python scripts/reset_local_submissions.py \
 
 ## Expected Output
 
-- Matching rows found and affected user IDs
-- Number of deleted submission rows
+- Matching attempts, each with its user ID, requirement slug, and outcome
+- Number of deleted `verification_attempts` rows
 
 ## Notes
 
-- This is for local/testing databases only.
-- Progress is derived live from the submissions table on next page load,
-  so no denormalized counter needs updating.
+- The script refuses to run unless the configured database host is a local
+  development one (`localhost`, `127.0.0.1`, `::1`, `db`, `postgres`) and Azure
+  managed-identity Postgres is not in use.
+- Submission state lives in `verification_attempts`; slugs are resolved to
+  `requirement_uuid` through the curriculum artifact, so an unknown slug fails
+  fast instead of silently deleting nothing.
+- Progress is derived live from those attempts on next page load, so no
+  denormalized counter needs updating.

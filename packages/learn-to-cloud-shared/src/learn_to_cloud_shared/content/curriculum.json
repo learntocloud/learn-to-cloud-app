@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "20e4df2d67da7f6c2948b4cbd3c9226683c4d29ff33208adb39dedc69819718f",
-  "curriculum_version": 3,
+  "content_hash": "e5d38e1ef23651d1b6084cd5390ff20190ee69f432ab5d8eea40ef868ad56c19",
+  "curriculum_version": 4,
   "phases": [
     {
       "capstone": null,
@@ -2559,7 +2559,7 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API. If you need a quick refresher on GitHub workflows, complete a GitHub Skills course at https://learn.github.com/skills and use Git command references at https://github.com/git-guides/git-overview. Important: Follow the development workflow \u2014 create a feature branch for each task, run the tests, then open a Pull Request to merge into main. You'll need to submit each merged PR link for verification.",
+              "description": "Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API. If you need a quick refresher on GitHub workflows, complete a GitHub Skills course at https://learn.github.com/skills and use Git command references at https://github.com/git-guides/git-overview. Important: Follow the development workflow \u2014 create a feature branch for each task, run the tests, then open a Pull Request to merge into main. Verification reads your fork once your work is merged to main, so you don't submit anything per PR.",
               "done_when": null,
               "options": [],
               "order": 1,

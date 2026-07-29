@@ -120,8 +120,9 @@ lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 ## Step 7: Run Tests
 
 If the changes affect logic (not just formatting/docs), run the test suites.
-The poe `test` task runs every project's tests with coverage plus the
-verification import smoke test:
+The poe `test` task runs pytest with coverage gates for `api` and
+`packages/learn-to-cloud-shared`, then the `apps/verification-functions` suite
+(no coverage gate there):
 
 ```bash
 cd <workspace> && uv run poe test
@@ -133,9 +134,28 @@ that project's tests directly and stop on the first failure:
 ```bash
 cd <workspace>/api && uv run pytest tests/ -x
 cd <workspace>/packages/learn-to-cloud-shared && uv run pytest tests/ -x
+cd <workspace>/apps/verification-functions && uv run pytest tests/ -x
 ```
 
 **When mandatory**: Changes to repositories, services, routes, models, schemas, shared verification, or Functions code.
+
+### Before pushing: run the full gate
+
+`uv run poe check` is the pre-push gate (see the **ship-it** skill). It is
+`static` + `package-smoke` + `test` in sequence. `package-smoke` builds the
+`learn-to-cloud-shared` wheel, installs it into a throwaway venv, and runs
+`learn_to_cloud_shared.runtime_package_check` — it catches packaging mistakes
+(missing package data, bad entry points) that neither static checks nor the
+in-repo tests see:
+
+```bash
+cd <workspace> && uv run poe check
+```
+
+Note that CI's `ci` job runs additional checks with no poe task (curriculum
+content validation, YAML schema and `curriculum.json` drift, migration head /
+naming checks, `alembic upgrade head` and `alembic check`). See the **ship-it**
+skill for the full list and the commands to run them locally.
 
 ---
 
@@ -143,21 +163,22 @@ cd <workspace>/packages/learn-to-cloud-shared && uv run pytest tests/ -x
 
 **Mandatory when this change adds or modifies a `.github/workflows/deploy.yml` step that runs a Python script or command.**
 
-CI runs scripts with a minimal env (just `DATABASE__URL` is set in the `ci` job). Local dev shells almost always have more env vars set (devcontainer, `.env` files, shell history). Scripts that work locally can blow up in CI because they touch settings/config that demand env vars CI doesn't have.
+CI runs scripts with a minimal env (the `ci` job sets only `DATABASE__URL` and `POSTGRES_VERIFICATION_FUNCTIONS_ROLE`). Local dev shells almost always have more env vars set (devcontainer, `.env` files, shell history). Scripts that work locally can blow up in CI because they touch settings/config that demand env vars CI doesn't have.
 
-This step caught a real production failure (issue #469: `validate_content.py` instantiated `WebSettings` which required `OAUTH__CLIENT_ID`/`OAUTH__CLIENT_SECRET`, both unset in CI).
+This step caught a real production failure (issue #469: `packages/learn-to-cloud-shared/scripts/validate_content.py` instantiated `WebSettings` which required `OAUTH__CLIENT_ID`/`OAUTH__CLIENT_SECRET`, both unset in CI).
 
 ### How to reproduce CI's env
 
-Strip your shell to bare essentials, then re-run the new CI step's command exactly as it appears in the workflow:
+Strip your shell to bare essentials, then re-run the new CI step's command exactly as it appears in the workflow, including its `working-directory`:
 
 ```bash
 env -i HOME=$HOME PATH=$PATH \
-    DATABASE__URL="postgresql+asyncpg://postgres:postgres@db:5432/learntocloud" \
+    DATABASE__URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" \
+    POSTGRES_VERIFICATION_FUNCTIONS_ROLE="ltc_verification_functions_dev" \
     uv run python <path/to/new_script.py>
 ```
 
-`env -i` clears all env vars. `HOME` and `PATH` are kept so `uv` and Python work. `DATABASE__URL` matches the value in `deploy.yml`'s `ci` job env block.
+`env -i` clears all env vars. `HOME` and `PATH` are kept so `uv` and Python work. The two env vars mirror the `ci` job's `env:` block in `deploy.yml` (the Postgres service is reached on `localhost`, not a `db` host). Re-check `deploy.yml` for the current values before relying on them.
 
 If the new CI step uses additional env vars in the workflow, add them here too, only the ones the workflow sets.
 
@@ -187,6 +208,7 @@ Only when the workflow change is purely YAML restructuring with no new Python in
 |------|---------|
 | Kill API | `lsof -ti:8000 \| xargs kill -9 2>/dev/null \|\| true` |
 | Static checks (lint / format / type-check) | `uv run poe static` |
+| Full pre-push gate (static + package-smoke + tests) | `uv run poe check` |
 | Lint + fix | `uv run ruff check --fix <file>` |
 | Format fix | `uv run ruff format <file>` |
 | Health check | `curl -s http://localhost:8000/health` |

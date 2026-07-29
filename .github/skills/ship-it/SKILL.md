@@ -41,16 +41,41 @@ gh auth status || echo "gh NOT authenticated, deploy monitoring will be skipped"
 
 ## Step 2: Run the Quality Gate
 
-Stage everything first, then run the full quality gate. `uv run poe check` runs
-the static checks (ruff lint, ruff format, ty type check, migration SQL lint)
-followed by the test suites and the verification import smoke test. It is the
-same command CI runs, so passing here means CI should pass too.
+Stage everything first, then run the full quality gate. `uv run poe check` is a
+sequence of three tasks:
+
+1. `static` — `prek run --all-files`: ruff lint, ruff format, ty type check,
+   migration SQL safety lint, docs link check, file hygiene.
+2. `package-smoke` — builds the `learn-to-cloud-shared` wheel, installs it into
+   a throwaway venv, and runs `learn_to_cloud_shared.runtime_package_check`.
+3. `test` — pytest with coverage for `api` and
+   `packages/learn-to-cloud-shared`, plus the `apps/verification-functions`
+   suite.
 
 ```bash
 cd <workspace>
 git add -A
 uv run poe check
 ```
+
+### `poe check` is necessary but not sufficient for CI
+
+CI's `ci` job runs `poe static`, `poe package-smoke`, and `poe test`, but also
+several checks that have no local poe task. A green `poe check` can still hit a
+red CI. Run the relevant ones yourself when your change touches their inputs:
+
+| CI step | Command | Run it when you touched |
+|---------|---------|-------------------------|
+| Curriculum content integrity | `cd packages/learn-to-cloud-shared && uv run python scripts/validate_content.py` | curriculum content YAML |
+| YAML JSON schema drift | `cd packages/learn-to-cloud-shared && uv run python scripts/generate_yaml_schemas.py` then confirm `git diff --exit-code src/learn_to_cloud_shared/content/schemas/` is clean | content Pydantic models |
+| `curriculum.json` artifact drift | regenerate the artifact and commit it | curriculum content or artifact schema |
+| Single migration head | `cd api && uv run alembic heads` shows exactly one head | Alembic migrations |
+| Migration naming/docstrings | `cd api && uv run python scripts/check_migration_naming.py` | Alembic migrations |
+| Migrations apply + model sync | `cd api && uv run alembic upgrade head && uv run alembic check` | models or migrations |
+
+Terraform changes are gated by the separate `terraform-ci` job (`terraform fmt
+-check -recursive`, `validate`, `terraform test`), and dependency changes by
+`dependency-review`. Neither is covered by `poe check`.
 
 > Stage files first (`git add -A`). The static checks run `prek run --all-files`,
 > which only inspects git-tracked files, so newly-created files (new migrations,
@@ -143,6 +168,21 @@ run_id=$(gh run list --workflow=deploy.yml --branch main --event push \
   --commit "$merge_sha" --limit 1 --json databaseId --jq '.[0].databaseId')
 ```
 
+**If `run_id` is empty, that is often correct, not an error.** `deploy.yml`'s
+push trigger is path-filtered to `api/**`, `apps/verification-functions/**`,
+`infra/**`, `packages/learn-to-cloud-shared/**`, `pyproject.toml`, `uv.lock`,
+`scripts/**`, `docker-compose.yml`, and `.github/workflows/deploy.yml`. A merge
+touching only docs, skills, or other paths starts no run at all. Confirm the
+merge changed a deploy-relevant path before assuming something went wrong:
+
+```bash
+git diff --name-only "$merge_sha^" "$merge_sha"
+```
+
+If nothing deploy-relevant changed, report that no deploy was triggered and
+skip to the end. Otherwise, retry the lookup a few times — Actions can take
+several seconds to register the run.
+
 Watch it with the built-in command instead of a hand-rolled poll loop. `--exit-status` returns non-zero on failure (handy for chaining), `--compact` keeps output small:
 
 ```bash
@@ -194,7 +234,7 @@ curl -s https://<api-url>/ready
 ## Ship It: <branch-name>
 
 1. **Branch + Auth**: on feature branch `<branch>`; gh authenticated (or noted)
-2. **Quality Gate**: `uv run poe check` passed (static checks + tests across api, shared, verification-functions)
+2. **Quality Gate**: `uv run poe check` passed (static + package-smoke + tests across api, shared, verification-functions); CI-only checks run where relevant
 3. **Commit**: `<commit-hash>` `<commit-message>`
 4. **Push + PR**: pushed `<branch>`; PR opened to `main`; PR checks passing
 5. **Deploy (after merge)**: Run #<id> succeeded / failed (see step 6) / pending merge
