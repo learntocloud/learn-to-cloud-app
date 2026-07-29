@@ -238,6 +238,12 @@ Cleanup is mandatory. Stop only the PIDs you started, including when startup
 failed partway. Leave `/tmp/dogfood-api.log` and `/tmp/dogfood-functions.log` in
 place for the user to inspect; the next run overwrites them.
 
+Stop the Functions host with `kill -INT <pid>`, not a plain `kill`. The Core
+Tools host installs no `SIGTERM` handler, so `kill` leaves it holding port 7071
+until it is force-killed, and the leftover process silently blocks the next
+run's port bind. `SIGINT` shuts it down in about a second, and sending it to the
+`uv run` wrapper PID you recorded propagates to the host correctly.
+
 ## Reporting standard
 
 Use the report template in the reference. Lead with findings, not with an
