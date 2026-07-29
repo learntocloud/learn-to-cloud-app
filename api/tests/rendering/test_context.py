@@ -240,6 +240,35 @@ class TestBuildRequirementCardContext:
         )
         assert ctx["derived_url"] is None
 
+    def test_graded_url_exposes_the_url_that_was_verified(self):
+        """The verified card shows which value was graded (#701)."""
+        req = _make_requirement(SubmissionType.JOURNAL_API_VERIFIER)
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username="alice",
+            submission=_make_submission(is_validated=True, verification_completed=True),
+        )
+        assert ctx["graded_url"] == "https://github.com/alice/repo"
+
+    def test_graded_url_omits_non_url_submissions(self):
+        """Tokens and free text are not echoed back into the verified card."""
+        req = _make_requirement(SubmissionType.CTF_TOKEN)
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username="alice",
+            submission=_make_submission(
+                is_validated=True,
+                verification_completed=True,
+                submitted_value="ctf-token-abc123",
+            ),
+        )
+        assert ctx["graded_url"] is None
+
+    def test_graded_url_is_none_without_a_submission(self):
+        req = _make_requirement(SubmissionType.CTF_TOKEN)
+        ctx = build_requirement_card_context(requirement=req, github_username="alice")
+        assert ctx["graded_url"] is None
+
     def test_misconfigured_required_repo_falls_back_to_none(self):
         """JOURNAL_API_VERIFIER without required_repo is now impossible (#470).
 
@@ -277,6 +306,7 @@ def _make_submission(
     is_validated: bool,
     verification_completed: bool = False,
     validation_message: str | None = None,
+    submitted_value: str = "https://github.com/alice/repo",
 ):
     from datetime import UTC, datetime
 
@@ -284,7 +314,7 @@ def _make_submission(
 
     return SubmissionData(
         id=uuid4(),
-        submitted_value="https://github.com/alice/repo",
+        submitted_value=submitted_value,
         is_validated=is_validated,
         verification_completed=verification_completed,
         validation_message=validation_message,

@@ -318,6 +318,22 @@ def feedback_tasks_and_passed(
     return tasks, passed
 
 
+_URL_SCHEMES = ("https://", "http://")
+
+
+def _graded_url(submission: Any) -> str | None:
+    """Return the graded value when it is a URL worth showing back.
+
+    Token and free-text submissions are deliberately excluded: a career
+    reflection can run to 20,000 characters and a completion token is noise,
+    so neither belongs in the verified summary.
+    """
+    if submission is None:
+        return None
+    value = getattr(submission, "submitted_value", "") or ""
+    return value if value.startswith(_URL_SCHEMES) else None
+
+
 def build_requirement_card_context(
     *,
     requirement: Any,
@@ -407,6 +423,7 @@ def build_requirement_card_context(
         "verification_status_token": verification_status_token,
         "verification_status_delay_seconds": verification_status_delay_seconds,
         "derived_url": derived_url,
+        "graded_url": _graded_url(submission),
     }
 
 

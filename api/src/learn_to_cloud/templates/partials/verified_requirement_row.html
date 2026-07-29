@@ -1,15 +1,57 @@
-{# Compact "already verified" requirement row with optional expandable
-   feedback explaining why it passed. Shared by the locked and unlocked
-   branches of pages/phase.html so there's exactly one verified-row markup.
+{# "Already verified" requirement summary with optional expandable feedback
+   explaining why it passed. Shared by the locked and unlocked branches of
+   pages/phase.html so there's exactly one verified-row markup.
+
+   Keeps the evidence of the grade visible (#701): what the requirement asked
+   for, which value was graded, and when. Without it a passed requirement
+   collapsed to a name and a checkmark, leaving the learner no record of what
+   was evaluated and no way to contest it.
 
    Required context:
      card  – a build_requirement_card_context() dict with card_state == 'passed'
 #}
 <div id="requirement-{{ card.requirement.slug }}">
-    <div class="flex items-center gap-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-2.5">
-        <span class="text-green-600 dark:text-green-400" aria-hidden="true">✓</span>
-        <span class="text-sm font-medium text-green-800 dark:text-green-200">{{ card.requirement.name }}</span>
-        <span class="sr-only">— Verified</span>
+    <div class="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-2.5">
+        <div class="flex items-center gap-3 flex-wrap">
+            <span class="text-green-600 dark:text-green-400" aria-hidden="true">✓</span>
+            <span class="text-sm font-medium text-green-800 dark:text-green-200">{{ card.requirement.name }}</span>
+            <span class="sr-only">— Verified</span>
+            {% if card.submission and card.submission.validated_at %}
+            <span class="ml-auto text-xs text-green-700 dark:text-green-300">
+                Verified {{ card.submission.validated_at.strftime('%b %d, %Y') }}
+            </span>
+            {% endif %}
+        </div>
+
+        {% if card.requirement.description %}
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ card.requirement.description }}</p>
+        {% endif %}
+
+        {% if card.graded_url %}
+        <p class="mt-2 text-xs text-gray-600 dark:text-gray-400 break-all">
+            Graded:
+            <a
+                href="{{ card.graded_url }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline hover:no-underline"
+            >{{ card.graded_url }}</a>
+        </p>
+        {% endif %}
+
+        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            A verified requirement can't be resubmitted. If this result looks wrong,
+            <a
+                href="https://github.com/learntocloud/learn-to-cloud-app/issues/new"
+                data-report-issue
+                data-issue-title="Verification result looks wrong: {{ card.requirement.name }}"
+                data-issue-labels="bug"
+                data-issue-context="requirement={{ card.requirement.slug }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline hover:no-underline"
+            >report it</a>.
+        </p>
     </div>
     {% if card.feedback_tasks %}
     {% with feedback_tasks=card.feedback_tasks, feedback_passed=card.feedback_passed, requirement_slug=card.requirement.slug %}
