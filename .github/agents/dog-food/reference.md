@@ -33,22 +33,32 @@ rendered, not the full definition of working.
 
 ## Submission requirements
 
+Source of truth is `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/curriculum.json`
+(`phases[].hands_on_verification.requirements`). If a slug here does not match a
+requirement card in the app, trust the artifact and report the drift.
+
 | Phase | Requirement slug | Submission type | Needs Functions? | Input |
 |-------|------------------|-----------------|------------------|-------|
-| 1 | `profile-readme` | `profile_readme` | Yes | Auto-derived |
+| 0 | `profile-readme` | `profile_readme` | Yes | Auto-derived |
 | 1 | `linux-ctfs-fork` | `repo_fork` | Yes | Auto-derived |
 | 1 | `linux-ctfs-token` | `ctf_token` | Yes | User-provided token |
 | 2 | `networking-lab-fork` | `repo_fork` | Yes | Auto-derived |
 | 2 | `networking-lab-token` | `networking_token` | Yes | User-provided token |
 | 3 | `journal-api-implementation` | `journal_api_verifier` | Yes | Auto-derived |
 | 4 | `deployed-journal-api` | `deployed_api` | Yes | User-provided URL |
+| 4 | `deployment-architecture` | `deployment_architecture` | Yes | Written answer, 300 characters minimum |
 | 5 | `devops-implementation` | `devops_analysis` | Yes | Auto-derived |
 | 6 | `security-scanning` | `security_scanning` | Yes | Auto-derived |
-| 7 | `career-reflection` | `career_reflection` | Yes | Three user-provided answers |
+| 7 | `career-reflection` | `career_reflection` | Yes | Three answers, 200 characters minimum each |
 
-Auto-derived values come from the authenticated GitHub user. For
-`career_reflection`, fill every rendered textarea with a substantive answer of
-at least 200 characters.
+Auto-derived values come from the authenticated GitHub user, and the field is
+rendered read-only. If a prefilled repository is not the one you were asked to
+test, report it rather than trying to force the value.
+
+`deployment-architecture` expects a description of the architecture the
+learner's `deploy.sh` provisions (network layout, VM placement, firewall rules,
+traffic flow) and is scoped to the `learntocloud/journal-starter` repository.
+For `career_reflection`, fill every rendered textarea with a substantive answer.
 
 ## Report template
 
