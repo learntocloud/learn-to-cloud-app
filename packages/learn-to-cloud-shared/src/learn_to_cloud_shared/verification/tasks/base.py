@@ -143,6 +143,15 @@ class LLMRubricGraderConfig(FrozenModel):
     """
 
 
+class CriterionVerdict(FrozenModel):
+    """Whether one rubric criterion was met, and the evidence-backed reason."""
+
+    index: int = Field(ge=0)
+    """Position of the criterion in the task's ``criteria`` list."""
+    met: bool
+    justification: str = ""
+
+
 class LLMGradingDecision(FrozenModel):
     """Structured decision returned by the LLM grader.
 
@@ -155,6 +164,14 @@ class LLMGradingDecision(FrozenModel):
     next_steps: str = ""
     failure_reason: str | None = None
     evidence_refs: list[str] = Field(default_factory=list)
+    criteria: list[CriterionVerdict] = Field(default_factory=list)
+    """One verdict per rubric criterion, in order.
+
+    Diagnostic rather than authoritative: ``score`` still decides the outcome.
+    These make feedback name the criterion a learner missed, and let offline
+    evaluation measure which criteria the grader judges unreliably instead of
+    only whether it agreed overall.
+    """
 
 
 class CompositeGraderConfig(FrozenModel):
@@ -199,6 +216,7 @@ class GradingResult(FrozenModel):
     score: float | None = None
     rubric_version: str | None = None
     evidence_refs: list[str] = Field(default_factory=list)
+    criteria: list[CriterionVerdict] = Field(default_factory=list)
 
     def to_task_result(self) -> TaskResult:
         """Convert to the current public task feedback schema."""

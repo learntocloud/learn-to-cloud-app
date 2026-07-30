@@ -72,6 +72,11 @@ Return only one JSON object with:
 - failure_reason: stable snake_case reason for the largest shortfall, or null
   when the evidence fully satisfies every criterion.
 - evidence_refs: paths, URLs, task ids, or evidence ids used in the decision.
+- criteria: one entry per rubric criterion, using the `index` given in the
+  task payload, with `met` and a one-sentence `justification` citing the
+  evidence. Return an entry for every criterion, including the ones that
+  were met, and judge each on its own rather than letting an overall
+  impression decide them together.
 Do not wrap the JSON in Markdown or include explanatory text outside the JSON.
 """.strip()
 
@@ -135,37 +140,37 @@ def _render(guidance: str) -> str:
 
 PHASE3_JOURNAL_API_PROMPT = GraderPrompt(
     id="phase3-journal-api",
-    version="2026-08-01",
+    version="2026-08-02",
     instructions=_render(_PHASE3_GUIDANCE),
-    checksum="9495a8b47a4a881c",
+    checksum="e5f74d78ba879ef6",
 )
 
 PHASE4_DEPLOYMENT_ARCHITECTURE_PROMPT = GraderPrompt(
     id="phase4-deployment-architecture",
-    version="2026-08-01",
+    version="2026-08-02",
     instructions=_render(_PHASE4_GUIDANCE),
-    checksum="89bb5b35c3c81c67",
+    checksum="6d24a822ccb5b845",
 )
 
 PHASE5_DEVOPS_IMPLEMENTATION_PROMPT = GraderPrompt(
     id="phase5-devops-implementation",
-    version="2026-08-01",
+    version="2026-08-02",
     instructions=_render(_PHASE5_GUIDANCE),
-    checksum="a7f4801f95996ad2",
+    checksum="fe4a072369d2b291",
 )
 
 PHASE6_SECURITY_SCANNING_PROMPT = GraderPrompt(
     id="phase6-security-scanning",
-    version="2026-08-01",
+    version="2026-08-02",
     instructions=_render(_PHASE6_GUIDANCE),
-    checksum="9166519382ad6e4f",
+    checksum="dcd0013fe95257a0",
 )
 
 PHASE7_CAREER_REFLECTION_PROMPT = GraderPrompt(
     id="phase7-career-reflection",
-    version="2026-08-01",
+    version="2026-08-02",
     instructions=_render(_PHASE7_GUIDANCE),
-    checksum="30e7b48923c64944",
+    checksum="4fa0dc7c8e792bbd",
 )
 
 

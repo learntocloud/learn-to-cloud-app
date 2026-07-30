@@ -3,6 +3,7 @@
 from learn_to_cloud_shared.verification.tasks.base import (
     ApiProbeGraderConfig,
     CompositeGraderConfig,
+    CriterionVerdict,
     EvidenceBundle,
     EvidenceItem,
     EvidencePolicy,
@@ -50,6 +51,7 @@ from learn_to_cloud_shared.verification.tasks.phase7 import (
 __all__ = [
     "ApiProbeGraderConfig",
     "CompositeGraderConfig",
+    "CriterionVerdict",
     "EvidenceBundle",
     "EvidenceItem",
     "EvidencePolicy",

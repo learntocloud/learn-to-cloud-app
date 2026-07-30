@@ -138,6 +138,11 @@ def _decision_to_grading_result(
 
     feedback = decision.feedback
     next_steps = decision.next_steps
+    if not passed:
+        if unmet := _unmet_criteria(task, decision):
+            listed = "\n".join(f"- {text}" for text in unmet)
+            next_steps = f"Criteria not yet met:\n{listed}\n\n{next_steps}".strip()
+
     warnings = evidence.sufficiency_warnings if evidence is not None else []
     if not passed and warnings:
         failure_reason = "insufficient_evidence"
@@ -163,4 +168,22 @@ def _decision_to_grading_result(
         score=decision.score,
         rubric_version=grader.rubric_id,
         evidence_refs=decision.evidence_refs,
+        criteria=decision.criteria,
     )
+
+
+def _unmet_criteria(
+    task: VerificationTask,
+    decision: LLMGradingDecision,
+) -> list[str]:
+    """Return the rubric criteria the grader marked unmet, as their text.
+
+    Verdicts are advisory, so a grader that returns malformed or
+    out-of-range indexes degrades to no criterion detail rather than
+    failing an attempt over prompt formatting.
+    """
+    return [
+        task.criteria[verdict.index]
+        for verdict in decision.criteria
+        if not verdict.met and verdict.index < len(task.criteria)
+    ]

@@ -44,7 +44,9 @@ def _task_payload(task: VerificationTask) -> dict[str, object]:
     return {
         "id": task.id,
         "name": task.name,
-        "criteria": task.criteria,
+        "criteria": [
+            {"index": index, "text": text} for index, text in enumerate(task.criteria)
+        ],
         "rubric_id": grader.rubric_id,
         "passing_score": grader.passing_score,
     }

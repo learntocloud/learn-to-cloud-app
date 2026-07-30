@@ -22,6 +22,7 @@ from learn_to_cloud_shared.verification.tasks import (
     PHASE5_LLM_TASKS,
     PHASE6_LLM_TASKS,
     PHASE7_LLM_TASKS,
+    CriterionVerdict,
     LLMGradingDecision,
 )
 from learn_to_cloud_shared.verification_workflow import (
@@ -363,3 +364,91 @@ def test_low_score_without_a_reason_gets_a_stable_fallback() -> None:
     )
 
     assert result.failure_reason == "score_below_passing_threshold"
+
+
+def test_failing_feedback_names_the_unmet_criteria() -> None:
+    task = PHASE7_LLM_TASKS[0]
+
+    result = _decision_to_grading_result(
+        task,
+        LLMGradingDecision(
+            score=0.2,
+            feedback="The reflection is too generic.",
+            next_steps="Rewrite with specifics.",
+            failure_reason="generic_answers",
+            criteria=[
+                CriterionVerdict(
+                    index=0, met=True, justification="All three answered."
+                ),
+                CriterionVerdict(
+                    index=1, met=False, justification="No personal detail."
+                ),
+                CriterionVerdict(index=2, met=False, justification="No outcome given."),
+            ],
+        ),
+    )
+
+    assert task.criteria[1] in result.next_steps
+    assert task.criteria[2] in result.next_steps
+    assert task.criteria[0] not in result.next_steps
+    assert "Rewrite with specifics." in result.next_steps
+
+
+def test_passing_result_does_not_list_criteria() -> None:
+    task = PHASE7_LLM_TASKS[0]
+
+    result = _decision_to_grading_result(
+        task,
+        LLMGradingDecision(
+            score=0.95,
+            feedback="Specific and personal throughout.",
+            criteria=[CriterionVerdict(index=0, met=True)],
+        ),
+    )
+
+    assert result.passed
+    assert "Criteria not yet met" not in result.next_steps
+
+
+def test_out_of_range_criterion_index_is_ignored() -> None:
+    """A malformed verdict must not fail an attempt over prompt formatting."""
+    task = PHASE7_LLM_TASKS[0]
+
+    result = _decision_to_grading_result(
+        task,
+        LLMGradingDecision(
+            score=0.2,
+            feedback="Too generic.",
+            next_steps="Add specifics.",
+            criteria=[CriterionVerdict(index=99, met=False)],
+        ),
+    )
+
+    assert result.next_steps == "Add specifics."
+
+
+def test_criteria_verdicts_are_carried_onto_the_result() -> None:
+    verdicts = [CriterionVerdict(index=0, met=False, justification="Missing.")]
+
+    result = _decision_to_grading_result(
+        PHASE7_LLM_TASKS[0],
+        LLMGradingDecision(score=0.3, feedback="Reviewed.", criteria=verdicts),
+    )
+
+    assert result.criteria == verdicts
+
+
+def test_criteria_do_not_override_the_score() -> None:
+    """Verdicts are diagnostic; the score still decides the outcome."""
+    task = PHASE7_LLM_TASKS[0]
+
+    result = _decision_to_grading_result(
+        task,
+        LLMGradingDecision(
+            score=0.95,
+            feedback="Reviewed.",
+            criteria=[CriterionVerdict(index=i, met=False) for i in range(3)],
+        ),
+    )
+
+    assert result.passed
