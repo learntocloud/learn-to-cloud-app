@@ -13,6 +13,7 @@ import json
 
 from learn_to_cloud_shared.schemas import FrozenModel, ValidationResult
 from learn_to_cloud_shared.verification.tasks import (
+    EvidenceBundle,
     LLMGradingDecision,
     VerificationTask,
     require_llm_rubric_grader,
@@ -25,6 +26,9 @@ class LLMGradingRequest(FrozenModel):
     task: VerificationTask
     message: str
     thread_id: str
+    evidence: EvidenceBundle | None = None
+    """Bundle the message was built from, carried so grading can tell a
+    rubric failure apart from one caused by evidence we could not collect."""
 
 
 class LLMGradingDecisionPayload(FrozenModel):
@@ -32,6 +36,7 @@ class LLMGradingDecisionPayload(FrozenModel):
 
     task: VerificationTask
     decision: LLMGradingDecision
+    evidence: EvidenceBundle | None = None
 
 
 def _task_payload(task: VerificationTask) -> dict[str, object]:

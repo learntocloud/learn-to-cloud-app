@@ -1023,7 +1023,10 @@ def _grading_requests_for(
         task = result.grading_task
         if task is None:
             continue
-        evidence = result.evidence[0].model_dump(mode="json") if result.evidence else {}
+        bundle = result.evidence[0] if result.evidence else None
+        evidence = bundle.model_dump(mode="json") if bundle is not None else {}
+        if bundle is not None and bundle.sufficiency_warnings:
+            evidence["collection_warnings"] = bundle.sufficiency_warnings
         if task.evidence.source == "submitted_text":
             message = build_text_rubric_message(
                 requirement_slug=job.requirement.slug,
@@ -1051,6 +1054,7 @@ def _grading_requests_for(
                 task=task,
                 message=message,
                 thread_id=f"{job.id}-{task.id}",
+                evidence=bundle,
             )
         )
     return requests

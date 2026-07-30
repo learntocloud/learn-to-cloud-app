@@ -420,6 +420,7 @@ async def run_llm_grading(
         return LLMGradingDecisionPayload(
             task=request.task,
             decision=decision,
+            evidence=request.evidence,
         ).model_dump(mode="json")
 
 

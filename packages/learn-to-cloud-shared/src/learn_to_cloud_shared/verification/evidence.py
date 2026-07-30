@@ -31,24 +31,31 @@ from learn_to_cloud_shared.verification.tasks.base import (
 def apply_evidence_cap(
     task: VerificationTask,
     pairs: Iterable[tuple[str, str]],
+    missing_paths: Iterable[str] = (),
 ) -> EvidenceBundle:
     """Build a bundle from (path, content) pairs within the task's caps.
 
     Deduplicates by path, keeps at most ``max_files``, truncates any item
     over ``max_file_size_bytes``, and stops once ``max_total_bytes`` would be
     exceeded. Pure and network-free so every source shares one cap policy.
+
+    Anything the caps exclude is recorded on the bundle rather than dropped
+    silently, so a grading failure caused by evidence we withheld stays
+    distinguishable from one the learner earned.
     """
     policy = task.evidence
     items: list[EvidenceItem] = []
     total_bytes = 0
     seen: set[str] = set()
+    dropped: list[str] = []
 
     for path, content in pairs:
         if path in seen:
             continue
         seen.add(path)
         if len(items) >= policy.max_files:
-            break
+            dropped.append(path)
+            continue
 
         encoded = content.encode("utf-8")
         truncated = False
@@ -58,7 +65,8 @@ def apply_evidence_cap(
             truncated = True
 
         if total_bytes + len(encoded) > policy.max_total_bytes:
-            break
+            dropped.append(path)
+            continue
 
         total_bytes += len(encoded)
         items.append(
@@ -70,11 +78,16 @@ def apply_evidence_cap(
             )
         )
 
+    missing = list(missing_paths)
+    required = set(policy.required_files)
     return EvidenceBundle(
         task_id=task.id,
         source=policy.source,
         items=items,
         total_bytes=total_bytes,
+        missing_paths=missing,
+        missing_required_paths=[path for path in missing if path in required],
+        dropped_paths=dropped,
     )
 
 
@@ -88,12 +101,14 @@ async def collect_repo_file_evidence(
 ) -> EvidenceBundle:
     """Fetch repository files (get-content) and apply the shared cap."""
     fetched: list[tuple[str, str]] = []
+    missing: list[str] = []
     for path in dict.fromkeys(paths):
         content = await repo_files.file(owner, repo, path, branch)
         if content is None:
+            missing.append(path)
             continue
         fetched.append((path, content))
-    return apply_evidence_cap(task, fetched)
+    return apply_evidence_cap(task, fetched, missing_paths=missing)
 
 
 def select_repo_paths(

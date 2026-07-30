@@ -53,6 +53,53 @@ class EvidenceBundle(FrozenModel):
     source: EvidenceSource
     items: list[EvidenceItem] = Field(default_factory=list)
     total_bytes: int = 0
+    missing_paths: list[str] = Field(default_factory=list)
+    """Requested paths that could not be fetched, so absence is distinguishable
+    from a file that was fetched and found empty. Recorded for every requested
+    path, including ones a task lists as alternatives."""
+    missing_required_paths: list[str] = Field(default_factory=list)
+    """The subset of ``missing_paths`` the task declares as required.
+
+    Tasks request mutually exclusive alternatives (``ci.yml`` or ``ci.yaml``),
+    so a plain missing path is normal and only a missing *required* path means
+    the grader was short evidence it needed.
+    """
+    dropped_paths: list[str] = Field(default_factory=list)
+    """Paths fetched but excluded because a cap was already reached."""
+
+    @property
+    def truncated_paths(self) -> list[str]:
+        """Paths whose content was cut short to fit the per-file size cap."""
+        return [item.path for item in self.items if item.truncated]
+
+    @property
+    def sufficiency_warnings(self) -> list[str]:
+        """Deterministic reasons this evidence may be too incomplete to grade.
+
+        These are facts about collection, not a model's self-assessment: a
+        truncated or dropped file means the grader judged content we cut, so a
+        resulting failure may be ours rather than the learner's.
+        """
+        warnings: list[str] = []
+        if self.missing_required_paths:
+            warnings.append(
+                f"Could not read: {', '.join(sorted(self.missing_required_paths))}"
+            )
+        if truncated := self.truncated_paths:
+            warnings.append(
+                f"Truncated to fit size limits: {', '.join(sorted(truncated))}"
+            )
+        if self.dropped_paths:
+            warnings.append(
+                f"Omitted after evidence limits were reached: "
+                f"{', '.join(sorted(self.dropped_paths))}"
+            )
+        return warnings
+
+    @property
+    def is_sufficient(self) -> bool:
+        """Whether the grader saw every byte of the evidence it asked for."""
+        return not self.sufficiency_warnings
 
 
 class FilePresenceGraderConfig(FrozenModel):
@@ -101,7 +148,6 @@ class LLMGradingDecision(FrozenModel):
 
     passed: bool
     score: float = Field(ge=0.0, le=1.0)
-    confidence: float = Field(ge=0.0, le=1.0)
     feedback: str
     next_steps: str = ""
     failure_reason: str | None = None
@@ -148,7 +194,6 @@ class GradingResult(FrozenModel):
     grader_kind: GraderKind
     failure_reason: str | None = None
     score: float | None = None
-    confidence: float | None = None
     rubric_version: str | None = None
     evidence_refs: list[str] = Field(default_factory=list)
 

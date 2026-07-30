@@ -9,8 +9,10 @@ from learn_to_cloud_shared.schemas import (
     ValidationResult,
 )
 from learn_to_cloud_shared.submission_values import SubmittedValue
+from learn_to_cloud_shared.verification.evidence import apply_evidence_cap
 from learn_to_cloud_shared.verification.llm_grading import (
     LLMGradingDecisionPayload,
+    _decision_to_grading_result,
     apply_llm_grading_decisions,
     llm_grading_content_filtered_result,
     llm_grading_unavailable_result,
@@ -272,3 +274,66 @@ def test_apply_phase7_llm_decision_appends_feedback_when_passed():
     assert updated.validation_result.is_valid is True
     assert updated.validation_result.task_results is not None
     assert updated.validation_result.task_results[-1].passed is True
+
+
+def test_failure_with_incomplete_evidence_is_marked_not_learner_fault() -> None:
+    """A truncated file means the grader judged content we cut, not the learner."""
+    task = PHASE5_LLM_TASKS[0]
+    bundle = apply_evidence_cap(task, [("Dockerfile", "x" * (60 * 1024))])
+    assert not bundle.is_sufficient
+
+    result = _decision_to_grading_result(
+        task,
+        LLMGradingDecision(
+            passed=False,
+            score=0.2,
+            feedback="The Dockerfile does not pin a base image version.",
+            next_steps="Pin the base image.",
+            failure_reason="missing_pinned_base_image",
+        ),
+        bundle,
+    )
+
+    assert result.failure_reason == "insufficient_evidence"
+    assert "Dockerfile" in result.feedback
+    assert "could not read all of your work" in result.feedback.lower()
+
+
+def test_pass_with_incomplete_evidence_is_left_alone() -> None:
+    """Incomplete evidence that still cleared the rubric needs no caveat."""
+    task = PHASE5_LLM_TASKS[0]
+    bundle = apply_evidence_cap(task, [("Dockerfile", "x" * (60 * 1024))])
+
+    result = _decision_to_grading_result(
+        task,
+        LLMGradingDecision(
+            passed=True,
+            score=0.95,
+            feedback="Solid pipeline.",
+        ),
+        bundle,
+    )
+
+    assert result.passed
+    assert result.failure_reason is None
+    assert result.feedback == "Solid pipeline."
+
+
+def test_failure_with_complete_evidence_keeps_its_reason() -> None:
+    task = PHASE5_LLM_TASKS[0]
+    bundle = apply_evidence_cap(task, [("Dockerfile", "FROM python:3.13")])
+    assert bundle.is_sufficient
+
+    result = _decision_to_grading_result(
+        task,
+        LLMGradingDecision(
+            passed=False,
+            score=0.2,
+            feedback="No CI workflow found.",
+            failure_reason="missing_ci_workflow",
+        ),
+        bundle,
+    )
+
+    assert result.failure_reason == "missing_ci_workflow"
+    assert result.feedback == "No CI workflow found."

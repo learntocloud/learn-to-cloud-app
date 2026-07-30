@@ -14,6 +14,7 @@ from learn_to_cloud_shared.verification.grading_requests import (
     LLMGradingRequest,
 )
 from learn_to_cloud_shared.verification.tasks import (
+    EvidenceBundle,
     GradingResult,
     LLMGradingDecision,
     VerificationTask,
@@ -42,7 +43,7 @@ def apply_llm_grading_decisions(
 
     task_results = list(run_result.validation_result.task_results or [])
     grading_results = [
-        _decision_to_grading_result(payload.task, payload.decision)
+        _decision_to_grading_result(payload.task, payload.decision, payload.evidence)
         for payload in decisions
     ]
     task_results.extend(result.to_task_result() for result in grading_results)
@@ -127,6 +128,7 @@ def llm_grading_content_filtered_result(
 def _decision_to_grading_result(
     task: VerificationTask,
     decision: LLMGradingDecision,
+    evidence: EvidenceBundle | None = None,
 ) -> GradingResult:
     grader = require_llm_rubric_grader(task)
     passed = decision.passed and decision.score >= grader.passing_score
@@ -134,16 +136,31 @@ def _decision_to_grading_result(
     if decision.passed and not passed:
         failure_reason = "score_below_passing_threshold"
 
+    feedback = decision.feedback
+    next_steps = decision.next_steps
+    warnings = evidence.sufficiency_warnings if evidence is not None else []
+    if not passed and warnings:
+        failure_reason = "insufficient_evidence"
+        detail = "; ".join(warnings)
+        feedback = (
+            "We could not read all of your work, so this review may be "
+            f"incomplete on our side rather than yours ({detail}). "
+            f"{feedback}"
+        )
+        next_steps = (
+            "Check that the files above are present and reasonably sized in "
+            f"your repository, then try again. {next_steps}"
+        ).strip()
+
     return GradingResult(
         task_id=task.id,
         task_name=task.name,
         passed=passed,
-        feedback=decision.feedback,
-        next_steps=decision.next_steps,
+        feedback=feedback,
+        next_steps=next_steps,
         grader_kind=grader.kind,
         failure_reason=failure_reason,
         score=decision.score,
-        confidence=decision.confidence,
         rubric_version=grader.rubric_id,
         evidence_refs=decision.evidence_refs,
     )
