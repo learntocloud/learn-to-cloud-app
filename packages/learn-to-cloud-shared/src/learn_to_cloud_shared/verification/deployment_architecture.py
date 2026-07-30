@@ -10,17 +10,14 @@ description aligns with what the script actually provisions.
 
 from __future__ import annotations
 
-from hashlib import sha256
-
 import httpx
 
 from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
-from learn_to_cloud_shared.verification.evidence import truncate_to_bytes
+from learn_to_cloud_shared.verification.evidence import apply_evidence_cap
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
-    EvidenceItem,
     VerificationTask,
 )
 from learn_to_cloud_shared.verification.tasks.phase4 import (
@@ -135,42 +132,21 @@ async def collect_deployment_architecture_evidence(
 ) -> EvidenceBundle:
     """Bundle the deploy script and the architecture description for grading."""
     repo_files = repo_files or default_repo_files()
-    items: list[EvidenceItem] = []
-    total_bytes = 0
+
+    pairs: list[tuple[str, str]] = []
+    missing: list[str] = []
 
     script_content = await repo_files.file(owner, repo, deploy_script_path)
-    if script_content is not None:
-        items.append(
-            _bounded_item(
-                deploy_script_path, script_content, task.evidence.max_file_size_bytes
-            )
-        )
-        total_bytes += len(items[-1].content.encode("utf-8"))
+    if script_content is None:
+        missing.append(deploy_script_path)
+    else:
+        pairs.append((deploy_script_path, script_content))
 
-    description_item = _bounded_item(
-        _DESCRIPTION_EVIDENCE_PATH, description, task.evidence.max_file_size_bytes
-    )
-    items.append(description_item)
-    total_bytes += len(description_item.content.encode("utf-8"))
+    pairs.append((_DESCRIPTION_EVIDENCE_PATH, description))
 
-    return EvidenceBundle(
-        task_id=task.id,
-        source=task.evidence.source,
-        items=items,
-        total_bytes=total_bytes,
-    )
-
-
-def _bounded_item(path: str, content: str, max_bytes: int) -> EvidenceItem:
-    encoded = content.encode("utf-8")
-    truncated = False
-    if len(encoded) > max_bytes:
-        content = truncate_to_bytes(content, max_bytes)
-        encoded = content.encode("utf-8")
-        truncated = True
-    return EvidenceItem(
-        path=path,
-        content=content,
-        sha256=sha256(encoded).hexdigest(),
-        truncated=truncated,
+    return apply_evidence_cap(
+        task,
+        pairs,
+        missing_paths=missing,
+        required_paths=[deploy_script_path],
     )

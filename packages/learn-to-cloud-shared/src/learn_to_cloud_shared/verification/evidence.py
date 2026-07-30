@@ -32,6 +32,7 @@ def apply_evidence_cap(
     task: VerificationTask,
     pairs: Iterable[tuple[str, str]],
     missing_paths: Iterable[str] = (),
+    required_paths: Iterable[str] | None = None,
 ) -> EvidenceBundle:
     """Build a bundle from (path, content) pairs within the task's caps.
 
@@ -41,7 +42,9 @@ def apply_evidence_cap(
 
     Anything the caps exclude is recorded on the bundle rather than dropped
     silently, so a grading failure caused by evidence we withheld stays
-    distinguishable from one the learner earned.
+    distinguishable from one the learner earned. ``required_paths`` overrides
+    the task's ``required_files`` for callers whose required path is decided
+    per requirement rather than statically.
     """
     policy = task.evidence
     items: list[EvidenceItem] = []
@@ -79,7 +82,7 @@ def apply_evidence_cap(
         )
 
     missing = list(missing_paths)
-    required = set(policy.required_files)
+    required = set(policy.required_files if required_paths is None else required_paths)
     return EvidenceBundle(
         task_id=task.id,
         source=policy.source,

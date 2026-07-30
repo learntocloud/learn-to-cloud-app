@@ -30,7 +30,10 @@ from learn_to_cloud_shared.verification.tasks.phase6 import (
 )
 
 # Fixed paths graded by the rubric: the committed CodeQL workflow plus optional
-# Dependabot config. Missing files are skipped by ``collect_repo_file_evidence``.
+# Dependabot config. Missing files are recorded on the bundle by
+# ``collect_repo_file_evidence`` but only warn when listed in ``required_files``,
+# which these are not — the Dependabot config paths are mutually exclusive
+# variants, so any given repo is expected to be missing most of them.
 SECURITY_SCANNING_EVIDENCE_PATHS = [CODEQL_WORKFLOW_PATH, *DEPENDABOT_CONFIG_PATHS]
 
 

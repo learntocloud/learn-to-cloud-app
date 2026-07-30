@@ -143,6 +143,50 @@ class TestCollectDeploymentArchitectureEvidence:
         paths = [item.path for item in bundle.items]
         assert paths == ["architecture-description.md"]
 
+    @pytest.mark.asyncio
+    async def test_records_missing_deploy_script_as_a_sufficiency_warning(self):
+        repo_files = InMemoryRepoFiles({})
+
+        bundle = await collect_deployment_architecture_evidence(
+            "alice",
+            "journal-starter",
+            _LONG_DESCRIPTION,
+            repo_files=repo_files,
+        )
+
+        assert bundle.missing_paths == ["deploy.sh"]
+        assert bundle.missing_required_paths == ["deploy.sh"]
+        assert not bundle.is_sufficient
+        assert any("deploy.sh" in w for w in bundle.sufficiency_warnings)
+
+    @pytest.mark.asyncio
+    async def test_present_deploy_script_leaves_the_bundle_sufficient(self):
+        repo_files = InMemoryRepoFiles({"deploy.sh": _DEPLOY_SH})
+
+        bundle = await collect_deployment_architecture_evidence(
+            "alice",
+            "journal-starter",
+            _LONG_DESCRIPTION,
+            repo_files=repo_files,
+        )
+
+        assert bundle.missing_paths == []
+        assert bundle.is_sufficient
+
+    @pytest.mark.asyncio
+    async def test_honors_a_custom_deploy_script_path_when_missing(self):
+        repo_files = InMemoryRepoFiles({"deploy.sh": _DEPLOY_SH})
+
+        bundle = await collect_deployment_architecture_evidence(
+            "alice",
+            "journal-starter",
+            _LONG_DESCRIPTION,
+            deploy_script_path="infra/provision.sh",
+            repo_files=repo_files,
+        )
+
+        assert bundle.missing_required_paths == ["infra/provision.sh"]
+
 
 @pytest.mark.unit
 class TestJobTarget:

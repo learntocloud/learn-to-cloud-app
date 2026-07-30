@@ -115,3 +115,26 @@ def test_any_warning_makes_bundle_insufficient(warning_source: str) -> None:
         )
 
     assert not bundle.is_sufficient
+
+
+def test_required_paths_override_replaces_the_task_policy() -> None:
+    bundle = apply_evidence_cap(
+        _task(required_files=["a.sh"]),
+        [],
+        missing_paths=["b.sh"],
+        required_paths=["b.sh"],
+    )
+
+    assert bundle.missing_required_paths == ["b.sh"]
+
+
+def test_missing_path_not_required_does_not_warn() -> None:
+    bundle = apply_evidence_cap(
+        _task(required_files=["a.sh"]),
+        [("a.sh", "a")],
+        missing_paths=["optional.yml"],
+    )
+
+    assert bundle.missing_paths == ["optional.yml"]
+    assert bundle.missing_required_paths == []
+    assert bundle.is_sufficient
