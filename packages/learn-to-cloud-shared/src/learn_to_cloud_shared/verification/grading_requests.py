@@ -41,7 +41,6 @@ def _task_payload(task: VerificationTask) -> dict[str, object]:
         "name": task.name,
         "criteria": task.criteria,
         "rubric_id": grader.rubric_id,
-        "prompt_version": grader.prompt_version,
         "passing_score": grader.passing_score,
     }
 

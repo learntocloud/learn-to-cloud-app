@@ -51,7 +51,7 @@ CAREER_REFLECTION_RUBRIC_TASK = VerificationTask(
     ),
     grader=LLMRubricGraderConfig(
         rubric_id="phase7-career-reflection-v1",
-        prompt_version="2026-06-26",
+        prompt_id="phase7-career-reflection",
         passing_score=0.6,
         model="gpt-5-mini",
     ),

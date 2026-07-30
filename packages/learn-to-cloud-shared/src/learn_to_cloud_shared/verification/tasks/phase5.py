@@ -100,7 +100,7 @@ DEVOPS_IMPLEMENTATION_RUBRIC_TASK = VerificationTask(
     ),
     grader=LLMRubricGraderConfig(
         rubric_id="phase5-devops-implementation-v1",
-        prompt_version="2026-07-15",
+        prompt_id="phase5-devops-implementation",
         passing_score=0.8,
         model="gpt-5-mini",
     ),

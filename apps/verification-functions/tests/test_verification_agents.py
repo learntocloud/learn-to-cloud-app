@@ -8,6 +8,7 @@ import httpx
 import openai
 import pytest
 import verification_agents
+from learn_to_cloud_shared.verification.tasks import CAREER_REFLECTION_RUBRIC_TASK
 from verification_agents import (
     ContentFilteredError,
     _find_content_filter_error,
@@ -63,15 +64,19 @@ class _FakeAgent:
 
 def test_grade_evidence_translates_content_filter(monkeypatch) -> None:
     agent = _FakeAgent(_library_wrapped_filter_error())
-    monkeypatch.setattr(verification_agents, "get_verification_grader", lambda: agent)
+    monkeypatch.setattr(
+        verification_agents, "get_verification_grader", lambda prompt_id: agent
+    )
 
     with pytest.raises(ContentFilteredError):
-        asyncio.run(grade_evidence("grade this"))
+        asyncio.run(grade_evidence(CAREER_REFLECTION_RUBRIC_TASK, "grade this"))
 
 
 def test_grade_evidence_reraises_other_errors(monkeypatch) -> None:
     agent = _FakeAgent(RuntimeError("network down"))
-    monkeypatch.setattr(verification_agents, "get_verification_grader", lambda: agent)
+    monkeypatch.setattr(
+        verification_agents, "get_verification_grader", lambda prompt_id: agent
+    )
 
     with pytest.raises(RuntimeError, match="network down"):
-        asyncio.run(grade_evidence("grade this"))
+        asyncio.run(grade_evidence(CAREER_REFLECTION_RUBRIC_TASK, "grade this"))

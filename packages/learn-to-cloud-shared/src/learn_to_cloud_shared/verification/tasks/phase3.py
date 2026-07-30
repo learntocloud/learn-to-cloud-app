@@ -76,7 +76,7 @@ JOURNAL_API_FINAL_RUBRIC_TASK = VerificationTask(
     ),
     grader=LLMRubricGraderConfig(
         rubric_id="phase3-journal-api-final-v1",
-        prompt_version="2026-05-08",
+        prompt_id="phase3-journal-api",
         passing_score=0.8,
         model="gpt-5-mini",
     ),

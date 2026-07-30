@@ -84,7 +84,7 @@ class LLMRubricGraderConfig(FrozenModel):
 
     kind: Literal["llm_rubric"] = "llm_rubric"
     rubric_id: str
-    prompt_version: str
+    prompt_id: str
     passing_score: float = Field(ge=0.0, le=1.0)
     model: str | None = None
 

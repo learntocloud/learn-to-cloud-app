@@ -416,7 +416,7 @@ async def run_llm_grading(
         span = otel_trace.get_current_span()
         if span.is_recording():
             span.set_attribute("verification.llm_thread_id", request.thread_id)
-        decision = await grade_evidence(request.message)
+        decision = await grade_evidence(request.task, request.message)
         return LLMGradingDecisionPayload(
             task=request.task,
             decision=decision,

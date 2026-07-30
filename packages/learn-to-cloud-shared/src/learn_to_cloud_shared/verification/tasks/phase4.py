@@ -59,7 +59,7 @@ DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK = VerificationTask(
     ),
     grader=LLMRubricGraderConfig(
         rubric_id="phase4-deployment-architecture-v1",
-        prompt_version="2026-07-05",
+        prompt_id="phase4-deployment-architecture",
         passing_score=0.7,
         model="gpt-5-mini",
     ),
