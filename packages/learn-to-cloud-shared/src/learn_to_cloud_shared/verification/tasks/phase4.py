@@ -61,7 +61,6 @@ DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK = VerificationTask(
         rubric_id="phase4-deployment-architecture-v1",
         prompt_id="phase4-deployment-architecture",
         passing_score=0.7,
-        model="gpt-5-mini",
     ),
 )
 

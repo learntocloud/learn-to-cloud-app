@@ -86,7 +86,14 @@ class LLMRubricGraderConfig(FrozenModel):
     rubric_id: str
     prompt_id: str
     passing_score: float = Field(ge=0.0, le=1.0)
-    model: str | None = None
+    model_deployment: str | None = None
+    """Foundry *deployment* name to grade with, not a model name.
+
+    ``None`` inherits the deployment configured by
+    ``FOUNDRY_MODEL_DEPLOYMENT_NAME``, which is the normal case. Set this only
+    to route one task to a different deployment, and only to a deployment that
+    actually exists in the Foundry account.
+    """
 
 
 class LLMGradingDecision(FrozenModel):

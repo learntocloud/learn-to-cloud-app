@@ -78,7 +78,6 @@ JOURNAL_API_FINAL_RUBRIC_TASK = VerificationTask(
         rubric_id="phase3-journal-api-final-v1",
         prompt_id="phase3-journal-api",
         passing_score=0.8,
-        model="gpt-5-mini",
     ),
 )
 

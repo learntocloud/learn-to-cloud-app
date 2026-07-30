@@ -21,6 +21,7 @@ from learn_to_cloud_shared.verification.grader_prompts import (
 from learn_to_cloud_shared.verification.tasks import (
     LLMGradingDecision,
     VerificationTask,
+    require_llm_rubric_grader,
 )
 
 CONTENT_FILTER_MARKER = "content_filter"
@@ -117,11 +118,11 @@ def _credential() -> DefaultAzureCredential | ManagedIdentityCredential:
 
 
 @cache
-def get_verification_grader(prompt_id: str) -> Agent[Any]:
-    """Return the lazily-constructed Foundry-backed grading agent for a prompt.
+def get_verification_grader(prompt_id: str, model_deployment: str) -> Agent[Any]:
+    """Return the lazily-constructed Foundry-backed grading agent.
 
-    Cached per prompt id so each phase's system prompt gets its own agent
-    instance instead of sharing one.
+    Cached per (prompt, deployment) so each phase's system prompt and model
+    selection gets its own agent instance instead of sharing one.
 
     Validates required config defensively: the orchestrator pre-checks it,
     but activities can run on a different worker, so this stays a guard.
@@ -131,7 +132,7 @@ def get_verification_grader(prompt_id: str) -> Agent[Any]:
     return Agent(
         client=FoundryChatClient(
             project_endpoint=config.project_endpoint,
-            model=config.model_deployment_name,
+            model=model_deployment,
             credential=_credential(),
         ),
         instructions=prompt.instructions,
@@ -148,9 +149,25 @@ def _require_prompt(prompt_id: str) -> GraderPrompt:
         raise RuntimeError(f"Unknown grader prompt {prompt_id!r}") from None
 
 
+def resolve_model_deployment(task: VerificationTask) -> str:
+    """Return the Foundry deployment a task grades with.
+
+    Tasks inherit ``FOUNDRY_MODEL_DEPLOYMENT_NAME`` unless they name their own
+    deployment, so routing one phase elsewhere is a task-config change rather
+    than a redeploy.
+    """
+    grader = require_llm_rubric_grader(task)
+    if grader.model_deployment:
+        return grader.model_deployment
+    return GradingConfig.from_env().model_deployment_name
+
+
 async def grade_evidence(task: VerificationTask, message: str) -> LLMGradingDecision:
     """Grade one self-contained verification prompt with the task's prompt."""
-    grader_agent = get_verification_grader(prompt_for_task(task).id)
+    grader_agent = get_verification_grader(
+        prompt_for_task(task).id,
+        resolve_model_deployment(task),
+    )
     try:
         response = await grader_agent.run(message, options=_GRADER_OPTIONS)
     except Exception as exc:

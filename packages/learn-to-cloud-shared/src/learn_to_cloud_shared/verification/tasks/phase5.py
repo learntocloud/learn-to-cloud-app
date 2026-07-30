@@ -102,7 +102,6 @@ DEVOPS_IMPLEMENTATION_RUBRIC_TASK = VerificationTask(
         rubric_id="phase5-devops-implementation-v1",
         prompt_id="phase5-devops-implementation",
         passing_score=0.8,
-        model="gpt-5-mini",
     ),
 )
 

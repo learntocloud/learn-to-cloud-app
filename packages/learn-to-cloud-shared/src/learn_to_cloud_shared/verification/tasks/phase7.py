@@ -53,7 +53,6 @@ CAREER_REFLECTION_RUBRIC_TASK = VerificationTask(
         rubric_id="phase7-career-reflection-v1",
         prompt_id="phase7-career-reflection",
         passing_score=0.6,
-        model="gpt-5-mini",
     ),
 )
 

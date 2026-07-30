@@ -59,7 +59,6 @@ SECURITY_SCANNING_RUBRIC_TASK = VerificationTask(
         rubric_id="phase6-security-scanning-v2",
         prompt_id="phase6-security-scanning",
         passing_score=0.75,
-        model="gpt-5-mini",
     ),
 )
 
