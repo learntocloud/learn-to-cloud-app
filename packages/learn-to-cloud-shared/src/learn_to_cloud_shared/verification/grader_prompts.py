@@ -58,14 +58,19 @@ If the evidence carries a `collection_warnings` field, we could not read
 all of the learner's work: files listed there were unreadable, truncated,
 or omitted. Judge only what you were given and do not penalize the learner
 for content those warnings say is missing.
+Score the evidence; do not decide the outcome. The grading service applies
+the rubric's passing_score to your score, so a pass/fail verdict from you is
+not used. Score honestly against the criteria rather than aiming at the
+threshold.
 Return only one JSON object with:
-- passed: true only when the evidence satisfies the rubric.
 - score: 0.0 to 1.0 based on rubric completeness.
-- feedback: concise learner-facing explanation of why the evidence did or
-  did not meet the rubric. When passed is true, name what was strong so the
-  learner understands why they passed.
-- next_steps: concrete remediation when passed is false.
-- failure_reason: stable snake_case reason when passed is false.
+- feedback: concise learner-facing explanation of how the evidence measured
+  against the rubric. Name what was strong as well as what fell short, so the
+  feedback reads the same whichever side of the threshold the score lands on.
+- next_steps: concrete remediation for whatever fell short. Leave empty only
+  when the evidence fully satisfies every criterion.
+- failure_reason: stable snake_case reason for the largest shortfall, or null
+  when the evidence fully satisfies every criterion.
 - evidence_refs: paths, URLs, task ids, or evidence ids used in the decision.
 Do not wrap the JSON in Markdown or include explanatory text outside the JSON.
 """.strip()
@@ -130,37 +135,37 @@ def _render(guidance: str) -> str:
 
 PHASE3_JOURNAL_API_PROMPT = GraderPrompt(
     id="phase3-journal-api",
-    version="2026-07-31",
+    version="2026-08-01",
     instructions=_render(_PHASE3_GUIDANCE),
-    checksum="86e3d22a55ffcd43",
+    checksum="9495a8b47a4a881c",
 )
 
 PHASE4_DEPLOYMENT_ARCHITECTURE_PROMPT = GraderPrompt(
     id="phase4-deployment-architecture",
-    version="2026-07-31",
+    version="2026-08-01",
     instructions=_render(_PHASE4_GUIDANCE),
-    checksum="8f72fa434bfb410c",
+    checksum="89bb5b35c3c81c67",
 )
 
 PHASE5_DEVOPS_IMPLEMENTATION_PROMPT = GraderPrompt(
     id="phase5-devops-implementation",
-    version="2026-07-31",
+    version="2026-08-01",
     instructions=_render(_PHASE5_GUIDANCE),
-    checksum="e0799635bc6aa722",
+    checksum="a7f4801f95996ad2",
 )
 
 PHASE6_SECURITY_SCANNING_PROMPT = GraderPrompt(
     id="phase6-security-scanning",
-    version="2026-07-31",
+    version="2026-08-01",
     instructions=_render(_PHASE6_GUIDANCE),
-    checksum="24ee8e6905ed4325",
+    checksum="9166519382ad6e4f",
 )
 
 PHASE7_CAREER_REFLECTION_PROMPT = GraderPrompt(
     id="phase7-career-reflection",
-    version="2026-07-31",
+    version="2026-08-01",
     instructions=_render(_PHASE7_GUIDANCE),
-    checksum="ab40258cb61d2070",
+    checksum="30e7b48923c64944",
 )
 
 

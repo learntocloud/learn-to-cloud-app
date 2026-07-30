@@ -144,9 +144,12 @@ class LLMRubricGraderConfig(FrozenModel):
 
 
 class LLMGradingDecision(FrozenModel):
-    """Structured decision returned by the LLM grader."""
+    """Structured decision returned by the LLM grader.
 
-    passed: bool
+    Carries a rubric score, not a verdict: the pass threshold is applied by
+    :func:`_decision_to_grading_result` so pass/fail has one source of truth.
+    """
+
     score: float = Field(ge=0.0, le=1.0)
     feedback: str
     next_steps: str = ""

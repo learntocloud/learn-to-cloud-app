@@ -103,9 +103,7 @@ def test_apply_llm_grading_decisions_appends_feedback_when_passed():
             LLMGradingDecisionPayload(
                 task=PHASE6_LLM_TASKS[0],
                 decision=LLMGradingDecision(
-                    passed=True,
                     score=0.92,
-                    confidence=0.88,
                     feedback="The evidence satisfies the security scanning rubric.",
                     evidence_refs=[".github/dependabot.yml"],
                 ),
@@ -129,9 +127,7 @@ def test_apply_phase3_llm_decision_appends_feedback_when_passed():
             LLMGradingDecisionPayload(
                 task=PHASE3_LLM_TASKS[0],
                 decision=LLMGradingDecision(
-                    passed=True,
                     score=0.91,
-                    confidence=0.86,
                     feedback="The final Journal API implementation is maintainable.",
                     evidence_refs=["api/routers/journal_router.py"],
                 ),
@@ -156,9 +152,7 @@ def test_apply_llm_grading_decisions_fails_when_score_is_below_threshold():
             LLMGradingDecisionPayload(
                 task=PHASE6_LLM_TASKS[0],
                 decision=LLMGradingDecision(
-                    passed=True,
                     score=0.5,
-                    confidence=0.8,
                     feedback="The evidence is incomplete.",
                     next_steps="Add a Dependabot updates entry.",
                     evidence_refs=[".github/dependabot.yml"],
@@ -185,9 +179,7 @@ def test_phase5_holistic_review_enforces_strict_threshold():
             LLMGradingDecisionPayload(
                 task=PHASE5_LLM_TASKS[0],
                 decision=LLMGradingDecision(
-                    passed=True,
                     score=0.79,
-                    confidence=0.9,
                     feedback="Most areas are sound, but the manifests conflict.",
                     next_steps="Align the image and port configuration.",
                     evidence_refs=["Dockerfile", "k8s/deployment.yaml"],
@@ -261,9 +253,7 @@ def test_apply_phase7_llm_decision_appends_feedback_when_passed():
             LLMGradingDecisionPayload(
                 task=PHASE7_LLM_TASKS[0],
                 decision=LLMGradingDecision(
-                    passed=True,
                     score=0.82,
-                    confidence=0.8,
                     feedback="Genuine, specific reflection across all three answers.",
                     evidence_refs=["career-reflection.md"],
                 ),
@@ -285,7 +275,6 @@ def test_failure_with_incomplete_evidence_is_marked_not_learner_fault() -> None:
     result = _decision_to_grading_result(
         task,
         LLMGradingDecision(
-            passed=False,
             score=0.2,
             feedback="The Dockerfile does not pin a base image version.",
             next_steps="Pin the base image.",
@@ -307,7 +296,6 @@ def test_pass_with_incomplete_evidence_is_left_alone() -> None:
     result = _decision_to_grading_result(
         task,
         LLMGradingDecision(
-            passed=True,
             score=0.95,
             feedback="Solid pipeline.",
         ),
@@ -327,7 +315,6 @@ def test_failure_with_complete_evidence_keeps_its_reason() -> None:
     result = _decision_to_grading_result(
         task,
         LLMGradingDecision(
-            passed=False,
             score=0.2,
             feedback="No CI workflow found.",
             failure_reason="missing_ci_workflow",
@@ -337,3 +324,42 @@ def test_failure_with_complete_evidence_keeps_its_reason() -> None:
 
     assert result.failure_reason == "missing_ci_workflow"
     assert result.feedback == "No CI workflow found."
+
+
+@pytest.mark.parametrize("offset", [-0.5, -0.01, 0.0, 0.2])
+def test_score_alone_decides_the_outcome(offset: float) -> None:
+    """The threshold lives in code, so the model cannot vote against its score."""
+    task = PHASE3_LLM_TASKS[0]
+    threshold = task.grader.passing_score
+    score = min(max(threshold + offset, 0.0), 1.0)
+
+    result = _decision_to_grading_result(
+        task,
+        LLMGradingDecision(score=score, feedback="Reviewed."),
+    )
+
+    assert result.passed is (score >= threshold)
+    assert result.score == score
+
+
+def test_a_model_supplied_passed_field_is_ignored() -> None:
+    """Old-shape payloads must not resurrect a second source of truth."""
+    task = PHASE3_LLM_TASKS[0]
+
+    result = _decision_to_grading_result(
+        task,
+        LLMGradingDecision.model_validate(
+            {"passed": True, "score": 0.1, "feedback": "Reviewed."}
+        ),
+    )
+
+    assert result.passed is False
+
+
+def test_low_score_without_a_reason_gets_a_stable_fallback() -> None:
+    result = _decision_to_grading_result(
+        PHASE3_LLM_TASKS[0],
+        LLMGradingDecision(score=0.1, feedback="Reviewed."),
+    )
+
+    assert result.failure_reason == "score_below_passing_threshold"

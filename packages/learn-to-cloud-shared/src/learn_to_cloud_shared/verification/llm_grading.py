@@ -131,9 +131,9 @@ def _decision_to_grading_result(
     evidence: EvidenceBundle | None = None,
 ) -> GradingResult:
     grader = require_llm_rubric_grader(task)
-    passed = decision.passed and decision.score >= grader.passing_score
+    passed = decision.score >= grader.passing_score
     failure_reason = decision.failure_reason
-    if decision.passed and not passed:
+    if not passed and not failure_reason:
         failure_reason = "score_below_passing_threshold"
 
     feedback = decision.feedback
