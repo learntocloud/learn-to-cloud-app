@@ -1,14 +1,25 @@
 ---
 name: review-terraform
-description: Review and validate Terraform infrastructure changes against Azure deployment permissions before merging. Use when the user says "review terraform", "check the terraform plan", "will this terraform change deploy", or is adding/editing .tf files, especially azuread or Entra app registration resources.
+description: Review Terraform changes for plan safety, existing Azure resources, and deployment-identity permissions. Use for Terraform review or deployability questions.
 ---
 
 # Review Terraform
 
-For infrastructure changes, always review the Terraform plan for deployment permissions and Azure resources that may already exist.
+Review the diff and an Azure-backed plan before recommending merge.
 
-- Run an Azure-backed `terraform plan` before merging infrastructure changes.
-- Check whether the GitHub Actions deployment identity can create every resource in the plan. Normal Azure RBAC is not enough for Microsoft Graph or Entra app registration resources.
-- Be careful with new provider families, especially `azuread`. Adding `azuread_*` resources usually means the deploy identity needs Microsoft Graph permissions, or the identity object should be pre-created and passed into Terraform.
-- For Azure child config resources that Azure creates by default, update or import the existing resource instead of trying to create it. For Function App authentication, use `azapi_update_resource` for `authsettingsV2`.
-- For risky auth or identity changes, prefer the smallest safe platform change first, then deploy application code after the platform gate is confirmed.
+Check:
+
+- every planned action matches the intended diff
+- no unexpected destroy, replacement, identity, auth, networking, or data change
+- resources Azure creates by default are updated/imported rather than recreated
+- the GitHub Actions identity has required Azure RBAC and, for `azuread_*`,
+  Microsoft Graph permissions
+- provider and lock-file-only updates produce no infrastructure changes
+- Terraform formatting, validation, and tests pass
+
+For Function App `authsettingsV2`, prefer updating the existing child resource
+with `azapi_update_resource`. For risky identity changes, separate the platform
+gate from application deployment.
+
+Use the `plan-terraform` skill when planning an open pull request against remote
+state. Never infer safety from `terraform validate` alone.

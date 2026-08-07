@@ -1,118 +1,31 @@
 ---
 name: debug-deploy
-description: Debug GitHub Actions workflow failures and Terraform errors. Use when deployment failed, Terraform state lock, CI/CD pipeline errors, or troubleshooting deploy.yml.
+description: Diagnose and resolve GitHub Actions deployment, Terraform, migration-job, and Azure authorization failures. Use when deploy.yml or a deployment fails.
 ---
 
-# Debug Deploy Workflow Skill
+# Debug Deploy
 
-This skill helps diagnose and fix issues with the GitHub Actions deploy workflow for the Learn to Cloud app.
+Use `gh run list --workflow=deploy.yml` to select the relevant run, then inspect
+its metadata and `gh run view <id> --log-failed`. Diagnose evidence from the
+failed step before changing code or infrastructure.
 
-## When to Use
+Common paths:
 
-- User mentions a failed deployment or CI/CD failure
-- Terraform state lock errors
-- Authentication or authorization failures
-- Azure resource issues during deployment
-- Workflow debugging or troubleshooting
+- **Terraform lock:** identify the lock owner and active workflows. Never force
+  unlock until the user confirms the lock is stale and authorizes the exact
+  lock ID.
+- **Azure/OIDC authorization:** verify repository variables/secrets, federated
+  credential subject, Azure RBAC, and Microsoft Graph permissions where used.
+- **Drift/not found:** compare configuration, state, and Azure. Do not refresh,
+  import, or recreate resources speculatively.
+- **Migration job:** inspect the Container Apps Job execution and logs; verify
+  image, command, managed identity, PostgreSQL role mapping, and environment.
+- **Tests/static checks:** reproduce the exact failing command locally and fix
+  the root cause.
+- **Quota/platform failure:** confirm Azure resource health and quota evidence
+  before recommending a capacity or SKU change.
 
-## Debugging Process
-
-### Step 1: Check Recent Workflow Runs
-
-```bash
-gh run list --workflow=deploy.yml --limit 5
-```
-
-### Step 2: View Failed Logs
-
-```bash
-gh run view <run-id> --log-failed
-```
-
-Or use the debug script in this skill's folder:
-```bash
-.github/skills/debug-deploy/scripts/debug-deploy.sh logs
-```
-
-### Step 3: Identify the Issue
-
-Look for these common patterns in the logs:
-
-#### Terraform State Lock
-**Pattern:** `Error acquiring the state lock` or `state blob is already locked`
-
-**Cause:** Previous workflow was cancelled mid-execution, leaving the state locked.
-
-**Fix:**
-1. Extract the Lock ID from the error (looks like `efd4cede-d5a2-61c3-31db-462852989510`)
-2. Run: `cd infra && terraform force-unlock -force <lock-id>`
-3. Re-run the workflow: `gh run rerun <run-id>`
-
-#### Authentication Failures
-**Pattern:** `AuthorizationFailed`, `AADSTS`, `unauthorized`
-
-**Fix:** Check the OIDC deployment configuration: `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` secrets, plus the `AZURE_SUBSCRIPTION_ID` repository variable. The federated credential or Azure RBAC assignment may need updating.
-
-#### Resource Not Found
-**Pattern:** `ResourceNotFound` or `does not exist`
-
-**Fix:** Resource was deleted outside Terraform. Run `terraform refresh` or re-import.
-
-#### Azure Quota Exceeded
-**Pattern:** `QuotaExceeded`
-
-**Fix:** Request quota increase in Azure portal or clean up unused resources.
-
-#### Migration Job Failure
-**Pattern:** `Run database migrations` fails, `/ready` returns 503 after deploy, or Alembic reports a database error.
-
-**Cause:** The Azure Container Apps migration job failed before the API image was updated. Common causes are missing PostgreSQL role mapping, migration SQL errors, or job image/env override issues.
-
-**Fix:**
-1. Inspect the failed workflow step and the ACA Job logs.
-2. Verify `migration_identity_principal_id` is mapped to the Terraform `migration_postgres_role` output in PostgreSQL.
-3. Confirm `az containerapp job start` passes the SHA image, `alembic upgrade head`, DB env vars, `AZURE_CLIENT_ID`, and `--registry-identity`.
-4. Check that `alembic/env.py` still uses psycopg2 and acquires the advisory lock before migrations.
-
-#### Test Failures
-**Pattern:** `FAILED`, `pytest`, `AssertionError`
-
-**Fix:** Run tests locally: `(cd api && uv run pytest tests/ -v)` and `(cd packages/learn-to-cloud-shared && uv run pytest tests/ -v)`
-
-#### Lint Failures
-**Pattern:** `ruff`, `lint error`
-
-**Fix:** Run linter locally: `(cd api && uv run ruff check . ../packages/learn-to-cloud-shared)`
-
-### Step 4: Fix and Re-run
-
-After fixing the issue:
-```bash
-gh run rerun <run-id>
-```
-
-Or watch the progress:
-```bash
-gh run watch <run-id>
-```
-
-## Quick Commands Reference
-
-| Command | Description |
-|---------|-------------|
-| `./.github/skills/debug-deploy/scripts/debug-deploy.sh status` | Show recent workflow runs |
-| `./.github/skills/debug-deploy/scripts/debug-deploy.sh logs` | View and analyze failed logs |
-| `./.github/skills/debug-deploy/scripts/debug-deploy.sh logs <id>` | View specific run's failed logs |
-| `./.github/skills/debug-deploy/scripts/debug-deploy.sh unlock` | Fix Terraform state lock |
-| `./.github/skills/debug-deploy/scripts/debug-deploy.sh rerun` | Re-run most recent failed workflow |
-| `./.github/skills/debug-deploy/scripts/debug-deploy.sh watch` | Watch running workflow |
-
-## Debug Script
-
-The [debug-deploy.sh](./scripts/debug-deploy.sh) script automates the debugging process with automated issue detection.
-
-## Prevention
-
-The workflows are configured with these safeguards:
-- `cancel-in-progress: true` - Cancels in-progress runs when a new push arrives (in `deploy.yml`)
-- `-lock-timeout=120s` - Waits for locks instead of failing immediately (in `deploy.yml` terraform job)
+After a real fix, run the relevant local gate, push it through a PR, and monitor
+the new run. Rerun unchanged code only for a demonstrated transient failure.
+Never apply Terraform, mutate state, or change production access as part of
+diagnosis without explicit confirmation.
