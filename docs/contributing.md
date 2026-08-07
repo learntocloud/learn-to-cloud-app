@@ -114,16 +114,17 @@ The project ships several Copilot agent skills in `.github/skills/`:
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
-| `validate` | "validate" | Lint, format, type-check, start API, smoke test |
-| `ship-it` | "ship it" | Run prek, commit, push, monitor deploy |
-| `check-prod` | "check prod" | Check Azure health, errors, latency |
-| `debug-deploy` | "debug deploy" | Diagnose CI/CD and Terraform failures |
-| `query-prod-db` | "query prod db" | Run ad-hoc queries against production DB |
-| `reset-local-submissions` | "reset local submissions" | Reset local verification state |
-| `reset-prod-submissions` | "reset prod submissions" | Reset production verification state |
+| `validate` | "validate" | Run the quality gate and smoke-test the API |
+| `ship-it` | "ship it" | Validate, commit, push, and open a PR |
+| `check-prod` | "check prod" | Assess Azure production health |
+| `debug-deploy` | "debug deploy" | Diagnose deployment failures |
+| `query-prod-db` | "query prod db" | Query production PostgreSQL safely |
+| `reset-local-submissions` | "reset local submissions" | Reset local verification attempts |
+| `reset-prod-submissions` | "reset prod submissions" | Reset production verification attempts |
 | `review-pr-comments` | "review PR comments" | Triage and address PR feedback |
-| `review-terraform` | "review terraform" | Validate Terraform changes |
-| `write-migration` | "write migration" | Create safe Alembic migrations |
+| `review-terraform` | "review terraform" | Review Terraform safety and permissions |
+| `plan-terraform` | "plan terraform PR" | Plan an infrastructure PR against remote state |
+| `write-migration` | "write migration" | Create production-safe Alembic migrations |
 
 ## Architecture
 
