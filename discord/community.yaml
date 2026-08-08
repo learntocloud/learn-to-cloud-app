@@ -52,6 +52,7 @@ categories:
         require_tag: true
         default_auto_archive_duration: 4320
         tags:
+          - guide
           - phase-0
           - phase-1
           - phase-2
