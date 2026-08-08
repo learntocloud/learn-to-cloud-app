@@ -8,6 +8,7 @@ import pytest
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.context import (
     COMMUNITY_LINKS,
+    HELP_LINKS,
     build_requirement_card_context,
 )
 
@@ -456,6 +457,24 @@ def test_community_page_renders_safe_external_resource_links():
     assert "GitHub Discussions" in html
     assert "Follow @madebygps" in html
     assert "Follow @learntocloud" in html
+
+
+@pytest.mark.unit
+def test_dashboard_help_section_links_to_discord():
+    dashboard = SimpleNamespace(
+        phases=[],
+        learning_percentage=0,
+        verification_percentage=0,
+        phases_completed=0,
+        total_phases=0,
+        is_program_complete=False,
+        continue_phase=None,
+    )
+
+    html = _render("pages/dashboard.html", dashboard=dashboard, help_links=HELP_LINKS)
+
+    assert 'href="https://discord.gg/st7g2Hp77r"' in html
+    assert "Ask the Community" not in html
 
 
 @pytest.mark.unit
