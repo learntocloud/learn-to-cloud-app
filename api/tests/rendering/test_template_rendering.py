@@ -482,10 +482,13 @@ def test_primary_links_are_in_navbar_and_footer_is_minimal():
     navbar = _render("partials/navbar.html")
     footer = _render("partials/footer.html")
 
-    for path in ("/community", "/curriculum", "/faq"):
+    for path in ("/community", "/faq"):
         assert f'href="{path}"' in navbar
         assert f'href="{path}"' not in footer
 
+    assert 'href="/curriculum"' not in navbar
+    assert 'href="/curriculum"' in footer
+    assert "Program overview" in footer
     assert 'href="/privacy"' in footer
     assert 'href="/terms"' in footer
     assert "Discord" not in footer
