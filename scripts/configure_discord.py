@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -79,6 +80,39 @@ class DiscordClient:
         except urllib.error.URLError as error:
             raise DiscordError(f"{method} {path} failed: {error.reason}") from error
         return json.loads(body) if body else None
+
+
+def gh_api(
+    method: str,
+    path: str,
+    payload: dict[str, Any] | None = None,
+) -> Any:
+    """Call GitHub through its authenticated CLI without exposing credentials."""
+    command = [
+        "gh",
+        "api",
+        path,
+        "--method",
+        method,
+        "--header",
+        "Accept: application/vnd.github+json",
+    ]
+    if payload is not None:
+        command.extend(("--input", "-"))
+    try:
+        result = subprocess.run(
+            command,
+            input=json.dumps(payload) if payload is not None else None,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as error:
+        raise DiscordError("The gh CLI is required for GitHub integration") from error
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise DiscordError(f"GitHub API {method} {path} failed: {detail}")
+    return json.loads(result.stdout) if result.stdout else None
 
 
 @dataclass(frozen=True)
@@ -491,7 +525,9 @@ def load_config(path: Path) -> dict[str, Any]:
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("plan", "apply", "inventory"))
+    parser.add_argument(
+        "command", choices=("plan", "apply", "inventory", "connect-github")
+    )
     parser.add_argument("--config", type=Path, default=CONFIG_PATH)
     return parser.parse_args()
 
@@ -534,6 +570,73 @@ def print_inventory(channels: list[dict[str, Any]]) -> None:
         print_channels(children)
 
 
+def connect_github(
+    client: DiscordClient,
+    guild_id: str,
+    config: dict[str, Any],
+) -> list[Action]:
+    """Connect configured GitHub repositories to the Discord feed channel."""
+    github_config = config["github"]
+    channels = client.request("GET", f"/guilds/{guild_id}/channels")
+    channel = next(
+        (
+            item
+            for item in channels
+            if item["name"] == github_config["channel"] and item["type"] == 0
+        ),
+        None,
+    )
+    if channel is None:
+        raise DiscordError(
+            f"Discord channel {github_config['channel']} does not exist"
+        )
+
+    discord_hooks = client.request("GET", f"/channels/{channel['id']}/webhooks")
+    webhook = next(
+        (
+            item
+            for item in discord_hooks
+            if item.get("name") == github_config["webhook_name"]
+        ),
+        None,
+    )
+    actions: list[Action] = []
+    if webhook is None:
+        webhook = client.request(
+            "POST",
+            f"/channels/{channel['id']}/webhooks",
+            {"name": github_config["webhook_name"]},
+        )
+        actions.append(Action("create", "Discord GitHub webhook"))
+    if not webhook.get("token"):
+        raise DiscordError(
+            "Discord did not return the managed webhook token; delete the "
+            f"{github_config['webhook_name']} webhook and retry"
+        )
+
+    delivery_url = (
+        f"https://discord.com/api/webhooks/{webhook['id']}/"
+        f"{webhook['token']}/github"
+    )
+    hook_payload = {
+        "name": "web",
+        "active": True,
+        "events": github_config["events"],
+        "config": {
+            "url": delivery_url,
+            "content_type": "json",
+            "insecure_ssl": "0",
+        },
+    }
+    for repository in github_config["repositories"]:
+        hooks = gh_api("GET", f"repos/{repository}/hooks")
+        if any(hook.get("config", {}).get("url") == delivery_url for hook in hooks):
+            continue
+        gh_api("POST", f"repos/{repository}/hooks", hook_payload)
+        actions.append(Action("connect", f"GitHub repository {repository}"))
+    return actions
+
+
 def main() -> int:
     """Run the Discord configuration reconciliation."""
     args = parse_args()
@@ -554,10 +657,21 @@ def main() -> int:
             print(f"Authenticated as {bot['username']} ({bot['id']}).")
             print_inventory(channels)
             return 0
+        config = load_config(args.config)
+        if args.command == "connect-github":
+            actions = connect_github(client, guild_id, config)
+            print(f"Authenticated as {bot['username']} ({bot['id']}).")
+            if not actions:
+                print("GitHub repositories are already connected.")
+                return 0
+            for action in actions:
+                print(f"{action.verb.upper():7} {action.resource}")
+            print(f"Applied {len(actions)} integration change(s).")
+            return 0
         actions = Provisioner(
             client,
             guild_id,
-            load_config(args.config),
+            config,
             apply=args.command == "apply",
         ).run()
     except (DiscordError, OSError, ValueError, yaml.YAMLError) as error:

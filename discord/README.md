@@ -49,6 +49,17 @@ uv run --package learn-to-cloud-shared \
   python scripts/configure_discord.py apply
 ```
 
+Connect the managed GitHub repositories to `github-feed`:
+
+```bash
+uv run --package learn-to-cloud-shared \
+  python scripts/configure_discord.py connect-github
+```
+
+This command uses the current `gh` CLI authentication. It creates one Discord
+webhook and adds it to each configured repository without changing unrelated
+repository webhooks.
+
 Run `plan` again after applying. It should report that no changes are required.
 
 Discord personal notification and DM settings are not server resources and

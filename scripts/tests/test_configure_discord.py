@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import unittest
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
-from scripts.configure_discord import READ_ONLY_DENY, Provisioner, print_inventory
+from scripts.configure_discord import (
+    READ_ONLY_DENY,
+    DiscordClient,
+    Provisioner,
+    connect_github,
+    print_inventory,
+)
 
 
-class FakeDiscordClient:
+class FakeDiscordClient(DiscordClient):
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, dict[str, Any] | None]] = []
 
@@ -225,6 +231,52 @@ class ProvisionerTests(unittest.TestCase):
             "text channel content-updates (read-only)",
         )
         self.assertGreater(READ_ONLY_DENY, 0)
+
+    @patch("scripts.configure_discord.gh_api")
+    def test_connect_github_preserves_unrelated_hooks(self, gh_api_mock) -> None:
+        client = FakeDiscordClient()
+        client.request = Mock(
+            side_effect=[
+                [{"id": "feed", "name": "github-feed", "type": 0}],
+                [
+                    {
+                        "id": "discord-hook",
+                        "name": "Learn to Cloud GitHub",
+                        "token": "discord-token",
+                    }
+                ],
+            ]
+        )
+        gh_api_mock.side_effect = [
+            [{"config": {"url": "https://example.com/unrelated"}}],
+            {},
+            [
+                {
+                    "config": {
+                        "url": (
+                            "https://discord.com/api/webhooks/"
+                            "discord-hook/discord-token/github"
+                        )
+                    }
+                }
+            ],
+        ]
+        config = {
+            "github": {
+                "channel": "github-feed",
+                "webhook_name": "Learn to Cloud GitHub",
+                "repositories": ["owner/first", "owner/second"],
+                "events": ["push"],
+            }
+        }
+
+        actions = connect_github(client, "guild", config)
+
+        self.assertEqual(
+            [action.resource for action in actions],
+            ["GitHub repository owner/first"],
+        )
+        self.assertEqual(gh_api_mock.call_count, 3)
 
 
 if __name__ == "__main__":

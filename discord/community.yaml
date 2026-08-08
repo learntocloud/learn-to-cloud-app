@@ -109,3 +109,18 @@ automod:
     raid_protection: true
     block_message: Too many mentions. Ask one clear question without tagging people.
     alert_channel: mod-log
+
+github:
+  channel: github-feed
+  webhook_name: Learn to Cloud GitHub
+  repositories:
+    - learntocloud/journal-starter
+    - learntocloud/learn-to-cloud-app
+    - learntocloud/linux-ctfs
+    - learntocloud/networking-lab
+  events:
+    - push
+    - issues
+    - pull_request
+    - release
+    - discussion
