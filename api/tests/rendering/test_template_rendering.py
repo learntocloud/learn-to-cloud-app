@@ -478,6 +478,15 @@ def test_dashboard_help_section_links_to_discord():
 
 
 @pytest.mark.unit
+def test_community_link_is_in_navbar_not_footer():
+    navbar = _render("partials/navbar.html")
+    footer = _render("partials/footer.html")
+
+    assert 'href="/community"' in navbar
+    assert 'href="/community"' not in footer
+
+
+@pytest.mark.unit
 class TestDashboardPhaseRow:
     """The phase-row state/labels in pages/dashboard.html."""
 
