@@ -20,6 +20,9 @@ roles:
   - name: Video Notifications
     mentionable: false
     hoist: false
+  - name: Community Member
+    mentionable: false
+    hoist: false
 
 categories:
   - name: START HERE
