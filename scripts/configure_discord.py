@@ -140,7 +140,12 @@ class Provisioner:
                     created = self.client.request(
                         "POST", f"/guilds/{self.guild_id}/roles", payload
                     )
-                    roles_by_name[name] = created
+                else:
+                    created = {
+                        **payload,
+                        "id": f"planned:{name}",
+                    }
+                roles_by_name[name] = created
             elif any(
                 str(existing.get(key)) != str(value) for key, value in payload.items()
             ):

@@ -59,6 +59,8 @@ class ProvisionerTests(unittest.TestCase):
                 },
                 {
                     "name": "STAFF",
+                    "private": True,
+                    "allowed_roles": ["Community Helper"],
                     "channels": [{"name": "mod-log", "type": "text"}],
                 },
             ],
