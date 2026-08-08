@@ -330,11 +330,12 @@ class Provisioner:
         channels_by_name: dict[str, dict[str, Any]],
     ) -> None:
         start_here = channels_by_name.get("start-here")
-        announcements = channels_by_name.get("announcements")
-        if start_here is None or announcements is None:
+        community_updates = channels_by_name.get("community-updates")
+        if start_here is None or community_updates is None:
             if self.apply:
                 raise DiscordError(
-                    "start-here and announcements are required before Community setup"
+                    "start-here and community-updates are required before "
+                    "Community setup"
                 )
             self._record("enable", "Community server features")
             return
@@ -344,7 +345,7 @@ class Provisioner:
             "verification_level": max(guild.get("verification_level", 0), 1),
             "explicit_content_filter": 2,
             "rules_channel_id": start_here["id"],
-            "public_updates_channel_id": announcements["id"],
+            "public_updates_channel_id": community_updates["id"],
             "features": sorted(set(guild.get("features", [])) | {"COMMUNITY"}),
         }
         differences = [

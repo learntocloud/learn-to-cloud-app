@@ -84,6 +84,9 @@ categories:
       - name: helper-lounge
         type: text
         topic: Private coordination for community helpers.
+      - name: community-updates
+        type: text
+        topic: Official Discord updates for community moderators.
       - name: mod-log
         type: text
         topic: Private moderation and AutoMod alerts.

@@ -61,7 +61,10 @@ class ProvisionerTests(unittest.TestCase):
                     "name": "STAFF",
                     "private": True,
                     "allowed_roles": ["Community Helper"],
-                    "channels": [{"name": "mod-log", "type": "text"}],
+                    "channels": [
+                        {"name": "community-updates", "type": "text"},
+                        {"name": "mod-log", "type": "text"},
+                    ],
                 },
             ],
             "automod": [
@@ -99,7 +102,7 @@ class ProvisionerTests(unittest.TestCase):
                 "verification_level": 1,
                 "explicit_content_filter": 2,
                 "rules_channel_id": "start",
-                "public_updates_channel_id": "announcements",
+                "public_updates_channel_id": "community-updates",
             },
             "/guilds/guild/roles": [{"id": "guild", "name": "@everyone"}],
             "/guilds/guild/channels": [
@@ -112,8 +115,8 @@ class ProvisionerTests(unittest.TestCase):
                     "topic": None,
                 },
                 {
-                    "id": "announcements",
-                    "name": "announcements",
+                    "id": "community-updates",
+                    "name": "community-updates",
                     "type": 0,
                     "parent_id": "category",
                     "topic": None,
@@ -142,7 +145,7 @@ class ProvisionerTests(unittest.TestCase):
                     "name": "LEARN",
                     "channels": [
                         {"name": "start-here", "type": "text"},
-                        {"name": "announcements", "type": "text"},
+                        {"name": "community-updates", "type": "text"},
                         {
                             "name": "curriculum-help",
                             "type": "forum",
