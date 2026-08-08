@@ -46,4 +46,10 @@ Run `plan` again after applying. It should report that no changes are required.
 
 Discord personal notification and DM settings are not server resources and
 remain manual. Configure Rules Screening and review Community Onboarding in the
-Discord UI after provisioning.
+Discord UI after provisioning. For an existing Community server, also set:
+
+- Rules or Guidelines Channel: `start-here`
+- Community Updates Channel: `community-updates`
+
+Discord accepts bot requests to change these assignments but does not persist
+them on an already-enabled Community server.

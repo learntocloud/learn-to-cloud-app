@@ -340,20 +340,28 @@ class Provisioner:
             self._record("enable", "Community server features")
             return
 
-        payload = {
+        payload: dict[str, Any] = {
             "description": self.config["server"]["description"],
             "verification_level": max(guild.get("verification_level", 0), 1),
             "explicit_content_filter": 2,
-            "rules_channel_id": start_here["id"],
-            "public_updates_channel_id": community_updates["id"],
-            "features": sorted(set(guild.get("features", [])) | {"COMMUNITY"}),
         }
+        community_enabled = "COMMUNITY" in guild.get("features", [])
+        if not community_enabled:
+            payload.update(
+                {
+                    "rules_channel_id": start_here["id"],
+                    "public_updates_channel_id": community_updates["id"],
+                    "features": sorted(
+                        set(guild.get("features", [])) | {"COMMUNITY"}
+                    ),
+                }
+            )
         differences = [
             key
             for key, value in payload.items()
             if key != "features" and guild.get(key) != value
         ]
-        if "COMMUNITY" not in guild.get("features", []):
+        if not community_enabled:
             self._record("enable", "Community server features")
             if self.apply:
                 self.client.request("PATCH", f"/guilds/{self.guild_id}", payload)

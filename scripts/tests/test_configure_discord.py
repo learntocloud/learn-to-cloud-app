@@ -101,8 +101,8 @@ class ProvisionerTests(unittest.TestCase):
                 "description": "Community",
                 "verification_level": 1,
                 "explicit_content_filter": 2,
-                "rules_channel_id": "start",
-                "public_updates_channel_id": "community-updates",
+                "rules_channel_id": "discord-managed-rules",
+                "public_updates_channel_id": "discord-managed-updates",
             },
             "/guilds/guild/roles": [{"id": "guild", "name": "@everyone"}],
             "/guilds/guild/channels": [
