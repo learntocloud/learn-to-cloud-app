@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import unittest
 from typing import Any
+from unittest.mock import patch
 
-from scripts.configure_discord import Provisioner
+from scripts.configure_discord import Provisioner, print_inventory
 
 
 class FakeDiscordClient:
@@ -161,6 +162,39 @@ class ProvisionerTests(unittest.TestCase):
         actions = Provisioner(client, "guild", config, apply=False).run()
 
         self.assertEqual(actions, [])
+
+    def test_inventory_groups_channels_by_category(self) -> None:
+        channels = [
+            {"id": "cat", "name": "LEARN", "type": 4, "position": 1},
+            {
+                "id": "help",
+                "name": "help",
+                "type": 15,
+                "parent_id": "cat",
+                "position": 2,
+            },
+            {
+                "id": "chat",
+                "name": "chat",
+                "type": 0,
+                "parent_id": None,
+                "position": 1,
+            },
+        ]
+
+        with patch("builtins.print") as print_mock:
+            print_inventory(channels)
+
+        lines = [call.args[0] for call in print_mock.call_args_list]
+        self.assertEqual(
+            lines,
+            [
+                "CATEGORY LEARN",
+                "  forum        help",
+                "UNCATEGORIZED",
+                "  text         chat",
+            ],
+        )
 
 
 if __name__ == "__main__":

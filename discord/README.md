@@ -35,6 +35,13 @@ uv run --package learn-to-cloud-shared \
   python scripts/configure_discord.py plan
 ```
 
+List the current server categories and channels:
+
+```bash
+uv run --package learn-to-cloud-shared \
+  python scripts/configure_discord.py inventory
+```
+
 Apply the displayed changes:
 
 ```bash

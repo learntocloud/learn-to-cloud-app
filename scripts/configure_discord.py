@@ -440,9 +440,47 @@ def load_config(path: Path) -> dict[str, Any]:
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("plan", "apply"))
+    parser.add_argument("command", choices=("plan", "apply", "inventory"))
     parser.add_argument("--config", type=Path, default=CONFIG_PATH)
     return parser.parse_args()
+
+
+def print_inventory(channels: list[dict[str, Any]]) -> None:
+    """Print categories and channels without exposing credentials."""
+    type_names = {
+        0: "text",
+        2: "voice",
+        4: "category",
+        5: "announcement",
+        13: "stage",
+        15: "forum",
+        16: "media",
+    }
+    categories = sorted(
+        (channel for channel in channels if channel["type"] == 4),
+        key=lambda channel: channel.get("position", 0),
+    )
+    grouped: dict[str | None, list[dict[str, Any]]] = {}
+    for channel in channels:
+        if channel["type"] != 4:
+            grouped.setdefault(channel.get("parent_id"), []).append(channel)
+
+    def print_channels(children: list[dict[str, Any]]) -> None:
+        for channel in sorted(
+            children, key=lambda item: item.get("position", 0)
+        ):
+            type_name = type_names.get(channel["type"], f"type-{channel['type']}")
+            print(f"  {type_name:12} {channel['name']}")
+
+    for category in categories:
+        print(f"CATEGORY {category['name']}")
+        print_channels(grouped.pop(category["id"], []))
+    if ungrouped := grouped.pop(None, []):
+        print("UNCATEGORIZED")
+        print_channels(ungrouped)
+    for parent_id, children in grouped.items():
+        print(f"UNKNOWN CATEGORY {parent_id}")
+        print_channels(children)
 
 
 def main() -> int:
@@ -460,6 +498,11 @@ def main() -> int:
     try:
         client = DiscordClient(token)
         bot = client.request("GET", "/users/@me")
+        if args.command == "inventory":
+            channels = client.request("GET", f"/guilds/{guild_id}/channels")
+            print(f"Authenticated as {bot['username']} ({bot['id']}).")
+            print_inventory(channels)
+            return 0
         actions = Provisioner(
             client,
             guild_id,
