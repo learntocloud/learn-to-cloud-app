@@ -214,10 +214,10 @@ COMMUNITY_LINKS: list[dict[str, str]] = [
 
 HELP_LINKS: list[dict[str, str]] = [
     {
-        "url": DISCUSSIONS_URL,
-        "label": "Ask the Community",
+        "url": DISCORD_URL,
+        "label": "Discord",
         "color": "text-indigo-500 dark:text-indigo-400",
-        "icon": _DISCUSSIONS_SVG,
+        "icon": _DISCORD_SVG,
     },
     {
         "url": MADEBYGPS_X_URL,
