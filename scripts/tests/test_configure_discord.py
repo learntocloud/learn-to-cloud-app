@@ -90,6 +90,75 @@ class ProvisionerTests(unittest.TestCase):
             "plan must not write to Discord",
         )
 
+    def test_equivalent_forum_values_do_not_trigger_update(self) -> None:
+        client = FakeDiscordClient()
+        client.request = lambda method, path, payload=None: {
+            "/guilds/guild": {
+                "features": ["COMMUNITY"],
+                "description": "Community",
+                "verification_level": 1,
+                "explicit_content_filter": 2,
+                "rules_channel_id": "start",
+                "public_updates_channel_id": "announcements",
+            },
+            "/guilds/guild/roles": [{"id": "guild", "name": "@everyone"}],
+            "/guilds/guild/channels": [
+                {"id": "category", "name": "LEARN", "type": 4},
+                {
+                    "id": "start",
+                    "name": "start-here",
+                    "type": 0,
+                    "parent_id": "category",
+                    "topic": None,
+                },
+                {
+                    "id": "announcements",
+                    "name": "announcements",
+                    "type": 0,
+                    "parent_id": "category",
+                    "topic": None,
+                },
+                {
+                    "id": "forum",
+                    "name": "curriculum-help",
+                    "type": 15,
+                    "parent_id": "category",
+                    "topic": None,
+                    "rate_limit_per_user": None,
+                    "available_tags": [
+                        {"id": "2", "name": "resolved"},
+                        {"id": "1", "name": "phase-0"},
+                    ],
+                    "flags": 16,
+                },
+            ],
+            "/guilds/guild/auto-moderation/rules": [],
+        }[path]
+        config = {
+            "server": {"description": "Community"},
+            "roles": [],
+            "categories": [
+                {
+                    "name": "LEARN",
+                    "channels": [
+                        {"name": "start-here", "type": "text"},
+                        {"name": "announcements", "type": "text"},
+                        {
+                            "name": "curriculum-help",
+                            "type": "forum",
+                            "require_tag": True,
+                            "tags": ["phase-0", "resolved"],
+                        },
+                    ],
+                }
+            ],
+            "automod": [],
+        }
+
+        actions = Provisioner(client, "guild", config, apply=False).run()
+
+        self.assertEqual(actions, [])
+
 
 if __name__ == "__main__":
     unittest.main()

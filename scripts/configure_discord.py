@@ -300,20 +300,26 @@ class Provisioner:
 
         current_tags = [tag["name"] for tag in existing.get("available_tags", [])]
         desired_tags = config.get("tags", [])
-        changed = (
-            existing.get("parent_id") != category["id"]
-            or existing.get("topic") != payload["topic"]
-            or existing.get("rate_limit_per_user", 0)
-            != payload.get("rate_limit_per_user", 0)
-            or current_tags != desired_tags
-            or (
-                config["type"] == "forum"
-                and bool(existing.get("flags", 0) & REQUIRE_TAG)
-                != config.get("require_tag", False)
+        differences: list[str] = []
+        if existing.get("parent_id") != category["id"]:
+            differences.append("category")
+        if (existing.get("topic") or None) != (payload["topic"] or None):
+            differences.append("topic")
+        if (existing.get("rate_limit_per_user") or 0) != payload.get(
+            "rate_limit_per_user", 0
+        ):
+            differences.append("slowmode")
+        if set(current_tags) != set(desired_tags):
+            differences.append("tags")
+        if config["type"] == "forum" and bool(
+            existing.get("flags", 0) & REQUIRE_TAG
+        ) != config.get("require_tag", False):
+            differences.append("required-tag")
+        if differences:
+            detail = ", ".join(differences)
+            self._record(
+                "update", f"{config['type']} channel {name} ({detail})"
             )
-        )
-        if changed:
-            self._record("update", f"{config['type']} channel {name}")
             if self.apply:
                 payload.pop("type")
                 self.client.request("PATCH", f"/channels/{existing['id']}", payload)
@@ -341,16 +347,18 @@ class Provisioner:
             "public_updates_channel_id": announcements["id"],
             "features": sorted(set(guild.get("features", [])) | {"COMMUNITY"}),
         }
+        differences = [
+            key
+            for key, value in payload.items()
+            if key != "features" and guild.get(key) != value
+        ]
         if "COMMUNITY" not in guild.get("features", []):
             self._record("enable", "Community server features")
             if self.apply:
                 self.client.request("PATCH", f"/guilds/{self.guild_id}", payload)
-        elif any(
-            guild.get(key) != value
-            for key, value in payload.items()
-            if key != "features"
-        ):
-            self._record("update", "Community server settings")
+        elif differences:
+            detail = ", ".join(differences)
+            self._record("update", f"Community server settings ({detail})")
             if self.apply:
                 payload.pop("features")
                 self.client.request("PATCH", f"/guilds/{self.guild_id}", payload)
