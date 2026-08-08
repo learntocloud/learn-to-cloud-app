@@ -1,0 +1,97 @@
+server:
+  description: Learn cloud engineering with a structured, hands-on curriculum.
+
+roles:
+  - name: Community Helper
+    mentionable: false
+    hoist: true
+    permissions:
+      - manage_messages
+      - manage_threads
+      - moderate_members
+  - name: Phase 0
+  - name: Phase 1
+  - name: Phase 2
+  - name: Phase 3
+  - name: Phase 4
+  - name: Phase 5
+  - name: Phase 6
+  - name: Phase 7
+
+categories:
+  - name: START HERE
+    channels:
+      - name: start-here
+        type: text
+        topic: Read the rules, follow the curriculum, and learn where to ask for help.
+      - name: announcements
+        type: text
+        topic: Official Learn to Cloud project and curriculum updates.
+      - name: github-feed
+        type: text
+        topic: Automated updates from GitHub Issues and Discussions.
+
+  - name: LEARN TOGETHER
+    channels:
+      - name: curriculum-help
+        type: forum
+        topic: >-
+          Search before posting. Include your goal, phase, instructions followed,
+          what you tried, exact error output, and what you expected. Do not tag or
+          DM maintainers for support. Confirmed product bugs belong in GitHub Issues.
+        require_tag: true
+        default_auto_archive_duration: 4320
+        tags:
+          - phase-0
+          - phase-1
+          - phase-2
+          - phase-3
+          - phase-4
+          - phase-5
+          - phase-6
+          - phase-7
+          - verification
+          - resolved
+      - name: show-your-work
+        type: forum
+        topic: Share projects, deployments, milestones, and career wins.
+        require_tag: true
+        default_auto_archive_duration: 10080
+        tags:
+          - project
+          - deployment
+          - milestone
+          - career-win
+      - name: study-room
+        type: text
+        topic: General learner conversation. Use curriculum-help for support.
+        rate_limit_per_user: 15
+      - name: contributors
+        type: forum
+        topic: Discuss contributions to the application and curriculum.
+        require_tag: true
+        default_auto_archive_duration: 10080
+        tags:
+          - app
+          - curriculum
+          - documentation
+
+  - name: COMMUNITY TEAM
+    private: true
+    allowed_roles:
+      - Community Helper
+    channels:
+      - name: helper-lounge
+        type: text
+        topic: Private coordination for community helpers.
+      - name: mod-log
+        type: text
+        topic: Private moderation and AutoMod alerts.
+
+automod:
+  - name: Block mention spam
+    trigger: mention_spam
+    mention_limit: 5
+    raid_protection: true
+    block_message: Too many mentions. Ask one clear question without tagging people.
+    alert_channel: mod-log
