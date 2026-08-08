@@ -442,6 +442,7 @@ def test_community_page_renders_safe_external_resource_links():
     )
 
     expected_links = {
+        "https://discord.gg/sfdgmbWVf4",
         "https://github.com/learntocloud/learn-to-cloud-app/discussions",
         "https://youtube.com/made-by-gps",
         "https://github.com/learntocloud/learn-to-cloud-app",
@@ -451,6 +452,7 @@ def test_community_page_renders_safe_external_resource_links():
     for url in expected_links:
         assert f'href="{url}"' in html
     assert html.count('rel="noopener noreferrer"') >= len(expected_links)
+    assert "Discord" in html
     assert "GitHub Discussions" in html
     assert "Follow @madebygps" in html
     assert "Follow @learntocloud" in html

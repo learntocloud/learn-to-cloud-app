@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     )
 
 DISCUSSIONS_URL = "https://github.com/learntocloud/learn-to-cloud-app/discussions"
+DISCORD_URL = "https://discord.gg/sfdgmbWVf4"
 GITHUB_REPOSITORY_URL = "https://github.com/learntocloud/learn-to-cloud-app"
 MADEBYGPS_X_URL = "https://x.com/madebygps"
 LEARN_TO_CLOUD_X_URL = "https://x.com/learntocloud"
@@ -152,7 +153,28 @@ _YOUTUBE_SVG = (
     ' 12l-6.273 3.568z"/></svg>'
 )
 
+_DISCORD_SVG = (
+    '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"'
+    ' aria-hidden="true"><path d="M19.54 5.34A16.3 16.3 0 0 0 15.44'
+    " 4l-.5 1.02a15.3 15.3 0 0 0-5.88 0L8.56 4a16.5 16.5 0 0 0"
+    "-4.1 1.35C1.86 9.18 1.16 12.9 1.5 16.57A16.8 16.8 0 0 0"
+    " 6.52 19.1l1.23-1.68c-.68-.25-1.33-.57-1.94-.94l.48-.37c3.74"
+    " 1.73 7.8 1.73 11.5 0l.5.37c-.62.37-1.27.69-1.95.94l1.23"
+    " 1.68a16.7 16.7 0 0 0 5.02-2.53c.4-4.26-.68-7.94-3.05"
+    "-11.23ZM8.68 14.35c-1.12 0-2.04-1.03-2.04-2.3s.9-2.3"
+    " 2.04-2.3c1.15 0 2.06 1.04 2.04 2.3 0 1.27-.9 2.3-2.04"
+    " 2.3Zm6.64 0c-1.12 0-2.04-1.03-2.04-2.3s.9-2.3 2.04-2.3"
+    'c1.15 0 2.06 1.04 2.04 2.3 0 1.27-.9 2.3-2.04 2.3Z"/></svg>'
+)
+
 COMMUNITY_LINKS: list[dict[str, str]] = [
+    {
+        "url": DISCORD_URL,
+        "label": "Discord",
+        "description": "Chat with other learners and get help in real time.",
+        "color": "text-indigo-500 dark:text-indigo-400",
+        "icon": _DISCORD_SVG,
+    },
     {
         "url": DISCUSSIONS_URL,
         "label": "GitHub Discussions",
