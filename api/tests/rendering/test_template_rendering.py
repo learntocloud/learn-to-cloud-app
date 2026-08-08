@@ -478,12 +478,20 @@ def test_dashboard_help_section_links_to_discord():
 
 
 @pytest.mark.unit
-def test_community_link_is_in_navbar_not_footer():
+def test_primary_links_are_in_navbar_and_footer_is_minimal():
     navbar = _render("partials/navbar.html")
     footer = _render("partials/footer.html")
 
-    assert 'href="/community"' in navbar
-    assert 'href="/community"' not in footer
+    for path in ("/community", "/curriculum", "/faq"):
+        assert f'href="{path}"' in navbar
+        assert f'href="{path}"' not in footer
+
+    assert 'href="/privacy"' in footer
+    assert 'href="/terms"' in footer
+    assert "Discord" not in footer
+    assert "GitHub" not in footer
+    assert "YouTube" not in footer
+    assert "Sponsor" not in footer
 
 
 @pytest.mark.unit
