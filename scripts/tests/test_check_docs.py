@@ -12,7 +12,7 @@ class CheckDocsTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary_directory.cleanup)
-        self.repo_root = Path(self.temporary_directory.name)
+        self.repo_root = Path(self.temporary_directory.name).resolve()
         self.docs_root = self.repo_root / "docs"
         self.scaling_index = self.docs_root / "scaling-with-github" / "index.html"
         self.scaling_index.parent.mkdir(parents=True)
