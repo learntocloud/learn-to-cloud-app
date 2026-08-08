@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     )
 
 DISCUSSIONS_URL = "https://github.com/learntocloud/learn-to-cloud-app/discussions"
-DISCORD_URL = "https://discord.gg/sfdgmbWVf4"
+DISCORD_URL = "https://discord.gg/st7g2Hp77r"
 GITHUB_REPOSITORY_URL = "https://github.com/learntocloud/learn-to-cloud-app"
 MADEBYGPS_X_URL = "https://x.com/madebygps"
 LEARN_TO_CLOUD_X_URL = "https://x.com/learntocloud"

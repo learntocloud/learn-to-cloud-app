@@ -442,7 +442,7 @@ def test_community_page_renders_safe_external_resource_links():
     )
 
     expected_links = {
-        "https://discord.gg/sfdgmbWVf4",
+        "https://discord.gg/st7g2Hp77r",
         "https://github.com/learntocloud/learn-to-cloud-app/discussions",
         "https://youtube.com/made-by-gps",
         "https://github.com/learntocloud/learn-to-cloud-app",
