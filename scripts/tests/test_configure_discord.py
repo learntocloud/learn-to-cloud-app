@@ -4,7 +4,7 @@ import unittest
 from typing import Any
 from unittest.mock import patch
 
-from scripts.configure_discord import Provisioner, print_inventory
+from scripts.configure_discord import READ_ONLY_DENY, Provisioner, print_inventory
 
 
 class FakeDiscordClient:
@@ -195,6 +195,36 @@ class ProvisionerTests(unittest.TestCase):
                 "  text         chat",
             ],
         )
+
+    def test_read_only_channel_plan_detects_missing_permissions(self) -> None:
+        provisioner = Provisioner(FakeDiscordClient(), "guild", {}, apply=False)
+        channels = {
+            "content-updates": {
+                "id": "content",
+                "name": "content-updates",
+                "type": 0,
+                "parent_id": "category",
+                "topic": "Videos",
+                "permission_overwrites": [],
+            }
+        }
+
+        provisioner._ensure_channel(
+            {
+                "name": "content-updates",
+                "type": "text",
+                "topic": "Videos",
+                "read_only": True,
+            },
+            {"id": "category"},
+            channels,
+        )
+
+        self.assertEqual(
+            provisioner.actions[0].resource,
+            "text channel content-updates (read-only)",
+        )
+        self.assertGreater(READ_ONLY_DENY, 0)
 
 
 if __name__ == "__main__":

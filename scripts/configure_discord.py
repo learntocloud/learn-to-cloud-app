@@ -21,11 +21,24 @@ CONFIG_PATH = Path(__file__).resolve().parents[1] / "discord" / "community.yaml"
 CHANNEL_TYPES = {"text": 0, "category": 4, "forum": 15}
 PERMISSIONS = {
     "view_channel": 1 << 10,
+    "send_messages": 1 << 11,
     "manage_messages": 1 << 13,
     "manage_threads": 1 << 34,
+    "create_public_threads": 1 << 35,
+    "create_private_threads": 1 << 36,
+    "send_messages_in_threads": 1 << 38,
     "moderate_members": 1 << 40,
 }
 REQUIRE_TAG = 1 << 4
+READ_ONLY_DENY = sum(
+    PERMISSIONS[name]
+    for name in (
+        "send_messages",
+        "create_public_threads",
+        "create_private_threads",
+        "send_messages_in_threads",
+    )
+)
 
 
 class DiscordError(RuntimeError):
@@ -260,6 +273,15 @@ class Provisioner:
         }
         if "rate_limit_per_user" in config:
             payload["rate_limit_per_user"] = config["rate_limit_per_user"]
+        if config.get("read_only"):
+            payload["permission_overwrites"] = [
+                {
+                    "id": self.guild_id,
+                    "type": 0,
+                    "allow": "0",
+                    "deny": str(READ_ONLY_DENY),
+                }
+            ]
         if config["type"] == "forum":
             payload.update(
                 {
@@ -315,6 +337,35 @@ class Provisioner:
             existing.get("flags", 0) & REQUIRE_TAG
         ) != config.get("require_tag", False):
             differences.append("required-tag")
+        everyone_overwrite = next(
+            (
+                overwrite
+                for overwrite in existing.get("permission_overwrites", [])
+                if overwrite["id"] == self.guild_id and overwrite["type"] == 0
+            ),
+            None,
+        )
+        current_deny = int(everyone_overwrite["deny"]) if everyone_overwrite else 0
+        if config.get("read_only") and current_deny & READ_ONLY_DENY != READ_ONLY_DENY:
+            differences.append("read-only")
+            preserved_overwrites = [
+                dict(overwrite)
+                for overwrite in existing.get("permission_overwrites", [])
+                if not (
+                    overwrite["id"] == self.guild_id and overwrite["type"] == 0
+                )
+            ]
+            preserved_overwrites.append(
+                {
+                    "id": self.guild_id,
+                    "type": 0,
+                    "allow": (
+                        everyone_overwrite["allow"] if everyone_overwrite else "0"
+                    ),
+                    "deny": str(current_deny | READ_ONLY_DENY),
+                }
+            )
+            payload["permission_overwrites"] = preserved_overwrites
         if differences:
             detail = ", ".join(differences)
             self._record(

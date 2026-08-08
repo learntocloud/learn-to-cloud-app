@@ -17,6 +17,9 @@ roles:
   - name: Phase 5
   - name: Phase 6
   - name: Phase 7
+  - name: Video Notifications
+    mentionable: false
+    hoist: false
 
 categories:
   - name: START HERE
@@ -27,6 +30,10 @@ categories:
       - name: announcements
         type: text
         topic: Official Learn to Cloud project and curriculum updates.
+      - name: content-updates
+        type: text
+        topic: New videos and creator content from madebygps.
+        read_only: true
       - name: github-feed
         type: text
         topic: Automated updates from GitHub Issues and Discussions.
