@@ -220,11 +220,11 @@ worthless anywhere else.
    this agent's remit.
 
 2. Navigate to `/phase/{N}` and find the requirement card.
-3. Enter the value: a minted token for Phases 1 and 2, a written answer you
-   compose for `deployment-architecture` and `career-reflection`, or the
-   prefilled value for auto-derived submissions. If a prefilled field is
-   read-only and holds something other than what the user asked you to test,
-   report that and do not try to force it.
+3. Enter the value: a minted token for Phases 1 and 2, the deployed API URL for
+   Phase 4, a written answer for `career-reflection`, or the prefilled value for
+   auto-derived submissions. If a prefilled field is read-only and holds
+   something other than what the user asked you to test, report that and do not
+   try to force it.
 4. Submit, then poll the card until it reaches success or failure. Stop after 60
    seconds and report a timeout.
 5. Capture the final visible status and message, plus log evidence on any

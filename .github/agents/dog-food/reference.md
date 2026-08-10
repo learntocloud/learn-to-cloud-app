@@ -46,7 +46,6 @@ requirement card in the app, trust the artifact and report the drift.
 | 2 | `networking-lab-token` | `networking_token` | Yes | Minted locally (see below) |
 | 3 | `journal-api-implementation` | `journal_api_verifier` | Yes | Auto-derived |
 | 4 | `deployed-journal-api` | `deployed_api` | Yes | User-provided URL |
-| 4 | `deployment-architecture` | `deployment_architecture` | Yes | Written answer, 300 characters minimum |
 | 5 | `devops-implementation` | `devops_analysis` | Yes | Auto-derived |
 | 6 | `security-scanning` | `security_scanning` | Yes | Auto-derived |
 | 7 | `career-reflection` | `career_reflection` | Yes | Three answers, 200 characters minimum each |
@@ -60,9 +59,6 @@ Lab tokens (`ctf_token`, `networking_token`) are minted locally with
 carries the exact challenge count the verifier expects (18 for the CTF, 4 for
 the networking lab) and is bound to the GitHub username you are signed in as.
 
-`deployment-architecture` expects a description of the architecture the
-learner's `deploy.sh` provisions (network layout, VM placement, firewall rules,
-traffic flow) and is scoped to the `learntocloud/journal-starter` repository.
 For `career_reflection`, fill every rendered textarea with a substantive answer.
 
 ## Report template

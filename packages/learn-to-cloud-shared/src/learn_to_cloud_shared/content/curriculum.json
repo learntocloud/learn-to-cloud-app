@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "ffe706dd88f6fe0746192d9828cbbe898b5b59da1fb6d479bb5ae72939b96d32",
-  "curriculum_version": 7,
+  "content_hash": "cba68c87445a7b55b0fd513b1c8c4176fc9541c0e55f75e938c408d6269f2e60",
+  "curriculum_version": 8,
   "phases": [
     {
       "capstone": null,
@@ -2541,12 +2541,11 @@
       "description": "This phase focuses on cloud platform fundamentals - the core concepts and skills you need to work effectively with cloud services. You'll learn everything from virtual machines and networking to security and application deployment. Through hands-on practice and real-world projects, you'll build the practical experience needed to work with cloud platforms professionally.",
       "hands_on_verification": {
         "requirement_slugs": [
-          "deployed-journal-api",
-          "deployment-architecture"
+          "deployed-journal-api"
         ],
         "requirements": [
           {
-            "description": "Submit your HTTPS API base URL so the verifier can run POST/GET challenge-response checks on /entries and validate the response format.",
+            "description": "Submit your HTTPS API base URL so the verifier can create and retrieve a challenge entry, validate one live AI analysis response, and delete the entry.",
             "name": "Deploy a Public Journal API",
             "slug": "deployed-journal-api",
             "submission_type": "deployed_api",
@@ -2554,19 +2553,6 @@
               "placeholder": "https://your-api.example.com"
             },
             "uuid": "cd4dfc97-5081-4361-a345-a3690c86f1e6"
-          },
-          {
-            "description": "Write an idempotent deploy.sh at the root of your journal-starter fork, then describe your deployment architecture in your own words. An automated reviewer reads your deploy.sh and your description and checks that they match, so describe what you actually built, not what the guide suggested.",
-            "name": "Explain Your Deployment Architecture",
-            "slug": "deployment-architecture",
-            "submission_type": "deployment_architecture",
-            "type_config": {
-              "deploy_script_path": "deploy.sh",
-              "min_answer_length": 300,
-              "prompt": "Describe the architecture your deploy.sh provisions. Cover your network layout (public and private subnets), how the API and database VMs are placed, the firewall or security rules that keep the database private, and how traffic flows from the internet to your API and down to the database. Be specific about what your script actually does.",
-              "required_repo": "learntocloud/journal-starter"
-            },
-            "uuid": "e156741f-9226-45ff-8129-704d1e23eeec"
           }
         ]
       },
@@ -3445,26 +3431,26 @@
           "uuid": "7ca1401a-0e78-4fcb-8665-aeba544555d1"
         },
         {
-          "description": "Deploy the Journal API you built in Phase 3 to a secure 2-tier cloud architecture. This capstone challenges you to research, design, and implement a production-ready environment with proper networking and security, using the database and deployment preparation work you completed in earlier Phase 4 topics. You must have all Phase 3 endpoints implemented (GET single entry, DELETE single entry, and AI analysis) before starting. The curriculum may not have covered everything you need \u2014 that's intentional. Researching what you don't know is part of the job.",
+          "description": "Deploy the Journal API from Phase 3 as a secure foundational cloud workload. You'll combine segmented networking, private PostgreSQL connectivity, HTTPS, identity-aware administration, cost controls, and the live AI endpoint you evaluated in this phase. The goal is a defensible working deployment, not a claim of full production readiness.",
           "learning_objectives": [
             {
               "order": 1,
-              "text": "Design a secure two-tier cloud architecture for API and database workloads.",
+              "text": "Design a segmented cloud architecture for public API and private database traffic.",
               "uuid": "a8283b86-24bb-4e2e-8a20-7679cd19741a"
             },
             {
               "order": 2,
-              "text": "Implement networking, compute, and database components to run the Journal API end to end.",
+              "text": "Deploy and operate the Journal API without public database or management access.",
               "uuid": "6654c03c-ccbf-4983-9147-3130f07ee90e"
             },
             {
               "order": 3,
-              "text": "Deploy and integrate a cloud-hosted AI model with your application.",
+              "text": "Integrate the live model endpoint selected for the Journal API.",
               "uuid": "f3263740-4646-4160-9cb7-e5d07445ce2c"
             },
             {
               "order": 4,
-              "text": "Validate deployment success criteria including HTTPS, connectivity controls, and functional API behavior.",
+              "text": "Validate HTTPS, CRUD behavior, AI analysis, private connectivity, and cleanup.",
               "uuid": "0f9954fd-42d1-4a8a-99e1-9ee7b8f1a8d4"
             }
           ],
@@ -3472,144 +3458,107 @@
             {
               "action": "explore",
               "checklist": [
-                "A virtual network with a CIDR range (e.g., `10.0.0.0/16`)",
-                "A **public subnet** for the API (e.g., `10.0.1.0/24`)",
-                "A **private subnet** for the database (e.g., `10.0.2.0/24`)",
-                "Firewall rules for each subnet, including **SSH (22)** for management access \u2014 not just application ports",
-                "The traffic flow: Internet \u2192 port 443 (reverse proxy) \u2192 port 8000 (your application) \u2192 port 5432 (database)",
-                "How you will manage the private VM (e.g., SSH through the public VM as a jump box, since the database VM has no public IP)"
+                "A virtual network with non-overlapping application and private database subnets",
+                "Public HTTPS traffic terminating at a reverse proxy or managed ingress",
+                "The API process listening only behind that HTTPS entry point",
+                "Private API-to-database traffic on port 5432",
+                "No public IP or public inbound rule for the database",
+                "No public SSH or RDP rule for either tier",
+                "Bastion, Session Manager, or IAP for administrative access",
+                "The outbound path required for package installation and the live AI endpoint"
               ],
               "code": null,
-              "description": "Use your **Database Deployment & Configuration** topic work as input. Sketch your infrastructure on paper or a diagram before touching the cloud console.",
-              "done_when": "You have a diagram showing public subnet (API), private subnet (database), CIDR ranges, firewall rules including SSH access, and the port chain from internet to database.",
+              "description": "Draw the network before provisioning resources. Reuse the decisions and diagnostic evidence from the networking, database, and AI topics.",
+              "done_when": "Your diagram shows each allowed traffic path, its port, and the control that blocks unintended access.",
               "options": [],
               "order": 1,
-              "slug": "phase4-topic9-explore-design-your-2-tier-architecture",
-              "tips": [
-                {
-                  "text": "If your cloud platform requires approval for AI model access (e.g., Azure OpenAI, AWS Bedrock), request it now \u2014 approval can take days and will block Step 6.",
-                  "type": "tip"
-                },
-                {
-                  "text": "On some cloud platforms, subnets are not inherently \"public\" or \"private\" \u2014 visibility depends on whether a VM has a public IP and what the firewall rules allow.",
-                  "type": "note"
-                }
-              ],
-              "title": "Design your 2-tier architecture",
+              "slug": "phase4-topic9-design-deployment-traffic-paths",
+              "tips": [],
+              "title": "Draw the deployment and traffic paths",
               "url": null,
               "uuid": "0bb54815-026c-4012-96c6-c4511e8870c3"
             },
             {
               "action": "practice",
               "checklist": [
-                "**Public subnet** \u2014 allow inbound SSH (22), HTTP (80), and HTTPS (443) from the internet",
-                "**Private subnet** \u2014 allow inbound PostgreSQL (5432) and SSH (22) **only from the public subnet's CIDR range**. Deny all other inbound from the internet",
-                "Associate each security group with its respective subnet",
-                "Verify outbound internet access is allowed for both subnets (needed for package installation \u2014 most platforms allow this by default)"
+                "Create the application and private database subnets",
+                "Apply least-privilege routes and firewall or security-group rules",
+                "Deploy the API compute in the application subnet",
+                "Deploy PostgreSQL without a public IP, or use managed PostgreSQL with private connectivity",
+                "Create the `career_journal` database and least-privilege application role",
+                "Run `database_setup.sql`",
+                "Prove the API compute can reach PostgreSQL and the public internet cannot"
               ],
               "code": null,
-              "description": "Create a virtual network with at least two subnets \u2014 one public (API) and one private (database). Create security groups or firewall rules for each.",
-              "done_when": "Both subnets exist, security groups are associated with them, and your firewall rules match the design from Step 1.",
+              "description": "Create the segmented network and compute resources from your design. Reuse the private PostgreSQL tier from the database topic if it is still running; otherwise reproduce it. Use cloud-init, provider run-command tooling, or identity-aware sessions for setup instead of temporarily exposing management ports.",
+              "done_when": "The database is reachable from the API workload over a private path and is unreachable from your local machine over the public internet.",
               "options": [],
               "order": 2,
-              "slug": "phase4-topic9-practice-create-your-virtual-network",
+              "slug": "phase4-topic9-practice-provision-foundational-infrastructure",
               "tips": [],
-              "title": "Create your virtual network with public and private subnets",
+              "title": "Provision the network, compute, and private database",
               "url": null,
               "uuid": "c35ea082-b623-475d-94ff-32a71fa9e519"
             },
             {
               "action": "practice",
               "checklist": [
-                "**Provision the VM** \u2014 Create in the private subnet with a **temporary public IP** and a temporary SSH firewall rule (needed for initial setup)",
-                "**Install PostgreSQL**",
-                "**Create the database** and a dedicated user",
-                "**Run the schema** \u2014 Execute `database_setup.sql` from your repository to create the `entries` table and indexes",
-                "**Grant permissions** \u2014 If you ran the schema as the `postgres` superuser, your app user won't have access without explicit `GRANT` statements on the schema and tables",
-                "**Configure remote access** \u2014 Modify `postgresql.conf` (set `listen_addresses`) and `pg_hba.conf` (allow your API subnet)",
-                "**Restart PostgreSQL**",
-                "**Save connection details** \u2014 Private IP, username, password, and database name for building `DATABASE_URL` in the next step"
+                "Install Python 3.11 or newer and `uv`",
+                "Configure `DATABASE_URL` with the database's private address",
+                "Store runtime settings in a protected environment file or provider secrets integration",
+                "Run Uvicorn through systemd or an equivalent service manager without `--reload`",
+                "Bind Uvicorn to localhost or an internal interface rather than exposing port 8000 publicly",
+                "Verify the service restarts and survives an administrative session ending"
               ],
               "code": null,
-              "description": "Deploy a VM in the private subnet, install PostgreSQL, create the `career_journal` database with a dedicated user, and run your schema migration.",
-              "done_when": "You can connect to PostgreSQL from the API subnet via private IP, your dedicated user can read and write the `entries` table, and the database is **not** reachable from the internet.",
+              "description": "Clone your fork onto the API compute, install dependencies, configure the private database connection, and run the API with a service manager such as systemd. Keep runtime settings outside the repository and restrict access to the service account.",
+              "done_when": "All Journal API CRUD operations work from the API host and the service is supervised by the operating system.",
               "options": [],
               "order": 3,
-              "slug": "phase4-topic9-practice-deploy-the-database-in",
-              "tips": [
-                {
-                  "text": "The DB VM needs outbound internet to install packages \u2014 use a temporary public IP (remove after) or a managed NAT service. If your VM has \u22641 GiB RAM, configure swap space (2 GiB recommended) or PostgreSQL may be killed by the OOM handler.",
-                  "type": "tip"
-                }
-              ],
-              "title": "Deploy the database in the private subnet",
-              "url": null,
-              "uuid": "91dd5f9e-365f-445f-a113-fca4abbfe0c0"
-            },
-            {
-              "action": "practice",
-              "checklist": [
-                "**Provision the VM** \u2014 Create in the public subnet with a public IP",
-                "**Clone your repo** onto the VM",
-                "**Install `uv`** \u2014 `curl -LsSf https://astral.sh/uv/install.sh | sh`, then `uv sync`",
-                "**Configure the database connection** \u2014 Create `.env` with `DATABASE_URL=postgresql://youruser:yourpassword@db-private-ip:5432/career_journal`",
-                "**Run as a background service** (e.g., systemd) \u2014 set `PYTHONPATH` to your project dir, include `uv` in `PATH`, entry point: `uv run uvicorn api.main:app --host 0.0.0.0 --port 8000`. Do **not** use `--reload` in production",
-                "**Smoke test** \u2014 `curl http://localhost:8000/entries`"
-              ],
-              "code": null,
-              "description": "Deploy a VM in the public subnet, install the Journal API, and connect it to the database using the DB VM's **private IP address**.",
-              "done_when": "All CRUD operations work from the VM \u2014 `POST /entries`, `GET /entries`, `GET /entries/{id}`, `PATCH /entries/{id}`, and `DELETE /entries/{id}`.",
-              "options": [],
-              "order": 4,
-              "slug": "phase4-topic9-practice-deploy-the-api-server",
-              "tips": [
-                {
-                  "text": "The Journal API requires Python 3.11+. Ubuntu 24.04 LTS ships Python 3.12 \u2014 older images may need a separate install. If your VM has \u22641 GiB RAM, configure swap space (2 GiB recommended).",
-                  "type": "tip"
-                }
-              ],
-              "title": "Deploy the API server and connect to the database",
+              "slug": "phase4-topic9-practice-deploy-api-service",
+              "tips": [],
+              "title": "Deploy the Journal API as a managed service process",
               "url": null,
               "uuid": "4c1da717-a539-446a-81bc-deb7aec0e05a"
             },
             {
               "action": "practice",
               "checklist": [
-                "**Domain name** \u2014 Create an A record pointing to your VM's public IP. Use a registrar, free DNS service, or your cloud platform's DNS features",
-                "**Reverse proxy** \u2014 Install **Nginx** or **Caddy**. Configure to forward requests to `http://127.0.0.1:8000`",
-                "**TLS certificate** \u2014 Use **Let's Encrypt** with **Certbot** (Nginx) or Caddy's built-in auto-TLS"
+                "Point a DNS name at the public HTTPS entry point",
+                "Terminate TLS with a trusted certificate",
+                "Forward HTTPS requests to the internal Journal API listener",
+                "Allow public inbound traffic only on required web ports",
+                "Confirm SSH and RDP are not publicly reachable",
+                "Locate the audit event for an administrative session"
               ],
               "code": null,
-              "description": "Set up a **domain name** pointing to your VM's public IP, obtain a **TLS certificate**, and configure a **reverse proxy** to terminate TLS and forward traffic to `localhost:8000`.",
-              "done_when": "`curl -v https://yourdomain/entries` returns valid JSON with a trusted certificate, a 200 status code, and no redirects.",
+              "description": "Configure DNS, a trusted TLS certificate, and a reverse proxy or managed ingress that forwards to the private application listener. Administer the hosts only through the identity-aware access path configured earlier.",
+              "done_when": "`curl https://your-domain/entries` returns a direct 200 response with valid JSON and a trusted certificate, while public management ports remain blocked.",
               "options": [],
-              "order": 5,
-              "slug": "phase4-topic9-practice-expose-your-api-over-https",
-              "tips": [
-                {
-                  "text": "The automated verifier does **not** follow HTTP redirects. Ensure `GET /entries` on your HTTPS URL returns a direct `200 OK`, not a `3xx` redirect. Watch for trailing-slash behavior \u2014 FastAPI redirects `/entries/` to `/entries` with a 307. Use `/entries` (no trailing slash).",
-                  "type": "warning"
-                }
-              ],
-              "title": "Expose your API over HTTPS",
+              "order": 4,
+              "slug": "phase4-topic9-practice-expose-https-secure-administration",
+              "tips": [],
+              "title": "Expose HTTPS and verify secure administration",
               "url": null,
               "uuid": "27462a4a-7f2d-47f2-b910-2eb9d030deba"
             },
             {
               "action": "practice",
               "checklist": [
-                "**Option A \u2014 OpenAI-compatible endpoint:** Update `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL` in `.env`",
-                "**Option B \u2014 Provider-specific SDK:** Modify the client creation in `llm_service.py` to use your provider's client class. Check your provider's docs for integration",
-                "**Redeploy** \u2014 Push changes to the VM and restart your service"
+                "Configure the endpoint, model or deployment name, and authentication",
+                "Apply the timeout, retry, rate-limit, and safety decisions you documented",
+                "Restart the API service and inspect its logs for configuration errors",
+                "Create a journal entry and call `POST /entries/{id}/analyze`",
+                "Confirm the response includes `entry_id`, `sentiment`, `summary`, and `topics`"
               ],
               "code": null,
-              "description": "Deploy or provision access to an LLM on your cloud platform. Your Journal API's AI integration lives in `api/services/llm_service.py` and uses the `openai` Python package.",
-              "done_when": "`curl -X POST https://yourdomain/entries/{id}/analyze` returns sentiment, summary, and topics from your cloud-hosted model.",
+              "description": "Configure the API with the model endpoint selected in Operating Cloud AI Services. Use the Responses API environment variables from Phase 3 when the provider is compatible; otherwise use the provider adapter you implemented. Do not commit credentials.",
+              "done_when": "The deployed HTTPS API returns a valid live AI analysis without exposing credentials in source control or logs.",
               "options": [],
-              "order": 6,
-              "slug": "phase4-topic9-practice-deploy-and-switch-your",
+              "order": 5,
+              "slug": "phase4-topic9-practice-configure-test-live-ai",
               "tips": [],
-              "title": "Deploy and switch your Journal API to cloud AI",
+              "title": "Configure and test the live AI endpoint",
               "url": null,
               "uuid": "023ae8e4-f00e-4c6b-af08-93055c275aeb"
             },
@@ -3617,115 +3566,48 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Submit your HTTPS base URL (e.g., `https://your-api.example.com`). The verifier POSTs a challenge entry to `/entries`, confirms it appears in `GET /entries`, then deletes it.",
-              "done_when": "The verifier shows \"Deployed API verified!\"",
+              "description": "Submit the HTTPS base URL. The verifier creates a unique challenge entry, confirms it appears in `GET /entries`, calls its live AI analysis endpoint, validates the response schema, and deletes the challenge entry.",
+              "done_when": "The verifier confirms API ownership and reports that live AI analysis passed.",
               "options": [],
-              "order": 7,
-              "slug": "phase4-topic9-practice-verify-and-submit-your",
+              "order": 6,
+              "slug": "phase4-topic9-practice-verify-submit-deployment",
               "tips": [
                 {
-                  "text": "Your API's response format must match the data schema defined in the journal-starter README. Your API must respond within 15 seconds.",
+                  "text": "The API must return direct JSON responses without HTTP redirects. AI wording is nondeterministic, so verification checks the response schema rather than exact text.",
                   "type": "tip"
+                },
+                {
+                  "text": "Verification makes one billable model request and allows additional time for that request to complete.",
+                  "type": "warning"
                 }
               ],
-              "title": "Verify and submit your deployment",
+              "title": "Verify and submit the deployment",
               "url": null,
               "uuid": "a6ab032c-fe77-4d31-987f-564f6248ede6"
             },
             {
-              "action": "practice",
+              "action": "reflect",
               "checklist": [
-                "**Network** \u2014 create your virtual network, public subnet, and private subnet with their CIDR ranges",
-                "**Firewall rules** \u2014 recreate the inbound and outbound rules for each subnet, keeping the database private",
-                "**Compute** \u2014 provision the API VM (public) and database VM (private) and install their dependencies",
-                "**App and database** \u2014 install and start the Journal API, install PostgreSQL, create the database, and run your schema",
-                "**Idempotency** \u2014 guard steps so re-running does not error on resources that already exist (check-before-create, or `|| true` where appropriate)"
+                "Document what you actually deployed rather than an idealized architecture",
+                "Record the public and private traffic paths and their controls",
+                "Explain the model choice, safety settings, and expected cost",
+                "Note at least one remaining production concern such as backup, high availability, secrets rotation, or disaster recovery",
+                "Delete compute, disks, IPs, networking services, database resources, and unused AI deployments",
+                "Confirm the billing dashboard shows no unexpected active resources"
               ],
               "code": null,
-              "description": "Write a `deploy.sh` at the **root** of your journal-starter fork that provisions your deployment end to end. Idempotent means running it again on a clean environment reproduces the same architecture without manual steps.",
-              "done_when": "A `deploy.sh` exists at your repository root and clearly shows a secure two-tier design: a public API tier, a private database tier that is not reachable from the internet, and the networking and firewall rules that enforce it.",
+              "description": "Add a concise architecture diagram and deployment notes to your Journal Starter README. Explain the network boundaries, administration path, database controls, AI endpoint, cost estimate, and one limitation you would address before production. After verification, delete every resource you do not need for Phase 5.",
+              "done_when": "Your repository documents the verified deployment and your cloud account contains only resources you intentionally retained for Phase 5.",
               "options": [],
-              "order": 8,
-              "slug": "phase4-topic9-practice-capture-your-deployment-as-deploy-sh",
-              "tips": [
-                {
-                  "text": "Your deploy.sh does not need to run untouched on every cloud; it should honestly document what you built. The reviewer compares it against your written description, so keep them consistent.",
-                  "type": "tip"
-                },
-                {
-                  "text": "Your journal-starter fork must be **public** so the reviewer can read your `deploy.sh`. A private fork fails with a \"repository not found\" error.",
-                  "type": "warning"
-                }
-              ],
-              "title": "Capture your deployment as an idempotent deploy.sh",
+              "order": 7,
+              "slug": "phase4-topic9-reflect-document-clean-up",
+              "tips": [],
+              "title": "Document decisions and clean up",
               "url": null,
               "uuid": "8560edaf-a754-485a-93bc-42b20d6b18f6"
-            },
-            {
-              "action": "reflect",
-              "checklist": [
-                "Explain your network layout, including public and private subnets and their CIDR ranges",
-                "Describe how the API and database VMs are placed and how the database stays private",
-                "Walk through the traffic flow from the internet to the API and down to the database",
-                "Make sure everything you claim is actually done by your `deploy.sh`",
-                "Write at least a few paragraphs (roughly 300 characters minimum); a one or two sentence summary is rejected as too short"
-              ],
-              "code": null,
-              "description": "In the app, write a description of the architecture your `deploy.sh` provisions, then submit it. An automated reviewer reads both your `deploy.sh` and your description and checks that they align and that your design is a secure two-tier deployment.",
-              "done_when": "The reviewer confirms your description aligns with your deploy.sh.",
-              "options": [],
-              "order": 9,
-              "slug": "phase4-topic9-reflect-describe-and-submit-your-architecture",
-              "tips": [
-                {
-                  "text": "The reviewer fails the check if your description claims resources or controls that your `deploy.sh` does not create. Describe what you built, not the ideal design.",
-                  "type": "warning"
-                }
-              ],
-              "title": "Describe and submit your architecture",
-              "url": null,
-              "uuid": "db9a4aa7-4a04-42c5-a661-c54b091ed157"
-            },
-            {
-              "action": "practice",
-              "checklist": [
-                "VMs, disks, and public IPs",
-                "Virtual networks, subnets, and security groups",
-                "AI resources and deployments",
-                "Temporary public IP and SSH rule from the database VM"
-              ],
-              "code": null,
-              "description": "Delete all cloud resources you provisioned. Check your cloud console to confirm nothing is still running or incurring charges.",
-              "done_when": null,
-              "options": [],
-              "order": 10,
-              "slug": "phase4-topic9-practice-clean-up-your-cloud",
-              "tips": [
-                {
-                  "text": "If your cloud platform supports resource groups or tagging, use them \u2014 deleting a single group or filtering by tag makes cleanup straightforward.",
-                  "type": "tip"
-                }
-              ],
-              "title": "Clean up your cloud resources",
-              "url": null,
-              "uuid": "6dd5149a-494d-4f19-a401-fe7a1a71c75c"
-            },
-            {
-              "action": "reflect",
-              "checklist": [],
-              "code": null,
-              "description": "Push your work to GitHub and write a brief technical writeup covering your architecture decisions, what networking and security controls you implemented, and what you'd do differently. Share it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.",
-              "done_when": null,
-              "options": [],
-              "order": 11,
-              "slug": "phase4-topic9-reflect-share-your-progress",
-              "tips": [],
-              "title": "Share your progress",
-              "url": null,
-              "uuid": "ab084238-bf88-487e-9aa9-45c257463179"
             }
           ],
-          "name": "Capstone: Cloud Deployment",
+          "name": "Capstone: Secure Cloud Deployment",
           "order": 6,
           "slug": "capstone",
           "uuid": "ddd726e7-818e-4672-b33a-579718b1a8f3"
