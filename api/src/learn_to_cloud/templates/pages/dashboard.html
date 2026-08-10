@@ -1,81 +1,170 @@
 {% extends "layouts/content_page.html" %}
+{% set footer_margin = "mt-8" %}
 {% block title %}Dashboard - Learn to Cloud{% endblock %}
 
 {% block page_header %}
-<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Welcome, {{ user.first_name or user.github_username }} 👋</h1>
+<h1 class="text-3xl font-bold tracking-[-0.025em] text-gray-950 dark:text-white">Dashboard</h1>
+<p class="mt-2 break-words text-base text-gray-600 dark:text-gray-300">
+    Welcome back, {{ user.first_name or user.github_username }}.
+</p>
 {% endblock %}
 
 {% block page_body %}
-{# Primary verification progress and secondary learning progress. #}
-<div class="relative overflow-hidden p-5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-800 mb-8 shadow">
-    <h2 class="text-lg font-bold text-white mb-1">Overall Progress</h2>
-    <p class="text-sm text-blue-100 mb-4">
-        {{ dashboard.phases_completed }} of {{ dashboard.total_phases }} phases complete.
-        Complete each phase's verification to progress.
-    </p>
-
-    <div class="mb-3">
-        <p class="text-sm font-medium text-white mb-1">Verification progress — {{ dashboard.verification_percentage | round(0) | int }}% of requirements</p>
-        <div
-            class="h-2.5 bg-white/20 rounded-full overflow-hidden"
-            role="progressbar"
-            aria-valuenow="{{ dashboard.verification_percentage | round(0) | int }}"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-label="Requirements verified: {{ dashboard.verification_percentage | round(0) | int }} percent"
-        >
-            <div class="h-full rounded-full transition-all {{ 'bg-green-400' if dashboard.is_program_complete else 'bg-white' }}" style="width: {{ dashboard.verification_percentage }}%"></div>
-        </div>
-    </div>
-
-    <div>
-        <p class="text-xs text-blue-100 mb-1">Learning progress — {{ dashboard.learning_percentage | round(0) | int }}% of learning steps</p>
-        <div
-            class="h-1.5 bg-white/20 rounded-full overflow-hidden"
-            role="progressbar"
-            aria-valuenow="{{ dashboard.learning_percentage | round(0) | int }}"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-label="Learning steps checked: {{ dashboard.learning_percentage | round(0) | int }} percent"
-        >
-            <div class="h-full rounded-full transition-all bg-white/70" style="width: {{ dashboard.learning_percentage }}%"></div>
-        </div>
-    </div>
-</div>
-
-{# ── Continue where you left off ──
-   Points at the first unchecked step's topic, or the phase's verification
-   section once every current step is checked. #}
 {% if dashboard.continue_phase %}
-<a href="{{ dashboard.continue_phase.destination_url }}" class="flex items-center justify-between p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors mb-6">
-    <div>
-        <p class="text-xs font-medium text-blue-600 dark:text-blue-400 mb-0.5">Continue where you left off</p>
-        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ dashboard.continue_phase.label }}</p>
+<section class="mb-10 rounded-lg border border-blue-200 bg-blue-50 p-5 dark:border-blue-800 dark:bg-blue-950/40" aria-labelledby="continue-heading">
+    <div class="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
+        <div class="min-w-0">
+            <h2 id="continue-heading" class="text-xl font-bold text-blue-950 dark:text-blue-100">Continue learning</h2>
+            <p class="mt-1 break-words text-sm leading-6 text-blue-800 dark:text-blue-200">{{ dashboard.continue_phase.label }}</p>
+        </div>
+        <a href="{{ dashboard.continue_phase.destination_url }}" class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-blue-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-400 dark:text-blue-950 dark:hover:bg-blue-300">
+            Resume
+            <svg class="ml-2 h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h12m-5-5 5 5-5 5"/>
+            </svg>
+        </a>
     </div>
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-    </svg>
-</a>
+</section>
+{% elif dashboard.is_program_complete and dashboard.phases %}
+<section class="mb-10 rounded-lg border border-green-200 bg-green-50 p-5 dark:border-green-800 dark:bg-green-950/30" aria-labelledby="complete-heading">
+    <h2 id="complete-heading" class="text-xl font-bold text-green-950 dark:text-green-100">You completed the program.</h2>
+    <p class="mt-2 text-sm leading-6 text-green-800 dark:text-green-200">Every phase verification is complete. Your dashboard remains available as a record of your work.</p>
+</section>
+{% elif dashboard.phases %}
+<section class="mb-10 rounded-lg border border-blue-200 bg-blue-50 p-5 dark:border-blue-800 dark:bg-blue-950/40" aria-labelledby="start-heading">
+    <div class="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
+        <div>
+            <h2 id="start-heading" class="text-xl font-bold text-blue-950 dark:text-blue-100">Start the curriculum</h2>
+            <p class="mt-1 text-sm leading-6 text-blue-800 dark:text-blue-200">Begin with Phase {{ dashboard.phases[0].order }}: {{ dashboard.phases[0].name }}.</p>
+        </div>
+        <a href="/phase/{{ dashboard.phases[0].order }}" class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-blue-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-400 dark:text-blue-950 dark:hover:bg-blue-300">
+            Start Phase {{ dashboard.phases[0].order }}
+        </a>
+    </div>
+</section>
 {% endif %}
 
-{# ── Phase list ──
-   One state per phase (see PhaseProgress.status) and both counts as plain
-   text -- no per-row bar, so there's exactly one place (the hero above)
-   showing a percentage/bar for a given measure. #}
-<div class="space-y-3">
-    {% for phase in dashboard.phases %}
-    {% set p = phase.progress %}
-    <a href="/phase/{{ phase.order }}" class="block p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors {% if p and p.status == 'completed' %}border-l-3 border-l-green-500 dark:border-l-green-400{% elif p and p.status != 'not_started' %}border-l-3 border-l-blue-500 dark:border-l-blue-400{% endif %}">
-        <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2.5 min-w-0">
-                <span class="flex items-center justify-center h-6 w-6 rounded-full text-xs font-semibold flex-shrink-0 {% if p and p.status == 'completed' %}bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400{% elif p and p.status != 'not_started' %}bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400{% else %}bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500{% endif %}">{{ phase.order }}</span>
-                <h2 class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ phase.name }}</h2>
+{% if dashboard.phases %}
+<section class="mb-12" aria-labelledby="progress-heading">
+    <div class="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+        <div>
+            <h2 id="progress-heading" class="text-xl font-bold text-gray-950 dark:text-white">Your progress</h2>
+            <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                {{ dashboard.phases_completed }} of {{ dashboard.total_phases }} phases complete. Complete each phase's verification to progress.
+            </p>
+        </div>
+    </div>
+
+    <div class="mt-5 grid gap-6 border-y border-gray-200 py-6 dark:border-gray-700 sm:grid-cols-2 sm:gap-10">
+        <div>
+            <div class="flex items-baseline justify-between gap-4">
+                <p class="text-sm font-bold text-gray-950 dark:text-white">Verification progress</p>
+                <p class="text-sm font-bold text-blue-700 dark:text-blue-300">{{ dashboard.verification_percentage | round(0) | int }}%</p>
             </div>
-            <span class="text-xs font-medium shrink-0 {% if p and p.status == 'completed' %}text-green-600 dark:text-green-400{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Requirements verified</p>
+            <div
+                class="mt-3 h-2.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
+                role="progressbar"
+                aria-valuenow="{{ dashboard.verification_percentage | round(0) | int }}"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label="Requirements verified: {{ dashboard.verification_percentage | round(0) | int }} percent"
+            >
+                <div class="h-full rounded-full {{ 'bg-green-500' if dashboard.is_program_complete else 'bg-blue-600' }} transition-all" style="width: {{ dashboard.verification_percentage }}%"></div>
+            </div>
+            <p class="sr-only">Verification progress — {{ dashboard.verification_percentage | round(0) | int }}% of requirements</p>
+        </div>
+
+        <div>
+            <div class="flex items-baseline justify-between gap-4">
+                <p class="text-sm font-bold text-gray-950 dark:text-white">Learning progress</p>
+                <p class="text-sm font-bold text-blue-700 dark:text-blue-300">{{ dashboard.learning_percentage | round(0) | int }}%</p>
+            </div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Learning steps checked</p>
+            <div
+                class="mt-3 h-2.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
+                role="progressbar"
+                aria-valuenow="{{ dashboard.learning_percentage | round(0) | int }}"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label="Learning steps checked: {{ dashboard.learning_percentage | round(0) | int }} percent"
+            >
+                <div class="h-full rounded-full bg-blue-400 transition-all dark:bg-blue-500" style="width: {{ dashboard.learning_percentage }}%"></div>
+            </div>
+            <p class="sr-only">Learning progress — {{ dashboard.learning_percentage | round(0) | int }}% of learning steps</p>
+        </div>
+    </div>
+</section>
+
+<section aria-labelledby="phase-progress-heading">
+    <div class="flex items-end justify-between gap-4">
+        <div>
+            <h2 id="phase-progress-heading" class="text-xl font-bold text-gray-950 dark:text-white">Phases</h2>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Open a phase to continue learning or complete verification.</p>
+        </div>
+        <a href="/curriculum" class="hidden min-h-11 items-center text-sm font-bold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:decoration-blue-800 dark:hover:decoration-blue-300 sm:inline-flex">
+            Full curriculum
+        </a>
+    </div>
+
+    <div class="mt-8">
+        {% for phase in dashboard.phases %}
+        {% set p = phase.progress %}
+        {% if loop.index0 == 0 or loop.index0 == 3 or loop.index0 == 6 %}
+        <div class="{% if not loop.first %}mt-10{% endif %} mb-2 flex items-center gap-4">
+            <h3 class="text-base font-bold text-gray-950 dark:text-white">
+                {% if loop.index0 == 0 %}Learn the systems{% elif loop.index0 == 3 %}Build and deploy{% else %}Secure and advance{% endif %}
+            </h3>
+            <div class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+        </div>
+        {% endif %}
+
+        <a href="/phase/{{ phase.order }}" class="group grid min-h-11 grid-cols-[2.75rem_1fr] gap-4 {% if not loop.last %}border-b border-gray-200 dark:border-gray-700{% endif %} py-4 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:grid-cols-[2.75rem_1fr_auto] sm:items-center">
+            {% if p and p.status == 'completed' %}
+            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-800 dark:bg-green-950 dark:text-green-200">
+                {{ phase.order }}
+            </span>
+            {% elif p and p.status != 'not_started' %}
+            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-800 dark:bg-blue-950 dark:text-blue-200">
+                {{ phase.order }}
+            </span>
+            {% else %}
+            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                {{ phase.order }}
+            </span>
+            {% endif %}
+            <span class="min-w-0">
+                <span class="block text-sm font-bold text-gray-950 transition-colors group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">{{ phase.name }}</span>
+                {% if p and (p.verification.requirements_required > 0 or p.learning.steps_required > 0) %}
+                <span class="mt-1 block text-xs leading-5 text-gray-500 dark:text-gray-400">
+                    {%- if p.verification.requirements_required > 0 -%}
+                    {{ p.verification.requirements_verified }}/{{ p.verification.requirements_required }} requirements verified
+                    {%- endif -%}
+                    {%- if p.verification.requirements_required > 0 and p.learning.steps_required > 0 %} · {% endif -%}
+                    {%- if p.learning.steps_required > 0 -%}
+                    {{ p.learning.steps_completed }}/{{ p.learning.steps_required }} steps checked
+                    {%- endif -%}
+                </span>
+                {% endif %}
+                <span class="mt-1 block text-xs font-bold sm:hidden {% if p and p.status == 'completed' %}text-green-700 dark:text-green-300{% elif p and p.status != 'not_started' %}text-blue-700 dark:text-blue-300{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+                    {% if not p or p.status == 'not_started' %}
+                    Not started
+                    {% elif p.status == 'completed' %}
+                    Complete
+                    {% elif p.status == 'learning_complete' %}
+                    Ready for verification
+                    {% elif p.status == 'verification_complete' %}
+                    Steps remaining
+                    {% else %}
+                    In progress
+                    {% endif %}
+                </span>
+            </span>
+            <span class="hidden text-xs font-bold sm:block {% if p and p.status == 'completed' %}text-green-700 dark:text-green-300{% elif p and p.status != 'not_started' %}text-blue-700 dark:text-blue-300{% else %}text-gray-500 dark:text-gray-400{% endif %}">
                 {% if not p or p.status == 'not_started' %}
                 Not started
                 {% elif p.status == 'completed' %}
-                Complete ✓
+                Complete
                 {% elif p.status == 'learning_complete' %}
                 Ready for verification
                 {% elif p.status == 'verification_complete' %}
@@ -84,39 +173,50 @@
                 In progress
                 {% endif %}
             </span>
-        </div>
-        {% if p and (p.verification.requirements_required > 0 or p.learning.steps_required > 0) %}
-        <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-            {%- if p.verification.requirements_required > 0 -%}
-            {{ p.verification.requirements_verified }}/{{ p.verification.requirements_required }} requirements verified
-            {%- endif -%}
-            {%- if p.verification.requirements_required > 0 and p.learning.steps_required > 0 %} · {% endif -%}
-            {%- if p.learning.steps_required > 0 -%}
-            {{ p.learning.steps_completed }}/{{ p.learning.steps_required }} steps checked
-            {%- endif -%}
-        </p>
-        {% endif %}
-    </a>
-    {% endfor %}
-</div>
+        </a>
+        {% endfor %}
+    </div>
 
-{# ── Need Help? ── #}
-<div class="mt-16 p-6 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Need Help?</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <a href="/curriculum" class="mt-6 inline-flex min-h-11 items-center text-sm font-bold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:decoration-blue-800 dark:hover:decoration-blue-300 sm:hidden">
+        Full curriculum
+    </a>
+</section>
+{% else %}
+<section class="rounded-lg border border-gray-200 bg-gray-50 p-8 dark:border-gray-700 dark:bg-gray-800/50" aria-labelledby="dashboard-empty-heading">
+    <h2 id="dashboard-empty-heading" class="text-xl font-bold text-gray-950 dark:text-white">Progress is temporarily unavailable.</h2>
+    <p class="mt-2 max-w-xl text-sm leading-6 text-gray-600 dark:text-gray-300">The curriculum did not load. Try again, or open the curriculum to keep learning.</p>
+    <div class="mt-5 flex flex-wrap gap-4">
+        <a href="/dashboard" hx-boost="false" class="inline-flex min-h-11 items-center justify-center rounded-md bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-400 dark:text-blue-950 dark:hover:bg-blue-300">Try again</a>
+        <a href="/curriculum" class="inline-flex min-h-11 items-center text-sm font-bold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">Open curriculum</a>
+    </div>
+</section>
+{% endif %}
+
+<section class="mt-14 border-t border-gray-200 pt-8 dark:border-gray-700" aria-labelledby="help-heading">
+    <h2 id="help-heading" class="text-lg font-bold text-gray-950 dark:text-white">Need help?</h2>
+    <div class="mt-4 flex flex-wrap gap-3">
         {% for link in help_links %}
+        {% if link.label == "Discord" or link.label == "Report an Issue" %}
         <a
             href="{{ link.url }}"
             {% if link.label == "Report an Issue" %}data-report-issue data-issue-title="Issue: Dashboard" data-issue-labels="bug" data-issue-context="page=dashboard"{% endif %}
             target="_blank"
             rel="noopener noreferrer"
-            class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+            class="inline-flex min-h-11 items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-bold text-gray-700 transition-colors hover:border-blue-400 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:border-gray-600 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300"
         >
             <span class="h-5 w-5 shrink-0 {{ link.color }}" aria-hidden="true">{{ link.icon | safe }}</span>
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ link.label }}</span>
+            <span>{% if link.label == "Discord" %}Ask on Discord{% else %}{{ link.label }}{% endif %}</span>
         </a>
+        {% endif %}
         {% endfor %}
     </div>
-</div>
-
+    <p class="mt-5 text-sm text-gray-500 dark:text-gray-400">
+        Updates:
+        {% for link in help_links %}
+        {% if link.label != "Discord" and link.label != "Report an Issue" %}
+        <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" class="ml-2 inline-flex min-h-11 items-center font-medium underline underline-offset-4 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:hover:text-blue-300">{{ link.label }}</a>
+        {% endif %}
+        {% endfor %}
+    </p>
+</section>
 {% endblock %}

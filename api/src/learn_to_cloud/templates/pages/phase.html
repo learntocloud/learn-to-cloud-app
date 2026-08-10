@@ -1,14 +1,25 @@
 {% extends "base.html" %}
+{% set footer_margin = "mt-8" %}
 {% from "macros/badges.html" import status_pill %}
 {% block title %}{{ phase.name }} - Learn to Cloud{% endblock %}
 
 {% block content %}
-<div class="mb-8">
-    <div class="flex items-center gap-3 mb-2 flex-wrap">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ phase.name }}</h1>
+<nav class="mb-6 flex min-h-11 flex-wrap items-center gap-2 text-sm text-gray-500 dark:text-gray-400" aria-label="Breadcrumb">
+    <a href="/curriculum" class="inline-flex min-h-11 items-center font-medium hover:text-blue-700 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:hover:text-blue-300">Curriculum</a>
+    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m8 5 5 5-5 5"/>
+    </svg>
+    <span aria-current="page">Phase {{ phase.order }}</span>
+</nav>
+
+<header class="border-b border-gray-200 pb-10 dark:border-gray-700 sm:pb-12">
+    <div class="flex flex-wrap items-center gap-3">
+        <h1 class="text-balance text-3xl font-bold tracking-[-0.03em] text-gray-950 dark:text-white sm:text-4xl">
+            Phase {{ phase.order }}: {{ phase.name }}
+        </h1>
         {% if phase_progress %}
         {% if phase_progress.status == 'completed' %}
-        {{ status_pill("Phase complete ✓", "success") }}
+        {{ status_pill("Phase complete", "success") }}
         {% elif phase_progress.status == 'learning_complete' %}
         {{ status_pill("Ready for verification", "info") }}
         {% elif phase_progress.status == 'verification_complete' %}
@@ -16,10 +27,29 @@
         {% endif %}
         {% endif %}
     </div>
-    <div class="mt-2 text-gray-600 dark:text-gray-400 [&>p]:m-0 phase-description">{{ phase.description | md | safe }}</div>
+    <div class="phase-description mt-4 max-w-3xl text-base leading-7 text-gray-600 dark:text-gray-300 [&>p]:m-0">{{ phase.description | md | safe }}</div>
+
+    {% set next_topic = namespace(item=none) %}
+    {% for topic in topics %}
+    {% if next_topic.item is none and (not topic.progress or topic.progress.completed < topic.progress.total) %}
+    {% set next_topic.item = topic %}
+    {% endif %}
+    {% endfor %}
+
+    {% if next_topic.item %}
+    <div class="mt-7 flex flex-col items-start justify-between gap-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/40 sm:flex-row sm:items-center">
+        <div class="min-w-0">
+            <p class="text-sm font-bold text-blue-950 dark:text-blue-100">Continue learning</p>
+            <p class="mt-1 break-words text-sm text-blue-800 dark:text-blue-200">{{ next_topic.item.name }}</p>
+        </div>
+        <a href="/phase/{{ phase.order }}/{{ next_topic.item.slug }}" class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-400 dark:text-blue-950 dark:hover:bg-blue-300">
+            Open topic
+        </a>
+    </div>
+    {% endif %}
 
     {% if phase_progress %}
-    <div class="mt-4 space-y-2 max-w-md">
+    <div class="mt-6 grid gap-4 sm:grid-cols-2 sm:gap-8">
         {% if phase_progress.verification.requirements_required > 0 %}
         {% with
             value=phase_progress.verification.percentage,
@@ -42,20 +72,23 @@
         {% endif %}
     </div>
     {% endif %}
-</div>
+</header>
 
-<div class="mb-12">
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Topics</h2>
-    <div class="space-y-3">
+<section class="pt-12 sm:pt-14" aria-labelledby="topics-heading">
+    <div>
+        <h2 id="topics-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Topics</h2>
+        <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">Work through the learning steps in order, then return here for verification.</p>
+    </div>
+
+    {% if topics %}
+    <div class="mt-6 border-y border-gray-200 dark:border-gray-700">
         {% for topic in topics %}
-        <a href="/phase/{{ phase.order }}/{{ topic.slug }}" class="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
-            <div class="flex items-center gap-3">
-                <span class="font-medium text-gray-900 dark:text-gray-100">{{ topic.name }}</span>
-            </div>
+        <a href="/phase/{{ phase.order }}/{{ topic.slug }}" class="group grid min-h-11 grid-cols-[2.75rem_1fr] gap-3 {% if not loop.last %}border-b border-gray-200 dark:border-gray-700{% endif %} py-4 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:grid-cols-[2.75rem_1fr_auto] sm:items-center sm:gap-4">
+            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-800 dark:bg-blue-950 dark:text-blue-200">{{ loop.index }}</span>
+            <span class="min-w-0 break-words text-sm font-bold text-gray-950 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">{{ topic.name }}</span>
             {% if topic.progress %}
-            <span class="text-sm flex items-center gap-1.5 {% if topic.progress.completed == topic.progress.total and topic.progress.total > 0 %}text-green-600 dark:text-green-400 font-medium{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+            <span class="col-start-2 text-xs font-bold sm:col-start-auto {% if topic.progress.completed == topic.progress.total and topic.progress.total > 0 %}text-green-700 dark:text-green-300{% else %}text-gray-500 dark:text-gray-400{% endif %}">
                 {% if topic.progress.completed == topic.progress.total and topic.progress.total > 0 %}
-                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                 Complete
                 {% else %}
                 {{ topic.progress.completed }}/{{ topic.progress.total }} steps
@@ -65,54 +98,60 @@
         </a>
         {% endfor %}
     </div>
-</div>
+    {% else %}
+    <div class="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-800/50">
+        <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">Topics for this phase are being prepared.</p>
+    </div>
+    {% endif %}
+</section>
 
 {% if requirements %}
-<div id="verification-section">
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Hands-on Verification</h2>
+<section id="verification-section" class="mt-14 border-t border-gray-200 pt-12 dark:border-gray-700 sm:mt-16 sm:pt-14" aria-labelledby="verification-heading">
+    <h2 id="verification-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Hands-on verification</h2>
+    <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">Submit proof of the work you completed in this phase. Requirements unlock in sequence.</p>
 
     {% if verification_locked %}
-    {# Phase verification is gated — prerequisite phase not yet complete #}
-    <div class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 mb-4">
+    <div class="mb-6 mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
         <div class="flex items-start gap-3">
-            <span class="text-amber-500 dark:text-amber-400 text-lg mt-0.5" aria-hidden="true">🔒</span>
+            <svg class="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                <rect x="4.5" y="8.5" width="11" height="8" rx="1.5"/>
+                <path stroke-linecap="round" d="M7 8.5V6a3 3 0 0 1 6 0v2.5"/>
+            </svg>
             <div>
-                <p class="text-sm font-medium text-amber-800 dark:text-amber-200">
-                    Phase {{ prerequisite_phase_id }} verification required
-                </p>
-                <p class="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                    Complete all hands-on verifications in
-                    <a href="/phase/{{ prerequisite_phase_id }}" class="underline hover:no-underline font-medium">Phase {{ prerequisite_phase_id }}</a>
+                <p class="text-sm font-bold text-amber-950 dark:text-amber-100">Phase {{ prerequisite_phase_id }} verification required</p>
+                <p class="mt-1 text-sm leading-6 text-amber-800 dark:text-amber-200">
+                    Complete every hands-on verification in
+                    <a href="/phase/{{ prerequisite_phase_id }}" class="font-bold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700">Phase {{ prerequisite_phase_id }}</a>
                     before submitting here.
                 </p>
             </div>
         </div>
     </div>
-    <div class="space-y-2">
+    <div class="space-y-3">
         {% for req in requirements %}
         {% set card = card_contexts_by_req[req.slug] %}
         {% if card.card_state == 'passed' %}
-        {# Already validated before the phase was gated — keep showing it as
-           verified so the card matches the progress bar above. #}
         {% include "partials/verified_requirement_row.html" %}
         {% else %}
-        <div class="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-2.5 opacity-50">
-            <span class="text-gray-400 dark:text-gray-500" aria-hidden="true">🔒</span>
-            <span class="text-sm text-gray-500 dark:text-gray-400">{{ req.name }}</span>
+        <div class="flex min-h-11 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50">
+            <svg class="h-5 w-5 shrink-0 text-gray-500 dark:text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                <rect x="4.5" y="8.5" width="11" height="8" rx="1.5"/>
+                <path stroke-linecap="round" d="M7 8.5V6a3 3 0 0 1 6 0v2.5"/>
+            </svg>
+            <span class="min-w-0 flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">{{ req.name }}</span>
+            <span class="text-xs font-bold text-gray-500 dark:text-gray-400">Locked</span>
         </div>
         {% endif %}
         {% endfor %}
     </div>
     {% else %}
     {% set ns = namespace(found_active=false) %}
-    <div class="space-y-2">
+    <div class="mt-6 space-y-3">
         {% for req in requirements %}
         {% set card = card_contexts_by_req[req.slug] %}
         {% if card.card_state == 'passed' %}
-        {# Compact verified row, with expandable feedback explaining why it passed #}
         {% include "partials/verified_requirement_row.html" %}
         {% elif not ns.found_active %}
-        {# First incomplete — show the full interactive card #}
         {% set ns.found_active = true %}
         {% with
             requirement=card.requirement,
@@ -132,15 +171,23 @@
         {% include "partials/requirement_card.html" %}
         {% endwith %}
         {% else %}
-        {# Future requirements — compact, not-yet-reached row #}
-        <div class="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-2.5 opacity-50">
-            <span class="text-gray-400 dark:text-gray-500" aria-hidden="true">○</span>
-            <span class="text-sm text-gray-500 dark:text-gray-400">{{ req.name }}</span>
+        <div class="flex min-h-11 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50">
+            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-400 text-xs text-gray-500 dark:border-gray-500 dark:text-gray-400" aria-hidden="true">{{ loop.index }}</span>
+            <span class="min-w-0 flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">{{ req.name }}</span>
+            <span class="text-xs font-bold text-gray-500 dark:text-gray-400">Up next</span>
         </div>
         {% endif %}
         {% endfor %}
     </div>
     {% endif %}
-</div>
+</section>
+{% endif %}
+
+{% if phase_progress and phase_progress.status == 'completed' %}
+<section class="mt-14 border-t border-gray-200 pt-8 dark:border-gray-700" aria-labelledby="phase-complete-heading">
+    <h2 id="phase-complete-heading" class="text-xl font-bold text-gray-950 dark:text-white">Phase complete</h2>
+    <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">Your learning steps and verification work are complete.</p>
+    <a href="/dashboard" class="mt-4 inline-flex min-h-11 items-center font-bold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">Return to dashboard</a>
+</section>
 {% endif %}
 {% endblock %}

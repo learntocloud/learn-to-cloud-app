@@ -1,143 +1,164 @@
 {% extends "base.html" %}
+{% set footer_margin = "mt-8" %}
 {% block title %}Community - Learn to Cloud{% endblock %}
-{% block description %}Meet the Learn to Cloud community, explore learner progress, celebrate curriculum graduates, and see the latest updates.{% endblock %}
+{% block description %}Meet the Learn to Cloud community, explore verified learner progress, celebrate curriculum graduates, and see the latest updates.{% endblock %}
 
 {% block content %}
-<div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Learn to Cloud community</h1>
-    <p class="text-gray-600 dark:text-gray-400 mt-2">
-        See how learners are progressing through the curriculum and celebrate those who have completed it.
+<header class="border-b border-gray-200 pb-12 pt-4 dark:border-gray-700 sm:pb-16 sm:pt-8">
+    <h1 class="text-balance text-4xl font-bold tracking-[-0.035em] text-gray-950 dark:text-white sm:text-5xl">Learn to Cloud community</h1>
+    <p class="mt-5 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-300">
+        Ask for help, learn in public, and see the verified work learners are completing across the curriculum.
     </p>
-</div>
+</header>
 
-{# ── Progress funnel ──────────────────────────────────────────── #}
-<section class="mb-12">
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">Progress funnel</h2>
-    <p class="text-base text-gray-500 dark:text-gray-400 mb-6">
-        How many learners have verified every project in each phase.
-    </p>
-
-    <div class="max-w-2xl mx-auto space-y-2" role="img" aria-label="Progress funnel">
-        {% for level in community.funnel %}
-        <div class="flex items-center gap-3 sm:gap-4">
-            {# Label #}
-            <div class="w-28 sm:w-44 flex-shrink-0 text-right">
-                <p class="text-xs sm:text-sm leading-tight {{ 'font-semibold text-gray-900 dark:text-white' if level.is_total else 'font-medium text-gray-700 dark:text-gray-300' }}"
-                   title="{{ level.label }}">{{ level.label }}</p>
-            </div>
-
-            {# Centered tapering bar #}
-            <div class="flex-1 flex justify-center min-w-0">
-                <div class="flex items-center justify-center h-9 rounded-md px-2 text-sm font-semibold tabular-nums text-white shadow-sm
-                            {{ 'bg-blue-600 dark:bg-blue-500' if level.is_total else 'bg-blue-500 dark:bg-blue-500' }}"
-                     style="width: {{ level.pct_of_total | round(2) }}%; min-width: 3.25rem; {{ '' if level.is_total else 'opacity: %.2f;' | format(1 - loop.index0 * 0.06 if 1 - loop.index0 * 0.06 > 0.55 else 0.55) }}">
-                    {{ level.count }}
-                </div>
-            </div>
-
-            {# Percentages #}
-            <div class="w-20 sm:w-24 flex-shrink-0 text-left tabular-nums leading-tight">
-                {% if level.is_total %}
-                <p class="text-xs text-gray-400 dark:text-gray-500">accounts</p>
-                {% else %}
-                <p class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">{{ level.pct_of_total | round(1) }}%</p>
-                {% if level.pct_of_previous is not none %}
-                <p class="text-xs text-gray-400 dark:text-gray-500">{{ level.pct_of_previous | round(0) | int }}% of prev</p>
-                {% endif %}
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
+<section class="pt-12 sm:pt-16" aria-labelledby="connect-heading">
+    <div class="max-w-2xl">
+        <h2 id="connect-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Connect with the community</h2>
+        <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-300">Get unstuck, follow project updates, and find more ways to learn.</p>
     </div>
-    <p class="mt-5 text-xs text-gray-400 dark:text-gray-500 text-center">
-        Later phases require completing earlier ones, so the funnel narrows as learners advance.
-        Percentages show share of total accounts and conversion from the previous phase.
-    </p>
+
+    <ul class="mt-8 grid gap-x-8 sm:grid-cols-2">
+        {% for link in community_links %}
+        <li class="border-t border-gray-200 dark:border-gray-700">
+            <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer"
+               class="group grid min-h-11 grid-cols-[2.75rem_1fr_auto] items-center gap-3 py-4 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                <span class="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 {{ link.color }}" aria-hidden="true">
+                    {{ link.icon | safe }}
+                </span>
+                <span>
+                    <span class="block text-sm font-bold text-gray-950 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">{{ link.label }}</span>
+                    <span class="mt-1 block text-sm leading-5 text-gray-600 dark:text-gray-400">{{ link.description }}</span>
+                </span>
+                <svg class="h-4 w-4 text-gray-400 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-700 dark:text-gray-500 dark:group-hover:text-blue-300" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h12m-5-5 5 5-5 5"/>
+                </svg>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
 </section>
 
-{# ── Curriculum graduates ─────────────────────────────────────── #}
-<section class="mb-12">
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">
+<section class="pt-14 sm:pt-16" aria-labelledby="progress-heading">
+    <div class="max-w-2xl">
+        <h2 id="progress-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Verified progress across the curriculum</h2>
+        <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-300">
+            Each level counts learners who have verified every project in that phase. Later phases require the earlier work first.
+        </p>
+    </div>
+
+    {% if community.funnel %}
+    <ol class="mt-8 space-y-5">
+        {% for level in community.funnel %}
+        <li>
+            <div class="flex items-end justify-between gap-4">
+                <p class="min-w-0 text-sm {% if level.is_total %}font-bold text-gray-950 dark:text-white{% else %}font-medium text-gray-700 dark:text-gray-300{% endif %}">
+                    {{ level.label }}
+                </p>
+                <p class="shrink-0 text-right text-sm tabular-nums">
+                    <strong class="font-bold text-gray-950 dark:text-white">{{ level.count }}</strong>
+                    {% if level.is_total %}
+                    <span class="ml-1 text-gray-500 dark:text-gray-400">accounts</span>
+                    {% else %}
+                    <span class="ml-1 text-gray-500 dark:text-gray-400">{{ level.pct_of_total | round(1) }}%</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="mt-2 h-2.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700" aria-hidden="true">
+                <div class="h-full rounded-full {% if level.is_total %}bg-blue-700 dark:bg-blue-400{% else %}bg-blue-500 dark:bg-blue-500{% endif %}" style="width: {{ level.pct_of_total | round(2) }}%"></div>
+            </div>
+            {% if not level.is_total and level.pct_of_previous is not none %}
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ level.pct_of_previous | round(0) | int }}% advanced from the previous phase</p>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ol>
+    {% else %}
+    <div class="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-800/50">
+        <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">Verified learner progress is temporarily unavailable.</p>
+    </div>
+    {% endif %}
+</section>
+
+<section class="pt-14 sm:pt-16" aria-labelledby="graduates-heading">
+    <h2 id="graduates-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">
         Curriculum graduates
-        <span class="ml-1 text-base font-normal text-gray-500 dark:text-gray-400">({{ community.graduates | length }})</span>
+        <span class="ml-1 text-lg font-medium text-gray-500 dark:text-gray-400">({{ community.graduates | length }})</span>
     </h2>
-    <p class="text-base text-gray-500 dark:text-gray-400 mb-4">
-        Learners who have verified every project across all phases.
-    </p>
+    <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-300">Learners who have verified every project across all phases.</p>
 
     {% if community.graduates %}
-    <ul class="flex flex-wrap gap-2">
+    <ul class="mt-6 flex flex-wrap gap-2">
         {% for member in community.graduates %}
         <li>
             <a href="https://github.com/{{ member.github_username }}" target="_blank" rel="noopener noreferrer"
-               class="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 py-1 pl-1 pr-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+               class="inline-flex min-h-11 items-center gap-2 rounded-full border border-gray-300 py-1 pl-1 pr-4 transition-colors hover:border-blue-400 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:border-gray-600 dark:hover:border-blue-500 dark:hover:text-blue-300">
                 {% if member.avatar_url %}
-                <img src="{{ member.avatar_url }}" alt="{{ member.github_username }}" class="h-6 w-6 rounded-full" loading="lazy">
+                <img src="{{ member.avatar_url }}" alt="" class="h-9 w-9 rounded-full" loading="lazy">
                 {% else %}
-                <span class="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-700 inline-flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">{{ member.github_username[0] | upper }}</span>
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-sm font-bold text-gray-700 dark:bg-gray-700 dark:text-gray-200" aria-hidden="true">{{ member.github_username[0] | upper }}</span>
                 {% endif %}
-                <span class="text-sm text-gray-700 dark:text-gray-300">{{ member.github_username }}</span>
+                <span class="text-sm font-bold">{{ member.github_username }}</span>
+                <span class="sr-only">on GitHub</span>
             </a>
         </li>
         {% endfor %}
     </ul>
     {% else %}
-    <div class="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-6 text-center">
-        <p class="text-sm text-gray-500 dark:text-gray-400">No one has finished the entire curriculum yet. Be the first!</p>
+    <div class="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-800/50">
+        <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">No learner has verified the entire curriculum yet. The first graduate will appear here.</p>
     </div>
     {% endif %}
 </section>
 
-{# ── Connect with the community ─────────────────────────────── #}
-<section class="mb-12">
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">Connect with the community</h2>
-    <p class="text-base text-gray-500 dark:text-gray-400 mb-6">
-        Ask questions, follow project updates, and find more ways to learn.
-    </p>
+<section class="pt-14 sm:pt-16" aria-labelledby="updates-heading">
+    <h2 id="updates-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Latest curriculum updates</h2>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {% for link in community_links %}
-        <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer"
-           class="group rounded-lg border border-gray-200 dark:border-gray-700 p-5 hover:border-blue-300 hover:bg-blue-50/50 dark:hover:border-blue-700 dark:hover:bg-blue-950/20 transition-colors">
-            <span class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 {{ link.color }}">
-                {{ link.icon | safe }}
-            </span>
-            <h3 class="mt-4 text-base font-semibold text-gray-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">
-                {{ link.label }}
-            </h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ link.description }}</p>
-        </a>
-        {% endfor %}
-    </div>
-</section>
-
-{# ── Latest curriculum updates ────────────────────────────────── #}
-<section class="mb-8">
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Latest curriculum updates</h2>
-
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {% if community.repo_updates %}
+    <ul class="mt-6 border-y border-gray-200 dark:border-gray-700">
         {% for repo in community.repo_updates %}
-        <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-col">
-            <a href="{{ repo.url }}" target="_blank" rel="noopener noreferrer"
-               class="text-base font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                {{ repo.name }}
-            </a>
-            {% if repo.available %}
-            <a href="{{ repo.commit_url }}" target="_blank" rel="noopener noreferrer"
-               class="mt-2 text-sm text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2">
-                {{ repo.commit_message or "(no commit message)" }}
-            </a>
-            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                {% if repo.commit_author %}{{ repo.commit_author }}{% endif %}
-                {% if repo.committed_at %}
-                <span class="mx-1">&middot;</span>{{ repo.committed_at.strftime('%b %d, %Y') }}
+        <li class="{% if not loop.last %}border-b border-gray-200 dark:border-gray-700{% endif %} py-5">
+            <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-6">
+                <div class="min-w-0">
+                    <a href="{{ repo.url }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex min-h-11 items-center break-words text-base font-bold text-gray-950 transition-colors hover:text-blue-700 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-white dark:hover:text-blue-300">
+                        {{ repo.name }}
+                    </a>
+                    {% if repo.available %}
+                    <a href="{{ repo.commit_url }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex min-h-11 items-center break-words text-sm leading-6 text-gray-700 transition-colors hover:text-blue-700 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:text-blue-300">
+                        {{ repo.commit_message or "(no commit message)" }}
+                    </a>
+                    {% else %}
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Latest activity unavailable right now.</p>
+                    {% endif %}
+                </div>
+                {% if repo.available and (repo.commit_author or repo.committed_at) %}
+                <p class="text-xs text-gray-500 dark:text-gray-400 sm:pt-3">
+                    {% if repo.commit_author %}{{ repo.commit_author }}{% endif %}
+                    {% if repo.committed_at %}
+                    <span class="mx-1">&middot;</span>{{ repo.committed_at.strftime('%b %d, %Y') }}
+                    {% endif %}
+                </p>
                 {% endif %}
-            </p>
-            {% else %}
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Latest activity unavailable right now.</p>
-            {% endif %}
-        </div>
+            </div>
+        </li>
         {% endfor %}
+    </ul>
+    {% else %}
+    <div class="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-800/50">
+        <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">Curriculum updates are temporarily unavailable.</p>
+    </div>
+    {% endif %}
+</section>
+
+{% if not user %}
+<section class="pb-0 pt-14 text-center sm:pt-16" aria-labelledby="join-heading">
+    <h2 id="join-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Build your own verified progress.</h2>
+    <p class="mx-auto mt-3 max-w-xl text-base leading-7 text-gray-600 dark:text-gray-300">Browse the curriculum freely. Sign in when you want to save progress and submit verification work.</p>
+    <div class="mt-6 flex flex-wrap justify-center gap-3">
+        <a href="/curriculum" class="inline-flex min-h-11 items-center justify-center rounded-md bg-blue-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-400 dark:text-blue-950 dark:hover:bg-blue-300">Explore the curriculum</a>
+        <a href="/auth/login" hx-boost="false" class="inline-flex min-h-11 items-center justify-center rounded-md border border-gray-300 px-5 py-2.5 text-sm font-bold text-gray-900 hover:border-blue-400 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:border-gray-600 dark:text-white dark:hover:border-blue-500 dark:hover:text-blue-300">Sign in with GitHub</a>
     </div>
 </section>
+{% endif %}
 {% endblock %}

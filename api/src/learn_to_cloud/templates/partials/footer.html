@@ -1,4 +1,4 @@
-<footer class="border-t border-gray-200 dark:border-gray-700 mt-16">
+<footer class="border-t border-gray-200 dark:border-gray-700 {{ footer_margin | default('mt-16') }}">
     <div class="mx-auto max-w-content px-4 sm:px-6 lg:px-8 py-8">
         <p class="text-sm text-gray-500 dark:text-gray-400 text-center">
             &copy; {{ now.year }} Learn to Cloud

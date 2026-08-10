@@ -220,8 +220,7 @@ class TestPhaseVerificationLocked:
 
         html = self._render_phase([req], {})
 
-        assert "🔒" in html
-        assert "opacity-50" in html
+        assert "Locked" in html
         assert "text-green-800 dark:text-green-200" not in html
 
     def test_mixed_shows_validated_complete_and_other_locked(self):
@@ -234,7 +233,7 @@ class TestPhaseVerificationLocked:
 
         assert 'id="requirement-security-scanning"' in html
         assert "text-green-800 dark:text-green-200" in html  # the validated one
-        assert "opacity-50" in html  # the locked one
+        assert "Locked" in html
 
 
 @pytest.mark.unit
@@ -399,6 +398,9 @@ def test_step_checkbox_keeps_keyboard_events_from_toggling_accordion():
     source, _, _ = loader.get_source(_ENV, "partials/topic_step.html")
     assert "@keydown.space.stop" in source
     assert "@keydown.enter.stop" in source
+    assert 'role="button"' not in source
+    assert 'aria-label="Mark {{ step_label }} complete"' in source
+    assert "x-collapse x-cloak" in source
 
 
 @pytest.mark.unit
@@ -453,6 +455,8 @@ def test_community_page_renders_safe_external_resource_links():
     for url in expected_links:
         assert f'href="{url}"' in html
     assert html.count('rel="noopener noreferrer"') >= len(expected_links)
+    assert "Verified learner progress is temporarily unavailable." in html
+    assert "Curriculum updates are temporarily unavailable." in html
     assert "Discord" in html
     assert "GitHub Discussions" in html
     assert "Follow @madebygps" in html
@@ -475,6 +479,80 @@ def test_dashboard_help_section_links_to_discord():
 
     assert 'href="https://discord.gg/st7g2Hp77r"' in html
     assert "Ask the Community" not in html
+
+
+@pytest.mark.unit
+class TestDashboardPrimaryState:
+    @staticmethod
+    def _dashboard(
+        *,
+        phases: list[object],
+        continue_phase: object | None = None,
+        is_program_complete: bool = False,
+    ) -> SimpleNamespace:
+        return SimpleNamespace(
+            phases=phases,
+            learning_percentage=0,
+            verification_percentage=0,
+            phases_completed=0,
+            total_phases=len(phases),
+            is_program_complete=is_program_complete,
+            continue_phase=continue_phase,
+        )
+
+    def test_fresh_learner_sees_start_state(self):
+        phase = SimpleNamespace(order=0, name="Prerequisites", progress=None)
+        html = _render(
+            "pages/dashboard.html",
+            dashboard=self._dashboard(phases=[phase]),
+            help_links=[],
+        )
+
+        assert "Start the curriculum" in html
+        assert "Resume" not in html
+
+    def test_returning_learner_sees_resume_state(self):
+        phase = SimpleNamespace(order=0, name="Prerequisites", progress=None)
+        continue_phase = SimpleNamespace(
+            destination_url="/phase/0/linux",
+            label="Phase 0: Prerequisites",
+        )
+        html = _render(
+            "pages/dashboard.html",
+            dashboard=self._dashboard(phases=[phase], continue_phase=continue_phase),
+            help_links=[],
+        )
+
+        assert "Continue learning" in html
+        assert 'href="/phase/0/linux"' in html
+
+    def test_completed_learner_sees_completion_state(self):
+        progress = SimpleNamespace(
+            status="completed",
+            verification=SimpleNamespace(
+                requirements_required=1,
+                requirements_verified=1,
+            ),
+            learning=SimpleNamespace(steps_required=1, steps_completed=1),
+        )
+        phase = SimpleNamespace(order=0, name="Prerequisites", progress=progress)
+        html = _render(
+            "pages/dashboard.html",
+            dashboard=self._dashboard(phases=[phase], is_program_complete=True),
+            help_links=[],
+        )
+
+        assert "You completed the program." in html
+
+    def test_missing_curriculum_sees_recovery_state(self):
+        html = _render(
+            "pages/dashboard.html",
+            dashboard=self._dashboard(phases=[]),
+            help_links=[],
+        )
+
+        assert "Progress is temporarily unavailable." in html
+        assert "Try again" in html
 
 
 @pytest.mark.unit
@@ -599,7 +677,7 @@ class TestDashboardPhaseRow:
             requirements_required=1,
         )
         html = self._render_dashboard(progress)
-        assert "Complete ✓" in html
+        assert "Complete" in html
         assert "28/28 steps checked" in html
         assert "1/1 requirements verified" in html
         assert 'text-3xl font-bold text-white">' not in html
