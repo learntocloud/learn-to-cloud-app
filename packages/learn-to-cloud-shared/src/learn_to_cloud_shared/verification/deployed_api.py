@@ -6,15 +6,17 @@ by making a live HTTP request to their submitted endpoint.
 Verification uses a challenge-response protocol to prove API ownership:
 1. POST a unique challenge entry to /entries
 2. GET /entries and confirm the challenge nonce appears
-3. DELETE the challenge entry to clean up
+3. POST /entries/{id}/analyze and validate the live AI response
+4. DELETE the challenge entry to clean up
 
 The deployed API must:
 - Be publicly accessible via HTTPS
-- Have working POST /entries, GET /entries, and DELETE /entries/{id} endpoints
-- Return valid JSON with journal entry structure
+- Have working create, list, analyze, and delete endpoints
+- Return valid journal entry and AI analysis JSON
 
 SCALABILITY:
-- Retry with exponential backoff for transient failures (3 attempts)
+- Retry CRUD verification requests with exponential backoff (3 attempts)
+- Send exactly one potentially billable AI analysis request
 - Connection pooling via shared httpx.AsyncClient
 """
 
@@ -74,6 +76,8 @@ _REQUIRED_FIELDS = {"id", "work", "struggle", "intention", "created_at"}
 # String fields with max length constraint (256 chars per journal-starter schema)
 _STRING_FIELDS_WITH_LIMIT = {"work", "struggle", "intention"}
 _MAX_STRING_LENGTH = 256
+_VALID_SENTIMENTS = {"positive", "negative", "neutral"}
+_ANALYSIS_TIMEOUT_SECONDS = 30.0
 
 
 async def _get_client() -> httpx.AsyncClient:
@@ -291,6 +295,51 @@ def _validate_entries_json(data: list) -> ValidationResult:
     )
 
 
+def _validate_analysis_json(data: Any, entry_id: str) -> ValidationResult:
+    """Validate the Journal API's live AI analysis response."""
+    if not isinstance(data, dict):
+        return ValidationResult(
+            is_valid=False,
+            message="AI analysis must return a JSON object.",
+        )
+
+    if data.get("entry_id") != entry_id:
+        return ValidationResult(
+            is_valid=False,
+            message="AI analysis returned an unexpected entry_id.",
+        )
+
+    sentiment = data.get("sentiment")
+    if sentiment not in _VALID_SENTIMENTS:
+        return ValidationResult(
+            is_valid=False,
+            message=("AI analysis sentiment must be positive, negative, or neutral."),
+        )
+
+    summary = data.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        return ValidationResult(
+            is_valid=False,
+            message="AI analysis summary must be a non-empty string.",
+        )
+
+    topics = data.get("topics")
+    if (
+        not isinstance(topics, list)
+        or not topics
+        or any(not isinstance(topic, str) or not topic.strip() for topic in topics)
+    ):
+        return ValidationResult(
+            is_valid=False,
+            message="AI analysis topics must be a non-empty list of strings.",
+        )
+
+    return ValidationResult(
+        is_valid=True,
+        message="Live AI analysis verified.",
+    )
+
+
 _CHALLENGE_PREFIX = "ltc-verify-"
 
 
@@ -314,6 +363,31 @@ def _extract_entries_list(data: Any) -> list | None:
     return None
 
 
+async def _fetch_once(
+    url: str,
+    *,
+    method: str = "GET",
+    json_body: dict | None = None,
+    timeout: float | None = None,
+) -> httpx.Response:
+    """Make one HTTP request to the deployed API."""
+    client = await _get_client()
+    request_options: dict[str, Any] = {
+        "json": json_body,
+        "headers": {"Accept": "application/json"},
+    }
+    if timeout is not None:
+        request_options["timeout"] = timeout
+    response = await client.request(method, url, **request_options)
+
+    _check_response_ip(response)
+    if response.status_code >= 500:
+        raise DeployedApiServerError(
+            f"Server returned {response.status_code}: {response.text[:200]}"
+        )
+    return response
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential_jitter(initial=0.5, max=10),
@@ -325,13 +399,15 @@ async def _fetch_with_retry(
     *,
     method: str = "GET",
     json_body: dict | None = None,
+    timeout: float | None = None,
 ) -> httpx.Response:
-    """Make an HTTP request to the deployed API with retry logic.
+    """Make a retryable HTTP request to the deployed API.
 
     Args:
         url: The full URL to request
         method: HTTP method (GET, POST, DELETE)
         json_body: Optional JSON body for POST requests
+        timeout: Optional per-request timeout override
 
     Returns:
         The httpx Response object
@@ -342,23 +418,12 @@ async def _fetch_with_retry(
         httpx.RequestError: For connection/network errors
         httpx.TimeoutException: If the request times out
     """
-    client = await _get_client()
-    response = await client.request(
-        method,
+    return await _fetch_once(
         url,
-        json=json_body,
-        headers={"Accept": "application/json"},
+        method=method,
+        json_body=json_body,
+        timeout=timeout,
     )
-
-    # Post-connect SSRF check — closes DNS-rebinding TOCTOU window
-    _check_response_ip(response)
-
-    if response.status_code >= 500:
-        raise DeployedApiServerError(
-            f"Server returned {response.status_code}: {response.text[:200]}"
-        )
-
-    return response
 
 
 async def _cleanup_challenge_entry(
@@ -551,7 +616,7 @@ async def _verify_challenge(
             return validation, discovered_id
 
     span = trace.get_current_span()
-    span.set_attribute("deployed_api.verified", True)
+    span.set_attribute("deployed_api.challenge_verified", True)
     span.set_attribute("deployed_api.entries_count", len(real_entries))
 
     count = len(real_entries)
@@ -568,13 +633,74 @@ async def _verify_challenge(
     )
 
 
+async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
+    """Call the deployed AI endpoint and validate its response contract."""
+    analysis_url = f"{base_url}/entries/{entry_id}/analyze"
+    try:
+        response = await _fetch_once(
+            analysis_url,
+            method="POST",
+            timeout=_ANALYSIS_TIMEOUT_SECONDS,
+        )
+    except _SsrfError:
+        return ValidationResult(
+            is_valid=False,
+            message="URL must point to a publicly accessible server.",
+        )
+    except (
+        httpx.TimeoutException,
+        httpx.RequestError,
+        DeployedApiServerError,
+    ) as exc:
+        return deployed_api_error_to_result(
+            exc,
+            analysis_url,
+            step="POST /entries/{id}/analyze",
+        )
+
+    if response.status_code == 404:
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                "POST /entries/{id}/analyze returned 404. Ensure the endpoint "
+                "exists and the challenge entry can be analyzed."
+            ),
+        )
+    if response.status_code == 501:
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                "POST /entries/{id}/analyze is not implemented. Complete the "
+                "Journal API AI analysis task and deploy it."
+            ),
+        )
+    if response.status_code != 200:
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                "POST /entries/{id}/analyze returned unexpected status "
+                f"{response.status_code}. Expected 200."
+            ),
+        )
+
+    try:
+        data = response.json()
+    except json.JSONDecodeError:
+        return ValidationResult(
+            is_valid=False,
+            message="POST /entries/{id}/analyze did not return valid JSON.",
+        )
+    return _validate_analysis_json(data, entry_id)
+
+
 async def validate_deployed_api(base_url: str) -> ValidationResult:
     """Validate a deployed Journal API via challenge-response.
 
     Proves the submitter owns and controls the API by:
     1. POSTing a challenge entry with a unique nonce
     2. GETting /entries and confirming the nonce appears
-    3. DELETEing the challenge entry to clean up
+    3. Calling the live AI analysis endpoint for that entry
+    4. DELETEing the challenge entry to clean up
 
     Args:
         base_url: The base URL of the deployed API (e.g., https://api.example.com)
@@ -619,7 +745,28 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
         )
         if challenge_entry_id is None:
             challenge_entry_id = discovered_id
-        return verify_result
+        if not verify_result.is_valid:
+            return verify_result
+        if not challenge_entry_id:
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    "Ownership was confirmed, but the API did not return the "
+                    "challenge entry ID required for AI analysis."
+                ),
+            )
+
+        analysis_result = await _verify_analysis(base_url, challenge_entry_id)
+        if not analysis_result.is_valid:
+            return analysis_result
+
+        span = trace.get_current_span()
+        span.set_attribute("deployed_api.verified", True)
+        span.set_attribute("deployed_api.ai_verified", True)
+        return ValidationResult(
+            is_valid=True,
+            message=f"{verify_result.message} Live AI analysis verified.",
+        )
     finally:
         if challenge_entry_id:
             await _cleanup_challenge_entry(entries_url, challenge_entry_id)

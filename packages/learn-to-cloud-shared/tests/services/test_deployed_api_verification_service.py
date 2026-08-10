@@ -23,9 +23,11 @@ from learn_to_cloud_shared.verification.deployed_api import (
     _is_private_ip,
     _normalize_base_url,
     _SsrfError,
+    _validate_analysis_json,
     _validate_entries_json,
     _validate_entry,
     _validate_url_target,
+    _verify_analysis,
     validate_deployed_api,
 )
 
@@ -177,6 +179,107 @@ class TestValidateEntriesJson:
         assert "not a valid object" in result.message.lower()
 
 
+class TestValidateAnalysisJson:
+    """Tests for live AI analysis response validation."""
+
+    def _valid_analysis(self) -> dict:
+        return {
+            "entry_id": "challenge-id",
+            "sentiment": "neutral",
+            "summary": "The learner made progress and identified a next step.",
+            "topics": ["FastAPI", "cloud"],
+        }
+
+    def test_valid_analysis_passes(self):
+        result = _validate_analysis_json(self._valid_analysis(), "challenge-id")
+        assert result.is_valid is True
+
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("entry_id", "different-id", "entry_id"),
+            ("sentiment", "mixed", "sentiment"),
+            ("summary", " ", "summary"),
+            ("topics", [], "topics"),
+            ("topics", ["cloud", ""], "topics"),
+        ],
+    )
+    def test_invalid_analysis_fails(self, field, value, message):
+        analysis = self._valid_analysis()
+        analysis[field] = value
+
+        result = _validate_analysis_json(analysis, "challenge-id")
+
+        assert result.is_valid is False
+        assert message in result.message
+
+
+@pytest.mark.unit
+class TestVerifyAnalysis:
+    """Tests for the deployed live AI request."""
+
+    @pytest.mark.asyncio
+    async def test_valid_response_passes(self):
+        response = MagicMock(spec=httpx.Response)
+        response.status_code = 200
+        response.json.return_value = {
+            "entry_id": "challenge-id",
+            "sentiment": "positive",
+            "summary": "The learner completed the deployment.",
+            "topics": ["deployment"],
+        }
+
+        with patch(
+            "learn_to_cloud_shared.verification.deployed_api._fetch_once",
+            autospec=True,
+            return_value=response,
+        ) as mock_fetch:
+            result = await _verify_analysis(
+                "https://api.example.com",
+                "challenge-id",
+            )
+
+        assert result.is_valid is True
+        mock_fetch.assert_awaited_once_with(
+            "https://api.example.com/entries/challenge-id/analyze",
+            method="POST",
+            timeout=30.0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_not_implemented_fails(self):
+        response = MagicMock(spec=httpx.Response)
+        response.status_code = 501
+
+        with patch(
+            "learn_to_cloud_shared.verification.deployed_api._fetch_once",
+            autospec=True,
+            return_value=response,
+        ):
+            result = await _verify_analysis(
+                "https://api.example.com",
+                "challenge-id",
+            )
+
+        assert result.is_valid is False
+        assert "not implemented" in result.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_timeout_fails(self):
+        with patch(
+            "learn_to_cloud_shared.verification.deployed_api._fetch_once",
+            autospec=True,
+            side_effect=httpx.TimeoutException("timed out"),
+        ):
+            result = await _verify_analysis(
+                "https://api.example.com",
+                "challenge-id",
+            )
+
+        assert result.is_valid is False
+        assert "timed out" in result.message.lower()
+
+
 class TestExtractEntriesList:
     """Tests for _extract_entries_list helper."""
 
@@ -287,6 +390,24 @@ def _mock_fetch_side_effect(
 )
 class TestValidateDeployedApi:
     """Tests for the challenge-response validation function."""
+
+    @pytest.fixture(autouse=True)
+    def _stub_live_analysis(self, monkeypatch):
+        async def valid_analysis(_base_url: str, entry_id: str):
+            return _validate_analysis_json(
+                {
+                    "entry_id": entry_id,
+                    "sentiment": "neutral",
+                    "summary": "The deployed AI endpoint returned a valid result.",
+                    "topics": ["verification"],
+                },
+                entry_id,
+            )
+
+        monkeypatch.setattr(
+            "learn_to_cloud_shared.verification.deployed_api._verify_analysis",
+            valid_analysis,
+        )
 
     @pytest.mark.asyncio
     async def test_empty_url_fails(self, _mock_ssrf):
