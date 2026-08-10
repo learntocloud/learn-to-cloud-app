@@ -220,8 +220,7 @@ class TestPhaseVerificationLocked:
 
         html = self._render_phase([req], {})
 
-        assert "🔒" in html
-        assert "opacity-50" in html
+        assert "Locked" in html
         assert "text-green-800 dark:text-green-200" not in html
 
     def test_mixed_shows_validated_complete_and_other_locked(self):
@@ -234,7 +233,7 @@ class TestPhaseVerificationLocked:
 
         assert 'id="requirement-security-scanning"' in html
         assert "text-green-800 dark:text-green-200" in html  # the validated one
-        assert "opacity-50" in html  # the locked one
+        assert "Locked" in html
 
 
 @pytest.mark.unit
@@ -399,6 +398,9 @@ def test_step_checkbox_keeps_keyboard_events_from_toggling_accordion():
     source, _, _ = loader.get_source(_ENV, "partials/topic_step.html")
     assert "@keydown.space.stop" in source
     assert "@keydown.enter.stop" in source
+    assert 'role="button"' not in source
+    assert 'aria-label="Mark {{ step_label }} complete"' in source
+    assert "x-collapse x-cloak" in source
 
 
 @pytest.mark.unit
@@ -453,6 +455,8 @@ def test_community_page_renders_safe_external_resource_links():
     for url in expected_links:
         assert f'href="{url}"' in html
     assert html.count('rel="noopener noreferrer"') >= len(expected_links)
+    assert "Verified learner progress is temporarily unavailable." in html
+    assert "Curriculum updates are temporarily unavailable." in html
     assert "Discord" in html
     assert "GitHub Discussions" in html
     assert "Follow @madebygps" in html

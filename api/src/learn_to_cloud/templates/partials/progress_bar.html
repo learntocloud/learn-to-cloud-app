@@ -9,16 +9,16 @@
      id          – id attribute for HTMX OOB swaps
      oob         – if true, adds hx-swap-oob="true"
 #}
-<div{% if id %} id="{{ id }}"{% endif %}{% if oob %} hx-swap-oob="true"{% endif %} class="mt-4 flex items-center gap-3">
+<div{% if id %} id="{{ id }}"{% endif %}{% if oob %} hx-swap-oob="true"{% endif %} class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
     <div
-        class="flex-1 max-w-xs h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"
+        class="h-2 w-full max-w-xs overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700 sm:flex-1"
         role="progressbar"
         aria-valuenow="{{ value | round(0) | int }}"
         aria-valuemin="0"
         aria-valuemax="100"
         aria-label="{{ aria_label | default(label) }}"
     >
-        <div class="h-full {{ 'bg-green-500' if complete else 'bg-blue-600' }} rounded-full transition-all" style="width: {{ value }}%"></div>
+        <div class="h-full rounded-full {{ 'bg-green-500' if complete else 'bg-blue-600' }} transition-all" style="width: {{ value }}%"></div>
     </div>
-    <span class="text-sm font-medium text-gray-600 dark:text-gray-400">{{ label }}</span>
+    <span class="text-sm font-medium leading-5 text-gray-600 dark:text-gray-400">{{ label }}</span>
 </div>

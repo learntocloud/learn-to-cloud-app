@@ -1,14 +1,3 @@
-{# Single learning step — HTMX-swappable.
-
-Required context:
-- step (LearningStep — the Pydantic schema directly, no intermediate dict)
-- completed_steps (set of step UUIDs)
-- user (User | None — drives the checkbox affordance)
-
-Markdown is rendered via the ``md`` Jinja filter (memoized per-process);
-template fields like ``step.description``, ``tip.text`` etc. are raw
-markdown and the template owns the rendering call.
-#}
 {% from "macros/badges.html" import action_badge, step_number_badge %}
 {% from "macros/callouts.html" import tip_callout, done_when %}
 {% from "macros/code_block.html" import copy_code %}
@@ -16,72 +5,77 @@ markdown and the template owns the rendering call.
 
 {% set is_completed = step.uuid in completed_steps %}
 {% set has_body = step.description or step.code or step.options or step.checklist or step.tips or step.done_when %}
+{% set step_label = step.title or ('Step ' ~ step.order) %}
+{% set initially_open = expand_initially | default(not is_completed) %}
 
-<div id="step-{{ step.uuid }}"
-    class="rounded-xl border {% if is_completed %}border-green-200 bg-green-50/40 dark:border-green-800/50 dark:bg-green-900/10{% else %}border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50{% endif %} shadow-sm transition-colors"
-    x-data="{ expanded: {{ 'false' if is_completed else 'true' }} }"
+<section
+    id="step-{{ step.uuid }}"
+    data-step
+    class="rounded-lg border {% if is_completed %}border-green-200 bg-green-50/40 dark:border-green-800/50 dark:bg-green-950/20{% else %}border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50{% endif %}"
+    x-data="{ expanded: {{ 'true' if initially_open else 'false' }} }"
 >
-    <div
-        class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none{% if has_body %} focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset{% endif %}"
-        {% if has_body %}
-        role="button"
-        tabindex="0"
-        :aria-expanded="expanded"
-        @keydown.enter.prevent="expanded = !expanded"
-        @keydown.space.prevent="expanded = !expanded"
-        {% endif %}
-        @click="expanded = !expanded"
-    >
+    <div class="flex items-start gap-2 p-3 sm:items-center">
         {% if user %}
-        <input
-            type="checkbox"
-            {% if is_completed %}checked{% endif %}
-            class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-3 focus:ring-blue-500 cursor-pointer flex-shrink-0"
-            {% if is_completed %}
-            hx-delete="/htmx/steps/{{ step.uuid }}"
-            {% else %}
-            hx-post="/htmx/steps/complete"
-            hx-vals='{"step_uuid": "{{ step.uuid }}"}'
-            {% endif %}
-            hx-target="#step-{{ step.uuid }}"
-            hx-swap="outerHTML"
-            hx-disabled-elt="this"
-            @click.stop
-            @keydown.space.stop
-            @keydown.enter.stop
-        >
+        <label class="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md hover:bg-gray-100 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-700 dark:hover:bg-gray-800">
+            <span class="sr-only">Mark {{ step_label }} complete</span>
+            <input
+                type="checkbox"
+                {% if is_completed %}checked{% endif %}
+                aria-label="Mark {{ step_label }} complete"
+                class="h-5 w-5 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-3 focus:ring-blue-500"
+                {% if is_completed %}
+                hx-delete="/htmx/steps/{{ step.uuid }}"
+                {% else %}
+                hx-post="/htmx/steps/complete"
+                hx-vals='{"step_uuid": "{{ step.uuid }}"}'
+                {% endif %}
+                hx-target="#step-{{ step.uuid }}"
+                hx-swap="outerHTML"
+                hx-disabled-elt="this"
+                @keydown.space.stop
+                @keydown.enter.stop
+            >
+        </label>
         {% else %}
-        <div class="h-5 w-5 rounded border-2 border-gray-300 dark:border-gray-600 flex-shrink-0"></div>
+        <span class="flex h-11 w-11 shrink-0 items-center justify-center" aria-hidden="true">
+            <span class="h-5 w-5 rounded border-2 border-gray-300 dark:border-gray-600"></span>
+        </span>
         {% endif %}
 
-        {{ step_number_badge(step.order, is_completed) }}
+        <span class="mt-2.5 sm:mt-0">{{ step_number_badge(step.order, is_completed) }}</span>
 
-        <div class="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-            {{ action_badge(step.action) }}
-            <span class="text-sm font-semibold {% if is_completed %}line-through text-gray-400 dark:text-gray-500{% else %}text-gray-900 dark:text-gray-100{% endif %}">
+        <div class="min-w-0 flex-1 py-2">
+            <div class="flex flex-wrap items-center gap-2">
+                {{ action_badge(step.action) }}
                 {% if step.title and step.url %}
-                <a href="{{ step.url }}" target="_blank" rel="noopener" hx-boost="false" class="underline hover:text-blue-600 dark:hover:text-blue-400" @click.stop>{{ step.title }}</a>
+                <a href="{{ step.url }}" target="_blank" rel="noopener" hx-boost="false" class="inline-flex min-h-11 items-center break-words text-sm font-bold underline underline-offset-4 hover:text-blue-700 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:hover:text-blue-300">{{ step.title }}</a>
                 {% elif step.title %}
-                {{ step.title }}
+                <h2 class="break-words text-sm font-bold {% if is_completed %}text-gray-500 line-through dark:text-gray-400{% else %}text-gray-950 dark:text-white{% endif %}">{{ step.title }}</h2>
                 {% endif %}
-            </span>
+            </div>
         </div>
 
         {% if has_body %}
-        <svg class="h-5 w-5 text-gray-400 dark:text-gray-500 flex-shrink-0 transition-transform duration-200" :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-        </svg>
+        <button
+            type="button"
+            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-blue-300"
+            @click="expanded = !expanded"
+            :aria-expanded="expanded"
+            aria-controls="step-{{ step.uuid }}-body"
+            aria-label="Toggle details for {{ step_label }}"
+        >
+            <svg class="h-5 w-5 transition-transform duration-200" :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+        </button>
         {% endif %}
     </div>
 
     {% if has_body %}
-    <div x-show="expanded" x-collapse>
-        <div class="px-4 pb-4 pl-[4.5rem]">
-
+    <div id="step-{{ step.uuid }}-body" x-show="expanded" x-collapse x-cloak>
+        <div class="px-4 pb-4 sm:pl-[5.75rem]">
             {% if step.description %}
-            <div class="text-sm text-gray-600 dark:text-gray-400 prose prose-sm dark:prose-invert max-w-none"
-                x-data="proseCopyButtons"
-            >
+            <div class="prose prose-sm max-w-none text-sm text-gray-600 dark:prose-invert dark:text-gray-400" x-data="proseCopyButtons">
                 {{ step.description | md | safe }}
             </div>
             {% endif %}
@@ -113,8 +107,7 @@ markdown and the template owns the rendering call.
                 {{ done_when(step.done_when | md) }}
             </div>
             {% endif %}
-
         </div>
     </div>
     {% endif %}
-</div>
+</section>
