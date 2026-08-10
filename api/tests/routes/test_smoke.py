@@ -217,8 +217,9 @@ class TestPublicPageSmoke:
         response = await anon_client.get("/")
         assert response.status_code == 200
         assert "From first command to production cloud system." in response.text
-        assert "Start with GitHub" in response.text
-        assert "One path. Skills that build on each other." in response.text
+        assert "Progress tracking" in response.text
+        assert "Hands-on labs" in response.text
+        assert "The curriculum, phase by phase." in response.text
 
     @pytest.mark.parametrize("path", ["/curriculum", "/faq", "/privacy", "/terms"])
     async def test_public_page_renders(self, anon_client: AsyncClient, path: str):
