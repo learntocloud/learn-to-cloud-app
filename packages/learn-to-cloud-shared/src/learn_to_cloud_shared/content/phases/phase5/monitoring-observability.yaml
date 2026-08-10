@@ -29,7 +29,7 @@ learning_steps:
 - uuid: 9778ac75-c4f4-45a2-bdf1-ad573b1c534e
   order: 1
   action: 'Read:'
-  description: Optional refresher from Phase 4. If you've already completed the monitoring foundations topic, skim this quickly to reconnect with your provider's core monitoring services.
+  description: Start with your provider's monitoring platform and understand how logs, metrics, traces, dashboards, and alerts are organized.
   options:
   - provider: azure
     title: Azure Monitor Overview
@@ -43,8 +43,8 @@ learning_steps:
     title: Google Cloud Monitoring Overview
     url: https://docs.cloud.google.com/monitoring/docs/monitoring-overview
     description: Understand how Cloud Monitoring collects and visualizes service telemetry.
-  title: 'Prerequisite refresher: provider monitoring basics (optional)'
-  slug: phase5-topic5-read-prerequisite-refresher-provider-monitoring
+  title: Learn your provider's monitoring platform
+  slug: phase5-topic5-read-provider-monitoring-platform
 - uuid: 03d129e2-06e2-4bcb-9abc-0aee9662933c
   order: 2
   action: 'Read:'

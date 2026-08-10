@@ -1,73 +1,106 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: dc870ba9-0c1a-4174-9beb-e3bd917608a1
 slug: vms-compute
-name: Virtual Machines & Compute Services
-description: Virtualization and compute services are fundamental to cloud engineering, enabling scalable and flexible infrastructure. In this topic, you will focus on deploying virtual machines on various cloud providers (such as AWS, Azure, and GCP).
+name: Compute & Cost Foundations
+description: Choose, deploy, and operate a right-sized virtual machine without losing sight of cost. You'll estimate spend, configure a budget, deploy through your cloud CLI, and compare the estimate with actual usage.
 learning_objectives:
 - uuid: 8485c9ca-5d6b-409a-8528-6964c9d7ec37
-  text: Explain virtualization and cloud compute fundamentals across AWS, Azure, and GCP.
+  text: Compare virtual machine families, sizes, pricing dimensions, and workload tradeoffs.
   order: 1
 - uuid: 81ea5bd1-7c3d-4daa-a32c-b11d79e4df3a
-  text: Select appropriate VM sizes or instance types based on workload, performance, and cost constraints.
+  text: Estimate deployment cost and configure a budget before provisioning resources.
   order: 2
 - uuid: 45f4c56e-8f9f-40fb-a728-f56df40485eb
-  text: Deploy and verify a working cloud virtual machine in your chosen cloud provider.
+  text: Deploy and verify a right-sized virtual machine through the cloud CLI.
   order: 3
+- uuid: c356df1b-722a-44fc-af2f-cff6990a63e7
+  text: Review actual charges and clean up resources to prevent avoidable spend.
+  order: 4
 learning_steps:
-- uuid: 9d3cc492-c400-488e-8d6c-fb922081f9c3
+- uuid: c56ed215-c0d5-47af-841f-bcc9c2382d60
   order: 1
   action: 'Read:'
-  title: What are Compute Services?
-  url: https://aws.amazon.com/what-is/compute/
-  description: Learn the fundamentals of cloud compute - the on-demand delivery of computing power that forms the foundation of cloud infrastructure.
-  slug: phase4-topic1-read-what-are-compute-services
-- uuid: d587e404-5f25-4ee0-a410-1ffa16d3f5b1
-  order: 2
-  action: 'Read:'
-  title: Understanding Virtualization
-  url: https://aws.amazon.com/what-is/virtualization/
-  description: Understand how virtualization technology enables running multiple virtual machines on a single physical server, enabling cloud scalability.
-  slug: phase4-topic1-read-understanding-virtualization
-- uuid: c56ed215-c0d5-47af-841f-bcc9c2382d60
-  order: 3
-  action: 'Read:'
-  description: Compare VM sizing and instance-family guidance across major providers to choose the right CPU, memory, and storage profile for your workload.
+  description: Compare VM families, CPU and memory profiles, billing increments, storage, and network costs. Choose a small general-purpose Linux VM suitable for the Journal API.
   options:
   - provider: azure
-    title: Sizes for Virtual Machines in Azure
+    title: Azure VM sizes and pricing
     url: https://learn.microsoft.com/azure/virtual-machines/sizes/overview
-    description: Review Azure VM size families and guidance for selecting the right SKU.
+    description: Compare Azure VM size families, then review the pricing calculator before choosing a SKU.
   - provider: aws
-    title: Amazon EC2 Instance Types
+    title: Amazon EC2 instance types and pricing
     url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html
-    description: Compare EC2 instance families and choose the right type for your workload.
+    description: Compare EC2 instance families and the pricing dimensions that affect your selection.
   - provider: gcp
-    title: Machine Families Resource and Comparison Guide
+    title: Compute Engine machine families and pricing
     url: https://docs.cloud.google.com/compute/docs/machine-resource
-    description: Learn how Google Cloud machine families map to common workload requirements.
-  title: Compare VM sizing guidance by cloud provider
-  slug: phase4-topic1-read-compare-vm-sizing-guidance
+    description: Compare Compute Engine machine families and the resources included with each type.
+  title: Choose a right-sized VM
+  slug: phase4-topic1-read-choose-right-sized-vm
+- uuid: b2c9d077-315c-4c28-980d-25925d7c61e2
+  order: 2
+  action: 'Practice:'
+  description: Configure a small monthly budget with notifications before creating resources. Use thresholds that give you time to react, such as 50%, 80%, and 100%.
+  options:
+  - provider: azure
+    title: Create Azure budgets
+    url: https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-acm-create-budgets
+    description: Create a budget and alert recipients in Azure Cost Management.
+  - provider: aws
+    title: Create AWS budgets
+    url: https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-create.html
+    description: Create an AWS Budget and notification thresholds.
+  - provider: gcp
+    title: Create Google Cloud budget alerts
+    url: https://docs.cloud.google.com/billing/docs/how-to/budgets
+    description: Configure a Cloud Billing budget and alert thresholds.
+  title: Create a cloud budget
+  slug: phase4-topic1-practice-create-cloud-budget
+- uuid: a14c93c6-af99-4ad3-ad8f-885ac83c648e
+  order: 3
+  action: 'Practice:'
+  title: Estimate the VM's monthly cost
+  description: Use your provider's pricing calculator to estimate one month of compute, disk, public IP, and expected outbound traffic. Save the estimate and note which assumptions affect it most.
+  options:
+  - provider: azure
+    title: Azure Pricing Calculator
+    url: https://azure.microsoft.com/pricing/calculator/
+    description: Estimate Azure infrastructure costs before deployment.
+  - provider: aws
+    title: AWS Pricing Calculator
+    url: https://calculator.aws/#/
+    description: Estimate AWS infrastructure costs before deployment.
+  - provider: gcp
+    title: Google Cloud Pricing Calculator
+    url: https://cloud.google.com/products/calculator
+    description: Estimate Google Cloud infrastructure costs before deployment.
+  slug: phase4-topic1-practice-estimate-vm-cost
 - uuid: 9d3fd137-7819-4c6b-80e9-44956912dc42
   order: 4
   action: 'Practice:'
-  description: 'Choose your cloud platform and follow the official guide to deploy your first virtual machine:'
+  description: Deploy the VM through your cloud CLI using the size you selected. Record the region, image, size, disk, IP configuration, and tags or labels, then verify the instance is healthy.
   options:
   - provider: azure
-    title: Azure Virtual Machines Documentation
+    title: Create a Linux VM with Azure CLI
     url: https://learn.microsoft.com/azure/virtual-machines/linux/quick-create-cli
-    description: Create and manage virtual machines in Azure
+    description: Provision and inspect a Linux VM through Azure CLI.
   - provider: aws
-    title: Get Started with Amazon EC2
-    url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html
-    description: Launch your first Linux instance on AWS Elastic Compute Cloud
+    title: Launch an EC2 instance with AWS CLI
+    url: https://docs.aws.amazon.com/cli/latest/userguide/cli-services-ec2-instances.html
+    description: Provision and inspect an EC2 instance through AWS CLI.
   - provider: gcp
-    title: Create Your First VM on GCP
-    url: https://cloud.google.com/products/compute#create-your-first-vm
-    description: Get started with Google Compute Engine
-  title: Deploy a VM on your cloud provider
-  slug: phase4-topic1-practice-deploy-a-vm-on
-- uuid: 44bb3ac3-c295-41e7-807a-22797f7a28e9
+    title: Create a Compute Engine VM with gcloud
+    url: https://docs.cloud.google.com/compute/docs/instances/create-start-instance
+    description: Provision and inspect a Compute Engine instance through gcloud.
+  title: Deploy and inspect the VM through the CLI
+  slug: phase4-topic1-practice-deploy-inspect-vm-cli
+- uuid: a9ac36a5-e8e4-4231-9c6e-8a4b45bc6967
   order: 5
+  action: 'Practice:'
+  title: Compare estimated and actual spend
+  description: Open your billing dashboard after usage appears. Identify the resources generating charges and compare them with your estimate. Record one change that would reduce cost without breaking the workload.
+  slug: phase4-topic1-practice-compare-estimated-actual-spend
+- uuid: 44bb3ac3-c295-41e7-807a-22797f7a28e9
+  order: 6
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Delete the virtual machine you created and any associated resources (disks, public IPs, security groups). Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.

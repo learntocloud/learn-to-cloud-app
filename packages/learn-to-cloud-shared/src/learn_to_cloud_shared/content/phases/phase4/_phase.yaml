@@ -7,12 +7,9 @@ short_description: 'Deploy on AWS, Azure, or GCP: virtual machines, cloud networ
 order: 4
 topics:
 - vms-compute
-- billing-cost-management
 - security-iam
 - cloud-networking
-- secure-remote-access
 - database-deployment
-- monitoring-foundations-for-apps-and-vms
 - cloud-ai-services
 - capstone
 hands_on_verification:
