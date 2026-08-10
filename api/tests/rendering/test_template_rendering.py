@@ -478,6 +478,80 @@ def test_dashboard_help_section_links_to_discord():
 
 
 @pytest.mark.unit
+class TestDashboardPrimaryState:
+    @staticmethod
+    def _dashboard(
+        *,
+        phases: list[object],
+        continue_phase: object | None = None,
+        is_program_complete: bool = False,
+    ) -> SimpleNamespace:
+        return SimpleNamespace(
+            phases=phases,
+            learning_percentage=0,
+            verification_percentage=0,
+            phases_completed=0,
+            total_phases=len(phases),
+            is_program_complete=is_program_complete,
+            continue_phase=continue_phase,
+        )
+
+    def test_fresh_learner_sees_start_state(self):
+        phase = SimpleNamespace(order=0, name="Prerequisites", progress=None)
+        html = _render(
+            "pages/dashboard.html",
+            dashboard=self._dashboard(phases=[phase]),
+            help_links=[],
+        )
+
+        assert "Start the curriculum" in html
+        assert "Resume" not in html
+
+    def test_returning_learner_sees_resume_state(self):
+        phase = SimpleNamespace(order=0, name="Prerequisites", progress=None)
+        continue_phase = SimpleNamespace(
+            destination_url="/phase/0/linux",
+            label="Phase 0: Prerequisites",
+        )
+        html = _render(
+            "pages/dashboard.html",
+            dashboard=self._dashboard(phases=[phase], continue_phase=continue_phase),
+            help_links=[],
+        )
+
+        assert "Continue learning" in html
+        assert 'href="/phase/0/linux"' in html
+
+    def test_completed_learner_sees_completion_state(self):
+        progress = SimpleNamespace(
+            status="completed",
+            verification=SimpleNamespace(
+                requirements_required=1,
+                requirements_verified=1,
+            ),
+            learning=SimpleNamespace(steps_required=1, steps_completed=1),
+        )
+        phase = SimpleNamespace(order=0, name="Prerequisites", progress=progress)
+        html = _render(
+            "pages/dashboard.html",
+            dashboard=self._dashboard(phases=[phase], is_program_complete=True),
+            help_links=[],
+        )
+
+        assert "You completed the program." in html
+
+    def test_missing_curriculum_sees_recovery_state(self):
+        html = _render(
+            "pages/dashboard.html",
+            dashboard=self._dashboard(phases=[]),
+            help_links=[],
+        )
+
+        assert "Progress is temporarily unavailable." in html
+        assert "Try again" in html
+
+
+@pytest.mark.unit
 def test_primary_links_are_in_navbar_and_footer_is_minimal():
     navbar = _render("partials/navbar.html")
     footer = _render("partials/footer.html")
@@ -599,7 +673,7 @@ class TestDashboardPhaseRow:
             requirements_required=1,
         )
         html = self._render_dashboard(progress)
-        assert "Complete ✓" in html
+        assert "Complete" in html
         assert "28/28 steps checked" in html
         assert "1/1 requirements verified" in html
         assert 'text-3xl font-bold text-white">' not in html

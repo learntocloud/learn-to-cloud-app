@@ -163,6 +163,53 @@ class TestGetDashboardDataUnauthenticated:
 @pytest.mark.unit
 class TestGetDashboardDataAuthenticated:
     @pytest.mark.asyncio
+    async def test_zero_activity_has_no_continue_phase(self):
+        """A fresh learner sees the dashboard start state, not Resume."""
+        phases = (_make_phase(0), _make_phase(1))
+        user_progress = UserProgress(
+            user_id=42,
+            phases={
+                0: _make_phase_progress(0, steps_completed=0, steps_required=5),
+                1: _make_phase_progress(1, steps_completed=0, steps_required=5),
+            },
+            total_phases=2,
+        )
+        progress_data = PhaseProgressData(
+            learning=LearningProgress(steps_completed=0, steps_required=5),
+            verification=VerificationProgress(
+                requirements_verified=0, requirements_required=1
+            ),
+            is_complete=False,
+            status="not_started",
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.services.dashboard_service.get_curriculum_overview",
+                autospec=True,
+                return_value=phases,
+            ),
+            patch(
+                "learn_to_cloud.services.dashboard_service.fetch_user_progress",
+                autospec=True,
+                return_value=user_progress,
+            ),
+            patch(
+                "learn_to_cloud.services.dashboard_service.phase_progress_to_data",
+                autospec=True,
+                return_value=progress_data,
+            ),
+            patch(
+                "learn_to_cloud.services.dashboard_service.resolve_continue_destination",
+                new_callable=AsyncMock,
+            ) as resolve_destination,
+        ):
+            result = await get_dashboard_data(db=AsyncMock(), user_id=42)
+
+        assert result.continue_phase is None
+        resolve_destination.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_partial_progress_has_continue_phase(self):
         """User with incomplete phase 0 gets continue_phase pointing at the
         destination resolve_continue_destination computes for that phase."""

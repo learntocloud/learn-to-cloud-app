@@ -75,7 +75,13 @@ async def get_dashboard_data(
     ]
 
     continue_phase: ContinuePhaseData | None = None
-    if not user_progress.is_program_complete:
+    has_activity = any(
+        progress.learning.steps_completed > 0
+        or progress.verification.requirements_verified > 0
+        for progress in user_progress.phases.values()
+    )
+    is_program_complete = bool(phases) and user_progress.is_program_complete
+    if not is_program_complete and has_activity:
         current_id = user_progress.current_phase
         current = next((p for p in phases if p.order == current_id), None)
         if current is not None:
@@ -104,6 +110,6 @@ async def get_dashboard_data(
         verification_percentage=round(user_progress.overall_verification_percentage, 1),
         phases_completed=user_progress.phases_completed,
         total_phases=user_progress.total_phases,
-        is_program_complete=user_progress.is_program_complete,
+        is_program_complete=is_program_complete,
         continue_phase=continue_phase,
     )
