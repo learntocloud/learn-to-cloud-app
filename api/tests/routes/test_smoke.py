@@ -221,7 +221,15 @@ class TestPublicPageSmoke:
         assert "Hands-on labs" in response.text
         assert "The curriculum, phase by phase." in response.text
 
-    @pytest.mark.parametrize("path", ["/curriculum", "/faq", "/privacy", "/terms"])
+    async def test_curriculum_page_renders(self, anon_client: AsyncClient):
+        """GET /curriculum renders the phase hierarchy and progress CTA."""
+        response = await anon_client.get("/curriculum")
+        assert response.status_code == 200
+        assert "The complete cloud curriculum." in response.text
+        assert "Learn in sequence." in response.text
+        assert "Keep your place as you learn." in response.text
+
+    @pytest.mark.parametrize("path", ["/faq", "/privacy", "/terms"])
     async def test_public_page_renders(self, anon_client: AsyncClient, path: str):
         response = await anon_client.get(path)
         assert response.status_code == 200

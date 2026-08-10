@@ -88,6 +88,8 @@
     --text-3xl--line-height: calc(2.25 / 1.875);
     --text-4xl: 2.25rem;
     --text-4xl--line-height: calc(2.5 / 2.25);
+    --text-5xl: 3rem;
+    --text-5xl--line-height: 1;
     --text-6xl: 3.75rem;
     --text-6xl--line-height: 1;
     --font-weight-normal: 400;
@@ -380,11 +382,11 @@
   .mt-8 {
     margin-top: calc(var(--spacing) * 8);
   }
-  .mt-10 {
-    margin-top: calc(var(--spacing) * 10);
-  }
   .mt-12 {
     margin-top: calc(var(--spacing) * 12);
+  }
+  .mt-14 {
+    margin-top: calc(var(--spacing) * 14);
   }
   .mt-16 {
     margin-top: calc(var(--spacing) * 16);
@@ -421,9 +423,6 @@
   }
   .ml-2 {
     margin-left: calc(var(--spacing) * 2);
-  }
-  .ml-4 {
-    margin-left: calc(var(--spacing) * 4);
   }
   .ml-auto {
     margin-left: auto;
@@ -614,6 +613,9 @@
   .grid-cols-\[2\.75rem_1fr\] {
     grid-template-columns: 2.75rem 1fr;
   }
+  .grid-cols-\[3rem_1fr\] {
+    grid-template-columns: 3rem 1fr;
+  }
   .grid-cols-\[3rem_1fr_auto\] {
     grid-template-columns: 3rem 1fr auto;
   }
@@ -706,6 +708,9 @@
       margin-block-start: calc(calc(var(--spacing) * 8) * var(--tw-space-y-reverse));
       margin-block-end: calc(calc(var(--spacing) * 8) * calc(1 - var(--tw-space-y-reverse)));
     }
+  }
+  .gap-x-8 {
+    column-gap: calc(var(--spacing) * 8);
   }
   .divide-y {
     :where(& > :not(:last-child)) {
@@ -983,6 +988,9 @@
   .py-4 {
     padding-block: calc(var(--spacing) * 4);
   }
+  .py-5 {
+    padding-block: calc(var(--spacing) * 5);
+  }
   .py-6 {
     padding-block: calc(var(--spacing) * 6);
   }
@@ -992,11 +1000,14 @@
   .py-16 {
     padding-block: calc(var(--spacing) * 16);
   }
-  .pt-3 {
-    padding-top: calc(var(--spacing) * 3);
+  .pt-4 {
+    padding-top: calc(var(--spacing) * 4);
   }
   .pt-6 {
     padding-top: calc(var(--spacing) * 6);
+  }
+  .pt-12 {
+    padding-top: calc(var(--spacing) * 12);
   }
   .pt-16 {
     padding-top: calc(var(--spacing) * 16);
@@ -1010,11 +1021,20 @@
   .pb-4 {
     padding-bottom: calc(var(--spacing) * 4);
   }
+  .pb-8 {
+    padding-bottom: calc(var(--spacing) * 8);
+  }
+  .pb-12 {
+    padding-bottom: calc(var(--spacing) * 12);
+  }
   .pb-16 {
     padding-bottom: calc(var(--spacing) * 16);
   }
   .pl-1 {
     padding-left: calc(var(--spacing) * 1);
+  }
+  .pl-16 {
+    padding-left: calc(var(--spacing) * 16);
   }
   .pl-\[4\.5rem\] {
     padding-left: 4.5rem;
@@ -1112,6 +1132,10 @@
     --tw-tracking: -0.035em;
     letter-spacing: -0.035em;
   }
+  .tracking-\[0\.12em\] {
+    --tw-tracking: 0.12em;
+    letter-spacing: 0.12em;
+  }
   .tracking-\[0\.16em\] {
     --tw-tracking: 0.16em;
     letter-spacing: 0.16em;
@@ -1155,6 +1179,9 @@
   }
   .text-blue-800 {
     color: var(--color-blue-800);
+  }
+  .text-blue-950 {
+    color: var(--color-blue-950);
   }
   .text-gray-300 {
     color: var(--color-gray-300);
@@ -1229,6 +1256,9 @@
   .underline {
     text-decoration-line: underline;
   }
+  .decoration-blue-200 {
+    text-decoration-color: var(--color-blue-200);
+  }
   .decoration-gray-300 {
     text-decoration-color: var(--color-gray-300);
   }
@@ -1253,10 +1283,6 @@
   }
   .shadow-sm {
     --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-  }
-  .shadow-xs {
-    --tw-shadow: 0 1px 2px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.05));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   .ring-1 {
@@ -1337,6 +1363,21 @@
     &:is(:where(.group):hover *) {
       @media (hover: hover) {
         color: var(--color-blue-900);
+      }
+    }
+  }
+  .group-hover\/topic\:translate-x-0\.5 {
+    &:is(:where(.group\/topic):hover *) {
+      @media (hover: hover) {
+        --tw-translate-x: calc(var(--spacing) * 0.5);
+        translate: var(--tw-translate-x) var(--tw-translate-y);
+      }
+    }
+  }
+  .group-hover\/topic\:text-blue-700 {
+    &:is(:where(.group\/topic):hover *) {
+      @media (hover: hover) {
+        color: var(--color-blue-700);
       }
     }
   }
@@ -1483,6 +1524,13 @@
       }
     }
   }
+  .hover\:decoration-blue-600 {
+    &:hover {
+      @media (hover: hover) {
+        text-decoration-color: var(--color-blue-600);
+      }
+    }
+  }
   .focus\:border-blue-500 {
     &:focus {
       border-color: var(--color-blue-500);
@@ -1524,6 +1572,11 @@
   .focus-visible\:rounded-md {
     &:focus-visible {
       border-radius: var(--radius-md);
+    }
+  }
+  .focus-visible\:rounded-sm {
+    &:focus-visible {
+      border-radius: var(--radius-sm);
     }
   }
   .focus-visible\:ring-2 {
@@ -1608,9 +1661,19 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
+  .sm\:grid-cols-\[4rem_1fr\] {
+    @media (width >= 40rem) {
+      grid-template-columns: 4rem 1fr;
+    }
+  }
   .sm\:grid-cols-\[4rem_1fr_auto\] {
     @media (width >= 40rem) {
       grid-template-columns: 4rem 1fr auto;
+    }
+  }
+  .sm\:grid-cols-\[minmax\(0\,1fr\)_auto\] {
+    @media (width >= 40rem) {
+      grid-template-columns: minmax(0,1fr) auto;
     }
   }
   .sm\:flex-row {
@@ -1623,6 +1686,11 @@
       align-items: center;
     }
   }
+  .sm\:items-end {
+    @media (width >= 40rem) {
+      align-items: flex-end;
+    }
+  }
   .sm\:gap-4 {
     @media (width >= 40rem) {
       gap: calc(var(--spacing) * 4);
@@ -1633,9 +1701,19 @@
       gap: calc(var(--spacing) * 6);
     }
   }
+  .sm\:gap-8 {
+    @media (width >= 40rem) {
+      gap: calc(var(--spacing) * 8);
+    }
+  }
   .sm\:px-6 {
     @media (width >= 40rem) {
       padding-inline: calc(var(--spacing) * 6);
+    }
+  }
+  .sm\:pt-8 {
+    @media (width >= 40rem) {
+      padding-top: calc(var(--spacing) * 8);
     }
   }
   .sm\:pt-12 {
@@ -1643,9 +1721,19 @@
       padding-top: calc(var(--spacing) * 12);
     }
   }
+  .sm\:pt-16 {
+    @media (width >= 40rem) {
+      padding-top: calc(var(--spacing) * 16);
+    }
+  }
   .sm\:pt-20 {
     @media (width >= 40rem) {
       padding-top: calc(var(--spacing) * 20);
+    }
+  }
+  .sm\:pb-16 {
+    @media (width >= 40rem) {
+      padding-bottom: calc(var(--spacing) * 16);
     }
   }
   .sm\:pb-20 {
@@ -1653,10 +1741,21 @@
       padding-bottom: calc(var(--spacing) * 20);
     }
   }
+  .sm\:pl-\[5\.5rem\] {
+    @media (width >= 40rem) {
+      padding-left: 5.5rem;
+    }
+  }
   .sm\:text-4xl {
     @media (width >= 40rem) {
       font-size: var(--text-4xl);
       line-height: var(--tw-leading, var(--text-4xl--line-height));
+    }
+  }
+  .sm\:text-5xl {
+    @media (width >= 40rem) {
+      font-size: var(--text-5xl);
+      line-height: var(--tw-leading, var(--text-5xl--line-height));
     }
   }
   .sm\:text-6xl {
@@ -1929,6 +2028,11 @@
       color: var(--color-amber-400);
     }
   }
+  .dark\:text-blue-100 {
+    &:where(.dark, .dark *) {
+      color: var(--color-blue-100);
+    }
+  }
   .dark\:text-blue-200 {
     &:where(.dark, .dark *) {
       color: var(--color-blue-200);
@@ -2034,6 +2138,11 @@
       color: var(--color-white);
     }
   }
+  .dark\:decoration-blue-800 {
+    &:where(.dark, .dark *) {
+      text-decoration-color: var(--color-blue-800);
+    }
+  }
   .dark\:decoration-gray-600 {
     &:where(.dark, .dark *) {
       text-decoration-color: var(--color-gray-600);
@@ -2065,6 +2174,15 @@
   .dark\:group-hover\:text-blue-300 {
     &:where(.dark, .dark *) {
       &:is(:where(.group):hover *) {
+        @media (hover: hover) {
+          color: var(--color-blue-300);
+        }
+      }
+    }
+  }
+  .dark\:group-hover\/topic\:text-blue-300 {
+    &:where(.dark, .dark *) {
+      &:is(:where(.group\/topic):hover *) {
         @media (hover: hover) {
           color: var(--color-blue-300);
         }
@@ -2202,6 +2320,15 @@
       &:hover {
         @media (hover: hover) {
           color: var(--color-white);
+        }
+      }
+    }
+  }
+  .dark\:hover\:decoration-blue-300 {
+    &:where(.dark, .dark *) {
+      &:hover {
+        @media (hover: hover) {
+          text-decoration-color: var(--color-blue-300);
         }
       }
     }
