@@ -1,20 +1,24 @@
-<nav class="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+<nav class="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900" x-data="{ mobileOpen: false }">
     <div class="mx-auto max-w-content px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 items-center justify-between">
-            <div class="flex items-center gap-8">
-                <a href="/" class="text-xl font-bold text-blue-600 dark:text-blue-400">
-                    ☁️ Learn to Cloud
+            <div class="flex min-w-0 items-center gap-8">
+                <a href="/" class="flex min-h-11 items-center gap-2 text-lg font-bold tracking-[-0.02em] text-blue-700 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">
+                    <svg class="h-7 w-7 shrink-0" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.5 21.5h11a5 5 0 0 0 .8-9.94A7.25 7.25 0 0 0 6.65 10.1 5.75 5.75 0 0 0 8.5 21.5Z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14 8.25v5.5m-3.25 3.5h6.5M14 13.75v3.5"/>
+                    </svg>
+                    <span class="truncate">Learn to Cloud</span>
                 </a>
                 <div class="hidden sm:flex items-center gap-4">
                     {% if user %}
-                    <a href="/dashboard" class="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
+                    <a href="/dashboard" class="inline-flex min-h-11 items-center text-sm font-medium text-gray-600 hover:text-gray-900 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:text-white">
                         Dashboard
                     </a>
                     {% endif %}
-                    <a href="/community" class="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
+                    <a href="/community" class="inline-flex min-h-11 items-center text-sm font-medium text-gray-600 hover:text-gray-900 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:text-white">
                         Community
                     </a>
-                    <a href="/faq" class="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
+                    <a href="/faq" class="inline-flex min-h-11 items-center text-sm font-medium text-gray-600 hover:text-gray-900 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:text-white">
                         FAQ
                     </a>
                 </div>
@@ -25,7 +29,7 @@
 
                 {% if user %}
                 <div class="relative flex items-center gap-3" x-data="{ open: false }">
-                    <button @click="open = !open" class="flex items-center gap-2 cursor-pointer">
+                    <button @click="open = !open" class="flex min-h-11 cursor-pointer items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
                         {% if user.avatar_url %}
                         <img src="{{ user.avatar_url }}" alt="{{ user.github_username }}" class="h-8 w-8 rounded-full">
                         {% endif %}
@@ -40,20 +44,51 @@
                         x-cloak
                         class="absolute right-0 top-full mt-2 w-48 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-gray-200 dark:ring-gray-700 py-1 z-50"
                     >
-                        <a href="/account" @click="open = false" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <a href="/account" @click="open = false" class="flex min-h-11 items-center px-4 text-sm text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:bg-gray-700">
                             Account
                         </a>
                         <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
                         <form method="post" action="/auth/logout">
-                            <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <button type="submit" class="min-h-11 w-full px-4 text-left text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white">
                                 Sign out
                             </button>
                         </form>
                     </div>
                 </div>
                 {% else %}
-                <a href="/auth/login" hx-boost="false" class="inline-flex items-center gap-2 rounded-md bg-gray-900 dark:bg-white px-3 py-2 text-sm font-semibold text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200">
+                <a href="/auth/login" hx-boost="false" class="hidden min-h-11 items-center gap-2 rounded-md bg-gray-900 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200 sm:inline-flex">
                     <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                    Sign in with GitHub
+                </a>
+                {% endif %}
+
+                <button
+                    type="button"
+                    class="inline-flex h-11 w-11 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white sm:hidden"
+                    @click="mobileOpen = !mobileOpen"
+                    :aria-expanded="mobileOpen"
+                    aria-controls="mobile-navigation"
+                    aria-label="Toggle navigation"
+                >
+                    <svg x-show="!mobileOpen" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                        <path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/>
+                    </svg>
+                    <svg x-show="mobileOpen" x-cloak class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                        <path stroke-linecap="round" d="m6 6 12 12M18 6 6 18"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="mobile-navigation" x-show="mobileOpen" x-collapse x-cloak class="border-t border-gray-200 py-3 dark:border-gray-700 sm:hidden">
+            <div class="grid gap-1">
+                {% if user %}
+                <a href="/dashboard" @click="mobileOpen = false" class="flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 dark:text-gray-200 dark:hover:bg-gray-800">Dashboard</a>
+                {% endif %}
+                <a href="/community" @click="mobileOpen = false" class="flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 dark:text-gray-200 dark:hover:bg-gray-800">Community</a>
+                <a href="/faq" @click="mobileOpen = false" class="flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 dark:text-gray-200 dark:hover:bg-gray-800">FAQ</a>
+                {% if not user %}
+                <a href="/auth/login" hx-boost="false" class="mt-2 flex min-h-11 items-center justify-center rounded-md bg-gray-900 px-3 text-sm font-semibold text-white hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200">
                     Sign in with GitHub
                 </a>
                 {% endif %}
