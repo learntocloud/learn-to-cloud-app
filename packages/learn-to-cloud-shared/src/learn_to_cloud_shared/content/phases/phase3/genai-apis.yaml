@@ -2,7 +2,7 @@
 uuid: 1d920a98-5f15-4312-8fd1-39a32338b42f
 slug: genai-apis
 name: Generative AI APIs
-description: Generative AI and Large Language Models (LLMs) are transforming how we build applications. In this topic, you'll provision access to a live model, configure an OpenAI Responses API-compatible endpoint, and verify structured output before integrating it into your Journal API.
+description: Generative AI and Large Language Models (LLMs) are transforming how we build applications. In this topic, you'll learn the OpenAI Responses API through standalone Python exercises, handle structured output and common failures, and then apply those skills to your Journal API using a compatible live model endpoint.
 learning_objectives:
 - uuid: 3a23023a-af15-4252-8ec8-bbf11f317b51
   text: Understand core LLM API patterns including instructions, inputs, parameters, and structured outputs.
@@ -16,36 +16,36 @@ learning_objectives:
 learning_steps:
 - uuid: bf840bef-8dad-4734-bbed-349753bc33b1
   order: 1
-  action: 'Watch:'
-  title: 'Python + AI: Large Language Models'
-  url: https://www.youtube.com/live/X967IsYvhTM?si=qDi7Rcu8fN1UE5iE
-  description: A strong intro session on LLM fundamentals, model options, the OpenAI Python SDK, streaming, chat history, prompt engineering, and async app patterns. Watch this first, then move to the hands-on demos.
-  slug: phase3-topic4-watch-python-ai-large-language
+  action: 'Practice:'
+  title: Make a standalone Responses API request
+  url: https://developers.openai.com/api/docs/quickstart
+  description: Follow the Python quickstart to send a request and inspect the response outside the Journal project. You may use OpenAI or another provider with an OpenAI Responses API-compatible endpoint; obtain the API key, base URL, and model or deployment name from your provider and keep those credentials out of source control.
+  slug: phase3-topic4-practice-standalone-responses-request
 - uuid: 8ee8e568-47e9-4012-94a0-1eac47bb4891
   order: 2
   action: 'Read:'
-  title: Understand the Journal API AI analysis contract
-  url: https://github.com/learntocloud/journal-starter#-ai-analysis-guide
-  description: Review the required response shape, OpenAI Responses API client, environment variables, injected test client, and live verification workflow used by the Journal API.
-  slug: phase3-topic4-read-understand-journal-api-ai-analysis
+  title: Understand text generation
+  url: https://developers.openai.com/api/docs/guides/text
+  description: Learn how the Responses API separates developer instructions from user input, how model outputs are represented, and why generated responses must be treated as nondeterministic application data.
+  slug: phase3-topic4-read-understand-text-generation
 - uuid: 8ec7d5e6-e9d6-4221-9c7e-d002b17ef652
   order: 3
   action: 'Practice:'
-  title: Provision access to a live model
-  url: https://github.com/learntocloud/journal-starter#task-4-setup
-  description: Create a Microsoft Foundry model deployment or obtain access to another endpoint supported by the Journal Starter's OpenAI Responses API client. Record the endpoint, API key, and model or deployment name without committing them to source control.
-  slug: phase3-topic4-practice-provision-live-model
+  title: Return validated structured output
+  url: https://developers.openai.com/api/docs/guides/structured-outputs
+  description: Extend your standalone script with a small Pydantic model or JSON Schema containing a sentiment, summary, and list of topics. Request structured output, validate the parsed result, and compare schema enforcement with parsing unstructured text yourself.
+  slug: phase3-topic4-practice-validated-structured-output
 - uuid: d79f9515-404e-45cd-bad0-13229e37bd2b
   order: 4
   action: 'Practice:'
-  title: Configure the live model endpoint
-  url: https://github.com/learntocloud/journal-starter#task-4-setup
-  description: Set `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` in the Journal Starter's git-ignored `.env` file. Confirm the application loads the settings without printing or committing credentials.
-  slug: phase3-topic4-practice-configure-live-model
+  title: Handle API failures safely
+  url: https://developers.openai.com/api/docs/guides/error-codes
+  description: Review authentication, rate-limit, timeout, and server errors, then add a request timeout and clear failure handling to your standalone script. Use bounded backoff only for transient failures and rate limits; see https://developers.openai.com/api/docs/guides/rate-limits for retry guidance.
+  slug: phase3-topic4-practice-handle-api-failures
 - uuid: 4e4b6e66-ddea-4c46-b34d-dc864ce66349
   order: 5
   action: 'Practice:'
-  title: Verify a live structured response
+  title: Apply the workflow to the Journal API
   url: https://github.com/learntocloud/journal-starter#task-4-setup
-  description: Run `uv run python -m scripts.verify_llm` from your Journal Starter fork. Confirm the live provider returns an `AnalysisResponse` containing `entry_id`, `sentiment`, `summary`, and `topics`. This live check is required in addition to the mocked unit tests used by CI.
-  slug: phase3-topic4-practice-verify-live-structured-response
+  description: Configure `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` in the Journal Starter's git-ignored `.env` file. Pass the mocked unit tests, then run `uv run python -m scripts.verify_llm` and confirm your live provider returns a valid `AnalysisResponse`.
+  slug: phase3-topic4-practice-apply-journal-api
