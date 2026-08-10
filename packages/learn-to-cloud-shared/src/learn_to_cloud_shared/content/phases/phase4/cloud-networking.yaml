@@ -1,220 +1,152 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 822291f9-041c-4846-8db0-90d58ca414f0
 slug: cloud-networking
-name: Cloud Networking Fundamentals
-description: This topic focuses on cloud networking concepts essential for secure deployments, building on Phase 2 networking fundamentals. You'll learn VPC/VNet architecture, subnet segmentation, security groups, and routing — then validate your understanding by deploying and testing resources in a real cloud network.
+name: Cloud Networking & Secure Access
+description: Design and validate a segmented cloud network, then manage its virtual machines through identity-aware, session-based access instead of public SSH. The focus is proving how routing and security controls allow required traffic and deny everything else.
 learning_objectives:
 - uuid: ae5453c4-5f75-41e8-b2d5-230506f8ea07
-  text: Describe VPC/VNet architecture, CIDR planning, and subnet segmentation.
+  text: Design VPC/VNet address spaces and public and private subnet boundaries.
   order: 1
 - uuid: 8d52131a-53da-48a7-8c5a-c85d5b370229
-  text: Explain security group and firewall principles used to control network traffic.
+  text: Configure routes, gateways, NAT, and firewall rules for least-exposed connectivity.
   order: 2
-- uuid: 01232608-54bc-41b8-9c19-012b024c096e
-  text: Configure routing components such as gateways, NAT, and route tables correctly.
+- uuid: a17d5793-3363-421b-bd5d-8cbb21d7e650
+  text: Use provider-native, identity-aware access without exposing management ports publicly.
   order: 3
 - uuid: 5ebda0e3-9bf3-4df9-aafd-acf011419a95
-  text: Validate secure network behavior through practical deployment and connectivity testing.
+  text: Diagnose and prove allowed and denied network paths.
   order: 4
 learning_steps:
 - uuid: 53e1643d-7acd-4a23-b096-aa774adf4d82
   order: 1
   action: 'Read:'
-  description: A VPC is your private network in the cloud - an isolated section where you can launch resources with full control over IP addressing, subnets, and routing.
+  title: Design the virtual network and subnets
+  description: Learn how your provider represents virtual networks, CIDR ranges, regional boundaries, and subnets. Design one application subnet and one private database subnet with non-overlapping address ranges.
   options:
   - provider: azure
-    title: Azure Virtual Network Overview
-    url: https://learn.microsoft.com/azure/virtual-network/virtual-networks-overview
-    description: Azure Virtual Network fundamentals
+    title: Azure VNet planning and design
+    url: https://learn.microsoft.com/azure/virtual-network/virtual-network-vnet-plan-design-arm
+    description: Plan Azure address spaces, subnets, and service connectivity.
   - provider: aws
-    title: What is Amazon VPC?
+    title: Amazon VPC and CIDR blocks
     url: https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html
-    description: Amazon Virtual Private Cloud documentation
+    description: Plan an Amazon VPC, IPv4 CIDR ranges, and subnets.
   - provider: gcp
-    title: GCP Virtual Private Cloud
-    url: https://docs.cloud.google.com/vpc/docs/overview
-    description: Google Cloud VPC documentation
-  title: Understand Virtual Private Cloud (VPC/VNet)
-  slug: phase4-topic3-read-understand-virtual-private-cloud
+    title: Google Cloud VPC networks and subnets
+    url: https://docs.cloud.google.com/vpc/docs/vpc
+    description: Plan Google Cloud VPC networks, regions, and subnet ranges.
+  slug: phase4-topic3-read-design-network-subnets
 - uuid: 26bacf49-3e5e-421d-90ec-78f6391ab57e
   order: 2
   action: 'Read:'
-  description: Security groups act as virtual firewalls for your cloud resources, controlling inbound and outbound traffic.
+  title: Plan routes, internet access, and firewall policy
+  description: Understand route tables, internet access, NAT for private workloads, and stateful firewall rules. Permit only the traffic required by the Journal API architecture and avoid public management ports.
   options:
   - provider: azure
-    title: Azure Network Security Groups
+    title: Azure virtual network traffic controls
     url: https://learn.microsoft.com/azure/virtual-network/network-security-groups-overview
-    description: Overview of Network Security Groups in Azure
+    description: Understand NSGs, service tags, routes, and outbound connectivity.
   - provider: aws
-    title: AWS Security Groups
+    title: Amazon VPC security groups and route tables
     url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html
-    description: Official documentation for controlling inbound and outbound traffic
+    description: Understand security groups, route tables, internet gateways, and NAT.
   - provider: gcp
-    title: GCP Firewall Rules
+    title: Google Cloud VPC firewall rules
     url: https://docs.cloud.google.com/firewall/docs/firewalls
-    description: Understanding firewall rules in Google Cloud
-  title: Understand Security Groups & Firewall Rules
-  slug: phase4-topic3-read-understand-security-groups-firewall
-- uuid: 8c0ed360-124a-40c9-96d3-5dd329a4a038
+    description: Understand firewall policy, routes, external IPs, and Cloud NAT.
+  slug: phase4-topic3-read-plan-routing-firewall
+- uuid: aff9e130-cccb-4dc4-afa6-17361f6f4f11
   order: 3
   action: 'Read:'
-  description: Understand public vs. private subnets and CIDR block notation. This is fundamental to designing secure cloud architectures.
+  title: Keep the database on a private path
+  description: The database should accept traffic only from the API workload over private addressing. Learn the private endpoint, private IP, or private subnet pattern for your provider before deploying it.
   options:
   - provider: azure
-    title: Azure VNet Planning and Design
-    url: https://learn.microsoft.com/azure/virtual-network/virtual-network-vnet-plan-design-arm
-    description: Plan address spaces and subnet segmentation for Azure virtual networks.
+    title: Azure Private Endpoint overview
+    url: https://learn.microsoft.com/azure/private-link/private-endpoint-overview
+    description: Provide private connectivity to supported Azure services.
   - provider: aws
-    title: AWS VPC CIDR Blocks and Subnetting
-    url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-cidr-blocks.html
-    description: Learn how CIDR ranges and subnetting are designed in AWS VPC.
+    title: Amazon RDS in a VPC
+    url: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html
+    description: Place RDS in private subnets and restrict access with security groups.
   - provider: gcp
-    title: GCP VPC Networks and Subnets
-    url: https://docs.cloud.google.com/vpc/docs/vpc
-    description: Understand subnet ranges and IP design in Google Cloud VPC.
-  title: Learn CIDR and subnet design by provider
-  slug: phase4-topic3-read-learn-cidr-and-subnet
-- uuid: d6297150-72ba-447b-b9b6-d9fb3f16dd64
+    title: Cloud SQL private IP
+    url: https://docs.cloud.google.com/sql/docs/postgres/private-ip
+    description: Connect to Cloud SQL through private services access.
+  slug: phase4-topic3-read-keep-database-private
+- uuid: 378183a3-37a3-4a99-aee6-586060c2d27b
   order: 4
   action: 'Read:'
-  description: Understand how public-facing network components enable internet connectivity for resources in public subnets.
+  title: Learn provider-native network diagnostics
+  description: Use path analysis to explain why a flow is allowed or denied across routes, gateways, and firewall policy.
   options:
   - provider: azure
-    title: Azure Public IP Addresses
-    url: https://learn.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses
-    description: Learn how internet-routable connectivity is provided to Azure resources.
-  - provider: aws
-    title: Internet Gateways
-    url: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html
-    description: Learn how Internet Gateways provide VPC internet connectivity.
-  - provider: gcp
-    title: GCP External IP Addresses
-    url: https://docs.cloud.google.com/compute/docs/ip-addresses
-    description: Understand how public IP addresses provide external access in GCP.
-  title: Understand internet connectivity components by provider
-  slug: phase4-topic3-read-understand-internet-connectivity-components
-- uuid: 9490f99b-6efb-452e-8836-731cf2201d94
-  order: 5
-  action: 'Read:'
-  description: NAT services allow private subnet resources to access the internet for updates and package downloads without direct inbound exposure.
-  options:
-  - provider: azure
-    title: Azure NAT Gateway Overview
-    url: https://learn.microsoft.com/azure/nat-gateway/nat-overview
-    description: Learn outbound internet connectivity for private Azure subnets.
-  - provider: aws
-    title: NAT Gateway Basics (AWS)
-    url: https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-basics.html
-    description: Learn how AWS NAT Gateways provide outbound access from private subnets.
-  - provider: gcp
-    title: Cloud NAT Overview
-    url: https://docs.cloud.google.com/nat/docs/overview
-    description: Configure private Google Cloud workloads to reach the internet via NAT.
-  title: Compare NAT patterns across cloud providers
-  slug: phase4-topic3-read-compare-nat-patterns-across
-- uuid: 378183a3-37a3-4a99-aee6-586060c2d27b
-  order: 6
-  action: 'Read:'
-  description: Use provider-native diagnostics to validate effective routes and security policy decisions. Focus on proving why traffic is allowed or denied, not re-learning networking basics.
-  options:
-  - provider: azure
-    title: Azure Network Watcher - IP Flow Verify
+    title: Azure Network Watcher IP flow verify
     url: https://learn.microsoft.com/azure/network-watcher/ip-flow-verify-overview
-    description: Validate NSG decisions for allowed and denied VM traffic flows.
+    description: Validate effective NSG decisions for a proposed traffic flow.
   - provider: aws
     title: AWS Reachability Analyzer
     url: https://docs.aws.amazon.com/vpc/latest/reachability/what-is-reachability-analyzer.html
-    description: Analyze network path reachability across route tables, gateways, and security controls.
+    description: Analyze network paths across VPC components.
   - provider: gcp
-    title: GCP Connectivity Tests Overview
+    title: Google Cloud Connectivity Tests
     url: https://docs.cloud.google.com/network-intelligence-center/docs/connectivity-tests/concepts/overview
-    description: Run path analysis to verify routing and firewall behavior for target endpoints.
-  title: Validate routing and security decisions by provider
-  slug: phase4-topic3-read-validate-routing-and-security
-- uuid: aff9e130-cccb-4dc4-afa6-17361f6f4f11
-  order: 7
-  action: 'Read:'
-  title: Restrict database access to your API server only
-  description: Your database should accept connections only from your API server — not from the public internet. Use private endpoints or private IP connectivity to eliminate the public network path to your database entirely.
-  options:
-  - provider: aws
-    title: RDS in a Private Subnet
-    url: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html
-    description: Deploy RDS in a private subnet and restrict access with security group rules allowing port 5432 only from your API server
-  - provider: azure
-    title: Azure Private Endpoint Overview
-    url: https://learn.microsoft.com/azure/private-link/private-endpoint-overview
-    description: Eliminate public network access to your Azure database with Private Endpoint
-  - provider: gcp
-    title: Cloud SQL Private IP
-    url: https://docs.cloud.google.com/sql/docs/postgres/private-ip
-    description: Connect to Cloud SQL over private IP with no public internet exposure
-  slug: phase4-topic3-read-restrict-database-access
+    description: Analyze reachability across routes and firewall rules.
+  slug: phase4-topic3-read-network-diagnostics
 - uuid: 8942ce4b-d77d-4fde-9940-618817454bea
-  order: 8
-  action: 'Read:'
-  title: Cloud Load Balancers
-  description: 'Load balancers distribute traffic across multiple targets and enable high availability. Understand the difference between Layer 4 (network) and Layer 7 (application) load balancers, health checks, and target groups in your cloud provider.'
+  order: 5
+  action: 'Practice:'
+  title: Inspect network resources through the CLI
+  description: List virtual networks, subnets, routes, gateways, and firewall rules with your cloud CLI. Filter the output so you can explain each resource's purpose before changing it.
   options:
-  - provider: aws
-    title: Application Load Balancer (ALB)
-    url: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html
-    description: Layer 7 load balancing with path-based routing, health checks, and target groups.
   - provider: azure
-    title: Azure Load Balancer Overview
-    url: https://learn.microsoft.com/azure/load-balancer/load-balancer-overview
-    description: Layer 4 load balancing with health probes, backend pools, and load balancing rules.
+    title: Azure CLI VNet commands
+    url: https://learn.microsoft.com/cli/azure/network/vnet
+    description: Inspect VNets, subnets, peerings, and related resources.
+  - provider: aws
+    title: AWS CLI describe-vpcs
+    url: https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html
+    description: Inspect VPCs and related EC2 networking resources.
   - provider: gcp
-    title: Cloud Load Balancing Overview
-    url: https://docs.cloud.google.com/load-balancing/docs/load-balancing-overview
-    description: Global and regional load balancing with HTTP(S), TCP/UDP, and internal options.
-  slug: phase4-topic3-read-cloud-load-balancers
-- uuid: cb2747b5-c258-4a06-8010-ce59db026109
+    title: gcloud compute networks
+    url: https://cloud.google.com/sdk/gcloud/reference/compute/networks
+    description: Inspect VPC networks, subnets, routes, and firewall rules.
+  slug: phase4-topic3-practice-inspect-network-cli
+- uuid: 0f26efe0-8522-4ab1-b490-4983a0794eb4
+  order: 6
+  action: 'Practice:'
+  title: Deploy the segmented network
+  description: Create the virtual network, application subnet, private database subnet, route configuration, and least-privilege firewall rules from your design. Do not open SSH or RDP to the internet.
+  done_when: The application subnet can receive intended application traffic, the database subnet has no public inbound path, and only the API workload can reach the database port.
+  slug: phase4-topic3-practice-deploy-segmented-network
+- uuid: a1667f65-7186-440e-9d94-2b263c941a14
+  order: 7
+  action: 'Practice:'
+  title: Configure identity-aware VM access
+  description: Deploy a VM without a public management port and connect through your provider's managed access service. Review the IAM permission required to start a session and locate the corresponding audit event.
+  options:
+  - provider: azure
+    title: Connect through Azure Bastion
+    url: https://learn.microsoft.com/azure/bastion/bastion-connect-vm-ssh-linux
+    description: Connect to a private Linux VM through Azure Bastion.
+  - provider: aws
+    title: Connect through AWS Systems Manager Session Manager
+    url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-with-systems-manager-session-manager.html
+    description: Connect to EC2 without inbound ports or SSH keys.
+  - provider: gcp
+    title: Connect through IAP TCP forwarding
+    url: https://docs.cloud.google.com/iap/docs/using-tcp-forwarding
+    description: Connect to a private VM through an IAM-authorized tunnel.
+  slug: phase4-topic3-practice-configure-identity-aware-access
+- uuid: 062f4256-fb79-4d87-a114-60ca34f92c0d
+  order: 8
+  action: 'Practice:'
+  title: Prove allowed and denied traffic paths
+  description: Use provider diagnostics and connection tests to prove the intended application path works, the database is unreachable from the internet, and public SSH or RDP is blocked. Save the diagnostic results for your capstone design.
+  slug: phase4-topic3-practice-prove-network-paths
+- uuid: ca268dba-b19f-4c48-a31a-827c9ac6d4fa
   order: 9
   action: 'Practice:'
-  title: Explore Cloud Networking via CLI
-  description: 'Use your cloud CLI to inspect networking resources. Practice listing VPCs, subnets, security groups, and route tables. Learn to filter output and parse JSON — these skills are essential for the Phase 2 networking lab and real-world troubleshooting.'
-  options:
-  - provider: aws
-    title: AWS CLI Networking Commands
-    url: https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html
-    description: Inspect VPCs, subnets, and security groups from the command line. Use --query and --output table to filter results, or pipe to jq for JSON parsing.
-  - provider: azure
-    title: Azure CLI Networking Commands
-    url: https://learn.microsoft.com/cli/azure/network/vnet
-    description: Inspect VNets, subnets, and NSGs from the command line. Use --query with JMESPath and --output table to shape output.
-  - provider: gcp
-    title: GCP CLI Networking Commands
-    url: https://cloud.google.com/sdk/gcloud/reference/compute/networks
-    description: Inspect VPCs, subnets, and firewall rules from the command line. Use --format and --filter flags to shape output, or pipe to jq.
-  slug: phase4-topic3-practice-explore-cloud-networking-cli
-- uuid: 0f26efe0-8522-4ab1-b490-4983a0794eb4
-  order: 10
-  action: 'Practice:'
-  description: Create a VPC or VNet on your cloud provider with a custom CIDR block.
-  title: Set up a cloud network (VPC/VNet)
-  slug: phase4-topic3-practice-set-up-a-cloud
-- uuid: 4410640a-0605-4463-abc6-283ff91d8d5f
-  order: 11
-  action: 'Practice:'
-  description: Create two subnets inside your VPC — one public (with a route to the internet gateway) and one private (no direct internet access).
-  title: Create a public and a private subnet
-  slug: phase4-topic3-practice-create-a-public-and
-- uuid: bfc78160-ddef-4a7c-a413-922298da9fdb
-  order: 12
-  action: 'Practice:'
-  description: Associate subnets with appropriate route tables and set up security groups for each subnet.
-  title: Configure routing and security groups
-  slug: phase4-topic3-practice-configure-routing-and-security
-- uuid: 062f4256-fb79-4d87-a114-60ca34f92c0d
-  order: 13
-  action: 'Practice:'
-  description: Deploy a VM in the public subnet and another in the private subnet. Verify the public VM is accessible from the internet and the private VM is not.
-  title: Deploy VMs in each subnet and verify access
-  slug: phase4-topic3-practice-deploy-vms-in-each
-- uuid: ca268dba-b19f-4c48-a31a-827c9ac6d4fa
-  order: 14
-  action: 'Practice:'
   title: Clean up your cloud resources
-  description: Delete all resources you created in this topic — VMs, VPC/VNet, subnets, route tables, internet gateways, NAT gateways, and security groups. Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.
+  description: Delete the test VM, managed access resources, virtual network, subnets, gateways, routes, and firewall rules unless you are immediately reusing them for the database topic. Confirm that no billable networking resources remain.
   slug: phase4-topic3-practice-clean-up-your-cloud

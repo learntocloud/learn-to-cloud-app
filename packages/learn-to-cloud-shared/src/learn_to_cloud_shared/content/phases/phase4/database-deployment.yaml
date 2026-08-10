@@ -2,7 +2,7 @@
 uuid: 8ae1dfb6-626c-424c-b57d-b86a82eafb30
 slug: database-deployment
 name: Database Deployment & Configuration
-description: Learn to deploy and configure PostgreSQL databases in the cloud. This topic covers the fundamentals of relational database deployment, including architecture, installation, and secure remote access configuration. It builds on Phase 3 database fundamentals and focuses on cloud-specific deployment and network hardening.
+description: Compare managed and self-hosted PostgreSQL, then deploy a private database tier with database-level and network-level access controls. This builds on Phase 3 database fundamentals and prepares the database used by the Phase 4 capstone.
 learning_objectives:
 - uuid: 43076020-3783-4f18-8a59-c87d723e49e0
   text: Understand PostgreSQL deployment fundamentals in cloud environments.
@@ -33,73 +33,48 @@ learning_steps:
     description: Understand PostgreSQL options on Google Cloud and choose the right deployment path.
   title: Compare PostgreSQL deployment options by provider
   slug: phase4-topic5-read-compare-postgresql-deployment-options
-- uuid: 3caf398c-5af1-4f52-ab12-af9efe430220
+- uuid: 59dbd8d7-026f-4385-9744-1e669ca28b0e
   order: 2
   action: 'Read:'
-  description: Before deploying PostgreSQL in the cloud, learn how to install it on a Linux VM. This covers adding the official PostgreSQL repository, installing the server package, starting the service, and performing initial setup like creating a database and setting a password.
+  description: Network isolation and PostgreSQL host authentication work together. Review `pg_hba.conf`, require strong authentication, use an application-specific role, and allow port 5432 only from the API workload.
   options:
   - provider: azure
-    title: Install PostgreSQL on an Azure Linux VM
-    url: https://learn.microsoft.com/previous-versions/azure/virtual-machines/linux/postgresql-install
-    description: Step-by-step guide to installing and configuring PostgreSQL on a Linux VM in Azure.
+    title: Azure private database connectivity
+    url: https://learn.microsoft.com/azure/private-link/private-endpoint-overview
+    description: Understand private endpoints and private address connectivity for Azure services.
   - provider: aws
-    title: PostgreSQL Linux Downloads (Official)
-    url: https://www.postgresql.org/download/linux/
-    description: Official PostgreSQL installation instructions for Ubuntu, Debian, RHEL, and other Linux distributions.
+    title: Amazon RDS VPC access control
+    url: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html
+    description: Understand private subnet placement and security-group access for PostgreSQL.
   - provider: gcp
-    title: PostgreSQL Linux Downloads (Official)
-    url: https://www.postgresql.org/download/linux/
-    description: Official PostgreSQL installation instructions for Ubuntu, Debian, RHEL, and other Linux distributions.
-  title: Learn how to install PostgreSQL on Linux
-  slug: phase4-topic5-read-install-postgresql-on-linux
+    title: Cloud SQL private IP
+    url: https://docs.cloud.google.com/sql/docs/postgres/private-ip
+    description: Understand private IP connectivity for PostgreSQL on Google Cloud.
+  title: Design layered PostgreSQL access controls
+  url: https://www.postgresql.org/docs/current/auth-pg-hba-conf.html
+  slug: phase4-topic5-read-design-postgresql-access-controls
 - uuid: 05687ff1-b259-4ad8-ac72-9ea73f821a63
   order: 3
   action: 'Practice:'
-  description: Deploy a VM in a private subnet on your cloud provider and install PostgreSQL. Use provider networking guidance plus the PostgreSQL Linux packages docs to complete the setup.
+  description: Deploy PostgreSQL in a private subnet or with private service connectivity. Create the `career_journal` database and a least-privilege application role, run the schema, and validate that the API workload can connect while your local machine and the public internet cannot. This database is the private tier for the Phase 4 capstone.
   options:
   - provider: azure
     title: Azure Network Security Tutorial (subnet + NSG)
     url: https://learn.microsoft.com/azure/virtual-network/tutorial-filter-network-traffic
-    description: Build a VNet/subnet-secured VM pattern you can adapt for a private PostgreSQL host.
+    description: Build the private subnet and NSG pattern for the PostgreSQL tier.
   - provider: aws
     title: Amazon VPC with Public and Private Subnets
     url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-example-private-subnets-nat.html
-    description: Follow the AWS reference architecture for private-subnet workloads before installing PostgreSQL.
+    description: Build the private subnet and security-group pattern for the PostgreSQL tier.
   - provider: gcp
     title: Create an Instance in a Specific Subnet
     url: https://docs.cloud.google.com/compute/docs/instances/create-vm-specific-subnet
-    description: Launch a VM in your chosen subnet and use no external IP for private-only database hosting.
-  title: Deploy a VM in a private subnet and install PostgreSQL
-  slug: phase4-topic5-practice-deploy-a-vm-in
-- uuid: 59dbd8d7-026f-4385-9744-1e669ca28b0e
+    description: Launch the PostgreSQL tier without an external IP and validate private connectivity.
+  title: Deploy and validate the private database tier
+  slug: phase4-topic5-practice-deploy-validate-private-database
+- uuid: 4b2a2cd1-84f5-4851-b7fc-1fd89d591add
   order: 4
   action: 'Practice:'
-  description: "Even though your database VM sits in a private subnet, network controls alone aren't enough. A misconfigured NSG/security-group rule, a compromised peer workload, or a future subnet expansion could expose the database to unintended clients. pg_hba.conf is PostgreSQL's own host-based authentication layer. Edit pg_hba.conf to allow connections only from your API server's IP range and require strong authentication. Then create database users with least-privilege permissions for your application."
-  url: https://www.postgresql.org/docs/current/auth-pg-hba-conf.html
-  title: Configure pg_hba.conf for secure remote access
-  slug: phase4-topic5-practice-configure-pghbaconf-for-secure
-- uuid: 690ffd69-c16f-481b-b8ac-933572437133
-  order: 5
-  action: 'Practice:'
-  description: "Your database VM has no public IP, so you can't SSH in directly — you need a way to reach it securely. Use your provider's approach to connect to the database VM, then run psql to verify PostgreSQL is running and your pg_hba.conf rules work. Next, launch a second VM in a different subnet (simulating an application server), connect to it the same way, and test that it can reach the database with psql over the private network. Finally, confirm the database is NOT reachable from the public internet — try connecting from your local machine directly and verify it times out or is refused."
-  options:
-  - provider: azure
-    title: Connect to a Private VM via Azure Bastion
-    url: https://learn.microsoft.com/azure/bastion/bastion-connect-vm-ssh-linux
-    description: A managed PaaS bastion host — provides browser-based SSH/RDP through the Azure portal. No agent needed on the VM.
-  - provider: aws
-    title: Connect to a Private Instance via Session Manager
-    url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-with-systems-manager-session-manager.html
-    description: Agent-based access through the AWS control plane — requires the SSM agent on the instance. No bastion host, no open inbound ports. Also supports port forwarding and session logging.
-  - provider: gcp
-    title: Connect to a Private VM via IAP TCP Forwarding
-    url: https://docs.cloud.google.com/iap/docs/using-tcp-forwarding
-    description: An identity-aware tunnel proxy — creates an encrypted tunnel from your machine authenticated via IAM, then you use your own SSH client through it. No agent required.
-  title: Verify database connectivity and security
-  slug: phase4-topic5-practice-verify-database-connectivity-and
-- uuid: 4b2a2cd1-84f5-4851-b7fc-1fd89d591add
-  order: 6
-  action: 'Practice:'
   title: Clean up your cloud resources
-  description: Delete all resources you created — VMs, PostgreSQL installations, Bastion/SSM/IAP configurations, VPC/VNet, subnets, and security groups. Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.
+  description: If you are starting the capstone now, retain and document this private database tier. Otherwise, delete it and its associated resources, then reproduce the same design during the capstone.
   slug: phase4-topic5-practice-clean-up-your-cloud

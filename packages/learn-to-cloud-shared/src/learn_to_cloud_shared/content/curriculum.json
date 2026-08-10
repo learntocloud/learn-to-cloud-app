@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "45521d31defe3c33390fbfa56e3295e19ce341d57a813615bbcf43d1a1fa2ab7",
-  "curriculum_version": 6,
+  "content_hash": "ffe706dd88f6fe0746192d9828cbbe898b5b59da1fb6d479bb5ae72939b96d32",
+  "curriculum_version": 7,
   "phases": [
     {
       "capstone": null,
@@ -2577,33 +2577,35 @@
       "slug": "phase4",
       "topic_slugs": [
         "vms-compute",
-        "billing-cost-management",
         "security-iam",
         "cloud-networking",
-        "secure-remote-access",
         "database-deployment",
-        "monitoring-foundations-for-apps-and-vms",
         "cloud-ai-services",
         "capstone"
       ],
       "topics": [
         {
-          "description": "Virtualization and compute services are fundamental to cloud engineering, enabling scalable and flexible infrastructure. In this topic, you will focus on deploying virtual machines on various cloud providers (such as AWS, Azure, and GCP).",
+          "description": "Choose, deploy, and operate a right-sized virtual machine without losing sight of cost. You'll estimate spend, configure a budget, deploy through your cloud CLI, and compare the estimate with actual usage.",
           "learning_objectives": [
             {
               "order": 1,
-              "text": "Explain virtualization and cloud compute fundamentals across AWS, Azure, and GCP.",
+              "text": "Compare virtual machine families, sizes, pricing dimensions, and workload tradeoffs.",
               "uuid": "8485c9ca-5d6b-409a-8528-6964c9d7ec37"
             },
             {
               "order": 2,
-              "text": "Select appropriate VM sizes or instance types based on workload, performance, and cost constraints.",
+              "text": "Estimate deployment cost and configure a budget before provisioning resources.",
               "uuid": "81ea5bd1-7c3d-4daa-a32c-b11d79e4df3a"
             },
             {
               "order": 3,
-              "text": "Deploy and verify a working cloud virtual machine in your chosen cloud provider.",
+              "text": "Deploy and verify a right-sized virtual machine through the cloud CLI.",
               "uuid": "45f4c56e-8f9f-40fb-a728-f56df40485eb"
+            },
+            {
+              "order": 4,
+              "text": "Review actual charges and clean up resources to prevent avoidable spend.",
+              "uuid": "c356df1b-722a-44fc-af2f-cff6990a63e7"
             }
           ],
           "learning_steps": [
@@ -2611,60 +2613,32 @@
               "action": "read",
               "checklist": [],
               "code": null,
-              "description": "Learn the fundamentals of cloud compute - the on-demand delivery of computing power that forms the foundation of cloud infrastructure.",
-              "done_when": null,
-              "options": [],
-              "order": 1,
-              "slug": "phase4-topic1-read-what-are-compute-services",
-              "tips": [],
-              "title": "What are Compute Services?",
-              "url": "https://aws.amazon.com/what-is/compute/",
-              "uuid": "9d3cc492-c400-488e-8d6c-fb922081f9c3"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Understand how virtualization technology enables running multiple virtual machines on a single physical server, enabling cloud scalability.",
-              "done_when": null,
-              "options": [],
-              "order": 2,
-              "slug": "phase4-topic1-read-understanding-virtualization",
-              "tips": [],
-              "title": "Understanding Virtualization",
-              "url": "https://aws.amazon.com/what-is/virtualization/",
-              "uuid": "d587e404-5f25-4ee0-a410-1ffa16d3f5b1"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Compare VM sizing and instance-family guidance across major providers to choose the right CPU, memory, and storage profile for your workload.",
+              "description": "Compare VM families, CPU and memory profiles, billing increments, storage, and network costs. Choose a small general-purpose Linux VM suitable for the Journal API.",
               "done_when": null,
               "options": [
                 {
-                  "description": "Review Azure VM size families and guidance for selecting the right SKU.",
+                  "description": "Compare Azure VM size families, then review the pricing calculator before choosing a SKU.",
                   "provider": "azure",
-                  "title": "Sizes for Virtual Machines in Azure",
+                  "title": "Azure VM sizes and pricing",
                   "url": "https://learn.microsoft.com/azure/virtual-machines/sizes/overview"
                 },
                 {
-                  "description": "Compare EC2 instance families and choose the right type for your workload.",
+                  "description": "Compare EC2 instance families and the pricing dimensions that affect your selection.",
                   "provider": "aws",
-                  "title": "Amazon EC2 Instance Types",
+                  "title": "Amazon EC2 instance types and pricing",
                   "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html"
                 },
                 {
-                  "description": "Learn how Google Cloud machine families map to common workload requirements.",
+                  "description": "Compare Compute Engine machine families and the resources included with each type.",
                   "provider": "gcp",
-                  "title": "Machine Families Resource and Comparison Guide",
+                  "title": "Compute Engine machine families and pricing",
                   "url": "https://docs.cloud.google.com/compute/docs/machine-resource"
                 }
               ],
-              "order": 3,
-              "slug": "phase4-topic1-read-compare-vm-sizing-guidance",
+              "order": 1,
+              "slug": "phase4-topic1-read-choose-right-sized-vm",
               "tips": [],
-              "title": "Compare VM sizing guidance by cloud provider",
+              "title": "Choose a right-sized VM",
               "url": null,
               "uuid": "c56ed215-c0d5-47af-841f-bcc9c2382d60"
             },
@@ -2672,34 +2646,114 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Choose your cloud platform and follow the official guide to deploy your first virtual machine:",
+              "description": "Configure a small monthly budget with notifications before creating resources. Use thresholds that give you time to react, such as 50%, 80%, and 100%.",
               "done_when": null,
               "options": [
                 {
-                  "description": "Create and manage virtual machines in Azure",
+                  "description": "Create a budget and alert recipients in Azure Cost Management.",
                   "provider": "azure",
-                  "title": "Azure Virtual Machines Documentation",
+                  "title": "Create Azure budgets",
+                  "url": "https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-acm-create-budgets"
+                },
+                {
+                  "description": "Create an AWS Budget and notification thresholds.",
+                  "provider": "aws",
+                  "title": "Create AWS budgets",
+                  "url": "https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-create.html"
+                },
+                {
+                  "description": "Configure a Cloud Billing budget and alert thresholds.",
+                  "provider": "gcp",
+                  "title": "Create Google Cloud budget alerts",
+                  "url": "https://docs.cloud.google.com/billing/docs/how-to/budgets"
+                }
+              ],
+              "order": 2,
+              "slug": "phase4-topic1-practice-create-cloud-budget",
+              "tips": [],
+              "title": "Create a cloud budget",
+              "url": null,
+              "uuid": "b2c9d077-315c-4c28-980d-25925d7c61e2"
+            },
+            {
+              "action": "practice",
+              "checklist": [],
+              "code": null,
+              "description": "Use your provider's pricing calculator to estimate one month of compute, disk, public IP, and expected outbound traffic. Save the estimate and note which assumptions affect it most.",
+              "done_when": null,
+              "options": [
+                {
+                  "description": "Estimate Azure infrastructure costs before deployment.",
+                  "provider": "azure",
+                  "title": "Azure Pricing Calculator",
+                  "url": "https://azure.microsoft.com/pricing/calculator/"
+                },
+                {
+                  "description": "Estimate AWS infrastructure costs before deployment.",
+                  "provider": "aws",
+                  "title": "AWS Pricing Calculator",
+                  "url": "https://calculator.aws/#/"
+                },
+                {
+                  "description": "Estimate Google Cloud infrastructure costs before deployment.",
+                  "provider": "gcp",
+                  "title": "Google Cloud Pricing Calculator",
+                  "url": "https://cloud.google.com/products/calculator"
+                }
+              ],
+              "order": 3,
+              "slug": "phase4-topic1-practice-estimate-vm-cost",
+              "tips": [],
+              "title": "Estimate the VM's monthly cost",
+              "url": null,
+              "uuid": "a14c93c6-af99-4ad3-ad8f-885ac83c648e"
+            },
+            {
+              "action": "practice",
+              "checklist": [],
+              "code": null,
+              "description": "Deploy the VM through your cloud CLI using the size you selected. Record the region, image, size, disk, IP configuration, and tags or labels, then verify the instance is healthy.",
+              "done_when": null,
+              "options": [
+                {
+                  "description": "Provision and inspect a Linux VM through Azure CLI.",
+                  "provider": "azure",
+                  "title": "Create a Linux VM with Azure CLI",
                   "url": "https://learn.microsoft.com/azure/virtual-machines/linux/quick-create-cli"
                 },
                 {
-                  "description": "Launch your first Linux instance on AWS Elastic Compute Cloud",
+                  "description": "Provision and inspect an EC2 instance through AWS CLI.",
                   "provider": "aws",
-                  "title": "Get Started with Amazon EC2",
-                  "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html"
+                  "title": "Launch an EC2 instance with AWS CLI",
+                  "url": "https://docs.aws.amazon.com/cli/latest/userguide/cli-services-ec2-instances.html"
                 },
                 {
-                  "description": "Get started with Google Compute Engine",
+                  "description": "Provision and inspect a Compute Engine instance through gcloud.",
                   "provider": "gcp",
-                  "title": "Create Your First VM on GCP",
-                  "url": "https://cloud.google.com/products/compute#create-your-first-vm"
+                  "title": "Create a Compute Engine VM with gcloud",
+                  "url": "https://docs.cloud.google.com/compute/docs/instances/create-start-instance"
                 }
               ],
               "order": 4,
-              "slug": "phase4-topic1-practice-deploy-a-vm-on",
+              "slug": "phase4-topic1-practice-deploy-inspect-vm-cli",
               "tips": [],
-              "title": "Deploy a VM on your cloud provider",
+              "title": "Deploy and inspect the VM through the CLI",
               "url": null,
               "uuid": "9d3fd137-7819-4c6b-80e9-44956912dc42"
+            },
+            {
+              "action": "practice",
+              "checklist": [],
+              "code": null,
+              "description": "Open your billing dashboard after usage appears. Identify the resources generating charges and compare them with your estimate. Record one change that would reduce cost without breaking the workload.",
+              "done_when": null,
+              "options": [],
+              "order": 5,
+              "slug": "phase4-topic1-practice-compare-estimated-actual-spend",
+              "tips": [],
+              "title": "Compare estimated and actual spend",
+              "url": null,
+              "uuid": "a9ac36a5-e8e4-4231-9c6e-8a4b45bc6967"
             },
             {
               "action": "practice",
@@ -2708,7 +2762,7 @@
               "description": "Delete the virtual machine you created and any associated resources (disks, public IPs, security groups). Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.",
               "done_when": null,
               "options": [],
-              "order": 5,
+              "order": 6,
               "slug": "phase4-topic1-practice-clean-up-your-cloud",
               "tips": [],
               "title": "Clean up your cloud resources",
@@ -2716,242 +2770,27 @@
               "uuid": "44bb3ac3-c295-41e7-807a-22797f7a28e9"
             }
           ],
-          "name": "Virtual Machines & Compute Services",
+          "name": "Compute & Cost Foundations",
           "order": 1,
           "slug": "vms-compute",
           "uuid": "dc870ba9-0c1a-4174-9beb-e3bd917608a1"
         },
         {
-          "description": "Cloud services are billed based on consumption. Every VM, database, and API call has a cost. In this topic, you'll learn to monitor spending, set up cost alerts, and estimate expenses before deploying infrastructure. These skills prevent surprise bills and teach you to make cost-aware architecture decisions.",
+          "description": "Control human and workload access with roles, policies, MFA, short-lived credentials, and least privilege. You'll create a narrowly scoped role and prove both what it can and cannot do.",
           "learning_objectives": [
             {
               "order": 1,
-              "text": "Explain cloud pricing mechanics and billing drivers for common resource types.",
-              "uuid": "b26382c1-d1cb-4c66-88dc-c8317b7fe7bb"
-            },
-            {
-              "order": 2,
-              "text": "Configure budgets and alerts to reduce cost overruns and surprise spend.",
-              "uuid": "c356df1b-722a-44fc-af2f-cff6990a63e7"
-            },
-            {
-              "order": 3,
-              "text": "Estimate deployment costs and apply cost-aware decision making before provisioning.",
-              "uuid": "073bacc1-913a-4bd2-9b5d-1b26d4d291b7"
-            }
-          ],
-          "learning_steps": [
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Understand pay-as-you-go pricing, common billing dimensions, and core cost drivers for compute, storage, and network resources.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Learn foundational Azure pricing and cost management concepts.",
-                  "provider": "azure",
-                  "title": "Plan and Manage Costs for Azure",
-                  "url": "https://learn.microsoft.com/azure/cost-management-billing/understand/plan-manage-costs"
-                },
-                {
-                  "description": "Understand billing concepts, pricing dimensions, and account charges in AWS.",
-                  "provider": "aws",
-                  "title": "AWS Cloud Financial Management Basics",
-                  "url": "https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/"
-                },
-                {
-                  "description": "Review how billing accounts, projects, and charges work in Google Cloud.",
-                  "provider": "gcp",
-                  "title": "Cloud Billing Concepts",
-                  "url": "https://docs.cloud.google.com/billing/docs/concepts"
-                }
-              ],
-              "order": 1,
-              "slug": "phase4-topic7-read-learn-cloud-pricing-and",
-              "tips": [],
-              "title": "Learn cloud pricing and billing fundamentals by provider",
-              "url": null,
-              "uuid": "a827b497-9ea5-42c3-8078-aa0b872ab646"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Learn the billing and cost management tools for your cloud provider:",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Complete overview of Azure billing and cost management",
-                  "provider": "azure",
-                  "title": "Azure Cost Management + Billing",
-                  "url": "https://learn.microsoft.com/azure/cost-management-billing/cost-management-billing-overview"
-                },
-                {
-                  "description": "Understanding your AWS bills and managing costs",
-                  "provider": "aws",
-                  "title": "AWS Billing and Cost Management",
-                  "url": "https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/"
-                },
-                {
-                  "description": "How to manage billing in Google Cloud",
-                  "provider": "gcp",
-                  "title": "GCP Cloud Billing",
-                  "url": "https://docs.cloud.google.com/billing/docs/how-to"
-                }
-              ],
-              "order": 2,
-              "slug": "phase4-topic7-practice-cost-management-overview",
-              "tips": [],
-              "title": "Cost Management Overview",
-              "url": null,
-              "uuid": "ee765ac7-7c31-4e31-b6af-37b87971a1d5"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Get notified before you overspend! Configure alerts at thresholds like 50%, 80%, 100% of your budget.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Tutorial for creating budgets and alerts in Azure",
-                  "provider": "azure",
-                  "title": "Create Azure Budgets",
-                  "url": "https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-acm-create-budgets"
-                },
-                {
-                  "description": "Setting up AWS Budget alerts",
-                  "provider": "aws",
-                  "title": "Create AWS Budgets",
-                  "url": "https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-create.html"
-                },
-                {
-                  "description": "Configuring budget alerts in Google Cloud",
-                  "provider": "gcp",
-                  "title": "Create GCP Budget Alerts",
-                  "url": "https://docs.cloud.google.com/billing/docs/how-to/budgets"
-                }
-              ],
-              "order": 3,
-              "slug": "phase4-topic7-practice-set-up-budget-alerts",
-              "tips": [],
-              "title": "Set Up Budget Alerts",
-              "url": null,
-              "uuid": "b2c9d077-315c-4c28-980d-25925d7c61e2"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Estimate costs BEFORE you deploy. Each cloud provider has a calculator:",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Estimate costs for Azure services before deploying",
-                  "provider": "azure",
-                  "title": "Azure Pricing Calculator",
-                  "url": "https://azure.microsoft.com/pricing/calculator/"
-                },
-                {
-                  "description": "Estimate costs for AWS services before deploying",
-                  "provider": "aws",
-                  "title": "AWS Pricing Calculator",
-                  "url": "https://calculator.aws/#/"
-                },
-                {
-                  "description": "Estimate costs for Google Cloud services before deploying",
-                  "provider": "gcp",
-                  "title": "GCP Pricing Calculator",
-                  "url": "https://cloud.google.com/products/calculator"
-                }
-              ],
-              "order": 4,
-              "slug": "phase4-topic7-practice-use-pricing-calculators",
-              "tips": [],
-              "title": "Use Pricing Calculators",
-              "url": null,
-              "uuid": "a14c93c6-af99-4ad3-ad8f-885ac83c648e"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Review cost-optimization best practices from your cloud provider's architecture framework. Focus on right-sizing, eliminating idle resources, and reducing avoidable data-transfer/storage costs.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Use Azure's cost-optimization checklist to improve cloud spend efficiency.",
-                  "provider": "azure",
-                  "title": "Azure Well-Architected Cost Optimization Checklist",
-                  "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist"
-                },
-                {
-                  "description": "Apply AWS cost-optimization design principles and workload review practices.",
-                  "provider": "aws",
-                  "title": "AWS Well-Architected Cost Optimization Pillar",
-                  "url": "https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/welcome.html"
-                },
-                {
-                  "description": "Follow GCP cost-optimization recommendations for architecture and operations.",
-                  "provider": "gcp",
-                  "title": "Google Cloud Architecture Framework: Cost Optimization",
-                  "url": "https://docs.cloud.google.com/architecture/framework/cost-optimization"
-                }
-              ],
-              "order": 5,
-              "slug": "phase4-topic7-read-review-cost-optimization-frameworks-by",
-              "tips": [],
-              "title": "Review cost-optimization frameworks by provider",
-              "url": null,
-              "uuid": "7ce6fc4b-cd77-4709-be7e-9bb01f220426"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Open your cloud provider's billing dashboard and review your current month's charges. Identify which resources are costing the most.",
-              "done_when": null,
-              "options": [],
-              "order": 6,
-              "slug": "phase4-topic7-practice-review-your-current-months",
-              "tips": [],
-              "title": "Review your current month's charges",
-              "url": null,
-              "uuid": "a9ac36a5-e8e4-4231-9c6e-8a4b45bc6967"
-            }
-          ],
-          "name": "Cloud Billing & Cost Management",
-          "order": 2,
-          "slug": "billing-cost-management",
-          "uuid": "39af4f01-5c09-4e1e-8eba-07822628c5b0"
-        },
-        {
-          "description": "This section focuses on identity and access management (IAM) to control permissions and protect cloud resources through users, roles, policies, and the principle of least privilege.",
-          "learning_objectives": [
-            {
-              "order": 1,
-              "text": "Explain IAM primitives including users, groups, roles, and policy-based access.",
+              "text": "Explain users, groups, roles, policies, MFA, and least-privilege access.",
               "uuid": "0051b6a9-b335-412d-a23e-29abc035e967"
             },
             {
               "order": 2,
-              "text": "Apply least-privilege access principles for safer day-to-day operations.",
-              "uuid": "ed3f5b2e-2cde-42e1-b950-203aafcd3270"
-            },
-            {
-              "order": 3,
               "text": "Explain how managed identities and service accounts allow workloads to authenticate without long-lived credentials.",
               "uuid": "4154913a-cccc-4cfd-a5c1-d95935c6d594"
             },
             {
-              "order": 4,
-              "text": "Describe the importance of MFA enforcement and secure credential management.",
-              "uuid": "189690ba-1467-40d9-8afc-f27c300fcf84"
-            },
-            {
-              "order": 5,
-              "text": "Create and scope IAM roles and policies through hands-on practice.",
+              "order": 3,
+              "text": "Create, test, and remove a narrowly scoped IAM role or policy.",
               "uuid": "ed34908d-f0de-47af-9bf4-763afa0bea21"
             }
           ],
@@ -2960,67 +2799,34 @@
               "action": "read",
               "checklist": [],
               "code": null,
-              "description": "Identity and Access Management (IAM) is how you control who can do what in your cloud environment. Master these core concepts: Users, Groups, Roles, and Policies.",
+              "description": "Learn the core IAM primitives, least-privilege policy design, MFA for people, and short-lived credentials for day-to-day access.",
               "done_when": null,
               "options": [
                 {
-                  "description": "Understand role-based access control concepts in Azure",
+                  "description": "Understand Azure RBAC and apply least-privilege role assignments.",
                   "provider": "azure",
                   "title": "Azure RBAC Overview",
                   "url": "https://learn.microsoft.com/azure/role-based-access-control/overview"
                 },
                 {
-                  "description": "Official AWS guide to IAM users, groups, policies, and roles",
+                  "description": "Understand AWS IAM users, groups, policies, roles, and security practices.",
                   "provider": "aws",
                   "title": "Getting Started with AWS IAM",
                   "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html"
                 },
                 {
-                  "description": "Understanding Identity and Access Management in Google Cloud",
+                  "description": "Understand Google Cloud IAM roles, policies, and secure usage.",
                   "provider": "gcp",
                   "title": "GCP IAM Overview",
                   "url": "https://docs.cloud.google.com/iam/docs/overview"
                 }
               ],
               "order": 1,
-              "slug": "phase4-topic2-read-learn-iam-concepts-across",
+              "slug": "phase4-topic2-read-learn-iam-least-privilege",
               "tips": [],
-              "title": "Learn IAM concepts across cloud providers",
+              "title": "Learn IAM and least-privilege fundamentals",
               "url": null,
               "uuid": "41cc723c-6ce1-4860-a15a-0de33b2eefe2"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Understand role-based access control and the principle of least privilege \u2014 granting only the minimum permissions needed for a task.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Apply least-privilege and identity security best practices in Azure",
-                  "provider": "azure",
-                  "title": "Secure access to resources with Azure identity and access management best practices",
-                  "url": "https://learn.microsoft.com/azure/security/fundamentals/identity-management-best-practices"
-                },
-                {
-                  "description": "Apply IAM best practices, including least privilege and short-term credentials",
-                  "provider": "aws",
-                  "title": "AWS IAM Best Practices",
-                  "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html"
-                },
-                {
-                  "description": "Review IAM security best practices and least-privilege guidance in GCP",
-                  "provider": "gcp",
-                  "title": "Secure IAM in Google Cloud",
-                  "url": "https://docs.cloud.google.com/iam/docs/using-iam-securely"
-                }
-              ],
-              "order": 2,
-              "slug": "phase4-topic2-read-learn-least-privilege-iam-practices",
-              "tips": [],
-              "title": "Learn least-privilege IAM practices by provider",
-              "url": null,
-              "uuid": "b3d0791b-a219-4904-ad2f-1d3eee9ab2a8"
             },
             {
               "action": "read",
@@ -3048,45 +2854,12 @@
                   "url": "https://docs.cloud.google.com/iam/docs/service-account-overview"
                 }
               ],
-              "order": 3,
+              "order": 2,
               "slug": "phase4-topic2-read-understand-managed-identities",
               "tips": [],
               "title": "Understand managed identities and service accounts",
               "url": null,
               "uuid": "8d2f5eff-e699-4065-bef0-ae164fa3a3c9"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Multi-factor authentication (MFA) adds a critical second layer of protection. Understand why MFA should be enforced for all human users and why long-lived access keys should be avoided.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Learn how Azure enforces multi-factor authentication for user accounts",
-                  "provider": "azure",
-                  "title": "Azure MFA Setup and Enforcement",
-                  "url": "https://learn.microsoft.com/entra/identity/authentication/concept-mfa-howitworks"
-                },
-                {
-                  "description": "Configure MFA for IAM users and understand credential best practices",
-                  "provider": "aws",
-                  "title": "Enable MFA in AWS",
-                  "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html"
-                },
-                {
-                  "description": "Enforce MFA across Google Cloud user accounts",
-                  "provider": "gcp",
-                  "title": "GCP 2-Step Verification",
-                  "url": "https://docs.cloud.google.com/identity/docs/overview"
-                }
-              ],
-              "order": 4,
-              "slug": "phase4-topic2-read-learn-mfa-credential-hygiene",
-              "tips": [],
-              "title": "Learn MFA and credential hygiene by provider",
-              "url": null,
-              "uuid": "c34d57df-b86b-4cbb-a763-085c511a13cc"
             },
             {
               "action": "practice",
@@ -3095,7 +2868,7 @@
               "description": "Create a storage bucket or container (S3, Azure Blob Storage, or GCS). Upload a test file using your admin account. Then create a new IAM role or user with a policy that grants ONLY read access to that storage service. Sign in or assume that restricted role and verify: (1) you can list and download the file, (2) you CANNOT upload or delete files.",
               "done_when": null,
               "options": [],
-              "order": 5,
+              "order": 3,
               "slug": "phase4-topic2-practice-create-scoped-iam-role",
               "tips": [],
               "title": "Create a read-only storage role and test its limits",
@@ -3109,7 +2882,7 @@
               "description": "Delete the storage bucket, test files, and IAM role or user you created. Check your cloud console to confirm all resources are removed.",
               "done_when": null,
               "options": [],
-              "order": 6,
+              "order": 4,
               "slug": "phase4-topic2-practice-clean-up-your-cloud",
               "tips": [],
               "title": "Clean up your cloud resources",
@@ -3117,32 +2890,32 @@
               "uuid": "df127f82-93f4-4ee8-966c-5508fd7b70cf"
             }
           ],
-          "name": "Security & Identity Management",
-          "order": 3,
+          "name": "Identity & Access Management",
+          "order": 2,
           "slug": "security-iam",
           "uuid": "2ca41505-7759-4ac6-bed1-e046488e00ef"
         },
         {
-          "description": "This topic focuses on cloud networking concepts essential for secure deployments, building on Phase 2 networking fundamentals. You'll learn VPC/VNet architecture, subnet segmentation, security groups, and routing \u2014 then validate your understanding by deploying and testing resources in a real cloud network.",
+          "description": "Design and validate a segmented cloud network, then manage its virtual machines through identity-aware, session-based access instead of public SSH. The focus is proving how routing and security controls allow required traffic and deny everything else.",
           "learning_objectives": [
             {
               "order": 1,
-              "text": "Describe VPC/VNet architecture, CIDR planning, and subnet segmentation.",
+              "text": "Design VPC/VNet address spaces and public and private subnet boundaries.",
               "uuid": "ae5453c4-5f75-41e8-b2d5-230506f8ea07"
             },
             {
               "order": 2,
-              "text": "Explain security group and firewall principles used to control network traffic.",
+              "text": "Configure routes, gateways, NAT, and firewall rules for least-exposed connectivity.",
               "uuid": "8d52131a-53da-48a7-8c5a-c85d5b370229"
             },
             {
               "order": 3,
-              "text": "Configure routing components such as gateways, NAT, and route tables correctly.",
-              "uuid": "01232608-54bc-41b8-9c19-012b024c096e"
+              "text": "Use provider-native, identity-aware access without exposing management ports publicly.",
+              "uuid": "a17d5793-3363-421b-bd5d-8cbb21d7e650"
             },
             {
               "order": 4,
-              "text": "Validate secure network behavior through practical deployment and connectivity testing.",
+              "text": "Diagnose and prove allowed and denied network paths.",
               "uuid": "5ebda0e3-9bf3-4df9-aafd-acf011419a95"
             }
           ],
@@ -3151,32 +2924,32 @@
               "action": "read",
               "checklist": [],
               "code": null,
-              "description": "A VPC is your private network in the cloud - an isolated section where you can launch resources with full control over IP addressing, subnets, and routing.",
+              "description": "Learn how your provider represents virtual networks, CIDR ranges, regional boundaries, and subnets. Design one application subnet and one private database subnet with non-overlapping address ranges.",
               "done_when": null,
               "options": [
                 {
-                  "description": "Azure Virtual Network fundamentals",
+                  "description": "Plan Azure address spaces, subnets, and service connectivity.",
                   "provider": "azure",
-                  "title": "Azure Virtual Network Overview",
-                  "url": "https://learn.microsoft.com/azure/virtual-network/virtual-networks-overview"
+                  "title": "Azure VNet planning and design",
+                  "url": "https://learn.microsoft.com/azure/virtual-network/virtual-network-vnet-plan-design-arm"
                 },
                 {
-                  "description": "Amazon Virtual Private Cloud documentation",
+                  "description": "Plan an Amazon VPC, IPv4 CIDR ranges, and subnets.",
                   "provider": "aws",
-                  "title": "What is Amazon VPC?",
+                  "title": "Amazon VPC and CIDR blocks",
                   "url": "https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html"
                 },
                 {
-                  "description": "Google Cloud VPC documentation",
+                  "description": "Plan Google Cloud VPC networks, regions, and subnet ranges.",
                   "provider": "gcp",
-                  "title": "GCP Virtual Private Cloud",
-                  "url": "https://docs.cloud.google.com/vpc/docs/overview"
+                  "title": "Google Cloud VPC networks and subnets",
+                  "url": "https://docs.cloud.google.com/vpc/docs/vpc"
                 }
               ],
               "order": 1,
-              "slug": "phase4-topic3-read-understand-virtual-private-cloud",
+              "slug": "phase4-topic3-read-design-network-subnets",
               "tips": [],
-              "title": "Understand Virtual Private Cloud (VPC/VNet)",
+              "title": "Design the virtual network and subnets",
               "url": null,
               "uuid": "53e1643d-7acd-4a23-b096-aa774adf4d82"
             },
@@ -3184,32 +2957,32 @@
               "action": "read",
               "checklist": [],
               "code": null,
-              "description": "Security groups act as virtual firewalls for your cloud resources, controlling inbound and outbound traffic.",
+              "description": "Understand route tables, internet access, NAT for private workloads, and stateful firewall rules. Permit only the traffic required by the Journal API architecture and avoid public management ports.",
               "done_when": null,
               "options": [
                 {
-                  "description": "Overview of Network Security Groups in Azure",
+                  "description": "Understand NSGs, service tags, routes, and outbound connectivity.",
                   "provider": "azure",
-                  "title": "Azure Network Security Groups",
+                  "title": "Azure virtual network traffic controls",
                   "url": "https://learn.microsoft.com/azure/virtual-network/network-security-groups-overview"
                 },
                 {
-                  "description": "Official documentation for controlling inbound and outbound traffic",
+                  "description": "Understand security groups, route tables, internet gateways, and NAT.",
                   "provider": "aws",
-                  "title": "AWS Security Groups",
+                  "title": "Amazon VPC security groups and route tables",
                   "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html"
                 },
                 {
-                  "description": "Understanding firewall rules in Google Cloud",
+                  "description": "Understand firewall policy, routes, external IPs, and Cloud NAT.",
                   "provider": "gcp",
-                  "title": "GCP Firewall Rules",
+                  "title": "Google Cloud VPC firewall rules",
                   "url": "https://docs.cloud.google.com/firewall/docs/firewalls"
                 }
               ],
               "order": 2,
-              "slug": "phase4-topic3-read-understand-security-groups-firewall",
+              "slug": "phase4-topic3-read-plan-routing-firewall",
               "tips": [],
-              "title": "Understand Security Groups & Firewall Rules",
+              "title": "Plan routes, internet access, and firewall policy",
               "url": null,
               "uuid": "26bacf49-3e5e-421d-90ec-78f6391ab57e"
             },
@@ -3217,164 +2990,32 @@
               "action": "read",
               "checklist": [],
               "code": null,
-              "description": "Understand public vs. private subnets and CIDR block notation. This is fundamental to designing secure cloud architectures.",
+              "description": "The database should accept traffic only from the API workload over private addressing. Learn the private endpoint, private IP, or private subnet pattern for your provider before deploying it.",
               "done_when": null,
               "options": [
                 {
-                  "description": "Plan address spaces and subnet segmentation for Azure virtual networks.",
+                  "description": "Provide private connectivity to supported Azure services.",
                   "provider": "azure",
-                  "title": "Azure VNet Planning and Design",
-                  "url": "https://learn.microsoft.com/azure/virtual-network/virtual-network-vnet-plan-design-arm"
-                },
-                {
-                  "description": "Learn how CIDR ranges and subnetting are designed in AWS VPC.",
-                  "provider": "aws",
-                  "title": "AWS VPC CIDR Blocks and Subnetting",
-                  "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-cidr-blocks.html"
-                },
-                {
-                  "description": "Understand subnet ranges and IP design in Google Cloud VPC.",
-                  "provider": "gcp",
-                  "title": "GCP VPC Networks and Subnets",
-                  "url": "https://docs.cloud.google.com/vpc/docs/vpc"
-                }
-              ],
-              "order": 3,
-              "slug": "phase4-topic3-read-learn-cidr-and-subnet",
-              "tips": [],
-              "title": "Learn CIDR and subnet design by provider",
-              "url": null,
-              "uuid": "8c0ed360-124a-40c9-96d3-5dd329a4a038"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Understand how public-facing network components enable internet connectivity for resources in public subnets.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Learn how internet-routable connectivity is provided to Azure resources.",
-                  "provider": "azure",
-                  "title": "Azure Public IP Addresses",
-                  "url": "https://learn.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses"
-                },
-                {
-                  "description": "Learn how Internet Gateways provide VPC internet connectivity.",
-                  "provider": "aws",
-                  "title": "Internet Gateways",
-                  "url": "https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html"
-                },
-                {
-                  "description": "Understand how public IP addresses provide external access in GCP.",
-                  "provider": "gcp",
-                  "title": "GCP External IP Addresses",
-                  "url": "https://docs.cloud.google.com/compute/docs/ip-addresses"
-                }
-              ],
-              "order": 4,
-              "slug": "phase4-topic3-read-understand-internet-connectivity-components",
-              "tips": [],
-              "title": "Understand internet connectivity components by provider",
-              "url": null,
-              "uuid": "d6297150-72ba-447b-b9b6-d9fb3f16dd64"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "NAT services allow private subnet resources to access the internet for updates and package downloads without direct inbound exposure.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Learn outbound internet connectivity for private Azure subnets.",
-                  "provider": "azure",
-                  "title": "Azure NAT Gateway Overview",
-                  "url": "https://learn.microsoft.com/azure/nat-gateway/nat-overview"
-                },
-                {
-                  "description": "Learn how AWS NAT Gateways provide outbound access from private subnets.",
-                  "provider": "aws",
-                  "title": "NAT Gateway Basics (AWS)",
-                  "url": "https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-basics.html"
-                },
-                {
-                  "description": "Configure private Google Cloud workloads to reach the internet via NAT.",
-                  "provider": "gcp",
-                  "title": "Cloud NAT Overview",
-                  "url": "https://docs.cloud.google.com/nat/docs/overview"
-                }
-              ],
-              "order": 5,
-              "slug": "phase4-topic3-read-compare-nat-patterns-across",
-              "tips": [],
-              "title": "Compare NAT patterns across cloud providers",
-              "url": null,
-              "uuid": "9490f99b-6efb-452e-8836-731cf2201d94"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Use provider-native diagnostics to validate effective routes and security policy decisions. Focus on proving why traffic is allowed or denied, not re-learning networking basics.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Validate NSG decisions for allowed and denied VM traffic flows.",
-                  "provider": "azure",
-                  "title": "Azure Network Watcher - IP Flow Verify",
-                  "url": "https://learn.microsoft.com/azure/network-watcher/ip-flow-verify-overview"
-                },
-                {
-                  "description": "Analyze network path reachability across route tables, gateways, and security controls.",
-                  "provider": "aws",
-                  "title": "AWS Reachability Analyzer",
-                  "url": "https://docs.aws.amazon.com/vpc/latest/reachability/what-is-reachability-analyzer.html"
-                },
-                {
-                  "description": "Run path analysis to verify routing and firewall behavior for target endpoints.",
-                  "provider": "gcp",
-                  "title": "GCP Connectivity Tests Overview",
-                  "url": "https://docs.cloud.google.com/network-intelligence-center/docs/connectivity-tests/concepts/overview"
-                }
-              ],
-              "order": 6,
-              "slug": "phase4-topic3-read-validate-routing-and-security",
-              "tips": [],
-              "title": "Validate routing and security decisions by provider",
-              "url": null,
-              "uuid": "378183a3-37a3-4a99-aee6-586060c2d27b"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Your database should accept connections only from your API server \u2014 not from the public internet. Use private endpoints or private IP connectivity to eliminate the public network path to your database entirely.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Deploy RDS in a private subnet and restrict access with security group rules allowing port 5432 only from your API server",
-                  "provider": "aws",
-                  "title": "RDS in a Private Subnet",
-                  "url": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html"
-                },
-                {
-                  "description": "Eliminate public network access to your Azure database with Private Endpoint",
-                  "provider": "azure",
-                  "title": "Azure Private Endpoint Overview",
+                  "title": "Azure Private Endpoint overview",
                   "url": "https://learn.microsoft.com/azure/private-link/private-endpoint-overview"
                 },
                 {
-                  "description": "Connect to Cloud SQL over private IP with no public internet exposure",
+                  "description": "Place RDS in private subnets and restrict access with security groups.",
+                  "provider": "aws",
+                  "title": "Amazon RDS in a VPC",
+                  "url": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html"
+                },
+                {
+                  "description": "Connect to Cloud SQL through private services access.",
                   "provider": "gcp",
-                  "title": "Cloud SQL Private IP",
+                  "title": "Cloud SQL private IP",
                   "url": "https://docs.cloud.google.com/sql/docs/postgres/private-ip"
                 }
               ],
-              "order": 7,
-              "slug": "phase4-topic3-read-restrict-database-access",
+              "order": 3,
+              "slug": "phase4-topic3-read-keep-database-private",
               "tips": [],
-              "title": "Restrict database access to your API server only",
+              "title": "Keep the database on a private path",
               "url": null,
               "uuid": "aff9e130-cccb-4dc4-afa6-17361f6f4f11"
             },
@@ -3382,32 +3023,65 @@
               "action": "read",
               "checklist": [],
               "code": null,
-              "description": "Load balancers distribute traffic across multiple targets and enable high availability. Understand the difference between Layer 4 (network) and Layer 7 (application) load balancers, health checks, and target groups in your cloud provider.",
+              "description": "Use path analysis to explain why a flow is allowed or denied across routes, gateways, and firewall policy.",
               "done_when": null,
               "options": [
                 {
-                  "description": "Layer 7 load balancing with path-based routing, health checks, and target groups.",
-                  "provider": "aws",
-                  "title": "Application Load Balancer (ALB)",
-                  "url": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html"
-                },
-                {
-                  "description": "Layer 4 load balancing with health probes, backend pools, and load balancing rules.",
+                  "description": "Validate effective NSG decisions for a proposed traffic flow.",
                   "provider": "azure",
-                  "title": "Azure Load Balancer Overview",
-                  "url": "https://learn.microsoft.com/azure/load-balancer/load-balancer-overview"
+                  "title": "Azure Network Watcher IP flow verify",
+                  "url": "https://learn.microsoft.com/azure/network-watcher/ip-flow-verify-overview"
                 },
                 {
-                  "description": "Global and regional load balancing with HTTP(S), TCP/UDP, and internal options.",
+                  "description": "Analyze network paths across VPC components.",
+                  "provider": "aws",
+                  "title": "AWS Reachability Analyzer",
+                  "url": "https://docs.aws.amazon.com/vpc/latest/reachability/what-is-reachability-analyzer.html"
+                },
+                {
+                  "description": "Analyze reachability across routes and firewall rules.",
                   "provider": "gcp",
-                  "title": "Cloud Load Balancing Overview",
-                  "url": "https://docs.cloud.google.com/load-balancing/docs/load-balancing-overview"
+                  "title": "Google Cloud Connectivity Tests",
+                  "url": "https://docs.cloud.google.com/network-intelligence-center/docs/connectivity-tests/concepts/overview"
                 }
               ],
-              "order": 8,
-              "slug": "phase4-topic3-read-cloud-load-balancers",
+              "order": 4,
+              "slug": "phase4-topic3-read-network-diagnostics",
               "tips": [],
-              "title": "Cloud Load Balancers",
+              "title": "Learn provider-native network diagnostics",
+              "url": null,
+              "uuid": "378183a3-37a3-4a99-aee6-586060c2d27b"
+            },
+            {
+              "action": "practice",
+              "checklist": [],
+              "code": null,
+              "description": "List virtual networks, subnets, routes, gateways, and firewall rules with your cloud CLI. Filter the output so you can explain each resource's purpose before changing it.",
+              "done_when": null,
+              "options": [
+                {
+                  "description": "Inspect VNets, subnets, peerings, and related resources.",
+                  "provider": "azure",
+                  "title": "Azure CLI VNet commands",
+                  "url": "https://learn.microsoft.com/cli/azure/network/vnet"
+                },
+                {
+                  "description": "Inspect VPCs and related EC2 networking resources.",
+                  "provider": "aws",
+                  "title": "AWS CLI describe-vpcs",
+                  "url": "https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html"
+                },
+                {
+                  "description": "Inspect VPC networks, subnets, routes, and firewall rules.",
+                  "provider": "gcp",
+                  "title": "gcloud compute networks",
+                  "url": "https://cloud.google.com/sdk/gcloud/reference/compute/networks"
+                }
+              ],
+              "order": 5,
+              "slug": "phase4-topic3-practice-inspect-network-cli",
+              "tips": [],
+              "title": "Inspect network resources through the CLI",
               "url": null,
               "uuid": "8942ce4b-d77d-4fde-9940-618817454bea"
             },
@@ -3415,46 +3089,13 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Use your cloud CLI to inspect networking resources. Practice listing VPCs, subnets, security groups, and route tables. Learn to filter output and parse JSON \u2014 these skills are essential for the Phase 2 networking lab and real-world troubleshooting.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Inspect VPCs, subnets, and security groups from the command line. Use --query and --output table to filter results, or pipe to jq for JSON parsing.",
-                  "provider": "aws",
-                  "title": "AWS CLI Networking Commands",
-                  "url": "https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html"
-                },
-                {
-                  "description": "Inspect VNets, subnets, and NSGs from the command line. Use --query with JMESPath and --output table to shape output.",
-                  "provider": "azure",
-                  "title": "Azure CLI Networking Commands",
-                  "url": "https://learn.microsoft.com/cli/azure/network/vnet"
-                },
-                {
-                  "description": "Inspect VPCs, subnets, and firewall rules from the command line. Use --format and --filter flags to shape output, or pipe to jq.",
-                  "provider": "gcp",
-                  "title": "GCP CLI Networking Commands",
-                  "url": "https://cloud.google.com/sdk/gcloud/reference/compute/networks"
-                }
-              ],
-              "order": 9,
-              "slug": "phase4-topic3-practice-explore-cloud-networking-cli",
-              "tips": [],
-              "title": "Explore Cloud Networking via CLI",
-              "url": null,
-              "uuid": "cb2747b5-c258-4a06-8010-ce59db026109"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Create a VPC or VNet on your cloud provider with a custom CIDR block.",
-              "done_when": null,
+              "description": "Create the virtual network, application subnet, private database subnet, route configuration, and least-privilege firewall rules from your design. Do not open SSH or RDP to the internet.",
+              "done_when": "The application subnet can receive intended application traffic, the database subnet has no public inbound path, and only the API workload can reach the database port.",
               "options": [],
-              "order": 10,
-              "slug": "phase4-topic3-practice-set-up-a-cloud",
+              "order": 6,
+              "slug": "phase4-topic3-practice-deploy-segmented-network",
               "tips": [],
-              "title": "Set up a cloud network (VPC/VNet)",
+              "title": "Deploy the segmented network",
               "url": null,
               "uuid": "0f26efe0-8522-4ab1-b490-4983a0794eb4"
             },
@@ -3462,161 +3103,32 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Create two subnets inside your VPC \u2014 one public (with a route to the internet gateway) and one private (no direct internet access).",
-              "done_when": null,
-              "options": [],
-              "order": 11,
-              "slug": "phase4-topic3-practice-create-a-public-and",
-              "tips": [],
-              "title": "Create a public and a private subnet",
-              "url": null,
-              "uuid": "4410640a-0605-4463-abc6-283ff91d8d5f"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Associate subnets with appropriate route tables and set up security groups for each subnet.",
-              "done_when": null,
-              "options": [],
-              "order": 12,
-              "slug": "phase4-topic3-practice-configure-routing-and-security",
-              "tips": [],
-              "title": "Configure routing and security groups",
-              "url": null,
-              "uuid": "bfc78160-ddef-4a7c-a413-922298da9fdb"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Deploy a VM in the public subnet and another in the private subnet. Verify the public VM is accessible from the internet and the private VM is not.",
-              "done_when": null,
-              "options": [],
-              "order": 13,
-              "slug": "phase4-topic3-practice-deploy-vms-in-each",
-              "tips": [],
-              "title": "Deploy VMs in each subnet and verify access",
-              "url": null,
-              "uuid": "062f4256-fb79-4d87-a114-60ca34f92c0d"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Delete all resources you created in this topic \u2014 VMs, VPC/VNet, subnets, route tables, internet gateways, NAT gateways, and security groups. Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.",
-              "done_when": null,
-              "options": [],
-              "order": 14,
-              "slug": "phase4-topic3-practice-clean-up-your-cloud",
-              "tips": [],
-              "title": "Clean up your cloud resources",
-              "url": null,
-              "uuid": "ca268dba-b19f-4c48-a31a-827c9ac6d4fa"
-            }
-          ],
-          "name": "Cloud Networking Fundamentals",
-          "order": 4,
-          "slug": "cloud-networking",
-          "uuid": "822291f9-041c-4846-8db0-90d58ca414f0"
-        },
-        {
-          "description": "In the previous topic, you learned about cloud networking fundamentals, including VPCs, subnets, and traffic flow. Now, the focus is on understanding secure remote access mechanisms that protect cloud resources from unauthorized access.",
-          "learning_objectives": [
-            {
-              "order": 1,
-              "text": "Explain modern session-based remote access patterns and their security benefits.",
-              "uuid": "a17d5793-3363-421b-bd5d-8cbb21d7e650"
-            },
-            {
-              "order": 2,
-              "text": "Configure secure VM access using provider-native tooling without exposing unnecessary ports.",
-              "uuid": "c8784558-4c15-4539-87ee-ab948a429835"
-            },
-            {
-              "order": 3,
-              "text": "Review and interpret remote access audit logs for accountability and compliance.",
-              "uuid": "0f7443a1-f13b-4bfd-b7c2-8d0238cbd823"
-            }
-          ],
-          "learning_steps": [
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Modern cloud security recommends session-based access over direct SSH/RDP connections. These services provide audit logging, don't require opening SSH ports, and integrate with your cloud IAM.",
+              "description": "Deploy a VM without a public management port and connect through your provider's managed access service. Review the IAM permission required to start a session and locate the corresponding audit event.",
               "done_when": null,
               "options": [
                 {
-                  "description": "Secure RDP/SSH connectivity to your VMs directly in the Azure portal",
+                  "description": "Connect to a private Linux VM through Azure Bastion.",
                   "provider": "azure",
-                  "title": "Azure Bastion",
-                  "url": "https://learn.microsoft.com/azure/bastion/"
+                  "title": "Connect through Azure Bastion",
+                  "url": "https://learn.microsoft.com/azure/bastion/bastion-connect-vm-ssh-linux"
                 },
                 {
-                  "description": "Connect to your instances without SSH keys or open ports",
+                  "description": "Connect to EC2 without inbound ports or SSH keys.",
                   "provider": "aws",
-                  "title": "AWS Systems Manager Session Manager",
-                  "url": "https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html"
+                  "title": "Connect through AWS Systems Manager Session Manager",
+                  "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-with-systems-manager-session-manager.html"
                 },
                 {
-                  "description": "Official guide to using IAP for secure access to GCP resources",
+                  "description": "Connect to a private VM through an IAM-authorized tunnel.",
                   "provider": "gcp",
-                  "title": "GCP Identity-Aware Proxy",
-                  "url": "https://docs.cloud.google.com/iap/docs/concepts-overview"
+                  "title": "Connect through IAP TCP forwarding",
+                  "url": "https://docs.cloud.google.com/iap/docs/using-tcp-forwarding"
                 }
               ],
-              "order": 1,
-              "slug": "phase4-topic4-read-understand-session-based-access-management",
+              "order": 7,
+              "slug": "phase4-topic3-practice-configure-identity-aware-access",
               "tips": [],
-              "title": "Understand Session-Based Access Management",
-              "url": null,
-              "uuid": "4c55a93a-3b9b-49eb-b9c5-bd6205cad013"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Understand how to connect to VMs with provider-native session-based access, without exposing SSH/RDP to the public internet.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Use Azure Bastion to securely connect to VMs from the Azure portal.",
-                  "provider": "azure",
-                  "title": "Connect to a VM using Azure Bastion",
-                  "url": "https://learn.microsoft.com/azure/bastion/quickstart-host-portal"
-                },
-                {
-                  "description": "Connect to EC2 without open inbound ports using AWS Systems Manager.",
-                  "provider": "aws",
-                  "title": "Connect to EC2 Using Session Manager",
-                  "url": "https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/"
-                },
-                {
-                  "description": "Access VMs securely through Identity-Aware Proxy instead of direct external SSH exposure.",
-                  "provider": "gcp",
-                  "title": "Connect to Linux VMs using IAP",
-                  "url": "https://docs.cloud.google.com/compute/docs/connect/ssh-using-iap"
-                }
-              ],
-              "order": 2,
-              "slug": "phase4-topic4-read-compare-secure-vm-access",
-              "tips": [],
-              "title": "Compare secure VM access workflows by provider",
-              "url": null,
-              "uuid": "5e8b2962-52c7-43c6-a9ca-a7f3e9890261"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Deploy a VM on your cloud provider and set up session-based access using AWS SSM, Azure Bastion, or GCP IAP. Connect to the VM without using traditional SSH.",
-              "done_when": null,
-              "options": [],
-              "order": 3,
-              "slug": "phase4-topic4-practice-deploy-a-vm-and-configure",
-              "tips": [],
-              "title": "Deploy a VM and configure session-based access",
+              "title": "Configure identity-aware VM access",
               "url": null,
               "uuid": "a1667f65-7186-440e-9d94-2b263c941a14"
             },
@@ -3624,38 +3136,38 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "After connecting via session-based access, review the audit logs generated by your session. Understand what information is captured for security and compliance.",
+              "description": "Use provider diagnostics and connection tests to prove the intended application path works, the database is unreachable from the internet, and public SSH or RDP is blocked. Save the diagnostic results for your capstone design.",
               "done_when": null,
               "options": [],
-              "order": 4,
-              "slug": "phase4-topic4-practice-review-the-audit-logs",
+              "order": 8,
+              "slug": "phase4-topic3-practice-prove-network-paths",
               "tips": [],
-              "title": "Review the audit logs from your session",
+              "title": "Prove allowed and denied traffic paths",
               "url": null,
-              "uuid": "53d265ca-9724-4497-844f-acf6bd422915"
+              "uuid": "062f4256-fb79-4d87-a114-60ca34f92c0d"
             },
             {
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Delete the VM and any associated bastion or session manager resources you created. Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.",
+              "description": "Delete the test VM, managed access resources, virtual network, subnets, gateways, routes, and firewall rules unless you are immediately reusing them for the database topic. Confirm that no billable networking resources remain.",
               "done_when": null,
               "options": [],
-              "order": 5,
-              "slug": "phase4-topic4-practice-clean-up-your-cloud",
+              "order": 9,
+              "slug": "phase4-topic3-practice-clean-up-your-cloud",
               "tips": [],
               "title": "Clean up your cloud resources",
               "url": null,
-              "uuid": "ec6b2d97-caba-4199-8dc8-7b0f6721348f"
+              "uuid": "ca268dba-b19f-4c48-a31a-827c9ac6d4fa"
             }
           ],
-          "name": "Secure Remote Access",
-          "order": 5,
-          "slug": "secure-remote-access",
-          "uuid": "515137fb-3308-4131-a925-f8b149e3f587"
+          "name": "Cloud Networking & Secure Access",
+          "order": 3,
+          "slug": "cloud-networking",
+          "uuid": "822291f9-041c-4846-8db0-90d58ca414f0"
         },
         {
-          "description": "Learn to deploy and configure PostgreSQL databases in the cloud. This topic covers the fundamentals of relational database deployment, including architecture, installation, and secure remote access configuration. It builds on Phase 3 database fundamentals and focuses on cloud-specific deployment and network hardening.",
+          "description": "Compare managed and self-hosted PostgreSQL, then deploy a private database tier with database-level and network-level access controls. This builds on Phase 3 database fundamentals and prepares the database used by the Phase 4 capstone.",
           "learning_objectives": [
             {
               "order": 1,
@@ -3711,79 +3223,32 @@
               "action": "read",
               "checklist": [],
               "code": null,
-              "description": "Before deploying PostgreSQL in the cloud, learn how to install it on a Linux VM. This covers adding the official PostgreSQL repository, installing the server package, starting the service, and performing initial setup like creating a database and setting a password.",
+              "description": "Network isolation and PostgreSQL host authentication work together. Review `pg_hba.conf`, require strong authentication, use an application-specific role, and allow port 5432 only from the API workload.",
               "done_when": null,
               "options": [
                 {
-                  "description": "Step-by-step guide to installing and configuring PostgreSQL on a Linux VM in Azure.",
+                  "description": "Understand private endpoints and private address connectivity for Azure services.",
                   "provider": "azure",
-                  "title": "Install PostgreSQL on an Azure Linux VM",
-                  "url": "https://learn.microsoft.com/previous-versions/azure/virtual-machines/linux/postgresql-install"
+                  "title": "Azure private database connectivity",
+                  "url": "https://learn.microsoft.com/azure/private-link/private-endpoint-overview"
                 },
                 {
-                  "description": "Official PostgreSQL installation instructions for Ubuntu, Debian, RHEL, and other Linux distributions.",
+                  "description": "Understand private subnet placement and security-group access for PostgreSQL.",
                   "provider": "aws",
-                  "title": "PostgreSQL Linux Downloads (Official)",
-                  "url": "https://www.postgresql.org/download/linux/"
+                  "title": "Amazon RDS VPC access control",
+                  "url": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html"
                 },
                 {
-                  "description": "Official PostgreSQL installation instructions for Ubuntu, Debian, RHEL, and other Linux distributions.",
+                  "description": "Understand private IP connectivity for PostgreSQL on Google Cloud.",
                   "provider": "gcp",
-                  "title": "PostgreSQL Linux Downloads (Official)",
-                  "url": "https://www.postgresql.org/download/linux/"
+                  "title": "Cloud SQL private IP",
+                  "url": "https://docs.cloud.google.com/sql/docs/postgres/private-ip"
                 }
               ],
               "order": 2,
-              "slug": "phase4-topic5-read-install-postgresql-on-linux",
+              "slug": "phase4-topic5-read-design-postgresql-access-controls",
               "tips": [],
-              "title": "Learn how to install PostgreSQL on Linux",
-              "url": null,
-              "uuid": "3caf398c-5af1-4f52-ab12-af9efe430220"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Deploy a VM in a private subnet on your cloud provider and install PostgreSQL. Use provider networking guidance plus the PostgreSQL Linux packages docs to complete the setup.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Build a VNet/subnet-secured VM pattern you can adapt for a private PostgreSQL host.",
-                  "provider": "azure",
-                  "title": "Azure Network Security Tutorial (subnet + NSG)",
-                  "url": "https://learn.microsoft.com/azure/virtual-network/tutorial-filter-network-traffic"
-                },
-                {
-                  "description": "Follow the AWS reference architecture for private-subnet workloads before installing PostgreSQL.",
-                  "provider": "aws",
-                  "title": "Amazon VPC with Public and Private Subnets",
-                  "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-example-private-subnets-nat.html"
-                },
-                {
-                  "description": "Launch a VM in your chosen subnet and use no external IP for private-only database hosting.",
-                  "provider": "gcp",
-                  "title": "Create an Instance in a Specific Subnet",
-                  "url": "https://docs.cloud.google.com/compute/docs/instances/create-vm-specific-subnet"
-                }
-              ],
-              "order": 3,
-              "slug": "phase4-topic5-practice-deploy-a-vm-in",
-              "tips": [],
-              "title": "Deploy a VM in a private subnet and install PostgreSQL",
-              "url": null,
-              "uuid": "05687ff1-b259-4ad8-ac72-9ea73f821a63"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Even though your database VM sits in a private subnet, network controls alone aren't enough. A misconfigured NSG/security-group rule, a compromised peer workload, or a future subnet expansion could expose the database to unintended clients. pg_hba.conf is PostgreSQL's own host-based authentication layer. Edit pg_hba.conf to allow connections only from your API server's IP range and require strong authentication. Then create database users with least-privilege permissions for your application.",
-              "done_when": null,
-              "options": [],
-              "order": 4,
-              "slug": "phase4-topic5-practice-configure-pghbaconf-for-secure",
-              "tips": [],
-              "title": "Configure pg_hba.conf for secure remote access",
+              "title": "Design layered PostgreSQL access controls",
               "url": "https://www.postgresql.org/docs/current/auth-pg-hba-conf.html",
               "uuid": "59dbd8d7-026f-4385-9744-1e669ca28b0e"
             },
@@ -3791,43 +3256,43 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Your database VM has no public IP, so you can't SSH in directly \u2014 you need a way to reach it securely. Use your provider's approach to connect to the database VM, then run psql to verify PostgreSQL is running and your pg_hba.conf rules work. Next, launch a second VM in a different subnet (simulating an application server), connect to it the same way, and test that it can reach the database with psql over the private network. Finally, confirm the database is NOT reachable from the public internet \u2014 try connecting from your local machine directly and verify it times out or is refused.",
+              "description": "Deploy PostgreSQL in a private subnet or with private service connectivity. Create the `career_journal` database and a least-privilege application role, run the schema, and validate that the API workload can connect while your local machine and the public internet cannot. This database is the private tier for the Phase 4 capstone.",
               "done_when": null,
               "options": [
                 {
-                  "description": "A managed PaaS bastion host \u2014 provides browser-based SSH/RDP through the Azure portal. No agent needed on the VM.",
+                  "description": "Build the private subnet and NSG pattern for the PostgreSQL tier.",
                   "provider": "azure",
-                  "title": "Connect to a Private VM via Azure Bastion",
-                  "url": "https://learn.microsoft.com/azure/bastion/bastion-connect-vm-ssh-linux"
+                  "title": "Azure Network Security Tutorial (subnet + NSG)",
+                  "url": "https://learn.microsoft.com/azure/virtual-network/tutorial-filter-network-traffic"
                 },
                 {
-                  "description": "Agent-based access through the AWS control plane \u2014 requires the SSM agent on the instance. No bastion host, no open inbound ports. Also supports port forwarding and session logging.",
+                  "description": "Build the private subnet and security-group pattern for the PostgreSQL tier.",
                   "provider": "aws",
-                  "title": "Connect to a Private Instance via Session Manager",
-                  "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-with-systems-manager-session-manager.html"
+                  "title": "Amazon VPC with Public and Private Subnets",
+                  "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-example-private-subnets-nat.html"
                 },
                 {
-                  "description": "An identity-aware tunnel proxy \u2014 creates an encrypted tunnel from your machine authenticated via IAM, then you use your own SSH client through it. No agent required.",
+                  "description": "Launch the PostgreSQL tier without an external IP and validate private connectivity.",
                   "provider": "gcp",
-                  "title": "Connect to a Private VM via IAP TCP Forwarding",
-                  "url": "https://docs.cloud.google.com/iap/docs/using-tcp-forwarding"
+                  "title": "Create an Instance in a Specific Subnet",
+                  "url": "https://docs.cloud.google.com/compute/docs/instances/create-vm-specific-subnet"
                 }
               ],
-              "order": 5,
-              "slug": "phase4-topic5-practice-verify-database-connectivity-and",
+              "order": 3,
+              "slug": "phase4-topic5-practice-deploy-validate-private-database",
               "tips": [],
-              "title": "Verify database connectivity and security",
+              "title": "Deploy and validate the private database tier",
               "url": null,
-              "uuid": "690ffd69-c16f-481b-b8ac-933572437133"
+              "uuid": "05687ff1-b259-4ad8-ac72-9ea73f821a63"
             },
             {
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Delete all resources you created \u2014 VMs, PostgreSQL installations, Bastion/SSM/IAP configurations, VPC/VNet, subnets, and security groups. Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.",
+              "description": "If you are starting the capstone now, retain and document this private database tier. Otherwise, delete it and its associated resources, then reproduce the same design during the capstone.",
               "done_when": null,
               "options": [],
-              "order": 6,
+              "order": 4,
               "slug": "phase4-topic5-practice-clean-up-your-cloud",
               "tips": [],
               "title": "Clean up your cloud resources",
@@ -3836,226 +3301,16 @@
             }
           ],
           "name": "Database Deployment & Configuration",
-          "order": 6,
+          "order": 4,
           "slug": "database-deployment",
           "uuid": "8ae1dfb6-626c-424c-b57d-b86a82eafb30"
         },
         {
-          "description": "This topic focuses on monitoring cloud-hosted applications. You'll learn provider monitoring fundamentals, how application logs are collected and queried, and how infrastructure and application metrics give you runtime visibility.",
+          "description": "Build on the live LLM endpoint from Phase 3. You'll map it to your chosen cloud platform, compare models with the Journal API workload, configure safety controls, and add the operational settings needed for a reliable deployment.",
           "learning_objectives": [
             {
               "order": 1,
-              "text": "Understand core monitoring services across Azure, AWS, and GCP for app and VM visibility.",
-              "uuid": "9440f45d-67d5-4d3a-b0f3-23b31e415f89"
-            },
-            {
-              "order": 2,
-              "text": "Understand where application logs come from and how to query them during incident response.",
-              "uuid": "f3aad083-8f5f-42e9-8d76-f733e904e85f"
-            },
-            {
-              "order": 3,
-              "text": "Understand how infrastructure and application metrics are collected and used for runtime visibility.",
-              "uuid": "7a1500b3-5ae9-4df8-9761-37166dde49cc"
-            },
-            {
-              "order": 4,
-              "text": "Configure a VM to emit logs and metrics, then query the data in your provider's console.",
-              "uuid": "535a72c7-c580-4759-8bf1-884cf6dac142"
-            }
-          ],
-          "learning_steps": [
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Start with your cloud provider's monitoring platform and understand how logs, metrics, traces, and alerts are organized:",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Learn Azure Monitor fundamentals for application and VM observability.",
-                  "provider": "azure",
-                  "title": "What is Azure Monitor?",
-                  "url": "https://learn.microsoft.com/azure/azure-monitor/fundamentals/overview"
-                },
-                {
-                  "description": "Learn CloudWatch fundamentals for metrics, logs, alarms, and dashboards.",
-                  "provider": "aws",
-                  "title": "What is Amazon CloudWatch?",
-                  "url": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html"
-                },
-                {
-                  "description": "Learn Google Cloud Monitoring fundamentals for infrastructure and services.",
-                  "provider": "gcp",
-                  "title": "Cloud Monitoring Overview",
-                  "url": "https://docs.cloud.google.com/monitoring/docs/monitoring-overview"
-                }
-              ],
-              "order": 1,
-              "slug": "phase4-topic6-read-learn-your-providers-monitoring",
-              "tips": [],
-              "title": "Learn your provider's monitoring fundamentals",
-              "url": null,
-              "uuid": "d30e3be8-f18f-487b-9e33-cea2b8f15abb"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Learn where application logs come from in your provider and how to query them during incident response.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Understand log ingestion and querying with Log Analytics.",
-                  "provider": "azure",
-                  "title": "Azure Monitor Logs Overview",
-                  "url": "https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs"
-                },
-                {
-                  "description": "Understand log groups, streams, and search workflows.",
-                  "provider": "aws",
-                  "title": "CloudWatch Logs User Guide",
-                  "url": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/WhatIsCloudWatchLogs.html"
-                },
-                {
-                  "description": "Understand structured logs and query workflows in Cloud Logging.",
-                  "provider": "gcp",
-                  "title": "Cloud Logging Overview",
-                  "url": "https://docs.cloud.google.com/logging/docs/overview"
-                }
-              ],
-              "order": 2,
-              "slug": "phase4-topic6-read-understand-logs",
-              "tips": [],
-              "title": "Understand logs",
-              "url": null,
-              "uuid": "dde46b10-97bc-4812-bf2e-035d3d261315"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Learn how infrastructure and application metrics are collected and how to use them for dashboards, alerts, and capacity planning.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Understand platform and custom metrics collection and analysis.",
-                  "provider": "azure",
-                  "title": "Azure Monitor Metrics Overview",
-                  "url": "https://learn.microsoft.com/azure/azure-monitor/metrics/data-platform-metrics"
-                },
-                {
-                  "description": "Understand metric namespaces, dimensions, and alarm workflows.",
-                  "provider": "aws",
-                  "title": "Using Amazon CloudWatch Metrics",
-                  "url": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/working_with_metrics.html"
-                },
-                {
-                  "description": "Understand built-in and custom metrics in Google Cloud Monitoring.",
-                  "provider": "gcp",
-                  "title": "Cloud Monitoring Metrics Overview",
-                  "url": "https://docs.cloud.google.com/monitoring/docs/monitoring-overview"
-                }
-              ],
-              "order": 3,
-              "slug": "phase4-topic6-read-understand-metrics",
-              "tips": [],
-              "title": "Understand metrics",
-              "url": null,
-              "uuid": "7e385e9a-b597-4762-8446-45a16eb57acd"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Deploy a VM on your cloud provider and install your provider's monitoring agent so the VM emits logs and metrics to your monitoring platform.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Install the Azure Monitor Agent and configure a data collection rule to send VM logs and metrics to a Log Analytics workspace.",
-                  "provider": "azure",
-                  "title": "Install the Azure Monitor Agent on a VM",
-                  "url": "https://learn.microsoft.com/azure/azure-monitor/agents/azure-monitor-agent-manage"
-                },
-                {
-                  "description": "Install and configure the CloudWatch Agent to send system metrics and logs from your EC2 instance to CloudWatch.",
-                  "provider": "aws",
-                  "title": "Install the CloudWatch Agent on an EC2 Instance",
-                  "url": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html"
-                },
-                {
-                  "description": "Install the Ops Agent to collect logs and metrics from your Compute Engine VM and send them to Cloud Monitoring and Cloud Logging.",
-                  "provider": "gcp",
-                  "title": "Install the Ops Agent on a Compute Engine VM",
-                  "url": "https://docs.cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/installation"
-                }
-              ],
-              "order": 4,
-              "slug": "phase4-topic6-practice-configure-vm-monitoring",
-              "tips": [],
-              "title": "Configure a VM to emit logs and metrics",
-              "url": null,
-              "uuid": "12aa5b66-0391-47e0-8e7a-29538ad740b8"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Now that your VM is emitting data, open your provider's log query tool and find all SSH login attempts on your VM from the last hour. You SSH'd in to install the agent, so you should see at least your own session. This is the same workflow you'd use during a real security investigation.",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Open your Log Analytics workspace and write a query to find SSH login events from the last hour.",
-                  "provider": "azure",
-                  "title": "Log Analytics Tutorial: Run a KQL Query",
-                  "url": "https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-tutorial"
-                },
-                {
-                  "description": "Open Logs Insights, select your VM's log group, and write a query to find SSH login events from the last hour.",
-                  "provider": "aws",
-                  "title": "CloudWatch Logs Insights: Run a Sample Query",
-                  "url": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_AnalyzeLogData_RunSampleQuery.html"
-                },
-                {
-                  "description": "Open Logs Explorer and write a query to find SSH login events on your VM from the last hour.",
-                  "provider": "gcp",
-                  "title": "Logs Explorer: Query Your Logs",
-                  "url": "https://docs.cloud.google.com/logging/docs/view/logs-explorer-interface"
-                }
-              ],
-              "order": 5,
-              "slug": "phase4-topic6-practice-query-vm-logs",
-              "tips": [],
-              "title": "Query your VM's logs for SSH login events",
-              "url": null,
-              "uuid": "e6cd4b85-f809-44d2-a437-ab525295f9ea"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Delete the VM, monitoring agent configuration, and any associated resources (disks, public IPs, security groups, Log Analytics workspace or log groups). Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.",
-              "done_when": null,
-              "options": [],
-              "order": 6,
-              "slug": "phase4-topic6-practice-clean-up-your-cloud",
-              "tips": [],
-              "title": "Clean up your cloud resources",
-              "url": null,
-              "uuid": "bf28478b-d877-44c5-b436-a5fcf7fae96a"
-            }
-          ],
-          "name": "Monitoring Foundations for Apps and VMs",
-          "order": 7,
-          "slug": "monitoring-foundations-for-apps-and-vms",
-          "uuid": "282db8e5-b3a0-47f5-bb37-ffcd63e92ae7"
-        },
-        {
-          "description": "Cloud providers offer comprehensive AI service platforms. In this topic, you'll take the same LLM workflow you built in Phase 3 and run it on a cloud AI platform. You'll learn model options, deployment strategies, safety controls, and operational features needed for production use.",
-          "learning_objectives": [
-            {
-              "order": 1,
-              "text": "Map your Phase 3 GitHub Models workflow to your cloud AI platform's model catalog and deployment options.",
+              "text": "Map the Phase 3 Responses API workflow to the model and endpoint options on your cloud platform.",
               "uuid": "94fb0b7b-880c-4e19-a592-cbc30fdd993f"
             },
             {
@@ -4065,7 +3320,7 @@
             },
             {
               "order": 3,
-              "text": "Select and deploy an appropriate cloud-hosted model for your capstone use case.",
+              "text": "Evaluate model quality, latency, cost, reliability, and safety for the Journal API.",
               "uuid": "abde4fdd-af46-4e6a-afc9-a805cb0d10dc"
             }
           ],
@@ -4074,7 +3329,7 @@
               "action": "read",
               "checklist": [],
               "code": null,
-              "description": "Each major cloud provider offers an AI platform for deploying and managing models. Learn about your chosen platform:",
+              "description": "Review how your chosen cloud platform exposes models, endpoints, authentication, quotas, and pricing. Keep using the live Phase 3 endpoint unless migration supports your learning goal.",
               "done_when": null,
               "options": [
                 {
@@ -4097,83 +3352,50 @@
                 }
               ],
               "order": 1,
-              "slug": "phase4-topic8-read-platform-overview",
+              "slug": "phase4-topic8-read-map-live-endpoint",
               "tips": [],
-              "title": "Platform Overview",
+              "title": "Map your live endpoint to the cloud platform",
               "url": null,
               "uuid": "0244b5d1-5de4-4efb-92e6-b0a8e7478121"
-            },
-            {
-              "action": "explore",
-              "checklist": [],
-              "code": null,
-              "description": "Each platform offers different models with varying capabilities, speeds, and costs:",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Browse models available in Microsoft Foundry including OpenAI, Meta, and Mistral models",
-                  "provider": "azure",
-                  "title": "Microsoft Foundry Models",
-                  "url": "https://learn.microsoft.com/azure/foundry-classic/concepts/foundry-models-overview"
-                },
-                {
-                  "description": "Explore foundation models available in Amazon Bedrock",
-                  "provider": "aws",
-                  "title": "AWS Bedrock Models",
-                  "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html"
-                },
-                {
-                  "description": "Discover models available in Google's Vertex AI Model Garden",
-                  "provider": "gcp",
-                  "title": "GCP Model Garden",
-                  "url": "https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models"
-                }
-              ],
-              "order": 2,
-              "slug": "phase4-topic8-explore-explore-available-models",
-              "tips": [],
-              "title": "Explore Available Models",
-              "url": null,
-              "uuid": "3a242df7-68b2-4d5b-b472-c4611669256d"
-            },
-            {
-              "action": "read",
-              "checklist": [],
-              "code": null,
-              "description": "Learn how to deploy models in production:",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Understand model deployment options in Microsoft Foundry",
-                  "provider": "azure",
-                  "title": "Microsoft Foundry Deployments",
-                  "url": "https://learn.microsoft.com/azure/foundry-classic/concepts/deployments-overview"
-                },
-                {
-                  "description": "Deploy and manage models with Amazon Bedrock",
-                  "provider": "aws",
-                  "title": "AWS Bedrock Deployment",
-                  "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-marketplace-deploy-a-model.html"
-                },
-                {
-                  "description": "Deploy models to endpoints in Vertex AI",
-                  "provider": "gcp",
-                  "title": "GCP Deployment",
-                  "url": "https://docs.cloud.google.com/vertex-ai/docs/general/deployment"
-                }
-              ],
-              "order": 3,
-              "slug": "phase4-topic8-read-understand-deployment-options",
-              "tips": [],
-              "title": "Understand Deployment Options",
-              "url": null,
-              "uuid": "d70e1caf-d6be-4c1b-9d9f-fc1e6f544b67"
             },
             {
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Learn about content filtering and safety features to ensure responsible AI use:",
+              "description": "Use the Journal API sentiment-analysis prompt set against at least two suitable models. Record response quality, latency, input/output cost, quota limits, and whether each model supports your required structured response.",
+              "done_when": null,
+              "options": [
+                {
+                  "description": "Compare models and deployment options in the current Foundry portal.",
+                  "provider": "azure",
+                  "title": "Microsoft Foundry Models",
+                  "url": "https://learn.microsoft.com/azure/foundry/concepts/foundry-models-overview"
+                },
+                {
+                  "description": "Compare supported foundation models and inference features.",
+                  "provider": "aws",
+                  "title": "Amazon Bedrock supported models",
+                  "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html"
+                },
+                {
+                  "description": "Compare models available through Vertex AI.",
+                  "provider": "gcp",
+                  "title": "Vertex AI generative AI models",
+                  "url": "https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models"
+                }
+              ],
+              "order": 2,
+              "slug": "phase4-topic8-practice-compare-models-journal-api",
+              "tips": [],
+              "title": "Compare models with the Journal API workload",
+              "url": null,
+              "uuid": "393a8393-f60d-4fe2-b376-dcf4adc4e77d"
+            },
+            {
+              "action": "practice",
+              "checklist": [],
+              "code": null,
+              "description": "Configure your provider's content filtering or guardrails for the Journal API. Test an allowed request and a request that should be blocked, then document how blocked responses surface to the application.",
               "done_when": null,
               "options": [
                 {
@@ -4195,10 +3417,10 @@
                   "url": "https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/safety-overview"
                 }
               ],
-              "order": 4,
-              "slug": "phase4-topic8-practice-safety-guardrails",
+              "order": 3,
+              "slug": "phase4-topic8-practice-configure-test-safety-controls",
               "tips": [],
-              "title": "Safety & Guardrails",
+              "title": "Configure and test safety controls",
               "url": null,
               "uuid": "f09e2ffb-b85f-46b3-a705-96846f73d321"
             },
@@ -4206,52 +3428,19 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Use your cloud AI playground to compare at least 2 models using your Phase 3 sentiment-analysis prompt set, then choose the model for your Journal API based on quality, speed, cost, reliability, and safety:",
-              "done_when": null,
-              "options": [
-                {
-                  "description": "Experiment with models in the Microsoft Foundry playground",
-                  "provider": "azure",
-                  "title": "Microsoft Foundry Playgrounds",
-                  "url": "https://learn.microsoft.com/azure/foundry/concepts/concept-playgrounds"
-                },
-                {
-                  "description": "Test and compare models in the Amazon Bedrock playground",
-                  "provider": "aws",
-                  "title": "AWS Bedrock Playgrounds",
-                  "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html"
-                },
-                {
-                  "description": "Try models directly in Google's Model Garden",
-                  "provider": "gcp",
-                  "title": "GCP Model Garden",
-                  "url": "https://cloud.google.com/model-garden"
-                }
-              ],
-              "order": 5,
-              "slug": "phase4-topic8-practice-compare-and-choose-a",
-              "tips": [],
-              "title": "Compare and choose a cloud model in the playground",
-              "url": null,
-              "uuid": "393a8393-f60d-4fe2-b376-dcf4adc4e77d"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Delete the model deployment and any associated resources on your cloud AI platform. Check your cloud console to confirm nothing is still running. AI model deployments can incur significant per-hour charges.",
+              "description": "Select the model used by the capstone and document its endpoint type, authentication method, rate and token limits, timeout, retry policy, logging, safety controls, and expected cost. Keep the endpoint available for the capstone; consumption-based and provisioned deployments have different cleanup and billing behavior.",
               "done_when": null,
               "options": [],
-              "order": 6,
-              "slug": "phase4-topic8-practice-clean-up-your-cloud",
+              "order": 4,
+              "slug": "phase4-topic8-practice-define-production-ai-configuration",
               "tips": [],
-              "title": "Clean up your cloud resources",
+              "title": "Define the production AI configuration",
               "url": null,
-              "uuid": "f7762570-e727-4082-b91e-189352787192"
+              "uuid": "d70e1caf-d6be-4c1b-9d9f-fc1e6f544b67"
             }
           ],
-          "name": "Cloud AI Service Platforms",
-          "order": 8,
+          "name": "Operating Cloud AI Services",
+          "order": 5,
           "slug": "cloud-ai-services",
           "uuid": "7ca1401a-0e78-4fcb-8665-aeba544555d1"
         },
@@ -4537,7 +3726,7 @@
             }
           ],
           "name": "Capstone: Cloud Deployment",
-          "order": 9,
+          "order": 6,
           "slug": "capstone",
           "uuid": "ddd726e7-818e-4672-b33a-579718b1a8f3"
         }
@@ -5228,7 +4417,7 @@
               "action": "read",
               "checklist": [],
               "code": null,
-              "description": "Optional refresher from Phase 4. If you've already completed the monitoring foundations topic, skim this quickly to reconnect with your provider's core monitoring services.",
+              "description": "Start with your provider's monitoring platform and understand how logs, metrics, traces, dashboards, and alerts are organized.",
               "done_when": null,
               "options": [
                 {
@@ -5251,9 +4440,9 @@
                 }
               ],
               "order": 1,
-              "slug": "phase5-topic5-read-prerequisite-refresher-provider-monitoring",
+              "slug": "phase5-topic5-read-provider-monitoring-platform",
               "tips": [],
-              "title": "Prerequisite refresher: provider monitoring basics (optional)",
+              "title": "Learn your provider's monitoring platform",
               "url": null,
               "uuid": "9778ac75-c4f4-45a2-bdf1-ad573b1c534e"
             },
