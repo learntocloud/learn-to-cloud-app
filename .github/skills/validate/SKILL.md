@@ -27,6 +27,6 @@ Do not kill unrelated listeners. Report startup logs if any endpoint fails.
 
 For workflow changes that add a Python command, also run that exact command
 with only the environment variables supplied by the workflow. Do not assume
-the devcontainer's environment is available in CI.
+the local WSL environment is available in CI.
 
 Fix root causes and rerun the failed gate. Do not suppress lint or type errors.

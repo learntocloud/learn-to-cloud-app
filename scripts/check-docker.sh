@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 #
-# Docker preflight check for the devcontainer.
+# Docker preflight check for local development.
 #
-# This devcontainer uses "Docker outside of Docker": the Docker CLI runs inside
-# the container but talks to the Docker daemon on your host machine through the
-# forwarded socket. Run this script to confirm Docker works before you run a
-# build or any other Docker-dependent step.
+# Run this script to confirm the Docker CLI can reach the daemon before starting
+# Compose services, building images, or running other Docker-dependent steps.
 #
 # Usage: scripts/check-docker.sh
 #
@@ -17,15 +15,10 @@ set -uo pipefail
 fail() {
     echo "❌ $1"
     echo
-    echo "Docker is not available inside this devcontainer."
-    echo "This repo expects 'Docker outside of Docker', where the Docker CLI in"
-    echo "the container talks to the Docker daemon on your host."
+    echo "Docker is not available from this environment."
     echo
-    echo "To fix it:"
-    echo "  1. Make sure Docker is running on your host machine."
-    echo "  2. Rebuild the devcontainer (Command Palette: 'Dev Containers:"
-    echo "     Rebuild Container') so the docker-outside-of-docker feature and"
-    echo "     the forwarded socket are picked up."
+    echo "Under WSL, make sure Docker Desktop is running and WSL integration is"
+    echo "enabled for this distribution."
     exit 1
 }
 
@@ -50,11 +43,7 @@ if ! docker ps >/dev/null 2>&1; then
     fail "'docker ps' failed, so the daemon is not fully reachable."
 fi
 
-echo "✅ Docker is available (Docker outside of Docker)."
+echo "✅ Docker is available."
 echo "   docker:         $(docker version --format '{{.Client.Version}}' 2>/dev/null) (client)"
 echo "   docker compose: $(docker compose version --short 2>/dev/null)"
 echo "   daemon:         reachable ($(docker ps --format '{{.Names}}' | wc -l | tr -d ' ') running container(s))"
-echo
-echo "Note: the daemon runs on the host, so bind mounts (docker run -v ...) must"
-echo "use host paths. Use the LOCAL_WORKSPACE_FOLDER environment variable for the"
-echo "repo root instead of /workspaces/learn-to-cloud-app."

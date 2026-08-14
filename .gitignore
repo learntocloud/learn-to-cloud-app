@@ -99,9 +99,6 @@ tfplan
 .dogfood/
 .playwright-mcp/
 
-# Local Copilot CLI / MCP secrets
-.devcontainer/copilot.env
-
 # Book files (copyrighted material)
 *.epub
 *.pdf

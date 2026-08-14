@@ -48,7 +48,7 @@ _IMMUTABLE_COLUMNS = (
 def _sync_url() -> str:
     raw = os.environ.get(
         "DATABASE__URL",
-        "******db:5432/learntocloud",
+        "******127.0.0.1:55432/learntocloud",
     )
     return raw.replace("+asyncpg", "+psycopg2")
 

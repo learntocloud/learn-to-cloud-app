@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator
 
 os.environ.setdefault(
     "DATABASE__URL",
-    "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
+    "postgresql+asyncpg://postgres:postgres@127.0.0.1:55432/test_learn_to_cloud",
 )
 os.environ.setdefault("GITHUB__TOKEN", "test_github_token")
 os.environ.setdefault("LABS__VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
@@ -49,7 +49,7 @@ def _build_test_database_url() -> tuple[str, str, int]:
 
     raw = os.environ.get(
         "DATABASE__URL",
-        "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
+        "postgresql+asyncpg://postgres:postgres@127.0.0.1:55432/test_learn_to_cloud",
     )
     url = make_url(raw)
     host = url.host or "localhost"
