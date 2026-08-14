@@ -320,12 +320,11 @@ architecture.
 Repository documentation is published from `docs/` at
 `https://learntocloud.github.io/learn-to-cloud-app/`. The Pages workflow:
 
-1. Runs `python scripts/check_docs.py`.
-2. Builds the Markdown and static HTML with Jekyll.
-3. Deploys the generated site to the `github-pages` environment.
+1. Builds the Markdown and static HTML with Jekyll.
+2. Deploys the generated site to the `github-pages` environment.
 
 Pull requests build the site without deploying it. Merges to `main` that touch
-the docs, validator, or Pages workflow publish automatically. Maintainers can
+the docs or the Pages workflow publish automatically. Maintainers can
 also use the workflow's **Run workflow** action for a manual publish.
 
 Repository settings must keep **Pages > Build and deployment > Source** set to
