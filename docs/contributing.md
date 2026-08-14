@@ -6,6 +6,129 @@ Development runs directly in WSL or Linux. See the
 [README Quick Start](https://github.com/learntocloud/learn-to-cloud-app#quick-start)
 for setup instructions.
 
+### Tooling by workflow
+
+Install only the tools needed for the work you plan to do.
+
+| Workflow | Required tools |
+|----------|----------------|
+| API, shared package, tests, and quality gates | Git, Docker with Compose, `uv` |
+| Frontend CSS changes | Node.js 20+, npm |
+| Local verification submissions | Node.js 20+, npm, Azure Functions Core Tools 4 |
+| Terraform and Azure operations | Terraform 1.5.x, Azure CLI, GitHub CLI |
+| Production database investigation | Azure CLI, PostgreSQL client |
+| Dog-food browser testing | Node.js 20+, npm, Playwright MCP and Chromium |
+| Optional Copilot MCP integrations | Aspire CLI and the configured npm MCP servers |
+
+`uv` installs and selects Python 3.13 from `api/.python-version`; a matching
+system Python installation is not required.
+
+### Core setup
+
+Docker Desktop users must enable WSL integration for their Linux distribution.
+Confirm Docker is reachable before continuing:
+
+```bash
+scripts/check-docker.sh
+```
+
+Install `uv` if needed:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Install the workspace and configure the repository's pre-commit hook:
+
+```bash
+uv sync --all-packages --locked
+uv run prek install
+cp api/.env.example api/.env
+docker compose up -d db azurite dts aspire-dashboard
+cd api && uv run alembic upgrade head && cd ..
+```
+
+Verify the core environment:
+
+```bash
+uv --version
+uv run python --version
+docker compose version
+uv run poe check
+```
+
+### Optional toolsets
+
+#### Frontend and verification worker
+
+Install Node.js 20 or newer using the
+[official Node.js installation instructions](https://nodejs.org/en/download).
+Then install frontend dependencies and Azure Functions Core Tools:
+
+```bash
+cd api && npm ci && cd ..
+npm install -g azure-functions-core-tools@4 --unsafe-perm true
+
+node --version
+npm --version
+func --version
+```
+
+Node.js is only required for Tailwind CSS changes and local Functions
+development. The API and Python test suites do not require it.
+
+#### Azure and Terraform
+
+Install the Azure CLI using Microsoft's
+[WSL/Linux instructions](https://learn.microsoft.com/cli/azure/install-azure-cli-linux)
+and Terraform using HashiCorp's
+[Linux instructions](https://developer.hashicorp.com/terraform/install).
+Install GitHub CLI using its
+[Linux instructions](https://github.com/cli/cli/blob/trunk/docs/install_linux.md)
+if `gh` is not already available.
+Infrastructure work should use Terraform 1.5.x to match CI.
+
+```bash
+az login
+az account show --output table
+terraform version
+gh auth status
+```
+
+Install local command-line utilities used by production investigation skills:
+
+```bash
+sudo apt update
+sudo apt install -y jq postgresql-client
+
+jq --version
+psql --version
+```
+
+Azure CLI, Terraform, `jq`, and `psql` are not required for normal API
+development. They are required for infrastructure plans, deployment
+diagnostics, Azure-backed verification, and production database queries.
+
+#### Copilot and browser tooling
+
+Install the browser tooling used by the dog-food agent:
+
+```bash
+npm install -g @playwright/mcp@latest
+playwright-mcp install-browser chromium --with-deps
+```
+
+The root `.mcp.json` also defines optional Context7, Tavily, Azure, and Aspire
+servers. Install them only when using those Copilot integrations:
+
+```bash
+npm install -g \
+  @upstash/context7-mcp@latest \
+  tavily-mcp@latest \
+  @azure/mcp@latest
+curl -sSL https://aspire.dev/install.sh | bash
+```
+
 ## Quality Gates
 
 This project uses [poethepoet](https://poethepoet.natn.io/) as the single source
@@ -94,7 +217,7 @@ MCP server at it there fails at launch.
 Two things must stay in sync, so change them together:
 
 - The `--browser chromium` arg in `.mcp.json` and `.vscode/mcp.json`.
-- The `playwright-mcp install-browser chromium` call in `on-create.sh`.
+- The documented `playwright-mcp install-browser chromium` setup command.
 
 Install the browser through `playwright-mcp`, not a separately installed
 `playwright` CLI. The MCP server bundles its own playwright-core and resolves a
