@@ -102,12 +102,12 @@ output "migration_postgres_role" {
 
 output "verification_functions_name" {
   description = "Azure Functions app name used for Durable verification jobs"
-  value       = azurerm_function_app_flex_consumption.verification.name
+  value       = azapi_resource.verification_functions.name
 }
 
 output "verification_functions_url" {
   description = "Azure Functions app URL used by the API Durable client"
-  value       = "https://${azurerm_function_app_flex_consumption.verification.default_hostname}"
+  value       = "https://${azapi_resource.verification_functions.output.properties.defaultHostName}"
 }
 
 output "verification_functions_auth_scope" {

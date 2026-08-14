@@ -111,7 +111,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
         with:
-          terraform_version: "~1.5"
+          terraform_version: "~1.14"
           terraform_wrapper: false
 
       - name: Terraform format check
@@ -328,7 +328,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
         with:
-          terraform_version: "~1.5"
+          terraform_version: "~1.14"
           terraform_wrapper: false
 
       - name: Azure CLI Login for deployment
@@ -349,7 +349,6 @@ jobs:
         env:
           TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_github_client_id: ${{ secrets.TF_VAR_github_client_id }}
-          TF_VAR_smoke_test_token: ${{ secrets.SMOKE_TEST_TOKEN }}
           TF_VAR_postgres_entra_admin_object_id: ${{ vars.POSTGRES_ENTRA_ADMIN_OBJECT_ID }}
           TF_VAR_postgres_entra_admin_principal_name: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_NAME }}
           TF_VAR_postgres_entra_admin_principal_type: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_TYPE || 'Group' }}
@@ -644,12 +643,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          # The gate only runs once the shared secret exists in both places
-          # (the GitHub secret here and, via Terraform, the running app). Until
-          # then, warn loudly instead of blocking every deploy.
+          # The gate only runs once the shared secret exists in both places: the
+          # GitHub secret here and the smoke-test-token Key Vault secret the app
+          # reads. Until then, warn loudly instead of blocking every deploy.
           if [[ -z "${SMOKE_TEST_TOKEN:-}" ]]; then
             echo "::warning::SMOKE_TEST_TOKEN is not set — skipping the post-deploy verification smoke test."
-            echo "Set the SMOKE_TEST_TOKEN repository secret to activate this deploy gate."
+            echo "Set the SMOKE_TEST_TOKEN repository secret to the same value as the"
+            echo "smoke-test-token Key Vault secret to activate this deploy gate."
             exit 0
           fi
 
@@ -683,6 +683,6 @@ jobs:
 
           echo "ERROR: verification smoke test did not pass (last HTTP $code)."
           echo "401 means the app's SMOKE_TEST__TOKEN does not match this secret;"
-          echo "404 means the app has no token configured yet."
+          echo "check that the smoke-test-token Key Vault secret holds the same value."
           cat /tmp/smoke_body.txt || true
           exit 1

@@ -22,7 +22,7 @@ resource "azurerm_role_assignment" "api_key_vault_secrets_user" {
 resource "azurerm_role_assignment" "verification_functions_key_vault_secrets_user" {
   scope                            = azurerm_key_vault.main.id
   role_definition_name             = "Key Vault Secrets User"
-  principal_id                     = azurerm_function_app_flex_consumption.verification.identity[0].principal_id
+  principal_id                     = azurerm_user_assigned_identity.verification_functions.principal_id
   principal_type                   = "ServicePrincipal"
   skip_service_principal_aad_check = true
 }
