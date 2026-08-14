@@ -692,7 +692,17 @@ async def finalize_verification_attempt(
         )
         logger.info(
             "verification.attempt.finalized",
-            extra={"attempt_id": str(state.id), "outcome": state.outcome},
+            extra={
+                "attempt_id": str(state.id),
+                "outcome": state.outcome,
+                "error_code": state.error_code,
+                "terminal_source": state.terminal_source,
+                "requirement_slug": run_result.attempt.requirement.slug,
+                "submission_type": run_result.attempt.requirement.submission_type.value,
+                "verification_completed": (
+                    run_result.validation_result.verification_completed
+                ),
+            },
         )
         return _terminal_state_payload(state)
 
@@ -719,6 +729,7 @@ async def terminalize_verification_attempt(
             extra={
                 "attempt_id": str(state.id),
                 "outcome": state.outcome,
+                "error_code": state.error_code,
                 "terminal_source": state.terminal_source,
             },
         )
@@ -883,7 +894,13 @@ async def _start_attempt_orchestration(
 
         logger.error(
             "verification.attempt.start.failed",
-            extra={"attempt_id": instance_id, "error": str(exc)},
+            extra={
+                "attempt_id": instance_id,
+                "outcome": "server_error",
+                "error_code": "server_error",
+                "terminal_source": "start_failure",
+                "error": str(exc),
+            },
         )
         await terminalize_attempt(
             attempt_uuid,
@@ -1017,6 +1034,8 @@ async def _reconcile_stale_attempts(
                 "attempt_id": str(attempt.id),
                 "durable_status": status_name,
                 "outcome": decision.outcome.value,
+                "error_code": decision.error_code,
+                "terminal_source": decision.terminal_source,
             },
         )
 

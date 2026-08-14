@@ -248,7 +248,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_function
   name                = "alert-ltc-verification-functions-exceptions-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Alert when verification Functions record non-learner API exceptions in a 5-minute window"
+  description         = "Alert when verification Functions record unhandled exceptions outside expected HTTP dependency failures"
   severity            = 1
   enabled             = true
   tags                = local.tags
@@ -260,25 +260,159 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_function
 
   criteria {
     query                   = <<-QUERY
-      let LearnerApiDependencyFailures =
+      let ExpectedDependencyFailures =
           dependencies
           | where cloud_RoleName in ("learn-to-cloud-verification-functions", "func-ltc-verification-${var.environment}")
               or cloud_RoleName has "verification-functions"
               or cloud_RoleName has "func-ltc-verification"
           | where type == "HTTP"
-          | where name in ("POST /entries", "GET /entries")
-              or name startswith "DELETE /entries/"
+          | where (name in ("POST /entries", "GET /entries")
+                  or name startswith "DELETE /entries/")
+              or target in~ ("github.com", "api.github.com")
           | project operation_Id, dependencySpanId = id;
       exceptions
       | where cloud_RoleName in ("learn-to-cloud-verification-functions", "func-ltc-verification-${var.environment}")
           or cloud_RoleName has "verification-functions"
           or cloud_RoleName has "func-ltc-verification"
-      | join kind=leftanti LearnerApiDependencyFailures
+      | join kind=leftanti ExpectedDependencyFailures
           on operation_Id, $left.operation_ParentId == $right.dependencySpanId
+      | summarize arg_max(timestamp, type) by operation_Id
+      | project OperationId = operation_Id, ExceptionType = type
     QUERY
     time_aggregation_method = "Count"
     operator                = "GreaterThanOrEqual"
     threshold               = 1
+
+    dimension {
+      name     = "OperationId"
+      operator = "Include"
+      values   = ["*"]
+    }
+
+    dimension {
+      name     = "ExceptionType"
+      operator = "Include"
+      values   = ["*"]
+    }
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
+# Dependency instrumentation records every failed retry as an exception, even
+# when the validator handles it and a later attempt succeeds. The severity-1
+# exception rule excludes those spans. Alert separately on the persisted final
+# outcome so only exhausted or authoritative failures notify operators.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_server_errors" {
+  name                = "alert-ltc-verification-attempt-server-errors-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when a verification attempt finishes with a server-side error"
+  severity            = 2
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      let ServerErrorAttempts =
+          traces
+          | where cloud_RoleName in ("learn-to-cloud-verification-functions", "func-ltc-verification-${var.environment}")
+              or cloud_RoleName has "verification-functions"
+              or cloud_RoleName has "func-ltc-verification"
+          | where message in (
+              "verification.attempt.finalized",
+              "verification.attempt.terminalized",
+              "verification.attempt.start.failed",
+              "verification.reconciler.terminalized"
+          )
+          | extend
+              AttemptId = tostring(customDimensions.attempt_id),
+              Outcome = iff(
+                  message == "verification.attempt.start.failed",
+                  "server_error",
+                  tostring(customDimensions.outcome)
+              ),
+              RequirementSlug = coalesce(tostring(customDimensions.requirement_slug), "unknown"),
+              SubmissionType = coalesce(tostring(customDimensions.submission_type), "unknown"),
+              TerminalSource = coalesce(tostring(customDimensions.terminal_source), "validator"),
+              OperationId = operation_Id,
+              FailureEvent = message
+          | where Outcome == "server_error"
+          | summarize arg_max(timestamp, *) by AttemptId;
+      let FailedDependencies =
+          dependencies
+          | where cloud_RoleName in ("learn-to-cloud-verification-functions", "func-ltc-verification-${var.environment}")
+              or cloud_RoleName has "verification-functions"
+              or cloud_RoleName has "func-ltc-verification"
+          | where success == false
+          | summarize arg_max(timestamp, target, type) by operation_Id
+          | project
+              OperationId = operation_Id,
+              UpstreamService = iff(isempty(target), type, target);
+      ServerErrorAttempts
+      | join kind=leftouter FailedDependencies on OperationId
+      | extend UpstreamService = coalesce(UpstreamService, "internal")
+      | project
+          AttemptId,
+          OperationId,
+          Outcome,
+          UpstreamService,
+          FailureEvent,
+          RequirementSlug,
+          SubmissionType,
+          TerminalSource
+    QUERY
+    time_aggregation_method = "Count"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    dimension {
+      name     = "AttemptId"
+      operator = "Include"
+      values   = ["*"]
+    }
+
+    dimension {
+      name     = "OperationId"
+      operator = "Include"
+      values   = ["*"]
+    }
+
+    dimension {
+      name     = "Outcome"
+      operator = "Include"
+      values   = ["*"]
+    }
+
+    dimension {
+      name     = "UpstreamService"
+      operator = "Include"
+      values   = ["*"]
+    }
+
+    dimension {
+      name     = "FailureEvent"
+      operator = "Include"
+      values   = ["*"]
+    }
+
+    dimension {
+      name     = "RequirementSlug"
+      operator = "Include"
+      values   = ["*"]
+    }
 
     failing_periods {
       minimum_failing_periods_to_trigger_alert = 1
