@@ -29,6 +29,11 @@ about credentials in state, exposure defaults, and structure.
       the host starts. Fully key-free therefore requires moving the Function App
       to `azapi_resource`, which the repository already uses for Foundry and the
       Durable Task Scheduler.
+
+      **Resolved** by modelling the app with azapi and migrating state with
+      `removed` + `import`. One caveat to confirm at apply time: azapi PUTs only
+      the configured body, so compare the site's ARM properties before and after
+      the first apply to be sure the Web RP did not reset an omitted property.
 - [x] **`smoke_test_token` is an inline Container App secret.** `container-apps.tf`
       passes the raw value through `var.smoke_test_token` (supplied by CI as
       `TF_VAR_smoke_test_token`), so it lands in state in plaintext. Note that an
