@@ -32,6 +32,10 @@ provider "azurerm" {
     }
   }
   subscription_id = var.subscription_id
+
+  # The Functions storage account has Shared Key disabled, so data-plane reads
+  # (queue properties) must use Entra ID.
+  storage_use_azuread = true
 }
 
 provider "azapi" {}
