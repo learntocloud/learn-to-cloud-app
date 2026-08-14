@@ -8,7 +8,7 @@ about credentials in state, exposure defaults, and structure.
 
 ## Tier 1 — Security
 
-- [ ] **Function storage uses an access key.** `functions.tf` sets
+- [x] **Function storage uses an access key.** `functions.tf` sets
       `storage_authentication_type = "StorageAccountConnectionString"` and
       `storage_access_key = azurerm_storage_account.verification_functions.primary_access_key`,
       which writes a reusable storage key into Terraform state and forces the
@@ -29,7 +29,7 @@ about credentials in state, exposure defaults, and structure.
       the host starts. Fully key-free therefore requires moving the Function App
       to `azapi_resource`, which the repository already uses for Foundry and the
       Durable Task Scheduler.
-- [ ] **`smoke_test_token` is an inline Container App secret.** `container-apps.tf`
+- [x] **`smoke_test_token` is an inline Container App secret.** `container-apps.tf`
       passes the raw value through `var.smoke_test_token` (supplied by CI as
       `TF_VAR_smoke_test_token`), so it lands in state in plaintext. Note that an
       `azurerm_key_vault_secret` resource would not help — that also stores the
@@ -49,14 +49,21 @@ about credentials in state, exposure defaults, and structure.
       `variables.tf` precondition only rejects it in `prod`, and CI never sets
       `TF_VAR_durable_task_scheduler_ip_allowlist`, so the open default is what
       dev actually runs. Same networking dependency as the item above.
-- [ ] **Key Vault reference identity is implicit.** `key-vault.tf` grants
+- [x] **Key Vault reference identity is implicit.** `key-vault.tf` grants
       `Key Vault Secrets User` to the Functions app's *system-assigned* identity
       while the app otherwise runs as its user-assigned identity. Key Vault
       references only resolve because the reference identity is unset and
       defaults to system-assigned. `azurerm_function_app_flex_consumption` has no
       `key_vault_reference_identity_id` argument in either 4.81 or 5.0.1, so
       making this explicit needs `azapi` — the same conclusion as the storage
-      item above.
+      item above. Resolved by the same azapi migration: the app now runs with
+      the user-assigned identity only, and keyVaultReferenceIdentity points at
+      it explicitly.
+
+- [ ] **Disable Shared Key on the Functions storage account.** Now that nothing
+      requests a key, set `shared_access_key_enabled = false`. Do this only
+      after an apply has confirmed the identity-based host storage works, so the
+      change is independently revertable.
 - [x] **Diagnostic settings.** Added for Key Vault, the container registry,
       PostgreSQL, and the Functions storage blob service. None of these resource
       types expose Azure Monitor category groups, so categories are named
