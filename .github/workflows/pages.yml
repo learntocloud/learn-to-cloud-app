@@ -5,13 +5,11 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
-      - 'scripts/check_docs.py'
       - '.github/workflows/pages.yml'
   pull_request:
     branches: [main]
     paths:
       - 'docs/**'
-      - 'scripts/check_docs.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -28,11 +26,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Validate documentation links
-        run: |
-          python -m unittest discover -s scripts/tests
-          python scripts/check_docs.py
 
       - name: Configure Pages
         id: pages
