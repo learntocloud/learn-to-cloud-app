@@ -73,7 +73,11 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Terraform init
-        run: terraform init -input=false -backend-config="key=learn-to-cloud-${TF_VAR_environment}.tfstate"
+        run: |
+          terraform init \
+            -input=false \
+            -backend-config="key=learn-to-cloud-${TF_VAR_environment}.tfstate" \
+            -backend-config="use_azuread_auth=true"
 
       - name: Create read-only plan
         run: |
