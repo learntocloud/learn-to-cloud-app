@@ -65,10 +65,12 @@ about credentials in state, exposure defaults, and structure.
       the user-assigned identity only, and keyVaultReferenceIdentity points at
       it explicitly.
 
-- [ ] **Disable Shared Key on the Functions storage account.** Now that nothing
-      requests a key, set `shared_access_key_enabled = false`. Do this only
-      after an apply has confirmed the identity-based host storage works, so the
-      change is independently revertable.
+- [x] **Disable Shared Key on the Functions storage account.** Set
+      `shared_access_key_enabled = false` after the dev apply confirmed the host
+      indexes all 12 functions with identity-based storage and no `AccountKey=`
+      remains in app settings. `azurerm_storage_container` uses
+      `storage_account_id`, so it goes through the management plane and keeps
+      working without the key.
 - [x] **Diagnostic settings.** Added for Key Vault, the container registry,
       PostgreSQL, and the Functions storage blob service. None of these resource
       types expose Azure Monitor category groups, so categories are named
