@@ -89,8 +89,10 @@ about credentials in state, exposure defaults, and structure.
       declare a null default and resolve the real default in `locals`. Put the
       default on the variable and drop the local, keeping the pattern only where
       the value genuinely varies per environment.
-- [ ] **`required_version = ">= 1.5.0"`** is unbounded while local and CI runs use
-      1.14. Pin a bounded constraint.
+- [x] **`required_version = ">= 1.5.0"`** was unbounded while local and CI runs used
+      1.14. Pinned to `~> 1.14`, and the CI/apply jobs to `~1.14`. The old `~1.5`
+      workflow pin resolved to 1.5.x, which predates expression support in
+      `import` block ids (added in 1.12).
 
 ## Tier 3 — Consistency
 
