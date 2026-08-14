@@ -2,7 +2,7 @@
 
 ## Development Setup
 
-The devcontainer handles everything automatically. See the
+Development runs directly in WSL or Linux. See the
 [README Quick Start](https://github.com/learntocloud/learn-to-cloud-app#quick-start)
 for setup instructions.
 
@@ -64,7 +64,7 @@ test our app
 or invoke the agent directly with `@dog-food`. The agent will:
 
 1. **Start the API** on port 8000 and verify `/health` + `/ready`
-2. **Install Chromium** if needed (headless, `--no-sandbox` for devcontainers)
+2. **Install Chromium** if needed (headless, `--no-sandbox`)
 3. **Test all public pages** — Home, Curriculum, FAQ, Privacy, Terms, Status
 4. **Toggle dark mode** and verify it works
 5. **Authenticate** via a signed session cookie (no real GitHub OAuth needed)
@@ -74,16 +74,22 @@ or invoke the agent directly with `@dog-food`. The agent will:
 
 ### Prerequisites
 
-Everything is pre-installed by the devcontainer (`on-create.sh`):
-- Playwright MCP server + Chromium (configured in `.mcp.json` for the Copilot CLI and `.vscode/mcp.json` for VS Code)
-- System libraries for headless Chromium (installed by `playwright-mcp install-browser chromium --with-deps`)
-- Database seeded with at least one user (via `scripts/dogfood_session.py`)
+Install the Playwright MCP server and Chromium before the first run:
+
+```bash
+npm install -g @playwright/mcp@latest
+playwright-mcp install-browser chromium --with-deps
+```
+
+The MCP server is configured in `.mcp.json` for the Copilot CLI and
+`.vscode/mcp.json` for VS Code. The database must contain at least one user;
+`scripts/dogfood_session.py` creates the local authenticated session.
 
 ### Cross-architecture support
 
-The agent runs on both x86_64 and ARM64 (Apple Silicon) devcontainers because it
-uses **Chromium**, not the `chrome` channel — Google Chrome has no ARM64 Linux
-build, and pointing the MCP server at it there fails at launch.
+The agent runs on both x86_64 and ARM64 Linux because it uses **Chromium**, not
+the `chrome` channel. Google Chrome has no ARM64 Linux build, and pointing the
+MCP server at it there fails at launch.
 
 Two things must stay in sync, so change them together:
 
@@ -106,7 +112,7 @@ Screenshots are saved to `.dogfood/` (gitignored). No artifacts pollute the repo
 | Agent instructions | `.github/agents/dog-food.agent.md` |
 | MCP server config | `.mcp.json`, `.vscode/mcp.json` |
 | Session cookie generator | `scripts/dogfood_session.py` |
-| Chromium + MCP install | `.devcontainer/on-create.sh` |
+| Chromium + MCP install | `playwright-mcp install-browser chromium --with-deps` |
 
 ## Copilot Skills
 

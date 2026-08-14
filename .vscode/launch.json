@@ -14,7 +14,7 @@
         "DYLD_FALLBACK_LIBRARY_PATH": "/opt/homebrew/lib",
         "VERIFICATION_FUNCTIONS__BASE_URL": "http://localhost:7071",
         "VERIFICATION_FUNCTIONS__KEY": "local-dev",
-        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://aspire-dashboard:18889",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317",
         "OTEL_SERVICE_NAME": "learn-to-cloud-api"
       },
       "console": "integratedTerminal",
@@ -35,7 +35,7 @@
       "cwd": "${workspaceFolder}/apps/verification-functions",
       "env": {
         "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
-        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://aspire-dashboard:18889",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317",
         "OTEL_SERVICE_NAME": "learn-to-cloud-verification-functions"
       }
     }

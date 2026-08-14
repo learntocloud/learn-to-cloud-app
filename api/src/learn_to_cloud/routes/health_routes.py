@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health"])
 
 # api/alembic.ini, four directories up from this file (routes -> learn_to_cloud
-# -> src -> api). Same relative depth in the devcontainer source tree and in
-# the api-runtime Docker image, where PYTHONPATH=/app/src.
+# -> src -> api). The API runtime image preserves the same relative depth with
+# PYTHONPATH=/app/src.
 _ALEMBIC_INI = Path(__file__).parent.parent.parent.parent / "alembic.ini"
 
 

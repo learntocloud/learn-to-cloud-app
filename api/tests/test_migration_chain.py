@@ -41,7 +41,7 @@ __all__ = [
 def _sync_url() -> str:
     raw = os.environ.get(
         "DATABASE__URL",
-        "postgresql+asyncpg://postgres:postgres@db:5432/learntocloud",
+        "postgresql+asyncpg://postgres:postgres@127.0.0.1:55432/learntocloud",
     )
     return raw.replace("+asyncpg", "+psycopg2")
 

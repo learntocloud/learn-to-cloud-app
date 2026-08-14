@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 database_url = os.environ.get(
-    "DATABASE__URL", "******db:5432/learn_to_cloud"
+    "DATABASE__URL", "******127.0.0.1:55432/learn_to_cloud"
 )
 
 

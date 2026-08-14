@@ -26,48 +26,19 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 
 ## Quick Start
 
-### Dev Container (Recommended — all platforms)
+### WSL / Linux Setup
 
-The fastest way to get started on **Windows (WSL), macOS, or Linux** is with VS Code Dev Containers. Everything — Python, Node, PostgreSQL, uv, pre-commit hooks — is configured automatically.
-
-**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) and [VS Code](https://code.visualstudio.com/) with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
-
-> **Windows users:** Install and run Docker Desktop via [WSL 2](https://learn.microsoft.com/en-us/windows/wsl/install). Clone the repo inside your WSL filesystem for best performance.
-
-1. Clone the repo and open it in VS Code
-2. When prompted **"Reopen in Container"**, click it (or run `Dev Containers: Reopen in Container` from the command palette)
-3. Wait for the container to build — this runs automatically:
-   - Installs Python 3.13, Node 20, uv, Azure CLI, GitHub CLI, Azure Functions Core Tools
-   - Creates a Python virtual environment and installs all dependencies
-   - Starts PostgreSQL 16, Azurite, Durable Task Scheduler emulator, and Aspire Dashboard
-   - Runs database migrations
-   - Installs `prek` pre-commit hooks
-   - Copies `.env.example` → `.env` if needed
-4. Start the API and verification worker:
-    ```bash
-    (cd api && uv run uvicorn learn_to_cloud.main:app --reload --port 8000)
-    ```
-   For verification submissions, also run the **"Verification: Durable Functions"**
-   VS Code launch configuration, or use the **"API + Verification"** compound
-   launch configuration.
-
-| Service | URL |
-|---------|-----|
-| App | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs (requires `DEBUG=true` in `.env`) |
-| PostgreSQL | `localhost:55432` (user: `postgres`, password: `postgres`) |
-| Durable Task Scheduler Dashboard | http://localhost:8082 |
-| Aspire Dashboard | http://localhost:18888 |
-
-### Manual Setup (without Dev Container)
-
-If you prefer not to use Dev Containers, you can set things up manually.
+Development runs directly in WSL or Linux. On Windows, install
+[WSL 2](https://learn.microsoft.com/en-us/windows/wsl/install), keep the clone
+inside the WSL filesystem, and make Docker Desktop's WSL integration available
+to that distribution.
 
 #### Prerequisites
 
 - Python 3.13+ with [uv](https://docs.astral.sh/uv/)
 - Node.js 20+ (for Tailwind CSS build)
-- Docker (for PostgreSQL)
+- Docker with the Compose plugin
+- Azure Functions Core Tools 4 (for verification submissions)
 
 #### Local Development
 
@@ -91,21 +62,13 @@ cp api/.env.example api/.env  # Create environment config (edit if needed)
 Run database migrations:
 
 ```bash
-# macOS/Linux
 cd api && uv run alembic upgrade head && cd ..
-
-# Windows
-cd api; uv run alembic upgrade head; cd ..
 ```
 
 Start the API:
 
 ```bash
-# macOS/Linux
 cd api && uv run python -m uvicorn learn_to_cloud.main:app --reload --port 8000
-
-# Windows
-cd api; uv run python -m uvicorn learn_to_cloud.main:app --reload --port 8000
 ```
 
 Or use VS Code's debugger with the **"API: FastAPI (uvicorn)"** launch configuration.
@@ -132,6 +95,9 @@ Or use VS Code's **"API + Verification"** compound launch configuration.
 |---------|-----|
 | App | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs (requires `DEBUG=true`) |
+| PostgreSQL | `127.0.0.1:55432` (user: `postgres`, password: `postgres`) |
+| Durable Task Scheduler Dashboard | http://localhost:8082 |
+| Aspire Dashboard | http://localhost:18888 |
 
 ## Project Structure
 
