@@ -1,0 +1,167 @@
+name: Terraform PR Plan
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-plan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      terraform: ${{ steps.filter.outputs.terraform }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Detect Terraform changes
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
+        id: filter
+        with:
+          filters: |
+            terraform:
+              - 'infra/**'
+              - '.github/workflows/terraform-plan.yml'
+
+  terraform-plan:
+    needs: [changes]
+    if: needs.changes.outputs.terraform == 'true' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: terraform-plan
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra
+    env:
+      ARM_CLIENT_ID: ${{ vars.AZURE_TERRAFORM_PLAN_CLIENT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_USE_OIDC: true
+      TF_VAR_environment: ${{ vars.AZURE_ENV_NAME }}
+      TF_VAR_github_client_id: ${{ vars.TERRAFORM_GITHUB_CLIENT_ID }}
+      TF_VAR_location: ${{ vars.AZURE_LOCATION }}
+      TF_VAR_postgres_entra_admin_object_id: ${{ vars.POSTGRES_ENTRA_ADMIN_OBJECT_ID }}
+      TF_VAR_postgres_entra_admin_principal_name: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_NAME }}
+      TF_VAR_postgres_entra_admin_principal_type: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_TYPE }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+        with:
+          terraform_version: "~1.5"
+          terraform_wrapper: false
+
+      - name: Azure login for read-only planning
+        uses: azure/login@f5d393ae46f8fde4be8b75f32e3fc50e654ad0ca # v3
+        with:
+          client-id: ${{ vars.AZURE_TERRAFORM_PLAN_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init
+        run: terraform init -input=false -backend-config="key=learn-to-cloud-${TF_VAR_environment}.tfstate"
+
+      - name: Create read-only plan
+        run: |
+          set +e
+          terraform plan \
+            -input=false \
+            -lock=false \
+            -out=tfplan \
+            -json > "$RUNNER_TEMP/terraform-plan-events.json"
+          status=$?
+          set -e
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Terraform plan failed. Diagnostic summaries follow; full plan output is intentionally suppressed."
+            jq -r '
+              select(.type == "diagnostic")
+              | "\(.diagnostic.severity): \(.diagnostic.summary)"
+            ' "$RUNNER_TEMP/terraform-plan-events.json" | sort -u >&2
+            exit "$status"
+          fi
+
+      - name: Report aggregate resource actions
+        run: |
+          terraform show -json tfplan > "$RUNNER_TEMP/tfplan.json"
+
+          counts=$(jq -c '
+            [.resource_changes[]? | .change.actions] as $actions
+            | {
+                create:  [$actions[] | select(. == ["create"])] | length,
+                update:  [$actions[] | select(. == ["update"])] | length,
+                replace: [$actions[] | select((index("create") != null) and (index("delete") != null))] | length,
+                delete:  [$actions[] | select(. == ["delete"])] | length
+              }
+          ' "$RUNNER_TEMP/tfplan.json")
+
+          create=$(jq -r '.create' <<< "$counts")
+          update=$(jq -r '.update' <<< "$counts")
+          replace=$(jq -r '.replace' <<< "$counts")
+          delete=$(jq -r '.delete' <<< "$counts")
+
+          {
+            echo "## Terraform plan summary"
+            echo
+            echo "| Create | Update | Replace | Delete |"
+            echo "|------:|------:|--------:|-------:|"
+            echo "| $create | $update | $replace | $delete |"
+            echo
+            echo "The saved plan and full plan output are intentionally not published."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Terraform actions: create=$create update=$update replace=$replace delete=$delete"
+
+          if [ "$replace" -gt 0 ] || [ "$delete" -gt 0 ]; then
+            echo "::error::Terraform proposes $replace replacement(s) and $delete deletion(s). Explicit review is required."
+            exit 1
+          fi
+
+  terraform-plan-status:
+    if: always()
+    needs: [changes, terraform-plan]
+    runs-on: ubuntu-latest
+    env:
+      CHANGES_RESULT: ${{ needs.changes.result }}
+      PLAN_RESULT: ${{ needs.terraform-plan.result }}
+      TERRAFORM_CHANGED: ${{ needs.changes.outputs.terraform }}
+      HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      BASE_REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Check Terraform plan result
+        run: |
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "Terraform change detection failed: $CHANGES_RESULT" >&2
+            exit 1
+          fi
+
+          if [ "$TERRAFORM_CHANGED" != "true" ]; then
+            echo "Terraform plan skipped because no Terraform files changed."
+            exit 0
+          fi
+
+          if [ "$HEAD_REPOSITORY" != "$BASE_REPOSITORY" ]; then
+            echo "Azure-backed Terraform plans are not permitted for fork pull requests." >&2
+            exit 1
+          fi
+
+          if [ "$PLAN_RESULT" != "success" ]; then
+            echo "Terraform plan failed or was not approved: $PLAN_RESULT" >&2
+            exit 1
+          fi
+
+          echo "Terraform plan passed."

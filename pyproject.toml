@@ -52,6 +52,17 @@ uv pip install --python "$tmpdir/venv/bin/python" "$wheel"
 "$tmpdir/venv/bin/python" -m learn_to_cloud_shared.runtime_package_check
 """
 
+[tool.poe.tasks.terraform-check]
+help = "Run Terraform formatting and backendless validation"
+shell = """
+set -eu
+tf_data_dir=$(mktemp -d)
+trap 'rm -rf "$tf_data_dir"' EXIT
+terraform -chdir=infra fmt -check -recursive
+TF_DATA_DIR="$tf_data_dir" terraform -chdir=infra init -backend=false -input=false
+TF_DATA_DIR="$tf_data_dir" terraform -chdir=infra validate
+"""
+
 [tool.poe.tasks.check]
 help = "Run the full quality gate: static checks, package smoke, then tests"
 sequence = ["static", "package-smoke", "test"]

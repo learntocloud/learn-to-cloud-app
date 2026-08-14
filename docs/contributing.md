@@ -144,6 +144,16 @@ Azure CLI, Terraform, `jq`, and `psql` are not required for normal API
 development. They are required for infrastructure plans, deployment
 diagnostics, Azure-backed verification, and production database queries.
 
+Run the offline Terraform checks before opening an infrastructure pull request:
+
+```bash
+uv run poe terraform-check
+```
+
+See [Terraform validation and deployment](terraform.md) for the distinction
+between local validation, reviewer-approved pull-request plans, and production
+apply.
+
 #### Copilot and browser tooling
 
 Install the browser tooling used by the dog-food agent:
@@ -180,6 +190,9 @@ uv run poe test
 
 # Everything above, in order. Run this before opening a pull request.
 uv run poe check
+
+# Terraform formatting and backendless validation.
+uv run poe terraform-check
 ```
 
 Continuous integration runs the exact same `uv run poe` tasks, so a green

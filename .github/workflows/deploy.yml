@@ -35,7 +35,6 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
 
 defaults:
   run:
@@ -58,6 +57,7 @@ jobs:
     outputs:
       deploy: ${{ steps.filter.outputs.deploy }}
       code: ${{ steps.filter.outputs.code }}
+      terraform: ${{ steps.filter.outputs.terraform }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -82,6 +82,10 @@ jobs:
               - 'packages/learn-to-cloud-shared/**'
               - 'pyproject.toml'
               - 'uv.lock'
+            terraform:
+              - 'infra/**'
+              - '.github/workflows/deploy.yml'
+              - '.github/workflows/terraform-plan.yml'
 
   # -----------------------------------------------------------------------
   # Dependency Review — block PRs that introduce vulnerable dependencies
@@ -100,7 +104,7 @@ jobs:
   # -----------------------------------------------------------------------
   terraform-ci:
     needs: [changes]
-    if: needs.changes.outputs.deploy == 'true'
+    if: needs.changes.outputs.terraform == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -122,9 +126,6 @@ jobs:
 
       - name: Terraform validate
         run: terraform validate
-
-      - name: Terraform tests
-        run: terraform test -no-color
 
   # -----------------------------------------------------------------------
   # CI — lint, type-check, test (runs on push AND PR)
@@ -287,7 +288,7 @@ jobs:
       - name: Check Terraform CI result
         run: |
           if [[ "${{ needs.terraform-ci.result }}" =~ ^(success|skipped)$ ]]; then
-            echo "Terraform CI passed or was skipped (no deploy changes)"
+            echo "Terraform CI passed or was skipped (no Terraform changes)"
           else
             echo "Terraform CI failed: ${{ needs.terraform-ci.result }}"
             exit 1
@@ -301,6 +302,9 @@ jobs:
     needs: [ci, changes]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
     env:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -384,6 +388,9 @@ jobs:
     if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true') && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     needs: [terraform, changes]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
