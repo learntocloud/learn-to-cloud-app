@@ -184,7 +184,7 @@ resource "azurerm_container_app" "api" {
 
       env {
         name  = "VERIFICATION_FUNCTIONS__BASE_URL"
-        value = "https://${azurerm_function_app_flex_consumption.verification.default_hostname}"
+        value = "https://${azapi_resource.verification_functions.output.properties.defaultHostName}"
       }
 
       env {
