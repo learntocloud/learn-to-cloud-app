@@ -71,6 +71,15 @@ about credentials in state, exposure defaults, and structure.
       remains in app settings. `azurerm_storage_container` uses
       `storage_account_id`, so it goes through the management plane and keeps
       working without the key.
+
+      `azurerm_storage_account` itself still reads queue properties over the
+      data plane, which 403s once the key is gone, so the provider needs
+      `storage_use_azuread = true`. That makes the read use Entra ID, which
+      requires a data-plane role: the CI identities are granted
+      `Storage Queue Data Contributor` (apply) and `Storage Queue Data Reader`
+      (plan) on the account. These are granted out of band, alongside the OIDC
+      federation and the subscription Contributor/Reader assignments, because
+      Terraform cannot refresh this resource without them.
 - [x] **Diagnostic settings.** Added for Key Vault, the container registry,
       PostgreSQL, and the Functions storage blob service. None of these resource
       types expose Azure Monitor category groups, so categories are named
