@@ -35,10 +35,13 @@ to that distribution.
 
 #### Prerequisites
 
-- Python 3.13+ with [uv](https://docs.astral.sh/uv/)
-- Node.js 20+ (for Tailwind CSS build)
+- Git
+- [uv](https://docs.astral.sh/uv/)
 - Docker with the Compose plugin
-- Azure Functions Core Tools 4 (for verification submissions)
+
+`uv` installs the required Python 3.13 runtime. Frontend, verification,
+infrastructure, and agent workflows need additional optional tools documented
+in the [Contributing Guide](docs/contributing.md#tooling-by-workflow).
 
 #### Local Development
 
