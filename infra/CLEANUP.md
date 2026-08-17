@@ -104,6 +104,12 @@ about credentials in state, exposure defaults, and structure.
       1.14. Pinned to `~> 1.14`, and the CI/apply jobs to `~1.14`. The old `~1.5`
       workflow pin resolved to 1.5.x, which predates expression support in
       `import` block ids (added in 1.12).
+- [x] **Container Apps Job refresh reads secrets.** Replaced
+      `azurerm_container_app_job.migrations` with `azapi_resource` so refresh
+      uses the normal ARM resource read instead of
+      `Microsoft.App/jobs/listSecrets/action`. The state migration uses
+      `removed` + `import` and preserves the live job, managed identity,
+      registry identity, image rollout boundary, and runtime configuration.
 
 ## Tier 3 — Consistency
 
@@ -115,9 +121,11 @@ about credentials in state, exposure defaults, and structure.
       `AZURE_CONTAINER_REGISTRY_*` are SCREAMING_CASE among otherwise snake_case
       outputs, and `database_host` overlaps `postgres_server_name`. Normalize to
       snake_case and map names in the workflow instead.
-- [ ] **`schema_validation_enabled = false` is copy-pasted** onto all five
+- [ ] **`schema_validation_enabled = false` is copy-pasted** onto five
       `azapi_resource` blocks, including stable API versions that do not need it.
-- [ ] **`provider "azapi" {}` is empty.** Set `subscription_id` so it cannot drift
+      The Container Apps Job migration uses the stable schema with validation
+      enabled; clean up the older resources separately.
+- [x] **`provider "azapi" {}` is empty.** Set `subscription_id` so it cannot drift
       from the AzureRM provider.
 - [ ] **Duplicated and hardcoded values.** `https://learntocloud.guide` appears in
       both `container-apps.tf` (CORS) and `monitoring.tf` (web test); the
@@ -134,8 +142,10 @@ about credentials in state, exposure defaults, and structure.
 
 ## Related work
 
-- Issue #743 covers the secretless planning identity and the Container Apps
-  `ListSecrets` refresh problem. Note that `azurerm_container_app.api` hits the
-  same `ListSecrets` call on read as `azurerm_container_app_job.migrations`.
+- Issue #743 covers the secretless planning identity and the Container Apps Job
+  `ListSecrets` refresh problem. The first live read-only plan failed on the job
+  and Functions storage account, but did not report a corresponding denial for
+  `azurerm_container_app.api`; keep the API resource under observation when the
+  read-only plan is re-run.
 - PR #714 bumps AzureRM 4.81 to 5.0.1. Land the cleanup on 4.x first, then
   upgrade, so a provider major and a state migration never mix in one change.
