@@ -34,7 +34,7 @@ dependencies = [
     "opentelemetry-instrumentation-logging==0.64b0",
     "opentelemetry-instrumentation-sqlalchemy==0.64b0",
     "pydantic>=2.13.3,<3",
-    "pydantic-settings>=2.14.2",
+    "pydantic-settings>=2.15.0",
     "python-json-logger>=4.1.0",
     "pyyaml>=6.0",
     "sqlalchemy>=2.0.49,<3",
