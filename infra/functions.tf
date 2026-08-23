@@ -122,9 +122,7 @@ locals {
   verification_functions_app_settings = {
     APPLICATIONINSIGHTS_CONNECTION_STRING    = azurerm_application_insights.main.connection_string
     AZURE_CLIENT_ID                          = azurerm_user_assigned_identity.verification_functions.client_id
-    AzureWebJobsStorage__blobServiceUri      = azurerm_storage_account.verification_functions.primary_blob_endpoint
-    AzureWebJobsStorage__queueServiceUri     = azurerm_storage_account.verification_functions.primary_queue_endpoint
-    AzureWebJobsStorage__tableServiceUri     = azurerm_storage_account.verification_functions.primary_table_endpoint
+    AzureWebJobsStorage__accountName         = azurerm_storage_account.verification_functions.name
     AzureWebJobsStorage__credential          = "managedidentity"
     AzureWebJobsStorage__clientId            = azurerm_user_assigned_identity.verification_functions.client_id
     DATABASE__URL                            = ""
