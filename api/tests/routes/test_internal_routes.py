@@ -10,9 +10,8 @@ from fastapi import HTTPException
 from learn_to_cloud.routes.internal_routes import smoke_verification
 
 
-def _request_with_auth(*, token: str = "", allowed_client_id: str = "") -> MagicMock:
+def _request_with_auth(*, allowed_client_id: str = "") -> MagicMock:
     request = MagicMock()
-    request.app.state.settings.smoke_test.token = token
     request.app.state.settings.smoke_test.allowed_client_id = allowed_client_id
     request.app.state.session_maker = MagicMock()
     return request
@@ -40,43 +39,11 @@ class TestSmokeVerificationEndpoint:
         with pytest.raises(HTTPException) as exc_info:
             await smoke_verification(
                 request,
-                x_smoke_test_token=None,
                 x_ms_client_principal=None,
                 x_ms_client_principal_id=None,
             )
 
         assert exc_info.value.status_code == 401
-
-    async def test_returns_401_when_header_mismatch(self):
-        request = _request_with_auth(token="expected-secret")
-
-        with pytest.raises(HTTPException) as exc_info:
-            await smoke_verification(
-                request,
-                x_smoke_test_token="wrong-secret",
-                x_ms_client_principal=None,
-                x_ms_client_principal_id=None,
-            )
-
-        assert exc_info.value.status_code == 401
-
-    async def test_returns_200_when_token_matches_and_check_passes(self):
-        request = _request_with_auth(token="expected-secret")
-
-        with patch(
-            "learn_to_cloud.routes.internal_routes.run_submit_smoke_check",
-            new_callable=AsyncMock,
-            return_value={"requirement_slug": "phase0-req"},
-        ) as mock_check:
-            result = await smoke_verification(
-                request,
-                x_smoke_test_token="expected-secret",
-                x_ms_client_principal=None,
-                x_ms_client_principal_id=None,
-            )
-
-        assert result == {"status": "ok", "requirement_slug": "phase0-req"}
-        mock_check.assert_awaited_once_with(request.app.state.session_maker)
 
     async def test_returns_200_for_authorized_entra_principal(self):
         client_id = "80656257-8f52-4889-95c4-d594c29c82ae"
@@ -89,7 +56,6 @@ class TestSmokeVerificationEndpoint:
         ):
             result = await smoke_verification(
                 request,
-                x_smoke_test_token=None,
                 x_ms_client_principal=_principal(
                     app_id=client_id, roles=["Smoke.Trigger"]
                 ),
@@ -122,7 +88,6 @@ class TestSmokeVerificationEndpoint:
         with pytest.raises(HTTPException) as exc_info:
             await smoke_verification(
                 request,
-                x_smoke_test_token=None,
                 x_ms_client_principal=principal,
                 x_ms_client_principal_id="deployment-service-principal",
             )
@@ -130,7 +95,8 @@ class TestSmokeVerificationEndpoint:
         assert exc_info.value.status_code == expected_status
 
     async def test_returns_503_when_check_raises(self):
-        request = _request_with_auth(token="expected-secret")
+        client_id = "80656257-8f52-4889-95c4-d594c29c82ae"
+        request = _request_with_auth(allowed_client_id=client_id)
 
         with patch(
             "learn_to_cloud.routes.internal_routes.run_submit_smoke_check",
@@ -140,9 +106,10 @@ class TestSmokeVerificationEndpoint:
             with pytest.raises(HTTPException) as exc_info:
                 await smoke_verification(
                     request,
-                    x_smoke_test_token="expected-secret",
-                    x_ms_client_principal=None,
-                    x_ms_client_principal_id=None,
+                    x_ms_client_principal=_principal(
+                        app_id=client_id, roles=["Smoke.Trigger"]
+                    ),
+                    x_ms_client_principal_id="deployment-service-principal",
                 )
 
         assert exc_info.value.status_code == 503

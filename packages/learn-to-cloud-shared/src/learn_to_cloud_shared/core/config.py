@@ -150,7 +150,6 @@ class SessionConfig(FrozenConfig):
 class SmokeTestConfig(FrozenConfig):
     """Post-deploy smoke-test authorization config."""
 
-    token: str = ""
     allowed_client_id: str = ""
 
 
