@@ -19,7 +19,13 @@ learning_steps:
   action: 'Watch:'
   title: PostgreSQL Tutorial for Beginners
   url: https://www.youtube.com/watch?v=SpfIwlAYaKk
-  description: Learn SQL fundamentals that directly support the capstone. Focus on SELECT, INSERT, UPDATE, DELETE, WHERE, ORDER BY, and basic joins.
+  description: >-
+    Learn SQL fundamentals that directly support the capstone. The tutorial uses
+    the `dvdrental` sample database; download it from the [PostgreSQL sample
+    database guide](https://neon.com/postgresql/getting-started/sample-database)
+    before following along. See [community discussion
+    #397](https://github.com/learntocloud/learn-to-cloud-app/discussions/397) for
+    context.
   slug: phase3-topic3-watch-postgresql-tutorial-for-beginners
 - uuid: 23f18616-4070-4f9c-9aa4-0290f9ac6f0a
   order: 2
