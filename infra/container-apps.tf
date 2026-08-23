@@ -168,6 +168,11 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
+        name  = "SMOKE_TEST__ALLOWED_CLIENT_ID"
+        value = local.smoke_auth_allowed_client_id
+      }
+
+      env {
         name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         value = azurerm_application_insights.main.connection_string
       }
@@ -232,4 +237,63 @@ resource "azurerm_container_app" "api" {
     azurerm_role_assignment.api_key_vault_secrets_user,
     azurerm_postgresql_flexible_server_database.main,
   ]
+}
+
+# The app remains public, but Easy Auth validates any bearer token presented to
+# it and strips client-supplied identity headers. The smoke route then requires
+# the validated deployment identity and its Smoke.Trigger app role.
+resource "azapi_resource" "api_auth" {
+  type      = "Microsoft.App/containerApps/authConfigs@2025-01-01"
+  name      = "current"
+  parent_id = azurerm_container_app.api.id
+
+  body = {
+    properties = {
+      globalValidation = {
+        unauthenticatedClientAction = "AllowAnonymous"
+      }
+
+      httpSettings = {
+        requireHttps = true
+      }
+
+      identityProviders = {
+        azureActiveDirectory = {
+          enabled = true
+          registration = {
+            clientId     = local.smoke_auth_client_id
+            openIdIssuer = "https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/v2.0"
+          }
+          validation = {
+            allowedAudiences = [
+              local.smoke_auth_client_id,
+              local.smoke_auth_audience,
+            ]
+            defaultAuthorizationPolicy = {
+              allowedApplications = [
+                local.smoke_auth_allowed_client_id,
+              ]
+            }
+          }
+        }
+      }
+
+      platform = {
+        enabled        = true
+        runtimeVersion = "~1"
+      }
+    }
+  }
+
+  schema_validation_enabled = false
+
+  lifecycle {
+    precondition {
+      condition = (
+        length(trimspace(local.smoke_auth_client_id)) > 0
+        && length(trimspace(local.smoke_auth_allowed_client_id)) > 0
+      )
+      error_message = "Smoke-test Entra client IDs must be configured for this environment."
+    }
+  }
 }

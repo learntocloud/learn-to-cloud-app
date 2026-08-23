@@ -148,14 +148,10 @@ class SessionConfig(FrozenConfig):
 
 
 class SmokeTestConfig(FrozenConfig):
-    """Post-deploy smoke-test config.
-
-    ``token`` gates the internal verification smoke endpoint. When empty
-    (the default), the endpoint is disabled and returns 404, so the
-    diagnostic surface only exists where the secret is configured.
-    """
+    """Post-deploy smoke-test authorization config."""
 
     token: str = ""
+    allowed_client_id: str = ""
 
 
 class CorsConfig(FrozenConfig):
