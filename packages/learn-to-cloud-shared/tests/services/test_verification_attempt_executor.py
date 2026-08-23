@@ -126,7 +126,7 @@ async def test_finalize_is_compare_and_set_idempotent(
 
     with caplog.at_level(
         logging.INFO,
-        logger="learn_to_cloud_shared.verification_attempt_executor",
+        logger="learn_to_cloud.verification_attempt_executor",
     ):
         first = await finalize_verification_attempt(
             run_result, session_maker=session_maker

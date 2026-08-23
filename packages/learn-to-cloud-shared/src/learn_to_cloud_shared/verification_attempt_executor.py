@@ -28,6 +28,7 @@ from uuid import UUID
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE
 from learn_to_cloud_shared.models import VerificationAttemptOutcome
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptTerminalState,
@@ -54,7 +55,7 @@ from learn_to_cloud_shared.verification_workflow import (
 )
 
 tracer = trace.get_tracer(__name__)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(f"{APP_LOGGER_NAMESPACE}.verification_attempt_executor")
 
 _SNAPSHOT_SOURCE_SUBMITTED = "submitted"
 _ORCHESTRATOR_TERMINAL_SOURCE = "orchestrator"
