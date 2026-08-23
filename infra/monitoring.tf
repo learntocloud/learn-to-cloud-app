@@ -319,6 +319,102 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_system_e
   }
 }
 
+# Additive replacement for verification_system_error during the telemetry
+# migration. It evaluates in shadow mode without an action group until cutover,
+# and only uses canonical events emitted after PostgreSQL accepts the first
+# terminal result for an attempt.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_system_error" {
+  name                = "alert-ltc-verification-attempt-system-error-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when a saved verification attempt outcome is server_error"
+  severity            = 2
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      traces
+      | where cloud_RoleName in (
+          "learn-to-cloud-api",
+          "ca-ltc-api-${var.environment}",
+          "learn-to-cloud-verification-functions",
+          "func-ltc-verification-${var.environment}"
+        )
+          or cloud_RoleName has "learn-to-cloud-api"
+          or cloud_RoleName has "ca-ltc-api"
+          or cloud_RoleName has "verification-functions"
+          or cloud_RoleName has "func-ltc-verification"
+      | where message == "verification.attempt.completed"
+      | extend
+          Outcome = tostring(customDimensions["verification.outcome"]),
+          AttemptId = tostring(customDimensions["verification.attempt.id"])
+      | where Outcome == "server_error"
+      | where isnotempty(AttemptId)
+      | summarize ErrorCount = dcount(AttemptId) by bin(timestamp, 5m)
+    QUERY
+    time_aggregation_method = "Maximum"
+    metric_measure_column   = "ErrorCount"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+}
+
+# The reconciler emits this event only after a final database read confirms the
+# attempt is still active beyond its allowed duration. It also starts in shadow
+# mode so deploying it cannot duplicate the existing verification pages.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_stuck" {
+  name                = "alert-ltc-verification-attempt-stuck-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when a verification attempt remains active beyond its maximum duration"
+  severity            = 2
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT15M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      traces
+      | where cloud_RoleName in (
+          "learn-to-cloud-verification-functions",
+          "func-ltc-verification-${var.environment}"
+        )
+          or cloud_RoleName has "verification-functions"
+          or cloud_RoleName has "func-ltc-verification"
+      | where message == "verification.attempt.stuck"
+      | extend AttemptId = tostring(customDimensions["verification.attempt.id"])
+      | where isnotempty(AttemptId)
+      | summarize StuckCount = dcount(AttemptId) by bin(timestamp, 5m)
+    QUERY
+    time_aggregation_method = "Maximum"
+    metric_measure_column   = "StuckCount"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+}
+
 # Tier 3 follow-up from the #432 post-mortem: page if the production DB's
 # applied Alembic head ever falls out of sync with the head baked into the
 # deployed code (manual psql access, a half-applied migration, a future
