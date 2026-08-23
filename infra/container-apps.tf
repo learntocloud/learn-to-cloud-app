@@ -199,7 +199,7 @@ resource "azurerm_container_app" "api" {
 
       readiness_probe {
         transport               = "HTTP"
-        path                    = "/health"
+        path                    = "/ready"
         port                    = 8000
         interval_seconds        = 30
         timeout                 = 5
@@ -208,7 +208,7 @@ resource "azurerm_container_app" "api" {
 
       startup_probe {
         transport               = "HTTP"
-        path                    = "/health"
+        path                    = "/ready"
         port                    = 8000
         interval_seconds        = 10
         timeout                 = 5
