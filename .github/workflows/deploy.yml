@@ -638,11 +638,7 @@ jobs:
             --tail 100 --format text 2>&1 || true
           exit 1
 
-      # Transitional validation: prove the OIDC/Entra path works in production
-      # before a follow-up PR removes the shared-token fallback and makes this
-      # identity path the mandatory deployment gate.
-      - name: Validate Entra smoke authentication
-        continue-on-error: true
+      - name: Smoke test verification submit path
         env:
           SMOKE_SCOPE: ${{ needs.terraform.outputs.smoke_auth_scope }}
           SMOKE_URL: ${{ needs.terraform.outputs.api_url }}/internal/smoke/verification
@@ -668,63 +664,13 @@ jobs:
             echo "Attempt $i: HTTP $code"
 
             if [[ "$code" == "200" ]]; then
-              echo "Entra smoke authentication passed."
+              echo "Verification smoke test passed."
+              cat /tmp/entra_smoke_body.txt || true
               exit 0
             fi
             sleep 10
           done
 
-          echo "Entra smoke-auth validation returned HTTP $code."
-          cat /tmp/entra_smoke_body.txt || true
-          exit 1
-
-      - name: Smoke test verification submit path
-        env:
-          SMOKE_TEST_TOKEN: ${{ secrets.SMOKE_TEST_TOKEN }}
-          SMOKE_URL: ${{ needs.terraform.outputs.api_url }}/internal/smoke/verification
-        run: |
-          set -euo pipefail
-
-          # The gate only runs once the shared secret exists in both places: the
-          # GitHub secret here and the smoke-test-token Key Vault secret the app
-          # reads. Until then, warn loudly instead of blocking every deploy.
-          if [[ -z "${SMOKE_TEST_TOKEN:-}" ]]; then
-            echo "::warning::SMOKE_TEST_TOKEN is not set — skipping the post-deploy verification smoke test."
-            echo "Set the SMOKE_TEST_TOKEN repository secret to the same value as the"
-            echo "smoke-test-token Key Vault secret to activate this deploy gate."
-            exit 0
-          fi
-
-          echo "POSTing verification smoke check to $SMOKE_URL"
-
-          # Retry briefly: traffic can take a few seconds to fully shift to the
-          # freshly deployed revision after readiness reports healthy.
-          code=000
-          for i in {1..6}; do
-            code=$(curl -s -o /tmp/smoke_body.txt -w "%{http_code}" \
-              -X POST "$SMOKE_URL" \
-              -H "X-Smoke-Test-Token: $SMOKE_TEST_TOKEN" || echo 000)
-            echo "Attempt $i: HTTP $code"
-
-            if [[ "$code" == "200" ]]; then
-              echo "Verification smoke test passed."
-              cat /tmp/smoke_body.txt || true
-              exit 0
-            fi
-
-            # A 5xx means the verification submit code path is broken against the
-            # live database schema (the incident #432 class of failure). Fail now.
-            if [[ "$code" =~ ^5 ]]; then
-              echo "ERROR: smoke endpoint returned $code — verification submit path is broken."
-              cat /tmp/smoke_body.txt || true
-              exit 1
-            fi
-
-            sleep 5
-          done
-
           echo "ERROR: verification smoke test did not pass (last HTTP $code)."
-          echo "401 means the app's SMOKE_TEST__TOKEN does not match this secret;"
-          echo "check that the smoke-test-token Key Vault secret holds the same value."
-          cat /tmp/smoke_body.txt || true
+          cat /tmp/entra_smoke_body.txt || true
           exit 1

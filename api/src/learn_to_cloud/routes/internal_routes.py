@@ -2,7 +2,6 @@
 
 import base64
 import binascii
-import hmac
 import logging
 
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -15,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["internal"], include_in_schema=False)
 
-_SMOKE_TOKEN_HEADER = "X-Smoke-Test-Token"
 _SMOKE_ROLE = "Smoke.Trigger"
 _APP_ID_CLAIMS = {
     "appid",
@@ -85,7 +83,6 @@ def _require_smoke_principal(encoded_principal: str, expected_client_id: str) ->
 @router.post("/internal/smoke/verification")
 async def smoke_verification(
     request: Request,
-    x_smoke_test_token: str | None = Header(default=None, alias=_SMOKE_TOKEN_HEADER),
     x_ms_client_principal: str | None = Header(
         default=None, alias="X-MS-CLIENT-PRINCIPAL"
     ),
@@ -100,21 +97,17 @@ async def smoke_verification(
     code does not match the migrated database schema fails here instead of
     silently returning 500s to real users (see incident #432).
 
-    During the workload-identity rollout, requests may authenticate through
-    Container Apps Easy Auth or the existing shared-token fallback.
+    Container Apps Easy Auth validates the deployment identity before the
+    route authorizes its application ID and Smoke.Trigger role.
     """
     smoke_settings = request.app.state.settings.smoke_test
-    configured_token = smoke_settings.token
-    valid_legacy_token = bool(configured_token) and hmac.compare_digest(
-        x_smoke_test_token or "", configured_token
-    )
 
     if x_ms_client_principal and x_ms_client_principal_id:
         _require_smoke_principal(
             x_ms_client_principal,
             smoke_settings.allowed_client_id,
         )
-    elif not valid_legacy_token:
+    else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Smoke-test authentication required.",
