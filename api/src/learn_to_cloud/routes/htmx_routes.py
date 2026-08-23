@@ -32,6 +32,10 @@ from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
     is_derivable,
 )
+from learn_to_cloud_shared.verification_attempt_executor import (
+    terminalize_unstarted_verification_attempt,
+    terminalize_verification_attempt,
+)
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -47,6 +51,7 @@ from learn_to_cloud.rendering.context import (
     build_requirement_card_context,
 )
 from learn_to_cloud.services.durable_verification_client import (
+    DurableVerificationAuthError,
     DurableVerificationConfigError,
     DurableVerificationStartError,
     DurableVerificationStatusError,
@@ -202,44 +207,41 @@ async def _terminalize_failed_attempt(
     session_maker = request.app.state.session_maker
     attempt_id = UUID(token_data.job_id)
     async with session_maker() as session:
-        attempt_repo = VerificationAttemptRepository(session)
-        attempt = await attempt_repo.get_status(attempt_id)
-        if attempt is None:
+        if await VerificationAttemptRepository(session).get_status(attempt_id) is None:
             return False
 
-        cancelled = status in {"terminated", "canceled"}
-        result = await attempt_repo.finalize(
-            attempt_id,
-            outcome="cancelled" if cancelled else "server_error",
-            error_code="cancelled" if cancelled else "server_error",
-            validation_message=(
-                "Verification was cancelled."
-                if cancelled
-                else "Verification failed before recording a result."
-            ),
-            terminal_source="poller",
-            feedback_json=None,
-        )
-        if not result.won:
-            logger.info(
-                "verification.poller.finalize_skipped",
-                extra={
-                    "attempt_id": str(attempt_id),
-                    "runtime_status": status,
-                    "outcome": result.state.outcome,
-                },
-            )
-            return False
-        await session.commit()
+    cancelled = status in {"terminated", "canceled"}
+    result = await terminalize_verification_attempt(
+        attempt_id,
+        outcome="cancelled" if cancelled else "server_error",
+        error_code="cancelled" if cancelled else "server_error",
+        validation_message=(
+            "Verification was cancelled."
+            if cancelled
+            else "Verification failed before recording a result."
+        ),
+        terminal_source="poller",
+        session_maker=session_maker,
+    )
+    if not result.won:
         logger.info(
-            "verification.poller.attempt_terminalized",
+            "verification.poller.finalize_skipped",
             extra={
                 "attempt_id": str(attempt_id),
                 "runtime_status": status,
                 "outcome": result.state.outcome,
-                "cas_won": result.won,
             },
         )
+        return False
+    logger.info(
+        "verification.poller.attempt_terminalized",
+        extra={
+            "attempt_id": str(attempt_id),
+            "runtime_status": status,
+            "outcome": result.state.outcome,
+            "cas_won": result.won,
+        },
+    )
     return True
 
 
@@ -286,9 +288,9 @@ async def _log_attempt_completion(
         "terminal_source": state.terminal_source if state else None,
     }
     if state is None or state.outcome == "server_error":
-        logger.warning("verification.attempt.completed", extra=extra)
+        logger.warning("verification.attempt.observed", extra=extra)
     else:
-        logger.info("verification.attempt.completed", extra=extra)
+        logger.info("verification.attempt.observed", extra=extra)
 
 
 async def _render_step_toggle(
@@ -526,8 +528,9 @@ async def _start_async_attempt_and_render(
     original start never actually succeeded, the poller will see a 404
     from Durable and surface the error so the user can retry.
 
-    On a Durable start-call failure that never reached Functions, deletes the
-    just-created attempt so it does not block the learner's retry.
+    On a Durable start-call failure that never reached Functions, terminalizes
+    the just-created attempt so it remains in the outcome ledger without
+    blocking the learner's retry.
     """
     try:
         if attempt_submission.created:
@@ -549,15 +552,27 @@ async def _start_async_attempt_and_render(
 
     except (
         DurableVerificationConfigError,
+        DurableVerificationAuthError,
         DurableVerificationStartError,
     ) as exc:
-        record_span_exception(exc)
+        exception_attributes: dict[str, str | bool | int] = {
+            "verification.attempt.id": str(attempt_submission.attempt_id),
+            "verification.failure.kind": exc.failure_kind.value,
+            "verification.retryable": exc.retryable,
+        }
+        if exc.status_code is not None:
+            exception_attributes["http.response.status_code"] = exc.status_code
+        record_span_exception(exc, exception_attributes)
         logger.exception(
             "htmx.submit.durable_start_failed",
             extra={
                 "user_id": user_id,
                 "requirement_slug": requirement_slug,
+                "attempt_id": str(attempt_submission.attempt_id),
                 "error_type": type(exc).__name__,
+                "failure_kind": exc.failure_kind.value,
+                "retryable": exc.retryable,
+                "status_code": exc.status_code,
                 "error_message": str(exc),
                 "error_cause": (
                     f"{type(exc.__cause__).__name__}: {exc.__cause__}"
@@ -566,18 +581,14 @@ async def _start_async_attempt_and_render(
                 ),
             },
         )
-        # Only an unclaimed attempt is safe to remove. A timeout can happen
-        # after Functions has claimed and started it, in which case the row
-        # must remain for the orchestration to finalize.
-        async with session_maker() as write_session:
-            await VerificationAttemptRepository(write_session).delete_active(
-                attempt_submission.attempt_id,
-            )
-            await write_session.commit()
-        # A config error means the verification service is misconfigured on our
-        # side, so retrying will never help. A start error is usually a
-        # transient hiccup in the Functions app, so retrying is worth it.
-        if isinstance(exc, DurableVerificationConfigError):
+        await terminalize_unstarted_verification_attempt(
+            attempt_submission.attempt_id,
+            error_code=exc.error_code,
+            validation_message="Verification could not be started.",
+            terminal_source="api_start_failure",
+            session_maker=session_maker,
+        )
+        if not exc.retryable:
             return render_card(
                 server_error=True,
                 server_error_message=_DURABLE_UNAVAILABLE_ERROR_MESSAGE,
@@ -614,20 +625,29 @@ async def htmx_verification_attempt_status(
 
     try:
         durable_status = await get_verification_attempt_status(token_data.instance_id)
-    except (DurableVerificationConfigError, DurableVerificationStatusError) as exc:
+    except (
+        DurableVerificationAuthError,
+        DurableVerificationConfigError,
+        DurableVerificationStatusError,
+    ) as exc:
         record_span_exception(
             exc,
             {
                 "user.id": user_id,
-                "verification.job_id": str(token_data.job_id),
+                "verification.attempt.id": str(token_data.job_id),
+                "verification.failure.kind": exc.failure_kind.value,
+                "verification.retryable": exc.retryable,
             },
         )
         logger.warning(
             "verification.status.durable_read_failed",
             extra={
                 "user_id": user_id,
-                "job_id": token_data.job_id,
+                "attempt_id": token_data.job_id,
                 "error_type": type(exc).__name__,
+                "failure_kind": exc.failure_kind.value,
+                "retryable": exc.retryable,
+                "status_code": exc.status_code,
             },
         )
         return _status_error_response(
@@ -675,7 +695,7 @@ async def htmx_verification_attempt_status(
         "verification.status.unexpected_durable_status",
         extra={
             "user_id": user_id,
-            "job_id": token_data.job_id,
+            "attempt_id": token_data.job_id,
             "runtime_status": durable_status.runtime_status,
         },
     )

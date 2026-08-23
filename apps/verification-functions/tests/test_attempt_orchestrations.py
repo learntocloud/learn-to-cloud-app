@@ -186,6 +186,9 @@ class TestAttemptOrchestration:
             ("activity_with_retry", "prepare_verification_attempt"),
             ("activity_with_retry", "terminalize_verification_attempt"),
         ]
+        assert calls[-1].payload["terminal_source"] == (
+            "orchestrator_prepare_exception"
+        )
         assert result == {"attempt_id": "a-1", "outcome": "server_error"}
 
     def test_verify_failure_terminalizes(self) -> None:
@@ -203,6 +206,9 @@ class TestAttemptOrchestration:
             ("activity_with_retry", "execute_requirement_verification"),
             ("activity_with_retry", "terminalize_verification_attempt"),
         ]
+        assert calls[-1].payload["terminal_source"] == (
+            "orchestrator_verification_exception"
+        )
 
 
 class TestVersionedOrchestratorRegistered:

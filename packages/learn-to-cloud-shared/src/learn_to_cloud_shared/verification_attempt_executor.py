@@ -21,6 +21,7 @@ Trust boundary and idempotency:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -30,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from learn_to_cloud_shared.models import VerificationAttemptOutcome
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptTerminalState,
+    FinalizeResult,
     VerificationAttemptRepository,
 )
 from learn_to_cloud_shared.submission_values import (
@@ -52,6 +54,7 @@ from learn_to_cloud_shared.verification_workflow import (
 )
 
 tracer = trace.get_tracer(__name__)
+logger = logging.getLogger(__name__)
 
 _SNAPSHOT_SOURCE_SUBMITTED = "submitted"
 _ORCHESTRATOR_TERMINAL_SOURCE = "orchestrator"
@@ -162,7 +165,7 @@ async def finalize_verification_attempt(
     run_result: VerificationRunResult,
     *,
     session_maker: async_sessionmaker[AsyncSession],
-) -> AttemptTerminalState:
+) -> FinalizeResult:
     """Persist an attempt's real verification outcome via compare-and-set."""
     run_result = run_result.without_transport_data()
     attempt = run_result.attempt
@@ -199,7 +202,7 @@ async def terminalize_verification_attempt(
     validation_message: str,
     terminal_source: str,
     session_maker: async_sessionmaker[AsyncSession],
-) -> AttemptTerminalState:
+) -> FinalizeResult:
     """Compare-and-set a failure/cancellation outcome.
 
     Used by the orchestrator's exception path and the stale-attempt
@@ -221,6 +224,38 @@ async def terminalize_verification_attempt(
     )
 
 
+async def terminalize_unstarted_verification_attempt(
+    attempt_id: UUID,
+    *,
+    error_code: str,
+    validation_message: str,
+    terminal_source: str,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> FinalizeResult | None:
+    """Terminalize a pre-start failure without racing a Functions claim."""
+    with tracer.start_as_current_span(
+        "terminalize_unstarted_verification_attempt",
+        attributes={"verification.attempt.id": str(attempt_id)},
+    ) as span:
+        async with session_maker() as db:
+            result = await VerificationAttemptRepository(db).finalize_unstarted(
+                attempt_id,
+                outcome=VerificationAttemptOutcome.SERVER_ERROR,
+                error_code=error_code,
+                validation_message=validation_message,
+                terminal_source=terminal_source,
+            )
+            if result is not None:
+                await db.commit()
+        span.set_attribute(
+            "verification.finalization.disposition",
+            "claimed" if result is None else ("written" if result.won else "existing"),
+        )
+        if result is not None:
+            _log_canonical_completion(result)
+        return result
+
+
 async def _finalize(
     attempt_id: UUID,
     *,
@@ -230,7 +265,7 @@ async def _finalize(
     validation_message: str | None,
     terminal_source: str,
     feedback_json: list[dict] | None,
-) -> AttemptTerminalState:
+) -> FinalizeResult:
     with tracer.start_as_current_span(
         "finalize_verification_attempt",
         attributes={
@@ -249,6 +284,60 @@ async def _finalize(
                 feedback_json=feedback_json,
             )
             await db.commit()
-        span.set_attribute("verification.cas_won", result.won)
+        span.set_attribute(
+            "verification.finalization.disposition",
+            "written" if result.won else "existing",
+        )
+        _log_canonical_completion(result)
 
-        return result.state
+        return result
+
+
+def _failure_stage(state: AttemptTerminalState) -> str | None:
+    if state.outcome not in {VerificationAttemptOutcome.SERVER_ERROR.value}:
+        return None
+    source = state.terminal_source or ""
+    if source.startswith("orchestrator_"):
+        return source.removeprefix("orchestrator_").removesuffix("_exception")
+    if source in {"start_failure", "api_start_failure"}:
+        return "start"
+    if source == "poller":
+        return "status"
+    if source == "reconciler":
+        return "reconciliation"
+    if source == _ORCHESTRATOR_TERMINAL_SOURCE:
+        return "verification"
+    return None
+
+
+def _is_retryable(state: AttemptTerminalState) -> bool:
+    if state.outcome != VerificationAttemptOutcome.SERVER_ERROR.value:
+        return False
+    return state.error_code not in {
+        "durable_authentication_error",
+        "durable_configuration_error",
+        "durable_http_rejected_error",
+        "durable_protocol_error",
+    }
+
+
+def _log_canonical_completion(result: FinalizeResult) -> None:
+    if not result.won:
+        return
+    state = result.state
+    extra: dict[str, object] = {
+        "verification.attempt.id": str(state.id),
+        "verification.outcome": state.outcome,
+        "verification.error.code": state.error_code,
+        "verification.terminal.source": state.terminal_source,
+        "verification.retryable": _is_retryable(state),
+    }
+    failure_stage = _failure_stage(state)
+    if failure_stage is not None:
+        extra["verification.failure.stage"] = failure_stage
+    log = (
+        logger.warning
+        if state.outcome == VerificationAttemptOutcome.SERVER_ERROR.value
+        else logger.info
+    )
+    log("verification.attempt.completed", extra=extra)

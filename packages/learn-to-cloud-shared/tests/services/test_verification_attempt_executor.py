@@ -1,5 +1,6 @@
 """Integration tests for verification-attempt execution."""
 
+import logging
 from uuid import uuid4
 
 import pytest
@@ -109,6 +110,7 @@ async def test_prepare_rejects_reconstructed_attempt(
 
 async def test_finalize_is_compare_and_set_idempotent(
     session_maker: async_sessionmaker[AsyncSession],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     attempt = await _create_attempt(session_maker)
     preparation = await prepare_verification_attempt(
@@ -122,14 +124,30 @@ async def test_finalize_is_compare_and_set_idempotent(
         ),
     )
 
-    first = await finalize_verification_attempt(run_result, session_maker=session_maker)
-    second = await finalize_verification_attempt(
-        run_result, session_maker=session_maker
-    )
+    with caplog.at_level(
+        logging.INFO,
+        logger="learn_to_cloud_shared.verification_attempt_executor",
+    ):
+        first = await finalize_verification_attempt(
+            run_result, session_maker=session_maker
+        )
+        second = await finalize_verification_attempt(
+            run_result, session_maker=session_maker
+        )
 
-    assert first.outcome == "succeeded"
-    assert second.outcome == "succeeded"
-    assert first.completed_at == second.completed_at
+    assert first.won is True
+    assert second.won is False
+    assert first.state.outcome == "succeeded"
+    assert second.state.outcome == "succeeded"
+    assert first.state.completed_at == second.state.completed_at
+    records = [
+        record
+        for record in caplog.records
+        if record.message == "verification.attempt.completed"
+    ]
+    assert len(records) == 1
+    assert records[0].__dict__["verification.attempt.id"] == str(attempt.id)
+    assert records[0].__dict__["verification.outcome"] == "succeeded"
 
 
 async def test_terminalize_records_cancelled_outcome(
@@ -137,7 +155,7 @@ async def test_terminalize_records_cancelled_outcome(
 ) -> None:
     attempt = await _create_attempt(session_maker)
 
-    state = await terminalize_verification_attempt(
+    result = await terminalize_verification_attempt(
         attempt.id,
         outcome="cancelled",
         error_code="cancelled",
@@ -146,5 +164,6 @@ async def test_terminalize_records_cancelled_outcome(
         session_maker=session_maker,
     )
 
-    assert state.outcome == "cancelled"
-    assert state.error_code == "cancelled"
+    assert result.won is True
+    assert result.state.outcome == "cancelled"
+    assert result.state.error_code == "cancelled"
