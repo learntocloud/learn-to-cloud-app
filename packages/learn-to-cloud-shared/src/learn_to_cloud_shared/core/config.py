@@ -276,6 +276,16 @@ class WebSettings(BaseSettings):
                     "SESSION__SECRET_KEY must be set to a secure random value "
                     "when ENVIRONMENT=production."
                 )
+            if not self.verification_functions.base_url:
+                raise ValueError(
+                    "VERIFICATION_FUNCTIONS__BASE_URL must be set "
+                    "when ENVIRONMENT=production."
+                )
+            if not self.verification_functions.token_scope:
+                raise ValueError(
+                    "VERIFICATION_FUNCTIONS__TOKEN_SCOPE must be set "
+                    "when ENVIRONMENT=production."
+                )
         return self
 
     @property
