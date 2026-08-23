@@ -655,18 +655,28 @@ jobs:
             --output tsv)
           echo "::add-mask::$access_token"
 
-          code=$(curl --silent --output /tmp/entra_smoke_body.txt \
-            --write-out "%{http_code}" \
-            --request POST "$SMOKE_URL" \
-            --header "Authorization: Bearer $access_token")
+          # The control plane can report the new revision ready before the
+          # public FQDN finishes shifting traffic away from the old revision.
+          code=000
+          for i in {1..6}; do
+            if ! code=$(curl --silent --output /tmp/entra_smoke_body.txt \
+              --write-out "%{http_code}" \
+              --request POST "$SMOKE_URL" \
+              --header "Authorization: Bearer $access_token"); then
+              code=000
+            fi
+            echo "Attempt $i: HTTP $code"
 
-          if [[ "$code" != "200" ]]; then
-            echo "Entra smoke-auth validation returned HTTP $code."
-            cat /tmp/entra_smoke_body.txt || true
-            exit 1
-          fi
+            if [[ "$code" == "200" ]]; then
+              echo "Entra smoke authentication passed."
+              exit 0
+            fi
+            sleep 10
+          done
 
-          echo "Entra smoke authentication passed."
+          echo "Entra smoke-auth validation returned HTTP $code."
+          cat /tmp/entra_smoke_body.txt || true
+          exit 1
 
       - name: Smoke test verification submit path
         env:
