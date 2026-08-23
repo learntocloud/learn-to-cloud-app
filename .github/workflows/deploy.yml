@@ -321,6 +321,7 @@ jobs:
       migration_postgres_role: ${{ steps.tf-outputs.outputs.migration_postgres_role }}
       verification_functions_postgres_role: ${{ steps.tf-outputs.outputs.verification_functions_postgres_role }}
       api_url: ${{ steps.tf-outputs.outputs.api_url }}
+      smoke_auth_scope: ${{ steps.tf-outputs.outputs.smoke_auth_scope }}
       verification_functions_name: ${{ steps.tf-outputs.outputs.verification_functions_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -373,6 +374,7 @@ jobs:
           echo "migration_postgres_role=$(terraform output -raw migration_postgres_role)" >> "$GITHUB_OUTPUT"
           echo "verification_functions_postgres_role=$(terraform output -raw verification_functions_postgres_role)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
+          echo "smoke_auth_scope=$(terraform output -raw smoke_auth_scope)" >> "$GITHUB_OUTPUT"
           echo "verification_functions_name=$(terraform output -raw verification_functions_name)" >> "$GITHUB_OUTPUT"
 
   # -----------------------------------------------------------------------
@@ -635,6 +637,36 @@ jobs:
             --name "$APP_NAME" --resource-group "$RG" --revision "$REVISION" \
             --tail 100 --format text 2>&1 || true
           exit 1
+
+      # Transitional validation: prove the OIDC/Entra path works in production
+      # before a follow-up PR removes the shared-token fallback and makes this
+      # identity path the mandatory deployment gate.
+      - name: Validate Entra smoke authentication
+        continue-on-error: true
+        env:
+          SMOKE_SCOPE: ${{ needs.terraform.outputs.smoke_auth_scope }}
+          SMOKE_URL: ${{ needs.terraform.outputs.api_url }}/internal/smoke/verification
+        run: |
+          set -euo pipefail
+
+          access_token=$(az account get-access-token \
+            --scope "$SMOKE_SCOPE" \
+            --query accessToken \
+            --output tsv)
+          echo "::add-mask::$access_token"
+
+          code=$(curl --silent --output /tmp/entra_smoke_body.txt \
+            --write-out "%{http_code}" \
+            --request POST "$SMOKE_URL" \
+            --header "Authorization: Bearer $access_token")
+
+          if [[ "$code" != "200" ]]; then
+            echo "Entra smoke-auth validation returned HTTP $code."
+            cat /tmp/entra_smoke_body.txt || true
+            exit 1
+          fi
+
+          echo "Entra smoke authentication passed."
 
       - name: Smoke test verification submit path
         env:
