@@ -52,7 +52,7 @@ from learn_to_cloud.routes.health_routes import get_code_alembic_head
 # See: https://learn.microsoft.com/en-us/troubleshoot/azure/azure-monitor/
 #      app-insights/telemetry/opentelemetry-troubleshooting-python
 configure_logging()
-configure_observability(fail_on_azure_error=True)
+configure_observability()
 logger = logging.getLogger(__name__)
 
 

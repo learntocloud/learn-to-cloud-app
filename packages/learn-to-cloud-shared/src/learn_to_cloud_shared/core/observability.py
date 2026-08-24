@@ -147,7 +147,7 @@ def _configure_otlp(resource: Resource) -> None:
         raise ValueError(f"Unsupported OTLP protocol: {protocol}")
 
 
-def configure_observability(*, fail_on_azure_error: bool = False) -> None:
+def configure_observability() -> None:
     """Set up the OTel telemetry pipeline."""
     global _telemetry_enabled
 
@@ -164,11 +164,13 @@ def configure_observability(*, fail_on_azure_error: bool = False) -> None:
         elif otlp_endpoint:
             _configure_otlp(resource)
         else:
+            logger.error(
+                "telemetry.configure.failed",
+                extra={"reason": "telemetry_destination_missing"},
+            )
             return
     except Exception:
         logger.exception("telemetry.configure.failed")
-        if conn_str and fail_on_azure_error:
-            raise
         return
 
     _telemetry_enabled = True
