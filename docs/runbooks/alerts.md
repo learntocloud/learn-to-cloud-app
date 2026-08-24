@@ -9,8 +9,8 @@ Analytics workspace. Replace `dev` if the alert came from another environment.
 ### Meaning
 
 The API emitted `unhandled.exception`, which is the final FastAPI exception
-boundary. The exact event is stored in `AppExceptions.OuterMessage`. The broad
-API 5xx alert remains separate and may also fire.
+boundary. The exact event is stored in `AppExceptions.OuterMessage`. This exact
+detector replaces the retired broad API 5xx paging signal.
 
 ### First checks
 
@@ -62,8 +62,8 @@ revision, path, exception type, and first/last timestamps.
 
 Prefer rolling back the affected API revision when the failures began directly
 after a deployment. Do not suppress the exception or disable the alert. If a
-dependency is transiently unavailable, restore that dependency and confirm both
-the exact exception alert and broad 5xx alert recover.
+dependency is transiently unavailable, restore that dependency and confirm the
+exact exception alert returns to a healthy state.
 
 ## Telemetry pipeline failure
 
