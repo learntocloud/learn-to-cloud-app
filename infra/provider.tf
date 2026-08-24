@@ -80,8 +80,25 @@ locals {
     lookup(local.verification_functions_auth_client_ids, var.environment, ""),
   )
   verification_functions_auth_scope = "${local.verification_functions_auth_audience}/.default"
-  suffix                            = random_string.suffix.result
-  resource_group_name               = "rg-ltc-${var.environment}"
+  smoke_auth_app_name               = "ltc-smoke-api-${var.environment}"
+  smoke_auth_audience               = "api://${local.smoke_auth_app_name}"
+  smoke_auth_client_ids = {
+    dev = "64227d45-f58e-4956-ba5a-d04e281fa1a1"
+  }
+  smoke_auth_client_id = coalesce(
+    var.smoke_auth_client_id,
+    lookup(local.smoke_auth_client_ids, var.environment, ""),
+  )
+  smoke_auth_allowed_client_ids = {
+    dev = "80656257-8f52-4889-95c4-d594c29c82ae"
+  }
+  smoke_auth_allowed_client_id = coalesce(
+    var.smoke_auth_allowed_client_id,
+    lookup(local.smoke_auth_allowed_client_ids, var.environment, ""),
+  )
+  smoke_auth_scope    = "${local.smoke_auth_audience}/.default"
+  suffix              = random_string.suffix.result
+  resource_group_name = "rg-ltc-${var.environment}"
   tags = {
     environment = var.environment
     project     = "learntocloud"

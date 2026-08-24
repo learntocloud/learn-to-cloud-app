@@ -64,7 +64,7 @@ jobs:
           fetch-depth: 2
 
       - name: Detect deploy-relevant changes
-        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
           filters: |
@@ -161,7 +161,7 @@ jobs:
           python-version-file: "apps/verification-functions/pyproject.toml"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: "0.11.21"
           enable-cache: true
@@ -321,6 +321,7 @@ jobs:
       migration_postgres_role: ${{ steps.tf-outputs.outputs.migration_postgres_role }}
       verification_functions_postgres_role: ${{ steps.tf-outputs.outputs.verification_functions_postgres_role }}
       api_url: ${{ steps.tf-outputs.outputs.api_url }}
+      smoke_auth_scope: ${{ steps.tf-outputs.outputs.smoke_auth_scope }}
       verification_functions_name: ${{ steps.tf-outputs.outputs.verification_functions_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -373,6 +374,7 @@ jobs:
           echo "migration_postgres_role=$(terraform output -raw migration_postgres_role)" >> "$GITHUB_OUTPUT"
           echo "verification_functions_postgres_role=$(terraform output -raw verification_functions_postgres_role)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
+          echo "smoke_auth_scope=$(terraform output -raw smoke_auth_scope)" >> "$GITHUB_OUTPUT"
           echo "verification_functions_name=$(terraform output -raw verification_functions_name)" >> "$GITHUB_OUTPUT"
 
   # -----------------------------------------------------------------------
@@ -392,7 +394,7 @@ jobs:
           python-version-file: "apps/verification-functions/pyproject.toml"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: "0.11.21"
           enable-cache: true
@@ -556,7 +558,7 @@ jobs:
           exit 1
 
       - name: Deploy verification Functions
-        uses: Azure/functions-action@bc63708cc6539760eea18d8a7de4ce8ef5fdf593 # v1
+        uses: Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656 # v1
         with:
           app-name: ${{ needs.terraform.outputs.verification_functions_name }}
           package: apps/verification-functions
@@ -638,51 +640,37 @@ jobs:
 
       - name: Smoke test verification submit path
         env:
-          SMOKE_TEST_TOKEN: ${{ secrets.SMOKE_TEST_TOKEN }}
+          SMOKE_SCOPE: ${{ needs.terraform.outputs.smoke_auth_scope }}
           SMOKE_URL: ${{ needs.terraform.outputs.api_url }}/internal/smoke/verification
         run: |
           set -euo pipefail
 
-          # The gate only runs once the shared secret exists in both places: the
-          # GitHub secret here and the smoke-test-token Key Vault secret the app
-          # reads. Until then, warn loudly instead of blocking every deploy.
-          if [[ -z "${SMOKE_TEST_TOKEN:-}" ]]; then
-            echo "::warning::SMOKE_TEST_TOKEN is not set — skipping the post-deploy verification smoke test."
-            echo "Set the SMOKE_TEST_TOKEN repository secret to the same value as the"
-            echo "smoke-test-token Key Vault secret to activate this deploy gate."
-            exit 0
-          fi
+          access_token=$(az account get-access-token \
+            --scope "$SMOKE_SCOPE" \
+            --query accessToken \
+            --output tsv)
+          echo "::add-mask::$access_token"
 
-          echo "POSTing verification smoke check to $SMOKE_URL"
-
-          # Retry briefly: traffic can take a few seconds to fully shift to the
-          # freshly deployed revision after readiness reports healthy.
+          # The control plane can report the new revision ready before the
+          # public FQDN finishes shifting traffic away from the old revision.
           code=000
           for i in {1..6}; do
-            code=$(curl -s -o /tmp/smoke_body.txt -w "%{http_code}" \
-              -X POST "$SMOKE_URL" \
-              -H "X-Smoke-Test-Token: $SMOKE_TEST_TOKEN" || echo 000)
+            if ! code=$(curl --silent --output /tmp/entra_smoke_body.txt \
+              --write-out "%{http_code}" \
+              --request POST "$SMOKE_URL" \
+              --header "Authorization: Bearer $access_token"); then
+              code=000
+            fi
             echo "Attempt $i: HTTP $code"
 
             if [[ "$code" == "200" ]]; then
               echo "Verification smoke test passed."
-              cat /tmp/smoke_body.txt || true
+              cat /tmp/entra_smoke_body.txt || true
               exit 0
             fi
-
-            # A 5xx means the verification submit code path is broken against the
-            # live database schema (the incident #432 class of failure). Fail now.
-            if [[ "$code" =~ ^5 ]]; then
-              echo "ERROR: smoke endpoint returned $code — verification submit path is broken."
-              cat /tmp/smoke_body.txt || true
-              exit 1
-            fi
-
-            sleep 5
+            sleep 10
           done
 
           echo "ERROR: verification smoke test did not pass (last HTTP $code)."
-          echo "401 means the app's SMOKE_TEST__TOKEN does not match this secret;"
-          echo "check that the smoke-test-token Key Vault secret holds the same value."
-          cat /tmp/smoke_body.txt || true
+          cat /tmp/entra_smoke_body.txt || true
           exit 1

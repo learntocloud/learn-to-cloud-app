@@ -163,74 +163,45 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_5xx_errors" {
   }
 }
 
-# The API-wide alert above catches fast 5xx storms. This route-specific alert
-# catches slow leaks on the user-facing verification submit path, where even a
-# few failures can silently block progress.
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_verification_submit_5xx_leak" {
-  name                = "alert-ltc-api-verification-submit-5xx-leak-${var.environment}"
+# Page only for the final outcome PostgreSQL accepted for an attempt.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_system_error" {
+  name                = "alert-ltc-verification-attempt-system-error-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Alert when verification submits return 2+ 5xx errors in 24 hours"
+  description         = "Alert when a saved verification attempt outcome is server_error"
   severity            = 2
   enabled             = true
   tags                = local.tags
 
   scopes                = [azurerm_application_insights.main.id]
-  evaluation_frequency  = "PT1H"
-  window_duration       = "P1D"
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
   target_resource_types = ["microsoft.insights/components"]
 
   criteria {
     query                   = <<-QUERY
-      requests
-      | where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-${var.environment}")
+      traces
+      | where cloud_RoleName in (
+          "learn-to-cloud-api",
+          "ca-ltc-api-${var.environment}",
+          "learn-to-cloud-verification-functions",
+          "func-ltc-verification-${var.environment}"
+        )
           or cloud_RoleName has "learn-to-cloud-api"
           or cloud_RoleName has "ca-ltc-api"
-      | where resultCode startswith "5"
-      | where name has "/htmx/github/submit"
-          or url has "/htmx/github/submit"
-      | summarize ErrorCount = count()
+          or cloud_RoleName has "verification-functions"
+          or cloud_RoleName has "func-ltc-verification"
+      | where message == "verification.attempt.completed"
+      | extend
+          Outcome = tostring(customDimensions["verification.outcome"]),
+          AttemptId = tostring(customDimensions["verification.attempt.id"])
+      | where Outcome == "server_error"
+      | where isnotempty(AttemptId)
+      | summarize ErrorCount = dcount(AttemptId) by bin(timestamp, 5m)
     QUERY
     time_aggregation_method = "Maximum"
     metric_measure_column   = "ErrorCount"
     operator                = "GreaterThanOrEqual"
-    threshold               = 2
-
-    failing_periods {
-      minimum_failing_periods_to_trigger_alert = 1
-      number_of_evaluation_periods             = 1
-    }
-  }
-
-  action {
-    action_groups = [azurerm_monitor_action_group.critical.id]
-  }
-}
-
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_functions_5xx_errors" {
-  name                = "alert-ltc-verification-functions-5xx-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  description         = "Alert when verification Functions return any 5xx errors in a 5-minute window"
-  severity            = 1
-  enabled             = true
-  tags                = local.tags
-
-  scopes                = [azurerm_application_insights.main.id]
-  evaluation_frequency  = "PT5M"
-  window_duration       = "PT5M"
-  target_resource_types = ["microsoft.insights/components"]
-
-  criteria {
-    query                   = <<-QUERY
-      requests
-      | where cloud_RoleName in ("learn-to-cloud-verification-functions", "func-ltc-verification-${var.environment}")
-          or cloud_RoleName has "verification-functions"
-          or cloud_RoleName has "func-ltc-verification"
-      | where resultCode startswith "5"
-    QUERY
-    time_aggregation_method = "Count"
-    operator                = "GreaterThanOrEqual"
     threshold               = 1
 
     failing_periods {
@@ -244,184 +215,40 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_function
   }
 }
 
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_functions_exceptions" {
-  name                = "alert-ltc-verification-functions-exceptions-${var.environment}"
+# The reconciler emits this event only after a final database read confirms the
+# attempt is still active beyond its allowed duration.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_stuck" {
+  name                = "alert-ltc-verification-attempt-stuck-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Alert when verification Functions record non-learner API exceptions in a 5-minute window"
-  severity            = 1
-  enabled             = true
-  tags                = local.tags
-
-  scopes                = [azurerm_application_insights.main.id]
-  evaluation_frequency  = "PT5M"
-  window_duration       = "PT5M"
-  target_resource_types = ["microsoft.insights/components"]
-
-  criteria {
-    query                   = <<-QUERY
-      let LearnerApiDependencyFailures =
-          dependencies
-          | where cloud_RoleName in ("learn-to-cloud-verification-functions", "func-ltc-verification-${var.environment}")
-              or cloud_RoleName has "verification-functions"
-              or cloud_RoleName has "func-ltc-verification"
-          | where type == "HTTP"
-          | where name in ("POST /entries", "GET /entries")
-              or name startswith "DELETE /entries/"
-          | project operation_Id, dependencySpanId = id;
-      exceptions
-      | where cloud_RoleName in ("learn-to-cloud-verification-functions", "func-ltc-verification-${var.environment}")
-          or cloud_RoleName has "verification-functions"
-          or cloud_RoleName has "func-ltc-verification"
-      | join kind=leftanti LearnerApiDependencyFailures
-          on operation_Id, $left.operation_ParentId == $right.dependencySpanId
-    QUERY
-    time_aggregation_method = "Count"
-    operator                = "GreaterThanOrEqual"
-    threshold               = 1
-
-    failing_periods {
-      minimum_failing_periods_to_trigger_alert = 1
-      number_of_evaluation_periods             = 1
-    }
-  }
-
-  action {
-    action_groups = [azurerm_monitor_action_group.critical.id]
-  }
-}
-
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_durable_errors" {
-  name                = "alert-ltc-verification-durable-errors-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  description         = "Alert when Durable verification logs warning or error traces in a 5-minute window"
+  description         = "Alert when a verification attempt remains active beyond its maximum duration"
   severity            = 2
   enabled             = true
   tags                = local.tags
 
   scopes                = [azurerm_application_insights.main.id]
   evaluation_frequency  = "PT5M"
-  window_duration       = "PT5M"
+  window_duration       = "PT15M"
   target_resource_types = ["microsoft.insights/components"]
 
   criteria {
     query                   = <<-QUERY
       traces
-      | extend Category = tostring(customDimensions.Category)
-      | where cloud_RoleName in ("learn-to-cloud-verification-functions", "func-ltc-verification-${var.environment}")
+      | where cloud_RoleName in (
+          "learn-to-cloud-verification-functions",
+          "func-ltc-verification-${var.environment}"
+        )
           or cloud_RoleName has "verification-functions"
           or cloud_RoleName has "func-ltc-verification"
-      | where severityLevel >= 3
-      | where Category has "DurableTask"
-          or message has "DurableTask"
-          or message has "orchestration"
-          or message has "activity"
-    QUERY
-    time_aggregation_method = "Count"
-    operator                = "GreaterThanOrEqual"
-    threshold               = 1
-
-    failing_periods {
-      minimum_failing_periods_to_trigger_alert = 1
-      number_of_evaluation_periods             = 1
-    }
-  }
-
-  action {
-    action_groups = [azurerm_monitor_action_group.critical.id]
-  }
-}
-
-# The verification submit handler catches DurableVerificationConfigError and
-# returns a 200 page with an error banner, so the 5xx-based alerts above never
-# see it. A config error means verification is misconfigured on our side and is
-# broken for every learner until someone fixes it, so we page on the very first
-# occurrence by matching the structured log event and its error_type dimension.
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_verification_config_error" {
-  name                = "alert-ltc-api-verification-config-error-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  description         = "Alert when the verification submit path hits a configuration error (returns 200, so no 5xx alert fires)"
-  severity            = 1
-  enabled             = true
-  tags                = local.tags
-
-  scopes                = [azurerm_application_insights.main.id]
-  evaluation_frequency  = "PT5M"
-  window_duration       = "PT5M"
-  target_resource_types = ["microsoft.insights/components"]
-
-  criteria {
-    query                   = <<-QUERY
-      traces
-      | extend ErrorType = tostring(customDimensions.error_type)
-      | where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-${var.environment}")
-          or cloud_RoleName has "learn-to-cloud-api"
-          or cloud_RoleName has "ca-ltc-api"
-      | where message has "htmx.submit.durable_start_failed"
-      | where ErrorType == "DurableVerificationConfigError"
-    QUERY
-    time_aggregation_method = "Count"
-    operator                = "GreaterThanOrEqual"
-    threshold               = 1
-
-    failing_periods {
-      minimum_failing_periods_to_trigger_alert = 1
-      number_of_evaluation_periods             = 1
-    }
-  }
-
-  action {
-    action_groups = [azurerm_monitor_action_group.critical.id]
-  }
-}
-
-# verification.attempt is a custom OTel counter emitted by validate_submission
-# (packages/learn-to-cloud-shared/.../verification/dispatcher.py) for every
-# inline and background verification, labelled by submission_type and result
-# (pass/fail/error). A clean validator failure never produces a 5xx, so the
-# request-based alerts above would miss a failure-rate spike entirely.
-#
-# AppMetrics isn't recognized by alert-rule validation until the workspace
-# schema catches up after the first write, so a bare `AppMetrics` reference
-# (or `union isfuzzy=true AppMetrics` alone) fails apply with a hard 400 if no
-# custom metric has landed yet, since fuzzy union only suppresses the error
-# when at least one union operand resolves. Unioning in an empty literal
-# datatable with the same columns we read (Name, Sum, Properties) guarantees
-# one operand always resolves, so the rule deploys cleanly with or without
-# AppMetrics data and produces identical results once the table exists.
-# Verified directly against the live dev Application Insights resource: the
-# bare/fuzzy-only query reproduces "BadArgumentError: invalid properties",
-# the datatable version returns a clean (empty) result with only a non-fatal
-# resolution warning.
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_failure_rate" {
-  name                = "alert-ltc-verification-attempt-failure-rate-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  description         = "Alert when verification attempts fail/error at a high rate over an hour"
-  severity            = 2
-  enabled             = true
-  tags                = local.tags
-
-  scopes                = [azurerm_application_insights.main.id]
-  evaluation_frequency  = "PT1H"
-  window_duration       = "PT1H"
-  target_resource_types = ["microsoft.insights/components"]
-
-  criteria {
-    query                   = <<-QUERY
-      union isfuzzy=true AppMetrics, (datatable(Name: string, Sum: real, Properties: dynamic)[])
-      | where Name == "verification.attempt"
-      | extend result = tostring(Properties['result'])
-      | summarize Total = sum(Sum), Failed = sumif(Sum, result in ("fail", "error"))
-      | where Total >= 5
-      | project FailureRatePct = round(100.0 * Failed / Total, 1)
+      | where message == "verification.attempt.stuck"
+      | extend AttemptId = tostring(customDimensions["verification.attempt.id"])
+      | where isnotempty(AttemptId)
+      | summarize StuckCount = dcount(AttemptId) by bin(timestamp, 5m)
     QUERY
     time_aggregation_method = "Maximum"
-    metric_measure_column   = "FailureRatePct"
+    metric_measure_column   = "StuckCount"
     operator                = "GreaterThanOrEqual"
-    threshold               = 50
+    threshold               = 1
 
     failing_periods {
       minimum_failing_periods_to_trigger_alert = 1

@@ -1,14 +1,11 @@
-"""Internal operational endpoints.
+"""Internal operational endpoints."""
 
-These routes are not part of the user-facing product. They support
-deployment and monitoring tooling and are gated by a shared secret so
-they are only reachable where that secret is configured.
-"""
-
-import hmac
+import base64
+import binascii
 import logging
 
 from fastapi import APIRouter, Header, HTTPException, Request
+from pydantic import BaseModel, ValidationError
 from starlette import status
 
 from learn_to_cloud.services.submissions_service import run_submit_smoke_check
@@ -17,13 +14,81 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["internal"], include_in_schema=False)
 
-_SMOKE_TOKEN_HEADER = "X-Smoke-Test-Token"
+_SMOKE_ROLE = "Smoke.Trigger"
+_APP_ID_CLAIMS = {
+    "appid",
+    "azp",
+    "http://schemas.microsoft.com/identity/claims/appid",
+}
+_ROLE_CLAIMS = {
+    "roles",
+    "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
+}
+
+
+class _ClientPrincipalClaim(BaseModel):
+    typ: str
+    val: str
+
+
+class _ClientPrincipal(BaseModel):
+    auth_typ: str
+    claims: list[_ClientPrincipalClaim]
+    role_typ: str = ""
+
+
+def _require_smoke_principal(encoded_principal: str, expected_client_id: str) -> None:
+    """Authorize an identity already validated by Container Apps Easy Auth."""
+    if not expected_client_id:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Smoke-test identity is not configured.",
+        )
+
+    try:
+        principal_json = base64.b64decode(encoded_principal, validate=True)
+        principal = _ClientPrincipal.model_validate_json(principal_json)
+    except (binascii.Error, UnicodeDecodeError, ValidationError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authenticated principal.",
+        ) from exc
+
+    if principal.auth_typ != "aad":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Smoke test requires Microsoft Entra authentication.",
+        )
+
+    claims: dict[str, set[str]] = {}
+    for claim in principal.claims:
+        claims.setdefault(claim.typ, set()).add(claim.val)
+
+    caller_ids = set().union(*(claims.get(name, set()) for name in _APP_ID_CLAIMS))
+    if expected_client_id not in caller_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Caller is not authorized to run smoke tests.",
+        )
+
+    role_claims = _ROLE_CLAIMS | ({principal.role_typ} if principal.role_typ else set())
+    roles = set().union(*(claims.get(name, set()) for name in role_claims))
+    if _SMOKE_ROLE not in roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Caller lacks the smoke-test role.",
+        )
 
 
 @router.post("/internal/smoke/verification")
 async def smoke_verification(
     request: Request,
-    x_smoke_test_token: str | None = Header(default=None, alias=_SMOKE_TOKEN_HEADER),
+    x_ms_client_principal: str | None = Header(
+        default=None, alias="X-MS-CLIENT-PRINCIPAL"
+    ),
+    x_ms_client_principal_id: str | None = Header(
+        default=None, alias="X-MS-CLIENT-PRINCIPAL-ID"
+    ),
 ) -> dict[str, str]:
     """Post-deploy smoke check for the verification submit code path.
 
@@ -32,21 +97,20 @@ async def smoke_verification(
     code does not match the migrated database schema fails here instead of
     silently returning 500s to real users (see incident #432).
 
-    Returns 200 when the read path runs cleanly. Returns 503 when it does
-    not, which fails the post-deploy smoke step in CI. The endpoint is
-    disabled (404) unless ``SMOKE_TEST__TOKEN`` is configured, and rejects
-    requests (401) whose ``X-Smoke-Test-Token`` header does not match it.
+    Container Apps Easy Auth validates the deployment identity before the
+    route authorizes its application ID and Smoke.Trigger role.
     """
-    configured_token = request.app.state.settings.smoke_test.token
+    smoke_settings = request.app.state.settings.smoke_test
 
-    if not configured_token:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-
-    provided = x_smoke_test_token or ""
-    if not hmac.compare_digest(provided, configured_token):
+    if x_ms_client_principal and x_ms_client_principal_id:
+        _require_smoke_principal(
+            x_ms_client_principal,
+            smoke_settings.allowed_client_id,
+        )
+    else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid smoke-test token.",
+            detail="Smoke-test authentication required.",
         )
 
     try:
@@ -55,7 +119,7 @@ async def smoke_verification(
         logger.exception("internal.smoke.verification.failed")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Verification smoke check failed: {type(exc).__name__}: {exc}",
+            detail="Verification smoke check failed.",
         ) from exc
 
     logger.info(

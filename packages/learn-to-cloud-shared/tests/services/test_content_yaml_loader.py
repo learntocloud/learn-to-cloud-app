@@ -264,6 +264,22 @@ class TestGetAllPhases:
             for requirement in phase3.hands_on_verification.requirements
         ] == ["journal-api-implementation"]
 
+    def test_phase3_postgresql_tutorial_links_sample_database(self):
+        phase3 = next(phase for phase in get_all_phases() if phase.slug == "phase3")
+        topic = next(t for t in phase3.topics if t.slug == "databases")
+        step = next(
+            step
+            for step in topic.learning_steps
+            if step.slug == "phase3-topic3-watch-postgresql-tutorial-for-beginners"
+        )
+
+        assert "https://neon.com/postgresql/getting-started/sample-database" in (
+            step.description or ""
+        )
+        assert "https://github.com/learntocloud/learn-to-cloud-app/discussions/397" in (
+            step.description or ""
+        )
+
     def test_phase5_aws_observability_link_uses_current_adot_guide(self):
         phase5 = next(phase for phase in get_all_phases() if phase.slug == "phase5")
         topic = next(t for t in phase5.topics if t.slug == "monitoring-observability")

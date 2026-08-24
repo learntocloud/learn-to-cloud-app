@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "cba68c87445a7b55b0fd513b1c8c4176fc9541c0e55f75e938c408d6269f2e60",
-  "curriculum_version": 8,
+  "content_hash": "118a17ab06847498f9d37e892950739b1b8b78059d4eb24bad30ac17f27b5624",
+  "curriculum_version": 9,
   "phases": [
     {
       "capstone": null,
@@ -2306,7 +2306,7 @@
               "action": "watch",
               "checklist": [],
               "code": null,
-              "description": "Learn SQL fundamentals that directly support the capstone. Focus on SELECT, INSERT, UPDATE, DELETE, WHERE, ORDER BY, and basic joins.",
+              "description": "Learn SQL fundamentals that directly support the capstone. The tutorial uses the `dvdrental` sample database; download it from the [PostgreSQL sample database guide](https://neon.com/postgresql/getting-started/sample-database) before following along. See [community discussion #397](https://github.com/learntocloud/learn-to-cloud-app/discussions/397) for context.",
               "done_when": null,
               "options": [],
               "order": 1,

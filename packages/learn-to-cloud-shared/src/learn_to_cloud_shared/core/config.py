@@ -148,14 +148,9 @@ class SessionConfig(FrozenConfig):
 
 
 class SmokeTestConfig(FrozenConfig):
-    """Post-deploy smoke-test config.
+    """Post-deploy smoke-test authorization config."""
 
-    ``token`` gates the internal verification smoke endpoint. When empty
-    (the default), the endpoint is disabled and returns 404, so the
-    diagnostic surface only exists where the secret is configured.
-    """
-
-    token: str = ""
+    allowed_client_id: str = ""
 
 
 class CorsConfig(FrozenConfig):
@@ -274,6 +269,16 @@ class WebSettings(BaseSettings):
             ):
                 raise ValueError(
                     "SESSION__SECRET_KEY must be set to a secure random value "
+                    "when ENVIRONMENT=production."
+                )
+            if not self.verification_functions.base_url:
+                raise ValueError(
+                    "VERIFICATION_FUNCTIONS__BASE_URL must be set "
+                    "when ENVIRONMENT=production."
+                )
+            if not self.verification_functions.token_scope:
+                raise ValueError(
+                    "VERIFICATION_FUNCTIONS__TOKEN_SCOPE must be set "
                     "when ENVIRONMENT=production."
                 )
         return self

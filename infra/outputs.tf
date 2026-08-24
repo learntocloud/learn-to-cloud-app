@@ -75,6 +75,11 @@ output "api_container_app_name" {
   value       = azurerm_container_app.api.name
 }
 
+output "smoke_auth_scope" {
+  description = "Microsoft Entra token scope used by the deployment smoke test"
+  value       = local.smoke_auth_scope
+}
+
 output "migration_job_name" {
   description = "Container Apps Job name used to run database migrations"
   value       = azapi_resource.migrations.name

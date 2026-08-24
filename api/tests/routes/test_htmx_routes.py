@@ -320,20 +320,11 @@ class TestHtmxSubmitVerification:
         # Should render a server error card, not crash
         assert result is not None
 
-    async def test_durable_start_failure_deletes_attempt(self):
-        """When Durable's start_new call fails before reaching Functions, the
-        route deletes the just-created attempt instead of marking it terminal,
-        freeing the active slot so the user can retry immediately."""
+    async def test_durable_start_failure_terminalizes_attempt(self):
+        """A failed pre-start attempt remains in the outcome ledger."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
         attempt_submission = _mock_attempt_submission(created=True)
-        write_session = AsyncMock()
-        request.app.state.session_maker.return_value.__aenter__.return_value = (
-            write_session
-        )
-        attempt_repo = MagicMock()
-        attempt_repo.delete_active = AsyncMock(return_value=True)
-
         with (
             patch(
                 "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
@@ -356,9 +347,10 @@ class TestHtmxSubmitVerification:
                 side_effect=DurableVerificationStartError("boom"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
-                return_value=attempt_repo,
-            ),
+                "learn_to_cloud.routes.htmx_routes."
+                "terminalize_unstarted_verification_attempt",
+                new_callable=AsyncMock,
+            ) as terminalize,
         ):
             result = await htmx_submit_verification(
                 request,
@@ -368,10 +360,13 @@ class TestHtmxSubmitVerification:
             )
 
         assert isinstance(result, HTMLResponse)
-        attempt_repo.delete_active.assert_awaited_once_with(
-            attempt_submission.attempt_id
+        terminalize.assert_awaited_once_with(
+            attempt_submission.attempt_id,
+            error_code="durable_transport_error",
+            validation_message="Verification could not be started.",
+            terminal_source="api_start_failure",
+            session_maker=request.app.state.session_maker,
         )
-        write_session.commit.assert_awaited_once()
 
     async def test_durable_config_error_does_not_invite_immediate_retry(
         self, _patch_templates
@@ -381,13 +376,6 @@ class TestHtmxSubmitVerification:
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
         attempt_submission = _mock_attempt_submission(created=True)
-        write_session = AsyncMock()
-        request.app.state.session_maker.return_value.__aenter__.return_value = (
-            write_session
-        )
-        attempt_repo = MagicMock()
-        attempt_repo.delete_active = AsyncMock(return_value=True)
-
         with (
             patch(
                 "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
@@ -410,9 +398,10 @@ class TestHtmxSubmitVerification:
                 side_effect=DurableVerificationConfigError("not configured"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
-                return_value=attempt_repo,
-            ),
+                "learn_to_cloud.routes.htmx_routes."
+                "terminalize_unstarted_verification_attempt",
+                new_callable=AsyncMock,
+            ) as terminalize,
         ):
             result = await htmx_submit_verification(
                 request,
@@ -422,10 +411,7 @@ class TestHtmxSubmitVerification:
             )
 
         assert isinstance(result, HTMLResponse)
-        # The in-flight slot is still freed so a later (post-fix) retry works.
-        attempt_repo.delete_active.assert_awaited_once_with(
-            attempt_submission.attempt_id
-        )
+        terminalize.assert_awaited_once()
         _, _, context = _patch_templates.TemplateResponse.call_args.args
         assert context["server_error"] is True
         assert context["server_error_retryable"] is False
@@ -442,13 +428,6 @@ class TestHtmxSubmitVerification:
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
         attempt_submission = _mock_attempt_submission(created=True)
-        write_session = AsyncMock()
-        request.app.state.session_maker.return_value.__aenter__.return_value = (
-            write_session
-        )
-        attempt_repo = MagicMock()
-        attempt_repo.delete_active = AsyncMock(return_value=False)
-
         with (
             patch(
                 "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
@@ -471,9 +450,10 @@ class TestHtmxSubmitVerification:
                 side_effect=DurableVerificationStartError("boom"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
-                return_value=attempt_repo,
-            ),
+                "learn_to_cloud.routes.htmx_routes."
+                "terminalize_unstarted_verification_attempt",
+                new_callable=AsyncMock,
+            ) as terminalize,
         ):
             await htmx_submit_verification(
                 request,
@@ -485,9 +465,7 @@ class TestHtmxSubmitVerification:
         _, _, context = _patch_templates.TemplateResponse.call_args.args
         assert context["server_error"] is True
         assert context["server_error_retryable"] is True
-        attempt_repo.delete_active.assert_awaited_once_with(
-            attempt_submission.attempt_id
-        )
+        terminalize.assert_awaited_once()
 
     async def test_async_submit_still_returns_processing_card(self):
         """Regression: async submissions must keep using the
@@ -792,7 +770,7 @@ class TestHtmxVerificationAttemptStatus:
             )
 
         record = next(
-            r for r in caplog.records if r.message == "verification.attempt.completed"
+            r for r in caplog.records if r.message == "verification.attempt.observed"
         )
         # A server_error is the case an operator most needs to find, so it must
         # not be buried at INFO.
@@ -874,18 +852,20 @@ class TestHtmxVerificationAttemptStatus:
                 autospec=True,
             ) as mock_repository_class,
             patch(
+                "learn_to_cloud.routes.htmx_routes.terminalize_verification_attempt",
+                new_callable=AsyncMock,
+                return_value=MagicMock(
+                    won=True,
+                    state=MagicMock(outcome="server_error"),
+                ),
+            ) as terminalize,
+            patch(
                 "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
         ):
             mock_repository = mock_repository_class.return_value
             mock_repository.get_status = AsyncMock(return_value=MagicMock())
-            mock_repository.finalize = AsyncMock(
-                return_value=MagicMock(
-                    won=True,
-                    state=MagicMock(outcome="server_error"),
-                )
-            )
             result = await htmx_verification_attempt_status(
                 request,
                 token="signed-token",
@@ -893,15 +873,14 @@ class TestHtmxVerificationAttemptStatus:
             )
 
         assert isinstance(result, HTMLResponse)
-        mock_repository.finalize.assert_awaited_once_with(
+        terminalize.assert_awaited_once_with(
             job_id,
             outcome="server_error",
             error_code="server_error",
             validation_message="Verification failed before recording a result.",
             terminal_source="poller",
-            feedback_json=None,
+            session_maker=request.app.state.session_maker,
         )
-        mock_session.commit.assert_awaited_once()
         _, _, context = _patch_templates.TemplateResponse.call_args.args
         assert context["server_error"] is True
         assert context["server_error_retryable"] is False
@@ -942,18 +921,20 @@ class TestHtmxVerificationAttemptStatus:
                 autospec=True,
             ) as mock_repository_class,
             patch(
+                "learn_to_cloud.routes.htmx_routes.terminalize_verification_attempt",
+                new_callable=AsyncMock,
+                return_value=MagicMock(
+                    won=True,
+                    state=MagicMock(outcome="cancelled"),
+                ),
+            ) as terminalize,
+            patch(
                 "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
         ):
             mock_repository = mock_repository_class.return_value
             mock_repository.get_status = AsyncMock(return_value=MagicMock())
-            mock_repository.finalize = AsyncMock(
-                return_value=MagicMock(
-                    won=True,
-                    state=MagicMock(outcome="cancelled"),
-                )
-            )
             result = await htmx_verification_attempt_status(
                 request,
                 token="signed-token",
@@ -961,13 +942,13 @@ class TestHtmxVerificationAttemptStatus:
             )
 
         assert isinstance(result, HTMLResponse)
-        mock_repository.finalize.assert_awaited_once_with(
+        terminalize.assert_awaited_once_with(
             job_id,
             outcome="cancelled",
             error_code="cancelled",
             validation_message="Verification was cancelled.",
             terminal_source="poller",
-            feedback_json=None,
+            session_maker=request.app.state.session_maker,
         )
 
     async def test_failed_status_reloads_when_attempt_was_already_finalized(self):
@@ -999,15 +980,17 @@ class TestHtmxVerificationAttemptStatus:
                 "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
                 autospec=True,
             ) as mock_attempt_repository_class,
-        ):
-            attempt_repo = mock_attempt_repository_class.return_value
-            attempt_repo.get_status = AsyncMock(return_value=MagicMock())
-            attempt_repo.finalize = AsyncMock(
+            patch(
+                "learn_to_cloud.routes.htmx_routes.terminalize_verification_attempt",
+                new_callable=AsyncMock,
                 return_value=MagicMock(
                     won=False,
                     state=MagicMock(outcome="succeeded"),
-                )
-            )
+                ),
+            ),
+        ):
+            attempt_repo = mock_attempt_repository_class.return_value
+            attempt_repo.get_status = AsyncMock(return_value=MagicMock())
 
             result = await htmx_verification_attempt_status(
                 request,

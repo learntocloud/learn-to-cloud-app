@@ -369,48 +369,112 @@ async def test_create_or_get_active_serializes_concurrent_submits(
     assert count == 1
 
 
-async def test_delete_active_removes_non_terminal_attempt(
+async def test_finalize_unstarted_terminalizes_active_attempt(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
     attempt_id = await _insert_attempt(session_maker)
 
     async with session_maker() as db:
-        deleted = await VerificationAttemptRepository(db).delete_active(attempt_id)
+        result = await VerificationAttemptRepository(db).finalize_unstarted(
+            attempt_id,
+            outcome="server_error",
+            error_code="durable_transport_error",
+            validation_message="Verification could not be started.",
+            terminal_source="api_start_failure",
+        )
         await db.commit()
-    assert deleted is True
+    assert result is not None
+    assert result.won is True
+    assert result.state.outcome == "server_error"
 
     async with session_maker() as db:
         status = await VerificationAttemptRepository(db).get_status(attempt_id)
-    assert status is None
+    assert status is not None
+    assert status.outcome == "server_error"
 
 
-async def test_delete_active_refuses_terminal_attempt(
+async def test_finalize_unstarted_returns_existing_terminal_attempt(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
     attempt_id = await _insert_attempt(session_maker, outcome="succeeded")
 
     async with session_maker() as db:
-        deleted = await VerificationAttemptRepository(db).delete_active(attempt_id)
-    assert deleted is False
+        result = await VerificationAttemptRepository(db).finalize_unstarted(
+            attempt_id,
+            outcome="server_error",
+            error_code="durable_transport_error",
+            validation_message="Verification could not be started.",
+            terminal_source="api_start_failure",
+        )
+    assert result is not None
+    assert result.won is False
+    assert result.state.outcome == "succeeded"
 
     async with session_maker() as db:
         status = await VerificationAttemptRepository(db).get_status(attempt_id)
     assert status is not None
 
 
-async def test_delete_active_refuses_claimed_attempt(
+async def test_finalize_unstarted_refuses_claimed_attempt(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
     attempt_id = await _insert_attempt(session_maker, started_at=utcnow())
 
     async with session_maker() as db:
-        deleted = await VerificationAttemptRepository(db).delete_active(attempt_id)
-    assert deleted is False
+        result = await VerificationAttemptRepository(db).finalize_unstarted(
+            attempt_id,
+            outcome="server_error",
+            error_code="durable_transport_error",
+            validation_message="Verification could not be started.",
+            terminal_source="api_start_failure",
+        )
+    assert result is None
 
     async with session_maker() as db:
         status = await VerificationAttemptRepository(db).get_status(attempt_id)
     assert status is not None
     assert status.started_at is not None
+
+
+async def test_new_submission_follows_terminalized_pre_start_attempt(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    requirement_uuid = uuid4()
+    first_id = await _insert_attempt(
+        session_maker,
+        requirement_uuid=requirement_uuid,
+    )
+    async with session_maker() as db:
+        result = await VerificationAttemptRepository(db).finalize_unstarted(
+            first_id,
+            outcome="server_error",
+            error_code="durable_transport_error",
+            validation_message="Verification could not be started.",
+            terminal_source="api_start_failure",
+        )
+        await db.commit()
+    assert result is not None and result.won
+
+    second_id = uuid4()
+    async with session_maker() as db:
+        attempt, created = await VerificationAttemptRepository(db).create_or_get_active(
+            **_create_kwargs(
+                id=second_id,
+                requirement_uuid=requirement_uuid,
+                submitted_value=_submitted_value(),
+            )
+        )
+        await db.commit()
+
+    assert created is True
+    assert attempt.id == second_id
+    async with session_maker() as db:
+        count = await db.scalar(
+            select(func.count())
+            .select_from(VerificationAttempt)
+            .where(VerificationAttempt.requirement_uuid == requirement_uuid)
+        )
+    assert count == 2
 
 
 # Progress, gating, card, and stats reads

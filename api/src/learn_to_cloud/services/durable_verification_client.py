@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
@@ -12,20 +13,102 @@ from learn_to_cloud_shared.core.azure_auth import get_token as get_azure_token
 from learn_to_cloud_shared.core.config import get_web_settings
 
 
-class DurableVerificationConfigError(Exception):
+class DurableFailureKind(StrEnum):
+    """Stable categories for verification service failures."""
+
+    CONFIGURATION = "configuration"
+    AUTHENTICATION = "authentication"
+    TRANSPORT = "transport"
+    HTTP_RETRYABLE = "http_retryable"
+    HTTP_REJECTED = "http_rejected"
+    PROTOCOL = "protocol"
+
+
+class DurableVerificationError(Exception):
+    """Structured verification service failure."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_kind: DurableFailureKind,
+        retryable: bool,
+        status_code: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.failure_kind = failure_kind
+        self.retryable = retryable
+        self.status_code = status_code
+
+    @property
+    def error_code(self) -> str:
+        return f"durable_{self.failure_kind.value}_error"
+
+
+class DurableVerificationConfigError(DurableVerificationError):
     """Raised when the Durable starter endpoint is not configured."""
 
+    def __init__(self, message: str) -> None:
+        super().__init__(
+            message,
+            failure_kind=DurableFailureKind.CONFIGURATION,
+            retryable=False,
+        )
 
-class DurableVerificationStartError(Exception):
+
+class DurableVerificationStartError(DurableVerificationError):
     """Raised when the Durable starter rejects or fails a start request."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_kind: DurableFailureKind = DurableFailureKind.TRANSPORT,
+        retryable: bool = True,
+        status_code: int | None = None,
+    ) -> None:
+        super().__init__(
+            message,
+            failure_kind=failure_kind,
+            retryable=retryable,
+            status_code=status_code,
+        )
 
-class DurableVerificationStatusError(Exception):
+
+class DurableVerificationStatusError(DurableVerificationError):
     """Raised when Durable status cannot be fetched or parsed."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_kind: DurableFailureKind = DurableFailureKind.TRANSPORT,
+        retryable: bool = True,
+        status_code: int | None = None,
+    ) -> None:
+        super().__init__(
+            message,
+            failure_kind=failure_kind,
+            retryable=retryable,
+            status_code=status_code,
+        )
 
-class DurableVerificationAuthError(Exception):
+
+class DurableVerificationAuthError(DurableVerificationError):
     """Raised when a verification Function access token cannot be acquired."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(
+            message,
+            failure_kind=DurableFailureKind.AUTHENTICATION,
+            retryable=False,
+        )
+
+
+def _http_failure_kind(status_code: int) -> tuple[DurableFailureKind, bool]:
+    if status_code in {408, 425, 429} or status_code >= 500:
+        return DurableFailureKind.HTTP_RETRYABLE, True
+    return DurableFailureKind.HTTP_REJECTED, False
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,24 +134,36 @@ async def _post_start_request(
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(url, headers=headers)
     except httpx.HTTPError as exc:
-        raise DurableVerificationStartError("Durable starter request failed.") from exc
+        raise DurableVerificationStartError(
+            "Durable starter request failed.",
+            failure_kind=DurableFailureKind.TRANSPORT,
+            retryable=True,
+        ) from exc
 
     if response.status_code >= 400:
+        failure_kind, retryable = _http_failure_kind(response.status_code)
         raise DurableVerificationStartError(
-            f"Durable starter returned HTTP {response.status_code}"
+            f"Durable starter returned HTTP {response.status_code}",
+            failure_kind=failure_kind,
+            retryable=retryable,
+            status_code=response.status_code,
         )
 
     try:
         payload = response.json()
     except ValueError as exc:
         raise DurableVerificationStartError(
-            "Durable starter returned invalid JSON."
+            "Durable starter returned invalid JSON.",
+            failure_kind=DurableFailureKind.PROTOCOL,
+            retryable=False,
         ) from exc
 
     instance_id = payload.get("id")
     if not isinstance(instance_id, str) or not instance_id:
         raise DurableVerificationStartError(
-            "Durable starter response did not include an instance ID."
+            "Durable starter response did not include an instance ID.",
+            failure_kind=DurableFailureKind.PROTOCOL,
+            retryable=False,
         )
 
     return DurableStartResult(instance_id=instance_id)
@@ -106,24 +201,36 @@ async def get_verification_attempt_status(
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(url, headers=headers)
     except httpx.HTTPError as exc:
-        raise DurableVerificationStatusError("Durable status request failed.") from exc
+        raise DurableVerificationStatusError(
+            "Durable status request failed.",
+            failure_kind=DurableFailureKind.TRANSPORT,
+            retryable=True,
+        ) from exc
 
     if response.status_code >= 400:
+        failure_kind, retryable = _http_failure_kind(response.status_code)
         raise DurableVerificationStatusError(
-            f"Durable status returned HTTP {response.status_code}"
+            f"Durable status returned HTTP {response.status_code}",
+            failure_kind=failure_kind,
+            retryable=retryable,
+            status_code=response.status_code,
         )
 
     try:
         payload = response.json()
     except ValueError as exc:
         raise DurableVerificationStatusError(
-            "Durable status returned invalid JSON."
+            "Durable status returned invalid JSON.",
+            failure_kind=DurableFailureKind.PROTOCOL,
+            retryable=False,
         ) from exc
 
     runtime_status = payload.get("runtimeStatus")
     if not isinstance(runtime_status, str) or not runtime_status:
         raise DurableVerificationStatusError(
-            "Durable status response did not include runtimeStatus."
+            "Durable status response did not include runtimeStatus.",
+            failure_kind=DurableFailureKind.PROTOCOL,
+            retryable=False,
         )
 
     return DurableStatusResult(

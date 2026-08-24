@@ -12,7 +12,6 @@ from sqlalchemy import (
     Uuid,
     and_,
     column,
-    delete,
     func,
     select,
     text,
@@ -124,10 +123,9 @@ class AttemptAlreadyValidatedError(Exception):
 class VerificationAttemptRepository:
     """Data access for verification attempts.
 
-    Most methods here run under the Functions role's narrowed column
-    grants (see migration 0051). :meth:`create_or_get_active` and
-    :meth:`delete_active` are the API-side submission-creation path and run
-    under the API's normal (unrestricted) role instead.
+    Most methods here run under the Functions role's narrowed column grants
+    (see migration 0051). :meth:`create_or_get_active` is the API-side
+    submission-creation path and runs under the API's normal role instead.
     """
 
     def __init__(self, db: AsyncSession) -> None:
@@ -213,23 +211,6 @@ class VerificationAttemptRepository:
         self.db.add(attempt)
         await self.db.flush()
         return attempt, True
-
-    async def delete_active(self, attempt_id: UUID) -> bool:
-        """Delete an attempt that never started, freeing its active slot.
-
-        Used only when the API's own Durable start call fails before
-        reaching Functions (a config error, or a transport error before the
-        request landed) -- the attempt never ran, so nothing about it is
-        worth retaining. The lifecycle guards preserve rows already claimed
-        by Functions or terminalized by an authoritative writer.
-        """
-        stmt = delete(VerificationAttempt).where(
-            VerificationAttempt.id == attempt_id,
-            VerificationAttempt.outcome.is_(None),
-            VerificationAttempt.started_at.is_(None),
-        )
-        result = await self.db.execute(stmt)
-        return (getattr(result, "rowcount", 0) or 0) > 0
 
     async def _acquire_submission_lock(
         self, user_id: int, requirement_uuid: UUID
@@ -464,6 +445,73 @@ class VerificationAttemptRepository:
         if existing is None:
             raise AttemptAlreadyGoneError(str(attempt_id))
         return FinalizeResult(won=False, state=existing)
+
+    async def finalize_unstarted(
+        self,
+        attempt_id: UUID,
+        *,
+        outcome: VerificationAttemptOutcome | str,
+        error_code: str,
+        validation_message: str,
+        terminal_source: str,
+        completed_at: datetime | None = None,
+    ) -> FinalizeResult | None:
+        """Finalize only while an attempt is both active and unclaimed."""
+        normalized_outcome = (
+            outcome.value
+            if isinstance(outcome, VerificationAttemptOutcome)
+            else VerificationAttemptOutcome(outcome).value
+        )
+        now = completed_at or utcnow()
+        stmt = (
+            update(VerificationAttempt)
+            .where(
+                VerificationAttempt.id == attempt_id,
+                VerificationAttempt.outcome.is_(None),
+                VerificationAttempt.started_at.is_(None),
+            )
+            .values(
+                outcome=normalized_outcome,
+                error_code=error_code,
+                validation_message=validation_message,
+                terminal_source=terminal_source,
+                feedback_json=None,
+                completed_at=now,
+                updated_at=now,
+            )
+            .returning(
+                VerificationAttempt.id,
+                VerificationAttempt.outcome,
+                VerificationAttempt.error_code,
+                VerificationAttempt.validation_message,
+                VerificationAttempt.terminal_source,
+                VerificationAttempt.completed_at,
+            )
+        )
+        result = await self.db.execute(stmt)
+        row = result.one_or_none()
+        if row is not None:
+            return FinalizeResult(
+                won=True,
+                state=AttemptTerminalState(
+                    id=row.id,
+                    outcome=row.outcome,
+                    error_code=row.error_code,
+                    validation_message=row.validation_message,
+                    terminal_source=row.terminal_source,
+                    completed_at=row.completed_at,
+                ),
+            )
+
+        existing = await self.get_status(attempt_id)
+        if existing is None:
+            raise AttemptAlreadyGoneError(str(attempt_id))
+        if existing.outcome is None:
+            return None
+        terminal = await self.get_terminal_state(attempt_id)
+        if terminal is None:
+            raise AttemptAlreadyGoneError(str(attempt_id))
+        return FinalizeResult(won=False, state=terminal)
 
     # Authoritative progress, gating, card, and stats reads.
 

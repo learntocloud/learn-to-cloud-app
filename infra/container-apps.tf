@@ -82,16 +82,6 @@ resource "azurerm_container_app" "api" {
     key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/labs-verification-secret"
   }
 
-  # The smoke-test token gates the post-deploy verification smoke endpoint
-  # (POST /internal/smoke/verification). Like every other secret here it is
-  # created out of band in Key Vault, so its value never passes through
-  # Terraform variables or state.
-  secret {
-    name                = "smoke-test-token"
-    identity            = azurerm_user_assigned_identity.api.id
-    key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/smoke-test-token"
-  }
-
   ingress {
     external_enabled = true
     target_port      = 8000
@@ -163,8 +153,8 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name        = "SMOKE_TEST__TOKEN"
-        secret_name = "smoke-test-token"
+        name  = "SMOKE_TEST__ALLOWED_CLIENT_ID"
+        value = local.smoke_auth_allowed_client_id
       }
 
       env {
@@ -209,7 +199,7 @@ resource "azurerm_container_app" "api" {
 
       readiness_probe {
         transport               = "HTTP"
-        path                    = "/health"
+        path                    = "/ready"
         port                    = 8000
         interval_seconds        = 30
         timeout                 = 5
@@ -218,7 +208,7 @@ resource "azurerm_container_app" "api" {
 
       startup_probe {
         transport               = "HTTP"
-        path                    = "/health"
+        path                    = "/ready"
         port                    = 8000
         interval_seconds        = 10
         timeout                 = 5
@@ -232,4 +222,63 @@ resource "azurerm_container_app" "api" {
     azurerm_role_assignment.api_key_vault_secrets_user,
     azurerm_postgresql_flexible_server_database.main,
   ]
+}
+
+# The app remains public, but Easy Auth validates any bearer token presented to
+# it and strips client-supplied identity headers. The smoke route then requires
+# the validated deployment identity and its Smoke.Trigger app role.
+resource "azapi_resource" "api_auth" {
+  type      = "Microsoft.App/containerApps/authConfigs@2025-01-01"
+  name      = "current"
+  parent_id = azurerm_container_app.api.id
+
+  body = {
+    properties = {
+      globalValidation = {
+        unauthenticatedClientAction = "AllowAnonymous"
+      }
+
+      httpSettings = {
+        requireHttps = true
+      }
+
+      identityProviders = {
+        azureActiveDirectory = {
+          enabled = true
+          registration = {
+            clientId     = local.smoke_auth_client_id
+            openIdIssuer = "https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/v2.0"
+          }
+          validation = {
+            allowedAudiences = [
+              local.smoke_auth_client_id,
+              local.smoke_auth_audience,
+            ]
+            defaultAuthorizationPolicy = {
+              allowedApplications = [
+                local.smoke_auth_allowed_client_id,
+              ]
+            }
+          }
+        }
+      }
+
+      platform = {
+        enabled        = true
+        runtimeVersion = "~1"
+      }
+    }
+  }
+
+  schema_validation_enabled = false
+
+  lifecycle {
+    precondition {
+      condition = (
+        length(trimspace(local.smoke_auth_client_id)) > 0
+        && length(trimspace(local.smoke_auth_allowed_client_id)) > 0
+      )
+      error_message = "Smoke-test Entra client IDs must be configured for this environment."
+    }
+  }
 }
