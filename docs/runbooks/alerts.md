@@ -9,8 +9,7 @@ Analytics workspace. Replace `dev` if the alert came from another environment.
 ### Meaning
 
 The API emitted `unhandled.exception`, which is the final FastAPI exception
-boundary. The exact event is stored in `AppExceptions.OuterMessage`. This exact
-detector replaces the retired broad API 5xx paging signal.
+boundary. The exact event is stored in `AppExceptions.OuterMessage`.
 
 ### First checks
 
@@ -241,8 +240,8 @@ after confirming they are safe for that attempt.
 ### Meaning
 
 The reconciler confirmed an attempt is still active beyond its allowed duration,
-or it could not reliably query/recheck Durable status. The emitted event remains
-`verification.attempt.stuck`; the alert dimension is limited to:
+or it could not reliably query/recheck Durable status. The detector reads the
+`verification.attempt.stuck` event; the alert dimension is limited to:
 `active_beyond_limit`, `status_query_failed`, and `status_recheck_failed`.
 
 ### First checks
