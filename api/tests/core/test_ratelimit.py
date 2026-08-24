@@ -86,13 +86,3 @@ class TestRateLimitExceededHandler:
         body = json.loads(bytes(response.body))
         assert "Rate limit exceeded" in body["detail"]
         assert "retry_after" in body
-
-    def test_handles_non_rate_limit_exception(self):
-        request = MagicMock(spec=Request)
-        exc = ValueError("something else")
-
-        response = rate_limit_exceeded_handler(request, exc)
-
-        assert response.status_code == 500
-        body = json.loads(bytes(response.body))
-        assert body["detail"] == "Unexpected error"

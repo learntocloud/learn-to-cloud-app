@@ -15,6 +15,7 @@ import os
 from typing import Any
 
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.sdk.resources import Resource
 
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE
 
@@ -23,7 +24,25 @@ logger = logging.getLogger(__name__)
 _telemetry_enabled: bool = False
 
 
-def _configure_azure_monitor() -> None:
+def _build_resource() -> Resource:
+    """Build the shared identity attached to every telemetry signal."""
+    attributes = {
+        "service.name": os.getenv("OTEL_SERVICE_NAME") or APP_LOGGER_NAMESPACE,
+    }
+
+    if revision := os.getenv("CONTAINER_APP_REVISION"):
+        attributes["service.version"] = revision
+
+    instance_id = os.getenv("CONTAINER_APP_REPLICA_NAME") or os.getenv(
+        "WEBSITE_INSTANCE_ID"
+    )
+    if instance_id:
+        attributes["service.instance.id"] = instance_id
+
+    return Resource(attributes=attributes)
+
+
+def _configure_azure_monitor(resource: Resource) -> None:
     """Set up the Azure Monitor exporter for production."""
     from azure.monitor.opentelemetry import (
         configure_azure_monitor as _configure_azure_monitor_sdk,
@@ -32,10 +51,11 @@ def _configure_azure_monitor() -> None:
     _configure_azure_monitor_sdk(
         enable_live_metrics=True,
         logger_name=APP_LOGGER_NAMESPACE,
+        resource=resource,
     )
 
 
-def _configure_otlp_grpc() -> None:
+def _configure_otlp_grpc(resource: Resource) -> None:
     """Set up OTLP gRPC exporter."""
     from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
         OTLPLogExporter,
@@ -47,10 +67,15 @@ def _configure_otlp_grpc() -> None:
         OTLPSpanExporter,
     )
 
-    _configure_otlp_exporters(OTLPSpanExporter, OTLPLogExporter, OTLPMetricExporter)
+    _configure_otlp_exporters(
+        OTLPSpanExporter,
+        OTLPLogExporter,
+        OTLPMetricExporter,
+        resource,
+    )
 
 
-def _configure_otlp_http() -> None:
+def _configure_otlp_http(resource: Resource) -> None:
     """Set up OTLP HTTP/protobuf exporter."""
     from opentelemetry.exporter.otlp.proto.http._log_exporter import (
         OTLPLogExporter,
@@ -62,19 +87,25 @@ def _configure_otlp_http() -> None:
         OTLPSpanExporter,
     )
 
-    _configure_otlp_exporters(OTLPSpanExporter, OTLPLogExporter, OTLPMetricExporter)
+    _configure_otlp_exporters(
+        OTLPSpanExporter,
+        OTLPLogExporter,
+        OTLPMetricExporter,
+        resource,
+    )
 
 
 def _configure_otlp_exporters(
     span_exporter_cls: type[Any],
     log_exporter_cls: type[Any],
     metric_exporter_cls: type[Any],
+    resource: Resource,
 ) -> None:
     from opentelemetry.instrumentation.logging.handler import LoggingHandler
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-    provider = TracerProvider()
+    provider = TracerProvider(resource=resource)
     provider.add_span_processor(BatchSpanProcessor(span_exporter_cls()))
 
     from opentelemetry import trace
@@ -86,7 +117,7 @@ def _configure_otlp_exporters(
     from opentelemetry.sdk._logs import LoggerProvider
     from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 
-    log_provider = LoggerProvider()
+    log_provider = LoggerProvider(resource=resource)
     log_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter_cls()))
     set_logger_provider(log_provider)
     logging.getLogger().addHandler(LoggingHandler(logger_provider=log_provider))
@@ -100,22 +131,23 @@ def _configure_otlp_exporters(
             metric_readers=[
                 PeriodicExportingMetricReader(metric_exporter_cls()),
             ],
+            resource=resource,
         )
     )
 
 
-def _configure_otlp() -> None:
+def _configure_otlp(resource: Resource) -> None:
     """Set up OTLP exporter for local dev (Aspire, Jaeger, etc.)."""
     protocol = os.getenv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc").lower()
     if protocol == "grpc":
-        _configure_otlp_grpc()
+        _configure_otlp_grpc(resource)
     elif protocol in {"http/protobuf", "http"}:
-        _configure_otlp_http()
+        _configure_otlp_http(resource)
     else:
         raise ValueError(f"Unsupported OTLP protocol: {protocol}")
 
 
-def configure_observability() -> None:
+def configure_observability(*, fail_on_azure_error: bool = False) -> None:
     """Set up the OTel telemetry pipeline."""
     global _telemetry_enabled
 
@@ -124,16 +156,19 @@ def configure_observability() -> None:
 
     conn_str = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+    resource = _build_resource()
 
     try:
         if conn_str:
-            _configure_azure_monitor()
+            _configure_azure_monitor(resource)
         elif otlp_endpoint:
-            _configure_otlp()
+            _configure_otlp(resource)
         else:
             return
-    except Exception as exc:
-        logger.warning("telemetry.configure.failed", extra={"error": str(exc)})
+    except Exception:
+        logger.exception("telemetry.configure.failed")
+        if conn_str and fail_on_azure_error:
+            raise
         return
 
     _telemetry_enabled = True

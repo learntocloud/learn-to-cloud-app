@@ -5,6 +5,7 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 import fastapi
 from fastapi import Request
@@ -27,6 +28,7 @@ from learn_to_cloud_shared.core.logger import configure_logging
 from learn_to_cloud_shared.core.observability import configure_observability
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.types import ExceptionHandler
 
 from learn_to_cloud.core.auth import init_oauth
 from learn_to_cloud.core.middleware import (
@@ -52,7 +54,7 @@ from learn_to_cloud.routes.health_routes import get_code_alembic_head
 # See: https://learn.microsoft.com/en-us/troubleshoot/azure/azure-monitor/
 #      app-insights/telemetry/opentelemetry-troubleshooting-python
 configure_logging()
-configure_observability()
+configure_observability(fail_on_azure_error=True)
 logger = logging.getLogger(__name__)
 
 
@@ -90,12 +92,9 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 async def validation_exception_handler(
-    request: Request, exc: Exception
+    request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """Handler for request validation errors."""
-    if not isinstance(exc, RequestValidationError):
-        return JSONResponse(status_code=500, content={"detail": "Unexpected error"})
-
     logger.warning(
         "request.validation_error",
         extra={
@@ -195,8 +194,14 @@ app = fastapi.FastAPI(
 )
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
-app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(
+    RateLimitExceeded,
+    cast(ExceptionHandler, rate_limit_exceeded_handler),
+)
+app.add_exception_handler(
+    RequestValidationError,
+    cast(ExceptionHandler, validation_exception_handler),
+)
 app.add_exception_handler(404, not_found_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
