@@ -124,45 +124,6 @@ resource "azurerm_monitor_metric_alert" "availability" {
 # Log Alerts (scheduled query rules v2)
 # ---------------------------------------------------------------------------
 
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_5xx_errors" {
-  name                = "alert-ltc-api-5xx-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  description         = "Alert when API returns 3+ 5xx errors in a 5-minute window"
-  severity            = 1
-  enabled             = true
-  tags                = local.tags
-
-  scopes                = [azurerm_application_insights.main.id]
-  evaluation_frequency  = "PT5M"
-  window_duration       = "PT5M"
-  target_resource_types = ["microsoft.insights/components"]
-
-  criteria {
-    query                   = <<-QUERY
-      requests
-      | where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-${var.environment}")
-          or cloud_RoleName has "learn-to-cloud-api"
-          or cloud_RoleName has "ca-ltc-api"
-      | where resultCode startswith "5"
-      | summarize ErrorCount = count() by bin(timestamp, 5m)
-    QUERY
-    time_aggregation_method = "Maximum"
-    metric_measure_column   = "ErrorCount"
-    operator                = "GreaterThanOrEqual"
-    threshold               = 3
-
-    failing_periods {
-      minimum_failing_periods_to_trigger_alert = 2
-      number_of_evaluation_periods             = 3
-    }
-  }
-
-  action {
-    action_groups = [azurerm_monitor_action_group.critical.id]
-  }
-}
-
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_unhandled_exception" {
   name                = "alert-ltc-api-unhandled-exception-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
