@@ -5,7 +5,6 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import cast
 
 import fastapi
 from fastapi import Request
@@ -28,7 +27,6 @@ from learn_to_cloud_shared.core.logger import configure_logging
 from learn_to_cloud_shared.core.observability import configure_observability
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.types import ExceptionHandler
 
 from learn_to_cloud.core.auth import init_oauth
 from learn_to_cloud.core.middleware import (
@@ -56,57 +54,6 @@ from learn_to_cloud.routes.health_routes import get_code_alembic_head
 configure_logging()
 configure_observability(fail_on_azure_error=True)
 logger = logging.getLogger(__name__)
-
-
-async def not_found_handler(
-    request: Request, exc: Exception
-) -> HTMLResponse | JSONResponse:
-    """Render nice 404 page for browsers, JSON for API clients."""
-    if request.url.path.startswith("/api/"):
-        return JSONResponse(
-            status_code=404,
-            content={"detail": "Not found"},
-        )
-    return templates.TemplateResponse(
-        request,
-        "pages/404.html",
-        {"user": None, "now": datetime.now(UTC)},
-        status_code=404,
-    )
-
-
-async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Last-resort handler for unhandled exceptions."""
-    logger.exception(
-        "unhandled.exception",
-        extra={
-            "exc_type": type(exc).__name__,
-            "path": request.url.path,
-            "method": request.method,
-        },
-    )
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "An unexpected error occurred. Please try again."},
-    )
-
-
-async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
-    """Handler for request validation errors."""
-    logger.warning(
-        "request.validation_error",
-        extra={
-            "path": request.url.path,
-            "method": request.method,
-            "error_count": len(exc.errors()),
-        },
-    )
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors()},
-    )
 
 
 @asynccontextmanager
@@ -194,16 +141,62 @@ app = fastapi.FastAPI(
 )
 
 app.state.limiter = limiter
-app.add_exception_handler(
-    RateLimitExceeded,
-    cast(ExceptionHandler, rate_limit_exceeded_handler),
-)
-app.add_exception_handler(
-    RequestValidationError,
-    cast(ExceptionHandler, validation_exception_handler),
-)
-app.add_exception_handler(404, not_found_handler)
-app.add_exception_handler(Exception, global_exception_handler)
+app.exception_handler(RateLimitExceeded)(rate_limit_exceeded_handler)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Handler for request validation errors."""
+    logger.warning(
+        "request.validation_error",
+        extra={
+            "path": request.url.path,
+            "method": request.method,
+            "error_count": len(exc.errors()),
+        },
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
+
+
+@app.exception_handler(404)
+async def not_found_handler(
+    request: Request, exc: Exception
+) -> HTMLResponse | JSONResponse:
+    """Render nice 404 page for browsers, JSON for API clients."""
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Not found"},
+        )
+    return templates.TemplateResponse(
+        request,
+        "pages/404.html",
+        {"user": None, "now": datetime.now(UTC)},
+        status_code=404,
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last-resort handler for unhandled exceptions."""
+    logger.exception(
+        "unhandled.exception",
+        extra={
+            "exc_type": type(exc).__name__,
+            "path": request.url.path,
+            "method": request.method,
+        },
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected error occurred. Please try again."},
+    )
+
 
 app.add_middleware(UserTrackingMiddleware)
 app.add_middleware(
