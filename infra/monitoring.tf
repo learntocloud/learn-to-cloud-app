@@ -163,12 +163,97 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_5xx_errors" {
   }
 }
 
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_unhandled_exception" {
+  name                = "alert-ltc-api-unhandled-exception-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert on the first exact unhandled API exception. Response guide: https://github.com/learntocloud/learn-to-cloud-app/blob/main/docs/runbooks/alerts.md#unhandled-api-exception"
+  severity            = 1
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      exceptions
+      | where cloud_RoleName == "learn-to-cloud-api"
+      | where outerMessage == "unhandled.exception"
+      | summarize CrashCount = count() by bin(timestamp, 5m)
+    QUERY
+    time_aggregation_method = "Maximum"
+    metric_measure_column   = "CrashCount"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_telemetry_pipeline_failure" {
+  name                = "alert-ltc-api-telemetry-pipeline-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Detects API telemetry setup or transmission failures; it does not prove permanent telemetry loss or an Azure service fault. Response guide: https://github.com/learntocloud/learn-to-cloud-app/blob/main/docs/runbooks/alerts.md#telemetry-pipeline-failure"
+  severity            = 1
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_log_analytics_workspace.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT15M"
+  target_resource_types = ["Microsoft.OperationalInsights/workspaces"]
+
+  criteria {
+    query                   = <<-QUERY
+      ContainerAppConsoleLogs_CL
+      | where ContainerAppName_s == "ca-ltc-api-${var.environment}"
+      | where ContainerName_s == "api"
+      | extend ParsedLog = parse_json(Log_s)
+      | extend
+          Event = tostring(ParsedLog.event),
+          Logger = tostring(ParsedLog.logger)
+      | extend
+          IsConfigureFailure = Event == "telemetry.configure.failed",
+          IsMainExporterFailure = Logger == "azure.monitor.opentelemetry.exporter.export._base"
+            and Log_s contains "Envelopes could not be exported and are not retryable:"
+      | where IsConfigureFailure or IsMainExporterFailure
+      | summarize
+          ConfigureFailureCount = countif(IsConfigureFailure),
+          ExportFailureCount = countif(IsMainExporterFailure)
+      | where ConfigureFailureCount >= 1 or ExportFailureCount >= 3
+    QUERY
+    time_aggregation_method = "Count"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
 # Page only for the final outcome PostgreSQL accepted for an attempt.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_system_error" {
   name                = "alert-ltc-verification-attempt-system-error-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Alert when a saved verification attempt outcome is server_error"
+  description         = "Alert when a saved verification attempt outcome is server_error or cancelled. Response guide: https://github.com/learntocloud/learn-to-cloud-app/blob/main/docs/runbooks/alerts.md#verification-final-failures"
   severity            = 2
   enabled             = true
   tags                = local.tags
@@ -195,7 +280,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
       | extend
           Outcome = tostring(customDimensions["verification.outcome"]),
           AttemptId = tostring(customDimensions["verification.attempt.id"])
-      | where Outcome == "server_error"
+      | where Outcome in ("server_error", "cancelled")
       | where isnotempty(AttemptId)
       | summarize ErrorCount = dcount(AttemptId) by bin(timestamp, 5m)
     QUERY
@@ -215,13 +300,13 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
   }
 }
 
-# The reconciler emits this event only after a final database read confirms the
-# attempt is still active beyond its allowed duration.
+# Keep the existing Terraform address and Azure resource name to avoid an alert
+# replacement gap; the operator-facing description uses the clearer wording.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_stuck" {
   name                = "alert-ltc-verification-attempt-stuck-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Alert when a verification attempt remains active beyond its maximum duration"
+  description         = "Alert when verification is active beyond its allowed limit. Response guide: https://github.com/learntocloud/learn-to-cloud-app/blob/main/docs/runbooks/alerts.md#verification-active-beyond-limit"
   severity            = 2
   enabled             = true
   tags                = local.tags
@@ -241,14 +326,33 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
           or cloud_RoleName has "verification-functions"
           or cloud_RoleName has "func-ltc-verification"
       | where message == "verification.attempt.stuck"
-      | extend AttemptId = tostring(customDimensions["verification.attempt.id"])
+      | extend
+          AttemptId = tostring(customDimensions["verification.attempt.id"]),
+          DurableStatus = tostring(customDimensions["durable_status"]),
+          AttemptAgeSeconds = toint(customDimensions["attempt_age_seconds"]),
+          StuckReason = tostring(customDimensions["stuck_reason"])
       | where isnotempty(AttemptId)
-      | summarize StuckCount = dcount(AttemptId) by bin(timestamp, 5m)
+      | where StuckReason in (
+          "active_beyond_limit",
+          "status_query_failed",
+          "status_recheck_failed"
+        )
+      | summarize arg_max(timestamp, DurableStatus, AttemptAgeSeconds) by AttemptId, StuckReason
+      | project timestamp, AttemptId, DurableStatus, AttemptAgeSeconds, StuckReason
     QUERY
-    time_aggregation_method = "Maximum"
-    metric_measure_column   = "StuckCount"
+    time_aggregation_method = "Count"
     operator                = "GreaterThanOrEqual"
     threshold               = 1
+
+    dimension {
+      name     = "StuckReason"
+      operator = "Include"
+      values = [
+        "active_beyond_limit",
+        "status_query_failed",
+        "status_recheck_failed",
+      ]
+    }
 
     failing_periods {
       minimum_failing_periods_to_trigger_alert = 1
@@ -272,8 +376,8 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "schema_drift" {
   name                = "alert-ltc-schema-drift-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Alert when the deployed DB's Alembic head diverges from the deployed code's Alembic head for more than 10 minutes"
-  severity            = 2
+  description         = "Alert when schema drift or the schema drift check persists for three evaluations. Response guide: https://github.com/learntocloud/learn-to-cloud-app/blob/main/docs/runbooks/alerts.md#schema-drift"
+  severity            = 1
   enabled             = true
   tags                = local.tags
 
@@ -288,7 +392,10 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "schema_drift" {
       | where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-${var.environment}")
           or cloud_RoleName has "learn-to-cloud-api"
           or cloud_RoleName has "ca-ltc-api"
-      | where message has "health.ready.schema_drift"
+      | where message in (
+          "health.ready.schema_drift",
+          "health.ready.schema_drift_check_failed"
+        )
     QUERY
     time_aggregation_method = "Count"
     operator                = "GreaterThanOrEqual"

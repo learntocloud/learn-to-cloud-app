@@ -29,10 +29,7 @@ limiter = Limiter(
 )
 
 
-def rate_limit_exceeded_handler(request: Request, exc: Exception) -> Response:
-    if not isinstance(exc, RateLimitExceeded):
-        return JSONResponse(status_code=500, content={"detail": "Unexpected error"})
-
+def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Response:
     return JSONResponse(
         status_code=429,
         content={
