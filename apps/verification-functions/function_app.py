@@ -699,10 +699,6 @@ async def finalize_verification_attempt(
             session_maker=_get_session_maker(),
         )
         state = result.state
-        logger.info(
-            "verification.attempt.finalized",
-            extra={"attempt_id": str(state.id), "outcome": state.outcome},
-        )
         return _terminal_state_payload(state)
 
 
@@ -724,14 +720,6 @@ async def terminalize_verification_attempt(
             session_maker=_get_session_maker(),
         )
         state = result.state
-        logger.info(
-            "verification.attempt.terminalized",
-            extra={
-                "attempt_id": str(state.id),
-                "outcome": state.outcome,
-                "terminal_source": state.terminal_source,
-            },
-        )
         return _terminal_state_payload(state)
 
 
