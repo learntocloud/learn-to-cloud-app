@@ -443,11 +443,35 @@ class _CapturingRepo:
         _CapturingRepo.captured_cutoff = cutoff
         return _CapturingRepo.rows
 
+    async def get_status(self, attempt_id):
+        return next(
+            (row for row in _CapturingRepo.rows if row.id == attempt_id),
+            None,
+        )
+
+
+class _TerminalOnRecheckRepo(_CapturingRepo):
+    async def get_status(self, attempt_id):
+        row = await super().get_status(attempt_id)
+        if row is None:
+            return None
+        return AttemptStatusRow(
+            id=row.id,
+            user_id=row.user_id,
+            requirement_uuid=row.requirement_uuid,
+            outcome="succeeded",
+            started_at=row.started_at,
+            created_at=row.created_at,
+        )
+
 
 class TestReconciler:
     pytestmark = pytest.mark.asyncio
 
-    async def test_maps_statuses_and_skips_healthy(self) -> None:
+    async def test_maps_statuses_and_reports_stuck_healthy_attempt(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
         failed = uuid4()
         terminated = uuid4()
         completed = uuid4()
@@ -475,6 +499,10 @@ class TestReconciler:
         with (
             patch.object(function_app, "VerificationAttemptRepository", _CapturingRepo),
             patch.object(function_app, "terminalize_attempt", new=AsyncMock()) as term,
+            caplog.at_level(
+                "WARNING",
+                logger="function_app",
+            ),
         ):
             summary = await function_app._reconcile_stale_attempts(
                 client,
@@ -486,6 +514,7 @@ class TestReconciler:
 
         assert summary.candidate_count == 5
         assert summary.terminalized_count == 4
+        assert summary.stuck_count == 1
         assert _CapturingRepo.captured_cutoff == stale_cutoff(now, 30)
 
         terminalized = {
@@ -496,6 +525,13 @@ class TestReconciler:
         assert terminalized[completed] is VerificationAttemptOutcome.SERVER_ERROR
         assert terminalized[missing] is VerificationAttemptOutcome.SERVER_ERROR
         assert running not in terminalized
+        stuck_record = next(
+            record
+            for record in caplog.records
+            if record.message == "verification.attempt.stuck"
+        )
+        assert stuck_record.__dict__["verification.attempt.id"] == str(running)
+        assert stuck_record.durable_status == "Running"
 
     async def test_rechecks_missing_status_before_terminalizing(self) -> None:
         attempt_id = uuid4()
@@ -514,7 +550,42 @@ class TestReconciler:
                 now=now,
             )
         assert summary.terminalized_count == 0
+        assert summary.stuck_count == 1
         term.assert_not_awaited()
+
+    async def test_does_not_report_stuck_after_database_finalization(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        attempt_id = uuid4()
+        now = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+        _CapturingRepo.rows = [_status_row(attempt_id, now - timedelta(hours=2))]
+        client = _FakeClient(
+            statuses={
+                str(attempt_id): _FakeStatus(_FakeRuntimeStatus("Running")),
+            }
+        )
+
+        with (
+            patch.object(
+                function_app,
+                "VerificationAttemptRepository",
+                _TerminalOnRecheckRepo,
+            ),
+            caplog.at_level("WARNING", logger="function_app"),
+        ):
+            summary = await function_app._reconcile_stale_attempts(
+                client,
+                session_maker=_session_maker,
+                stale_attempt_min_age_minutes=30,
+                batch_limit=50,
+                now=now,
+            )
+
+        assert summary.stuck_count == 0
+        assert not any(
+            record.message == "verification.attempt.stuck" for record in caplog.records
+        )
 
 
 class _MissingThenRunningClient:

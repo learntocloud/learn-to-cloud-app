@@ -66,6 +66,13 @@ Keep docstrings short and useful. One line is enough for most functions.
 - Answering a question is not permission to be verbose. Lead with the direct concise answer. Add detail only if asked for additional context or explanation.
 - Don't teach or give multiple framings unless asked.
 
+## Pull Request Descriptions
+
+- Write PR descriptions in plain language that a learner can understand.
+- Lead with what changes, why it is needed, and what effect it has.
+- Avoid unexplained jargon. If a technical term is necessary, define it immediately with a concrete explanation.
+- Describe rollout states plainly. For example, say "the alert is evaluated but sends no notifications" instead of relying on "shadow mode."
+
 ## Research
 
 If you need to research something that is Azure related always use the azure-skills plugin.

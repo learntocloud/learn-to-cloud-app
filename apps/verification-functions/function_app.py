@@ -954,6 +954,40 @@ class _ReconcileSummary:
 
     candidate_count: int
     terminalized_count: int
+    stuck_count: int
+
+
+async def _emit_stuck_if_active(
+    attempt_id: UUID,
+    *,
+    durable_status: str | None,
+    reason: str,
+    cutoff: datetime,
+    reference: datetime,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> bool:
+    """Emit a stuck event only after PostgreSQL confirms the row is still stale."""
+    async with session_maker() as db:
+        current = await VerificationAttemptRepository(db).get_status(attempt_id)
+    if current is None or current.outcome is not None:
+        return False
+    age_anchor = current.started_at or current.created_at
+    if age_anchor >= cutoff:
+        return False
+
+    logger.warning(
+        "verification.attempt.stuck",
+        extra={
+            "attempt_id": str(attempt_id),
+            "verification.attempt.id": str(attempt_id),
+            "verification.failure.stage": "reconciliation",
+            "verification.retryable": True,
+            "durable_status": durable_status,
+            "stuck_reason": reason,
+            "attempt_age_seconds": int((reference - age_anchor).total_seconds()),
+        },
+    )
+    return True
 
 
 async def _reconcile_stale_attempts(
@@ -984,6 +1018,7 @@ async def _reconcile_stale_attempts(
     )
 
     terminalized = 0
+    stuck = 0
     for attempt in stale:
         instance_id = str(attempt.id)
         try:
@@ -993,10 +1028,26 @@ async def _reconcile_stale_attempts(
                 "verification.reconciler.status_query_failed",
                 extra={"attempt_id": instance_id},
             )
+            stuck += await _emit_stuck_if_active(
+                attempt.id,
+                durable_status=None,
+                reason="status_query_failed",
+                cutoff=cutoff,
+                reference=reference,
+                session_maker=session_maker,
+            )
             continue
         status_name = _runtime_status_name(status)
         decision = reconcile_decision(status_name)
         if decision is None:
+            stuck += await _emit_stuck_if_active(
+                attempt.id,
+                durable_status=status_name,
+                reason="active_beyond_limit",
+                cutoff=cutoff,
+                reference=reference,
+                session_maker=session_maker,
+            )
             continue
         if status_name is None:
             try:
@@ -1006,10 +1057,26 @@ async def _reconcile_stale_attempts(
                     "verification.reconciler.status_recheck_failed",
                     extra={"attempt_id": instance_id},
                 )
+                stuck += await _emit_stuck_if_active(
+                    attempt.id,
+                    durable_status=None,
+                    reason="status_recheck_failed",
+                    cutoff=cutoff,
+                    reference=reference,
+                    session_maker=session_maker,
+                )
                 continue
             confirmed_name = _runtime_status_name(confirmed_status)
             decision = reconcile_decision(confirmed_name)
             if decision is None:
+                stuck += await _emit_stuck_if_active(
+                    attempt.id,
+                    durable_status=confirmed_name,
+                    reason="active_beyond_limit",
+                    cutoff=cutoff,
+                    reference=reference,
+                    session_maker=session_maker,
+                )
                 continue
             status_name = confirmed_name
         result = await terminalize_attempt(
@@ -1037,11 +1104,13 @@ async def _reconcile_stale_attempts(
         extra={
             "candidate_count": len(stale),
             "terminalized_count": terminalized,
+            "stuck_count": stuck,
         },
     )
     return _ReconcileSummary(
         candidate_count=len(stale),
         terminalized_count=terminalized,
+        stuck_count=stuck,
     )
 
 
