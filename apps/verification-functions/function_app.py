@@ -514,6 +514,7 @@ async def get_verification_attempt_status(
         except ValueError:
             return _json_response({"error": "invalid_instance_id"}, status_code=400)
 
+        _set_verification_span_attributes(attempt_id=instance_id)
         status = await client.get_status(
             instance_id,
             show_history=False,
@@ -577,6 +578,7 @@ def _finalize_attempt_step(
 def _terminalize_attempt_step(
     context: df.DurableOrchestrationContext,
     attempt_id: str,
+    failure_stage: str,
 ):
     """Convert an authoritative orchestration failure into a terminal outcome.
 
@@ -594,7 +596,7 @@ def _terminalize_attempt_step(
                 "outcome": "server_error",
                 "error_code": "server_error",
                 "validation_message": "Verification could not be completed.",
-                "terminal_source": "orchestrator_exception",
+                "terminal_source": f"orchestrator_{failure_stage}_exception",
             },
         )
     )
@@ -614,6 +616,7 @@ def _run_attempt_orchestration(context: df.DurableOrchestrationContext):
     attempt_id = _attempt_id_from_input(context)
     _set_verification_span_attributes(attempt_id=attempt_id)
     context.set_custom_status({"step": "preparing", "attempt_id": attempt_id})
+    failure_stage = "prepare"
     try:
         preparation = yield context.call_activity_with_retry(
             "prepare_verification_attempt",
@@ -630,11 +633,16 @@ def _run_attempt_orchestration(context: df.DurableOrchestrationContext):
             prepared_payload=prepared_attempt_payload,
             prepared_attempt=prepared_attempt,
         )
+        failure_stage = "verification"
         run_result = yield from _verify_step(context, outcome)
+        failure_stage = "grading"
         run_result = yield from _llm_grading_step(context, outcome, run_result)
+        failure_stage = "finalization"
         return (yield from _finalize_attempt_step(context, outcome, run_result))
     except Exception:
-        return (yield from _terminalize_attempt_step(context, attempt_id))
+        return (
+            yield from _terminalize_attempt_step(context, attempt_id, failure_stage)
+        )
 
 
 @app.orchestration_trigger(context_name="context")
@@ -686,10 +694,11 @@ async def finalize_verification_attempt(
     with _attached_invocation_context(context):
         run_result = VerificationRunResult.from_payload(_activity_payload(run_payload))
         _set_attempt_span_attributes(run_result.attempt)
-        state = await finalize_attempt(
+        result = await finalize_attempt(
             run_result,
             session_maker=_get_session_maker(),
         )
+        state = result.state
         logger.info(
             "verification.attempt.finalized",
             extra={"attempt_id": str(state.id), "outcome": state.outcome},
@@ -706,7 +715,7 @@ async def terminalize_verification_attempt(
     with _attached_invocation_context(context):
         data = _activity_payload(input_payload)
         attempt_id = UUID(str(data["attempt_id"]))
-        state = await terminalize_attempt(
+        result = await terminalize_attempt(
             attempt_id,
             outcome=str(data["outcome"]),
             error_code=str(data["error_code"]),
@@ -714,6 +723,7 @@ async def terminalize_verification_attempt(
             terminal_source=str(data["terminal_source"]),
             session_maker=_get_session_maker(),
         )
+        state = result.state
         logger.info(
             "verification.attempt.terminalized",
             extra={
@@ -1002,7 +1012,7 @@ async def _reconcile_stale_attempts(
             if decision is None:
                 continue
             status_name = confirmed_name
-        await terminalize_attempt(
+        result = await terminalize_attempt(
             attempt.id,
             outcome=decision.outcome,
             error_code=decision.error_code,
@@ -1010,6 +1020,8 @@ async def _reconcile_stale_attempts(
             terminal_source=decision.terminal_source,
             session_maker=session_maker,
         )
+        if not result.won:
+            continue
         terminalized += 1
         logger.info(
             "verification.reconciler.terminalized",

@@ -9,6 +9,7 @@ import pytest
 from azure.core.exceptions import ClientAuthenticationError
 
 from learn_to_cloud.services.durable_verification_client import (
+    DurableFailureKind,
     DurableVerificationAuthError,
     DurableVerificationConfigError,
     DurableVerificationStartError,
@@ -96,9 +97,58 @@ async def test_start_http_error_raises_start_error() -> None:
             "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
             return_value=context_manager,
         ),
-        pytest.raises(DurableVerificationStartError, match="HTTP 500"),
+        pytest.raises(DurableVerificationStartError, match="HTTP 500") as caught,
     ):
         await start_verification_attempt_orchestration(uuid4())
+    assert caught.value.failure_kind is DurableFailureKind.HTTP_RETRYABLE
+    assert caught.value.retryable is True
+    assert caught.value.status_code == 500
+
+
+async def test_start_rejected_http_error_is_not_retryable() -> None:
+    _, context_manager = _async_client(httpx.Response(400, json={"error": "boom"}))
+
+    with (
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
+            return_value=_settings(),
+        ),
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_azure_token",
+            new=AsyncMock(return_value=_TOKEN),
+        ),
+        patch(
+            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
+            return_value=context_manager,
+        ),
+        pytest.raises(DurableVerificationStartError) as caught,
+    ):
+        await start_verification_attempt_orchestration(uuid4())
+    assert caught.value.failure_kind is DurableFailureKind.HTTP_REJECTED
+    assert caught.value.retryable is False
+
+
+async def test_start_invalid_json_is_protocol_error() -> None:
+    _, context_manager = _async_client(httpx.Response(202, content=b"not json"))
+
+    with (
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
+            return_value=_settings(),
+        ),
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_azure_token",
+            new=AsyncMock(return_value=_TOKEN),
+        ),
+        patch(
+            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
+            return_value=context_manager,
+        ),
+        pytest.raises(DurableVerificationStartError) as caught,
+    ):
+        await start_verification_attempt_orchestration(uuid4())
+    assert caught.value.failure_kind is DurableFailureKind.PROTOCOL
+    assert caught.value.retryable is False
 
 
 async def test_gets_attempt_status() -> None:
