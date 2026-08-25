@@ -38,43 +38,41 @@
     </ul>
 </section>
 
-<section class="pt-14 sm:pt-16" aria-labelledby="progress-heading">
+<section class="pt-14 sm:pt-16" aria-labelledby="activity-heading">
     <div class="max-w-2xl">
-        <h2 id="progress-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Verified progress across the curriculum</h2>
-        <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-300">
-            Each level counts learners who have verified every project in that phase. Later phases require the earlier work first.
-        </p>
+        <h2 id="activity-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">This week in the community</h2>
     </div>
 
-    {% if community.funnel %}
-    <ol class="mt-8 space-y-5">
-        {% for level in community.funnel %}
-        <li>
-            <div class="flex items-end justify-between gap-4">
-                <p class="min-w-0 text-sm {% if level.is_total %}font-bold text-gray-950 dark:text-white{% else %}font-medium text-gray-700 dark:text-gray-300{% endif %}">
-                    {{ level.label }}
-                </p>
-                <p class="shrink-0 text-right text-sm tabular-nums">
-                    <strong class="font-bold text-gray-950 dark:text-white">{{ level.count }}</strong>
-                    {% if level.is_total %}
-                    <span class="ml-1 text-gray-500 dark:text-gray-400">accounts</span>
-                    {% else %}
-                    <span class="ml-1 text-gray-500 dark:text-gray-400">{{ level.pct_of_total | round(1) }}%</span>
-                    {% endif %}
-                </p>
-            </div>
-            <div class="mt-2 h-2.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700" aria-hidden="true">
-                <div class="h-full rounded-full {% if level.is_total %}bg-blue-700 dark:bg-blue-400{% else %}bg-blue-500 dark:bg-blue-500{% endif %}" style="width: {{ level.pct_of_total | round(2) }}%"></div>
-            </div>
-            {% if not level.is_total and level.pct_of_previous is not none %}
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ level.pct_of_previous | round(0) | int }}% advanced from the previous phase</p>
-            {% endif %}
-        </li>
-        {% endfor %}
-    </ol>
+    {% if community.activity.active_learners or community.activity.projects_verified %}
+    <div class="mt-8 grid gap-6 rounded-lg border border-blue-200 bg-blue-50 p-6 dark:border-blue-900 dark:bg-blue-950/30 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <div>
+            <p class="text-4xl font-bold tracking-[-0.035em] text-gray-950 dark:text-white">{{ community.activity.active_learners }} learner{% if community.activity.active_learners != 1 %}s{% endif %}</p>
+            <p class="mt-2 text-lg font-bold tracking-[-0.02em] text-gray-950 dark:text-white">worked on {{ community.activity.attempts }} verification{% if community.activity.attempts != 1 %}s{% endif %} in the past 7 days.</p>
+        </div>
+        <div class="border-t border-blue-200 pt-5 dark:border-blue-900 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
+            <p class="text-3xl font-bold tracking-[-0.035em] text-blue-700 dark:text-blue-300">{{ community.activity.projects_verified }}</p>
+            <p class="mt-1 text-sm leading-5 text-gray-600 dark:text-gray-300">projects verified</p>
+        </div>
+    </div>
+
+    {% if community.phase_activity %}
+    <div class="mt-10 max-w-3xl">
+        <h3 class="text-lg font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Where learners are working</h3>
+        <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">Active learners and newly verified projects in the past 7 days.</p>
+        <ul class="mt-4 border-y border-gray-200 dark:border-gray-700">
+            {% for phase in community.phase_activity %}
+            <li class="grid gap-1 border-b border-gray-200 py-4 last:border-b-0 sm:grid-cols-[minmax(11rem,1fr)_minmax(11rem,1fr)_auto] sm:items-center sm:gap-4">
+                <p class="font-bold text-gray-950 dark:text-white">{{ phase.label }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300">{{ phase.active_learners }} learner{% if phase.active_learners != 1 %}s{% endif %} &middot; {{ phase.attempts }} attempt{% if phase.attempts != 1 %}s{% endif %}</p>
+                <p class="text-sm font-bold text-blue-700 dark:text-blue-300">{{ phase.projects_verified }} verified</p>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
     {% else %}
     <div class="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-800/50">
-        <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">Verified learner progress is temporarily unavailable.</p>
+        <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">No verification activity has been recorded in the past 7 days.</p>
     </div>
     {% endif %}
 </section>

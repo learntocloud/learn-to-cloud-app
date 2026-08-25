@@ -52,6 +52,7 @@ async def _insert_attempt(
     attempt_id: UUID | None = None,
     requirement_uuid: UUID | None = None,
     created_at=None,
+    completed_at=None,
     started_at=None,
     outcome: str | None = None,
 ) -> UUID:
@@ -66,13 +67,65 @@ async def _insert_attempt(
             submitted_value="https://github.com/attemptrepo/repo",
             started_at=started_at,
             outcome=outcome,
-            completed_at=utcnow() if outcome is not None else None,
+            completed_at=completed_at or (utcnow() if outcome is not None else None),
         )
         if created_at is not None:
             attempt.created_at = created_at
         db.add(attempt)
         await db.commit()
     return attempt_id
+
+
+async def test_community_activity_uses_distinct_projects_and_completion_time(
+    session_maker: async_sessionmaker[AsyncSession],
+    user: int,
+) -> None:
+    now = utcnow()
+    current_requirement = uuid4()
+    completed_after_window_requirement = uuid4()
+
+    await _insert_attempt(
+        session_maker,
+        requirement_uuid=current_requirement,
+        created_at=now - timedelta(days=1),
+        completed_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+    await _insert_attempt(
+        session_maker,
+        requirement_uuid=current_requirement,
+        created_at=now - timedelta(hours=2),
+        completed_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+    await _insert_attempt(
+        session_maker,
+        requirement_uuid=completed_after_window_requirement,
+        created_at=now - timedelta(days=8),
+        completed_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+
+    async with session_maker() as db:
+        activity = await VerificationAttemptRepository(db).get_community_activity(
+            since=now - timedelta(days=7),
+            phase_order_by_requirement_uuid={
+                current_requirement: 1,
+                completed_after_window_requirement: 1,
+            },
+        )
+
+    summary = next(row for row in activity if row.phase_order is None)
+    phase = next(row for row in activity if row.phase_order == 1)
+    assert summary.active_learners == 1
+    assert summary.attempts == 2
+    assert summary.projects_verified == 2
+    assert phase == summary.__class__(
+        phase_order=1,
+        active_learners=1,
+        attempts=2,
+        projects_verified=2,
+    )
 
 
 def _submitted_value(

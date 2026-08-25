@@ -1,19 +1,7 @@
-"""Assemble aggregate data for the public community experience.
-
-The phase funnel and the graduate list come from a single completion
-aggregate (``VerificationAttemptRepository.list_phase_completions``) plus a
-total account count and one batched user load. Because phase submissions
-are gated on the previous phase, completions are nested (completers of
-phase N are a subset of phase N-1), so the funnel is monotone and
-"graduates" are simply the learners who appear in every completable phase.
-The latest-commit panel is fetched and cached separately via the shared GitHub
-helper.
-
-Completions come from succeeded ``verification_attempts`` and do not count
-learning steps.
-"""
+"""Assemble aggregate data for the public community experience."""
 
 import logging
+from datetime import timedelta
 
 from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.content_service import (
@@ -21,14 +9,16 @@ from learn_to_cloud_shared.content_service import (
     get_requirement_counts_by_phase,
 )
 from learn_to_cloud_shared.github_updates import get_latest_curriculum_commits
+from learn_to_cloud_shared.models import utcnow
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
 from learn_to_cloud_shared.schemas import (
+    CommunityActivity,
     CommunityMember,
     CommunityPageData,
-    FunnelLevel,
+    CommunityPhaseActivity,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,13 +29,11 @@ async def get_community_page_data(db: AsyncSession) -> CommunityPageData:
     """Build the aggregate community page payload."""
     phases = get_curriculum_overview()
     phase_names = {phase.order: phase.name for phase in phases}
-
     requirement_counts = get_requirement_counts_by_phase()
-    phase_order_by_requirement_uuid = (
-        get_curriculum_catalog().phase_order_by_requirement_uuid
-    )
-    completions = await VerificationAttemptRepository(db).list_phase_completions(
-        requirement_counts, phase_order_by_requirement_uuid
+    catalog = get_curriculum_catalog()
+    attempt_repository = VerificationAttemptRepository(db)
+    completions = await attempt_repository.list_phase_completions(
+        requirement_counts, catalog.phase_order_by_requirement_uuid
     )
 
     # Group completions into a per-phase set of completer ids.
@@ -58,31 +46,31 @@ async def get_community_page_data(db: AsyncSession) -> CommunityPageData:
         order for order, total in requirement_counts.items() if total > 0
     )
 
-    total_accounts = await UserRepository(db).count()
-
-    # Build the funnel top-down: total accounts, then each phase, tracking
-    # both share of total (bar width) and conversion from the level above.
-    funnel: list[FunnelLevel] = [
-        FunnelLevel(
-            label="Total accounts",
-            count=total_accounts,
-            pct_of_total=100.0,
-            pct_of_previous=None,
-            is_total=True,
+    activity_rows = await attempt_repository.get_community_activity(
+        since=utcnow() - timedelta(days=7),
+        phase_order_by_requirement_uuid=catalog.phase_order_by_requirement_uuid,
+    )
+    total_activity = next(
+        (row for row in activity_rows if row.phase_order is None),
+        None,
+    )
+    activity = CommunityActivity(
+        active_learners=total_activity.active_learners if total_activity else 0,
+        attempts=total_activity.attempts if total_activity else 0,
+        projects_verified=total_activity.projects_verified if total_activity else 0,
+    )
+    phase_activity = [
+        CommunityPhaseActivity(
+            phase_order=row.phase_order,
+            label=phase_names.get(row.phase_order, f"Phase {row.phase_order}"),
+            active_learners=row.active_learners,
+            attempts=row.attempts,
+            projects_verified=row.projects_verified,
         )
+        for row in activity_rows
+        if row.phase_order is not None
+        and (row.active_learners or row.projects_verified)
     ]
-    prev_count = total_accounts
-    for order in completable_orders:
-        count = len(completers_by_phase.get(order, set()))
-        funnel.append(
-            FunnelLevel(
-                label=f"Phase {order}: {phase_names.get(order, order)}",
-                count=count,
-                pct_of_total=(count / total_accounts * 100) if total_accounts else 0.0,
-                pct_of_previous=(count / prev_count * 100) if prev_count else None,
-            )
-        )
-        prev_count = count
 
     # Graduates completed every completable phase.
     graduate_ids: set[int] = set()
@@ -106,8 +94,8 @@ async def get_community_page_data(db: AsyncSession) -> CommunityPageData:
     repo_updates = await get_latest_curriculum_commits()
 
     return CommunityPageData(
-        total_accounts=total_accounts,
-        funnel=funnel,
+        activity=activity,
+        phase_activity=phase_activity,
         graduates=graduates,
         repo_updates=repo_updates,
     )

@@ -13,8 +13,10 @@ from sqlalchemy import (
     and_,
     column,
     func,
+    literal,
     select,
     text,
+    union_all,
     update,
     values,
 )
@@ -110,6 +112,16 @@ class FinalizeResult:
 
     won: bool
     state: AttemptTerminalState
+
+
+@dataclass(frozen=True, slots=True)
+class CommunityActivityRow:
+    """Aggregate verification activity for the community page."""
+
+    phase_order: int | None
+    active_learners: int
+    attempts: int
+    projects_verified: int
 
 
 class AttemptAlreadyGoneError(Exception):
@@ -720,4 +732,111 @@ class VerificationAttemptRepository:
             (row.phase_order, row.user_id)
             for row in result.all()
             if row.validated >= completable[row.phase_order]
+        ]
+
+    async def get_community_activity(
+        self,
+        *,
+        since: datetime,
+        phase_order_by_requirement_uuid: Mapping[UUID, int],
+    ) -> list[CommunityActivityRow]:
+        """Aggregate recent attempts and verified projects by current phase."""
+        requirement_phase_rows = list(
+            phase_order_by_requirement_uuid.items(),
+        )
+        if not requirement_phase_rows:
+            return []
+
+        requirement_phase_map = values(
+            column("requirement_uuid", Uuid(as_uuid=True)),
+            column("phase_order", Integer),
+            name="community_requirement_phase_map",
+        ).data(requirement_phase_rows)
+        mapped_attempts = (
+            select(
+                requirement_phase_map.c.phase_order,
+                VerificationAttempt.user_id,
+                VerificationAttempt.requirement_uuid,
+                VerificationAttempt.outcome,
+                VerificationAttempt.created_at,
+                VerificationAttempt.completed_at,
+            )
+            .select_from(VerificationAttempt)
+            .join(
+                requirement_phase_map,
+                VerificationAttempt.requirement_uuid
+                == requirement_phase_map.c.requirement_uuid,
+            )
+            .subquery("mapped_attempts")
+        )
+        recent_attempts = (
+            mapped_attempts.select()
+            .where(
+                mapped_attempts.c.created_at >= since,
+            )
+            .subquery("recent_attempts")
+        )
+        recent_verified_projects = (
+            select(
+                mapped_attempts.c.phase_order,
+                mapped_attempts.c.user_id,
+                mapped_attempts.c.requirement_uuid,
+            )
+            .where(
+                mapped_attempts.c.outcome == VerificationAttemptOutcome.SUCCEEDED.value,
+                mapped_attempts.c.completed_at >= since,
+            )
+            .distinct()
+            .subquery("recent_verified_projects")
+        )
+        zero = literal(0, type_=Integer)
+        total_phase_order = literal(None, type_=Integer)
+        activity_rows = union_all(
+            select(
+                total_phase_order.label("phase_order"),
+                func.count(func.distinct(recent_attempts.c.user_id)).label(
+                    "active_learners"
+                ),
+                func.count().label("attempts"),
+                zero.label("projects_verified"),
+            ),
+            select(
+                recent_attempts.c.phase_order,
+                func.count(func.distinct(recent_attempts.c.user_id)).label(
+                    "active_learners"
+                ),
+                func.count().label("attempts"),
+                zero.label("projects_verified"),
+            ).group_by(recent_attempts.c.phase_order),
+            select(
+                total_phase_order.label("phase_order"),
+                zero.label("active_learners"),
+                zero.label("attempts"),
+                func.count().label("projects_verified"),
+            ).select_from(recent_verified_projects),
+            select(
+                recent_verified_projects.c.phase_order,
+                zero.label("active_learners"),
+                zero.label("attempts"),
+                func.count().label("projects_verified"),
+            ).group_by(recent_verified_projects.c.phase_order),
+        ).subquery("community_activity_rows")
+        result = await self.db.execute(
+            select(
+                activity_rows.c.phase_order,
+                func.sum(activity_rows.c.active_learners).label("active_learners"),
+                func.sum(activity_rows.c.attempts).label("attempts"),
+                func.sum(activity_rows.c.projects_verified).label("projects_verified"),
+            )
+            .group_by(activity_rows.c.phase_order)
+            .order_by(activity_rows.c.phase_order)
+        )
+        return [
+            CommunityActivityRow(
+                phase_order=row.phase_order,
+                active_learners=int(row.active_learners),
+                attempts=int(row.attempts),
+                projects_verified=int(row.projects_verified),
+            )
+            for row in result.all()
         ]

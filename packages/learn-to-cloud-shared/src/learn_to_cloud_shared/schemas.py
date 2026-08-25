@@ -704,19 +704,22 @@ class CommunityMember(FrozenModel):
     avatar_url: str | None = None
 
 
-class FunnelLevel(FrozenModel):
-    """One level of the community progress funnel.
+class CommunityActivity(FrozenModel):
+    """Recent verification activity across the current curriculum."""
 
-    ``pct_of_total`` is relative to total accounts (drives the funnel
-    width); ``pct_of_previous`` is the conversion from the level above
-    (``None`` for the top level).
-    """
+    active_learners: int
+    attempts: int
+    projects_verified: int
 
+
+class CommunityPhaseActivity(FrozenModel):
+    """Recent verification activity for one curriculum phase."""
+
+    phase_order: int
     label: str
-    count: int
-    pct_of_total: float
-    pct_of_previous: float | None = None
-    is_total: bool = False
+    active_learners: int
+    attempts: int
+    projects_verified: int
 
 
 class RepoUpdate(FrozenModel):
@@ -738,8 +741,8 @@ class RepoUpdate(FrozenModel):
 class CommunityPageData(FrozenModel):
     """Aggregate data shown on the public community page."""
 
-    total_accounts: int
-    funnel: list[FunnelLevel]
+    activity: CommunityActivity
+    phase_activity: list[CommunityPhaseActivity]
     graduates: list[CommunityMember]
     repo_updates: list[RepoUpdate]
 
