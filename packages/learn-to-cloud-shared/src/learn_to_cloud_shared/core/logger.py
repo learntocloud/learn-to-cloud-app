@@ -1,7 +1,6 @@
-"""Centralized stdlib logging configuration.
+"""Centralized JSON stdout logging configuration.
 
-Simple JSON logging for Azure Container Apps, human-readable console for
-local dev. Azure Monitor/OpenTelemetry setup lives in ``core.observability``.
+Azure Monitor/OpenTelemetry setup lives in ``core.observability``.
 
 Usage::
 
@@ -21,7 +20,7 @@ _APP_HANDLER_NAME = "learn_to_cloud.stdout"
 
 
 def _json_formatter() -> JsonFormatter:
-    """Create the production JSON formatter."""
+    """Create the shared JSON formatter."""
     return JsonFormatter(
         ["levelname", "name", "message"],
         rename_fields={
@@ -37,8 +36,6 @@ def _json_formatter() -> JsonFormatter:
 
 def configure_logging() -> None:
     """Configure stdlib logging. Call once at application startup."""
-    is_production = bool(os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"))
-    use_json = is_production and os.getenv("LOG_FORMAT", "").lower() != "console"
     level = getattr(
         logging,
         os.environ.get("LOG_LEVEL", "INFO").upper(),
@@ -53,11 +50,7 @@ def configure_logging() -> None:
 
     console = logging.StreamHandler(sys.stdout)
     console.set_name(_APP_HANDLER_NAME)
-    console.setFormatter(
-        _json_formatter()
-        if use_json
-        else logging.Formatter("%(levelname)-5s [%(name)s] %(message)s")
-    )
+    console.setFormatter(_json_formatter())
     root.addHandler(console)
     root.setLevel(level)
 
@@ -70,3 +63,11 @@ def configure_logging() -> None:
         "azure.monitor.opentelemetry",
     ):
         logging.getLogger(name).setLevel(logging.WARNING)
+
+
+def remove_app_stdout_handler() -> None:
+    """Remove only the JSON stdout handler owned by this application."""
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        if handler.get_name() == _APP_HANDLER_NAME:
+            root.removeHandler(handler)

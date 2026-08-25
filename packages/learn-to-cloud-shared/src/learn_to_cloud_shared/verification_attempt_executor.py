@@ -25,7 +25,6 @@ import logging
 from dataclasses import dataclass
 from uuid import UUID
 
-from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE
@@ -48,13 +47,13 @@ from learn_to_cloud_shared.verification_attempt_snapshot import (
     validate_snapshot_integrity,
 )
 from learn_to_cloud_shared.verification_workflow import (
+    LLM_ERROR_TYPES,
     PreparedVerificationAttempt,
     VerificationRunResult,
     code_for_outcome,
     outcome_for_validation,
 )
 
-tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(f"{APP_LOGGER_NAMESPACE}.verification_attempt_executor")
 
 _SNAPSHOT_SOURCE_SUBMITTED = "submitted"
@@ -99,67 +98,62 @@ async def prepare_verification_attempt(
     :class:`AttemptPreparationError` subclass so the orchestrator converts it
     into a terminal outcome instead of leaving the attempt hanging.
     """
-    with tracer.start_as_current_span(
-        "prepare_verification_attempt",
-        attributes={"verification.attempt.id": str(attempt_id)},
-    ):
-        async with session_maker() as db:
-            repo = VerificationAttemptRepository(db)
-            state = await repo.get_prepare_state(attempt_id)
-            if state is None:
-                raise AttemptNotFoundError(str(attempt_id))
-            if state.outcome is not None:
-                raise AttemptNotActiveError(
-                    f"attempt {attempt_id} is already terminal ({state.outcome})"
-                )
-            if state.started_at is None:
-                marked_started = await repo.mark_started(attempt_id)
-                if not marked_started:
-                    current = await repo.get_status(attempt_id)
-                    if current is None:
-                        raise AttemptNotFoundError(str(attempt_id))
-                    if current.outcome is not None:
-                        raise AttemptNotActiveError(
-                            f"attempt {attempt_id} is already terminal "
-                            f"({current.outcome})"
-                        )
-                await db.commit()
-        if state.snapshot_source != _SNAPSHOT_SOURCE_SUBMITTED:
-            raise AttemptNotRunnableError(
-                f"attempt {attempt_id} has non-runnable snapshot_source "
-                f"{state.snapshot_source!r}"
+    async with session_maker() as db:
+        repo = VerificationAttemptRepository(db)
+        state = await repo.get_prepare_state(attempt_id)
+        if state is None:
+            raise AttemptNotFoundError(str(attempt_id))
+        if state.outcome is not None:
+            raise AttemptNotActiveError(
+                f"attempt {attempt_id} is already terminal ({state.outcome})"
             )
-        if state.payload_version not in SUPPORTED_PAYLOAD_VERSIONS:
-            raise AttemptSnapshotError(
-                f"attempt {attempt_id} payload_version "
-                f"{state.payload_version!r} is not supported"
-            )
-
-        requirement = validate_snapshot_integrity(
-            snapshot=state.requirement_snapshot,
-            snapshot_hash=state.requirement_snapshot_hash,
+        if state.started_at is None:
+            marked_started = await repo.mark_started(attempt_id)
+            if not marked_started:
+                current = await repo.get_status(attempt_id)
+                if current is None:
+                    raise AttemptNotFoundError(str(attempt_id))
+                if current.outcome is not None:
+                    raise AttemptNotActiveError(
+                        f"attempt {attempt_id} is already terminal ({current.outcome})"
+                    )
+            await db.commit()
+    if state.snapshot_source != _SNAPSHOT_SOURCE_SUBMITTED:
+        raise AttemptNotRunnableError(
+            f"attempt {attempt_id} has non-runnable snapshot_source "
+            f"{state.snapshot_source!r}"
+        )
+    if state.payload_version not in SUPPORTED_PAYLOAD_VERSIONS:
+        raise AttemptSnapshotError(
+            f"attempt {attempt_id} payload_version "
+            f"{state.payload_version!r} is not supported"
         )
 
-        expected_kind = value_kind_for_submission_type(requirement.submission_type)
-        if state.submission_value_kind != expected_kind.value:
-            raise AttemptSnapshotError(
-                f"attempt {attempt_id} submission_value_kind "
-                f"{state.submission_value_kind!r} does not match requirement "
-                f"kind {expected_kind.value!r}"
-            )
+    requirement = validate_snapshot_integrity(
+        snapshot=state.requirement_snapshot,
+        snapshot_hash=state.requirement_snapshot_hash,
+    )
 
-        submitted_value = SubmittedValue.from_kind_and_value(
-            state.submission_value_kind,
-            state.submitted_value,
+    expected_kind = value_kind_for_submission_type(requirement.submission_type)
+    if state.submission_value_kind != expected_kind.value:
+        raise AttemptSnapshotError(
+            f"attempt {attempt_id} submission_value_kind "
+            f"{state.submission_value_kind!r} does not match requirement "
+            f"kind {expected_kind.value!r}"
         )
-        attempt = PreparedVerificationAttempt(
-            id=state.id,
-            user_id=state.user_id,
-            github_username=state.github_username_snapshot,
-            requirement=requirement,
-            submitted_value=submitted_value,
-        )
-        return AttemptPreparation(attempt=attempt)
+
+    submitted_value = SubmittedValue.from_kind_and_value(
+        state.submission_value_kind,
+        state.submitted_value,
+    )
+    attempt = PreparedVerificationAttempt(
+        id=state.id,
+        user_id=state.user_id,
+        github_username=state.github_username_snapshot,
+        requirement=requirement,
+        submitted_value=submitted_value,
+    )
+    return AttemptPreparation(attempt=attempt)
 
 
 async def finalize_verification_attempt(
@@ -172,7 +166,11 @@ async def finalize_verification_attempt(
     attempt = run_result.attempt
     validation_result = run_result.validation_result
     outcome = outcome_for_validation(validation_result)
-    error_code = code_for_outcome(outcome)
+    error_code = (
+        run_result.llm_error_type
+        if run_result.llm_error_type in LLM_ERROR_TYPES
+        else code_for_outcome(outcome)
+    )
     validation_message = (
         persisted_validation_message(validation_result.message)
         if not validation_result.is_valid
@@ -234,27 +232,19 @@ async def terminalize_unstarted_verification_attempt(
     session_maker: async_sessionmaker[AsyncSession],
 ) -> FinalizeResult | None:
     """Terminalize a pre-start failure without racing a Functions claim."""
-    with tracer.start_as_current_span(
-        "terminalize_unstarted_verification_attempt",
-        attributes={"verification.attempt.id": str(attempt_id)},
-    ) as span:
-        async with session_maker() as db:
-            result = await VerificationAttemptRepository(db).finalize_unstarted(
-                attempt_id,
-                outcome=VerificationAttemptOutcome.SERVER_ERROR,
-                error_code=error_code,
-                validation_message=validation_message,
-                terminal_source=terminal_source,
-            )
-            if result is not None:
-                await db.commit()
-        span.set_attribute(
-            "verification.finalization.disposition",
-            "claimed" if result is None else ("written" if result.won else "existing"),
+    async with session_maker() as db:
+        result = await VerificationAttemptRepository(db).finalize_unstarted(
+            attempt_id,
+            outcome=VerificationAttemptOutcome.SERVER_ERROR,
+            error_code=error_code,
+            validation_message=validation_message,
+            terminal_source=terminal_source,
         )
         if result is not None:
-            _log_canonical_completion(result)
-        return result
+            await db.commit()
+    if result is not None:
+        _log_canonical_completion(result)
+    return result
 
 
 async def _finalize(
@@ -267,31 +257,19 @@ async def _finalize(
     terminal_source: str,
     feedback_json: list[dict] | None,
 ) -> FinalizeResult:
-    with tracer.start_as_current_span(
-        "finalize_verification_attempt",
-        attributes={
-            "verification.attempt.id": str(attempt_id),
-            "verification.outcome": outcome.value,
-        },
-    ) as span:
-        async with session_maker() as db:
-            repo = VerificationAttemptRepository(db)
-            result = await repo.finalize(
-                attempt_id,
-                outcome=outcome,
-                error_code=error_code,
-                validation_message=validation_message,
-                terminal_source=terminal_source,
-                feedback_json=feedback_json,
-            )
-            await db.commit()
-        span.set_attribute(
-            "verification.finalization.disposition",
-            "written" if result.won else "existing",
+    async with session_maker() as db:
+        repo = VerificationAttemptRepository(db)
+        result = await repo.finalize(
+            attempt_id,
+            outcome=outcome,
+            error_code=error_code,
+            validation_message=validation_message,
+            terminal_source=terminal_source,
+            feedback_json=feedback_json,
         )
-        _log_canonical_completion(result)
-
-        return result
+        await db.commit()
+    _log_canonical_completion(result)
+    return result
 
 
 def _failure_stage(state: AttemptTerminalState) -> str | None:

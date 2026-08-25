@@ -125,7 +125,7 @@ async def _validate_url_target(url: str) -> str | None:
             span = trace.get_current_span()
             span.add_event(
                 "ssrf_blocked",
-                {"url": url, "reason": "private_ip_literal"},
+                {"verification.reason": "private_ip_literal"},
             )
             return "URL must point to a publicly accessible server."
         return None
@@ -150,7 +150,7 @@ async def _validate_url_target(url: str) -> str | None:
             span = trace.get_current_span()
             span.add_event(
                 "ssrf_blocked",
-                {"url": url, "resolved_ip": addr, "reason": "private_ip_resolved"},
+                {"verification.reason": "private_ip_resolved"},
             )
             return "URL must point to a publicly accessible server."
 
@@ -178,7 +178,7 @@ def _check_response_ip(response: httpx.Response) -> None:
         span = trace.get_current_span()
         span.add_event(
             "ssrf_blocked",
-            {"resolved_ip": addr, "reason": "dns_rebinding"},
+            {"verification.reason": "dns_rebinding"},
         )
         raise _SsrfError(addr)
 
@@ -438,7 +438,7 @@ async def _cleanup_challenge_entry(
         span = trace.get_current_span()
         span.add_event(
             "ssrf_blocked",
-            {"entry_id": entry_id, "reason": "cleanup_dns_rebinding"},
+            {"verification.reason": "cleanup_dns_rebinding"},
         )
     except Exception:
         pass  # best-effort cleanup
@@ -474,7 +474,7 @@ async def _post_challenge(
         httpx.RequestError,
         DeployedApiServerError,
     ) as exc:
-        return deployed_api_error_to_result(exc, entries_url, step="POST /entries")
+        return deployed_api_error_to_result(exc, step="POST /entries")
 
     if response.status_code == 404:
         return ValidationResult(
@@ -538,7 +538,7 @@ async def _verify_challenge(
         httpx.RequestError,
         DeployedApiServerError,
     ) as exc:
-        return deployed_api_error_to_result(exc, entries_url, step="GET /entries"), None
+        return deployed_api_error_to_result(exc, step="GET /entries"), None
 
     if response.status_code != 200:
         return (
@@ -587,7 +587,7 @@ async def _verify_challenge(
 
     if not nonce_found:
         span = trace.get_current_span()
-        span.add_event("challenge_failed", {"url": base_url})
+        span.add_event("challenge_failed")
         return (
             ValidationResult(
                 is_valid=False,
@@ -617,7 +617,6 @@ async def _verify_challenge(
 
     span = trace.get_current_span()
     span.set_attribute("deployed_api.challenge_verified", True)
-    span.set_attribute("deployed_api.entries_count", len(real_entries))
 
     count = len(real_entries)
     entry_word = "entry" if count == 1 else "entries"
@@ -654,7 +653,6 @@ async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
     ) as exc:
         return deployed_api_error_to_result(
             exc,
-            analysis_url,
             step="POST /entries/{id}/analyze",
         )
 

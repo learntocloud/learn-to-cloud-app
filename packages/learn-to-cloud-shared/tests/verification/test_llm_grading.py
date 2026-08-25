@@ -203,22 +203,25 @@ def test_phase5_holistic_review_enforces_strict_threshold():
 
 @pytest.mark.unit
 def test_llm_grading_unavailable_result_marks_server_error():
-    updated = llm_grading_unavailable_result(_run_result())
+    updated = llm_grading_unavailable_result(
+        _run_result(),
+        error_type="llm.provider_unavailable",
+    )
 
     assert updated.validation_result.is_valid is False
     assert updated.validation_result.verification_completed is False
     assert updated.validation_result.message == (
         "Automated grading is temporarily unavailable. This is a "
-        "problem on our end, not yours. Please report it so we can "
-        "fix it."
+        "problem on our end, not yours. Please submit again later."
     )
+    assert updated.llm_error_type == "llm.provider_unavailable"
 
 
 def test_llm_grading_content_filtered_result_asks_learner_to_rephrase():
     updated = llm_grading_content_filtered_result(_run_result())
 
     assert updated.validation_result.is_valid is False
-    assert updated.validation_result.verification_completed is False
+    assert updated.validation_result.verification_completed is True
     assert "content safety filter" in updated.validation_result.message
     assert "rewrite your answers" in updated.validation_result.message
 

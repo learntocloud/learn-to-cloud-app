@@ -120,26 +120,28 @@ locals {
   # app configuration. Secrets stay as Key Vault references, which the app
   # resolves with keyVaultReferenceIdentity.
   verification_functions_app_settings = {
-    APPLICATIONINSIGHTS_CONNECTION_STRING    = azurerm_application_insights.main.connection_string
-    AZURE_CLIENT_ID                          = azurerm_user_assigned_identity.verification_functions.client_id
-    AzureWebJobsStorage__accountName         = azurerm_storage_account.verification_functions.name
-    AzureWebJobsStorage__credential          = "managedidentity"
-    AzureWebJobsStorage__clientId            = azurerm_user_assigned_identity.verification_functions.client_id
-    DATABASE__URL                            = ""
-    DATABASE__HOST                           = azurerm_postgresql_flexible_server.main.fqdn
-    DATABASE__NAME                           = azurerm_postgresql_flexible_server_database.main.name
-    DATABASE__USER                           = local.verification_functions_postgres_role
-    DURABLE_TASK_SCHEDULER_CONNECTION_STRING = "Endpoint=${azapi_resource.verification_scheduler.output.properties.endpoint};Authentication=ManagedIdentity;ClientID=${azurerm_user_assigned_identity.verification_functions.client_id}"
-    ENABLE_INSTRUMENTATION                   = "true"
-    FOUNDRY_MODEL_DEPLOYMENT_NAME            = azapi_resource.foundry_model_deployment.name
-    FOUNDRY_PROJECT_ENDPOINT                 = local.foundry_project_endpoint
-    GITHUB__TOKEN                            = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-token)"
-    LABS__VERIFICATION_SECRET                = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=labs-verification-secret)"
-    OAUTH__CLIENT_ID                         = var.github_client_id
-    OAUTH__CLIENT_SECRET                     = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-client-secret)"
-    OTEL_SERVICE_NAME                        = "learn-to-cloud-verification-functions"
-    SESSION__SECRET_KEY                      = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=session-secret-key)"
-    TASKHUB_NAME                             = local.verification_functions_task_hub_name
+    APPLICATIONINSIGHTS_CONNECTION_STRING       = azurerm_application_insights.main.connection_string
+    AZURE_CLIENT_ID                             = azurerm_user_assigned_identity.verification_functions.client_id
+    AzureWebJobsStorage__accountName            = azurerm_storage_account.verification_functions.name
+    AzureWebJobsStorage__credential             = "managedidentity"
+    AzureWebJobsStorage__clientId               = azurerm_user_assigned_identity.verification_functions.client_id
+    DATABASE__URL                               = ""
+    DATABASE__HOST                              = azurerm_postgresql_flexible_server.main.fqdn
+    DATABASE__NAME                              = azurerm_postgresql_flexible_server_database.main.name
+    DATABASE__USER                              = local.verification_functions_postgres_role
+    DURABLE_TASK_SCHEDULER_CONNECTION_STRING    = "Endpoint=${azapi_resource.verification_scheduler.output.properties.endpoint};Authentication=ManagedIdentity;ClientID=${azurerm_user_assigned_identity.verification_functions.client_id}"
+    ENABLE_INSTRUMENTATION                      = "true"
+    ENABLE_SENSITIVE_DATA                       = "false"
+    FOUNDRY_MODEL_DEPLOYMENT_NAME               = azapi_resource.foundry_model_deployment.name
+    FOUNDRY_PROJECT_ENDPOINT                    = local.foundry_project_endpoint
+    GITHUB__TOKEN                               = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-token)"
+    LABS__VERIFICATION_SECRET                   = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=labs-verification-secret)"
+    OAUTH__CLIENT_ID                            = var.github_client_id
+    OAUTH__CLIENT_SECRET                        = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-client-secret)"
+    OTEL_SERVICE_NAME                           = "learn-to-cloud-verification-functions"
+    PYTHON_APPLICATIONINSIGHTS_ENABLE_TELEMETRY = "true"
+    SESSION__SECRET_KEY                         = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=session-secret-key)"
+    TASKHUB_NAME                                = local.verification_functions_task_hub_name
   }
 }
 

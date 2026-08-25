@@ -29,7 +29,6 @@ _MANIFEST_ACCEPT = ", ".join(
     )
 )
 _TASK_NAME = "Public GHCR Image"
-_tracer = trace.get_tracer(__name__)
 
 
 class _GhcrServerError(Exception):
@@ -141,67 +140,69 @@ async def verify_public_ghcr_image(
     image_ref = f"ghcr.io/{normalized_owner}/{GHCR_IMAGE_NAME}:{GHCR_IMAGE_TAG}"
     client = client or await _get_client()
 
-    with _tracer.start_as_current_span(
-        "ghcr_manifest_check",
-        attributes={"github.owner": normalized_owner, "container.image": image_ref},
-    ) as span:
-        try:
-            status = await _get_manifest_status(normalized_owner, client)
-        except RETRIABLE_EXCEPTIONS as exc:
-            span.record_exception(exc)
-            return _result(
-                passed=False,
-                message="Could not reach GHCR to verify the container image.",
-                feedback="GHCR was temporarily unavailable.",
-                next_steps="Try submitting again later.",
-                verification_completed=False,
-            )
-        except (_GhcrProtocolError, httpx.HTTPStatusError) as exc:
-            span.record_exception(exc)
-            return _result(
-                passed=False,
-                message="GHCR returned an unexpected response.",
-                feedback="Automated verification could not read the GHCR response.",
-                next_steps="Try submitting again later.",
-                verification_completed=False,
-            )
-
-        span.set_attribute("http.response.status_code", status)
-        if status == 200:
-            span.set_attribute("verification.passed", True)
-            return _result(
-                passed=True,
-                message="The public GHCR image is pullable.",
-                feedback=f"Verified public image {image_ref}.",
-            )
-        if status in {401, 403}:
-            span.set_attribute("verification.passed", False)
-            return _result(
-                passed=False,
-                message="The GHCR package is not publicly pullable.",
-                feedback=f"Could not pull {image_ref} without authentication.",
-                next_steps=(
-                    "Open the journal-api package settings on GitHub, change "
-                    "visibility to public, and submit again."
-                ),
-            )
-        if status == 404:
-            span.set_attribute("verification.passed", False)
-            return _result(
-                passed=False,
-                message="The required GHCR image was not found.",
-                feedback=f"No public manifest exists for {image_ref}.",
-                next_steps=(
-                    "Build and push journal-api with the latest tag to GHCR, "
-                    "make the package public, and submit again."
-                ),
-            )
-
-        span.set_attribute("verification.passed", False)
+    span = trace.get_current_span()
+    try:
+        status = await _get_manifest_status(normalized_owner, client)
+    except RETRIABLE_EXCEPTIONS:
+        span.set_attribute("error.type", "ghcr_unavailable")
+        span.add_event("ghcr.request_failed", {"error.type": "ghcr_unavailable"})
         return _result(
             passed=False,
-            message="GHCR returned an unexpected response.",
-            feedback=f"Automated verification received HTTP {status} from GHCR.",
+            message="Could not reach GHCR to verify the container image.",
+            feedback="GHCR was temporarily unavailable.",
             next_steps="Try submitting again later.",
             verification_completed=False,
         )
+    except (_GhcrProtocolError, httpx.HTTPStatusError):
+        span.set_attribute("error.type", "ghcr_response_error")
+        span.add_event(
+            "ghcr.request_failed",
+            {"error.type": "ghcr_response_error"},
+        )
+        return _result(
+            passed=False,
+            message="GHCR returned an unexpected response.",
+            feedback="Automated verification could not read the GHCR response.",
+            next_steps="Try submitting again later.",
+            verification_completed=False,
+        )
+
+    span.set_attribute("http.response.status_code", status)
+    if status == 200:
+        span.add_event("ghcr.image_available")
+        return _result(
+            passed=True,
+            message="The public GHCR image is pullable.",
+            feedback=f"Verified public image {image_ref}.",
+        )
+    if status in {401, 403}:
+        span.add_event("ghcr.image_private")
+        return _result(
+            passed=False,
+            message="The GHCR package is not publicly pullable.",
+            feedback=f"Could not pull {image_ref} without authentication.",
+            next_steps=(
+                "Open the journal-api package settings on GitHub, change "
+                "visibility to public, and submit again."
+            ),
+        )
+    if status == 404:
+        span.add_event("ghcr.image_not_found")
+        return _result(
+            passed=False,
+            message="The required GHCR image was not found.",
+            feedback=f"No public manifest exists for {image_ref}.",
+            next_steps=(
+                "Build and push journal-api with the latest tag to GHCR, "
+                "make the package public, and submit again."
+            ),
+        )
+
+    span.add_event("ghcr.unexpected_status")
+    return _result(
+        passed=False,
+        message="GHCR returned an unexpected response.",
+        feedback=f"Automated verification received HTTP {status} from GHCR.",
+        next_steps="Try submitting again later.",
+        verification_completed=False,
+    )

@@ -166,4 +166,31 @@ async def test_terminalize_records_cancelled_outcome(
 
     assert result.won is True
     assert result.state.outcome == "cancelled"
-    assert result.state.error_code == "cancelled"
+
+
+async def test_finalize_persists_only_safe_llm_error_category(
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    attempt = await _create_attempt(session_maker)
+    preparation = await prepare_verification_attempt(
+        attempt.id, session_maker=session_maker
+    )
+    run_result = VerificationRunResult(
+        attempt=preparation.attempt,
+        validation_result=ValidationResult(
+            is_valid=False,
+            message=(
+                "Automated grading is temporarily unavailable. "
+                "Please submit again later."
+            ),
+            verification_completed=False,
+        ),
+        llm_error_type="llm.provider_unavailable",
+    )
+
+    result = await finalize_verification_attempt(
+        run_result, session_maker=session_maker
+    )
+
+    assert result.state.error_code == "llm.provider_unavailable"
+    assert "provider" not in (result.state.validation_message or "").lower()

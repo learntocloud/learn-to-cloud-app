@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 import pytest
+from opentelemetry.trace import Status, StatusCode
 
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.submission_values import SubmittedValue
@@ -63,6 +64,39 @@ class UnknownCheckParams(CheckParams):
     check_name = "does-not-exist"
 
 
+class ExplodingCheckParams(CheckParams):
+    check_name = "exploding"
+
+
+class _Span:
+    def __init__(self) -> None:
+        self.attributes: dict[str, object] = {}
+        self.status: Status | None = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _exc_type, _exc, _traceback) -> bool:
+        return False
+
+    def set_attribute(self, key: str, value: object) -> None:
+        self.attributes[key] = value
+
+    def set_status(self, status: Status) -> None:
+        self.status = status
+
+
+class _Tracer:
+    def __init__(self) -> None:
+        self.spans: list[tuple[str, _Span, dict[str, object]]] = []
+
+    def start_as_current_span(self, name: str, **kwargs) -> _Span:
+        span = _Span()
+        span.attributes.update(kwargs.get("attributes", {}))
+        self.spans.append((name, span, kwargs))
+        return span
+
+
 def _job(requirement=None) -> PreparedVerificationAttempt:
     requirement = requirement or repo_fork_requirement()
     return PreparedVerificationAttempt(
@@ -105,6 +139,8 @@ async def test_run_profile_uses_declared_steps(monkeypatch):
         "profile_for",
         lambda _t: _profile(_step(PassingCheckParams(), "gate")),
     )
+    tracer = _Tracer()
+    monkeypatch.setattr(engine_module, "_tracer", tracer)
 
     result = await run_profile(_job())
 
@@ -113,6 +149,44 @@ async def test_run_profile_uses_declared_steps(monkeypatch):
         TaskResult(task_name="Gate", passed=True, feedback="ok")
     ]
     assert result.evidence == [bundle]
+    assert len(tracer.spans) == 1
+    name, span, options = tracer.spans[0]
+    assert name == "verification.step"
+    assert span.attributes == {
+        "verification.check.name": "test_gate_pass",
+        "verification.task.id": "gate",
+        "verification.step.result": "passed",
+    }
+    assert options["record_exception"] is False
+    assert options["set_status_on_exception"] is False
+
+
+@pytest.mark.asyncio
+async def test_step_span_records_error_type_without_exception_details(monkeypatch):
+    @register_check(ExplodingCheckParams)
+    async def _explode(context: StepContext, params) -> StepResult:
+        raise RuntimeError("sensitive failure details")
+
+    monkeypatch.setattr(
+        engine_module,
+        "profile_for",
+        lambda _t: _profile(_step(ExplodingCheckParams(), "explode")),
+    )
+    tracer = _Tracer()
+    monkeypatch.setattr(engine_module, "_tracer", tracer)
+
+    with pytest.raises(RuntimeError, match="sensitive failure details"):
+        await run_profile(_job())
+
+    _, span, _ = tracer.spans[0]
+    assert span.attributes == {
+        "verification.check.name": "exploding",
+        "verification.task.id": "explode",
+        "verification.step.result": "error",
+        "error.type": "RuntimeError",
+    }
+    assert span.status is not None
+    assert span.status.status_code is StatusCode.ERROR
 
 
 @pytest.mark.asyncio

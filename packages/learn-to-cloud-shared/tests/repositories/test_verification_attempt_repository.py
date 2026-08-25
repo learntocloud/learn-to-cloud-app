@@ -7,7 +7,7 @@ from datetime import timedelta
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import (
@@ -52,6 +52,7 @@ async def _insert_attempt(
     attempt_id: UUID | None = None,
     requirement_uuid: UUID | None = None,
     created_at=None,
+    completed_at=None,
     started_at=None,
     outcome: str | None = None,
 ) -> UUID:
@@ -66,13 +67,65 @@ async def _insert_attempt(
             submitted_value="https://github.com/attemptrepo/repo",
             started_at=started_at,
             outcome=outcome,
-            completed_at=utcnow() if outcome is not None else None,
+            completed_at=completed_at or (utcnow() if outcome is not None else None),
         )
         if created_at is not None:
             attempt.created_at = created_at
         db.add(attempt)
         await db.commit()
     return attempt_id
+
+
+async def test_community_activity_uses_distinct_projects_and_completion_time(
+    session_maker: async_sessionmaker[AsyncSession],
+    user: int,
+) -> None:
+    now = utcnow()
+    current_requirement = uuid4()
+    completed_after_window_requirement = uuid4()
+
+    await _insert_attempt(
+        session_maker,
+        requirement_uuid=current_requirement,
+        created_at=now - timedelta(days=1),
+        completed_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+    await _insert_attempt(
+        session_maker,
+        requirement_uuid=current_requirement,
+        created_at=now - timedelta(hours=2),
+        completed_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+    await _insert_attempt(
+        session_maker,
+        requirement_uuid=completed_after_window_requirement,
+        created_at=now - timedelta(days=8),
+        completed_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+
+    async with session_maker() as db:
+        activity = await VerificationAttemptRepository(db).get_community_activity(
+            since=now - timedelta(days=7),
+            phase_order_by_requirement_uuid={
+                current_requirement: 1,
+                completed_after_window_requirement: 1,
+            },
+        )
+
+    summary = next(row for row in activity if row.phase_order is None)
+    phase = next(row for row in activity if row.phase_order == 1)
+    assert summary.active_learners == 1
+    assert summary.attempts == 2
+    assert summary.projects_verified == 2
+    assert phase == summary.__class__(
+        phase_order=1,
+        active_learners=1,
+        attempts=2,
+        projects_verified=2,
+    )
 
 
 def _submitted_value(
@@ -232,7 +285,6 @@ def _create_kwargs(
         "github_username_snapshot": "attemptrepo",
         "submitted_value": submitted_value,
         "cloud_provider": None,
-        "traceparent": None,
     }
 
 
@@ -256,6 +308,42 @@ async def test_create_or_get_active_creates_new_attempt(
     assert attempt.id == attempt_id
     assert attempt.snapshot_source == "submitted"
     assert attempt.submitted_value == "https://github.com/attemptrepo/repo"
+
+
+async def test_create_or_get_active_omits_traceparent_from_insert(
+    test_engine: AsyncEngine,
+    session_maker: async_sessionmaker[AsyncSession],
+    user: int,
+) -> None:
+    statements: list[str] = []
+
+    def capture_insert(
+        _connection,
+        _cursor,
+        statement: str,
+        _parameters,
+        _context,
+        _executemany,
+    ) -> None:
+        if statement.lstrip().startswith("INSERT INTO verification_attempts"):
+            statements.append(statement)
+
+    event.listen(test_engine.sync_engine, "before_cursor_execute", capture_insert)
+    try:
+        async with session_maker() as db:
+            await VerificationAttemptRepository(db).create_or_get_active(
+                **_create_kwargs(
+                    id=uuid4(),
+                    requirement_uuid=uuid4(),
+                    submitted_value=_submitted_value(),
+                )
+            )
+            await db.commit()
+    finally:
+        event.remove(test_engine.sync_engine, "before_cursor_execute", capture_insert)
+
+    assert len(statements) == 1
+    assert "traceparent" not in statements[0]
 
 
 async def test_create_or_get_active_returns_existing_active_attempt(

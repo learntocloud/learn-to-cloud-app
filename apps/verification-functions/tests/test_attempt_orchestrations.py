@@ -26,7 +26,9 @@ from learn_to_cloud_shared.testing.requirement_factories import (
     repo_fork_requirement,
 )
 from learn_to_cloud_shared.verification_attempt_reconciler import stale_cutoff
-from learn_to_cloud_shared.verification_workflow import PreparedVerificationAttempt
+from learn_to_cloud_shared.verification_workflow import (
+    PreparedVerificationAttempt,
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -73,9 +75,12 @@ Responder = Callable[[_RecordedCall], object]
 
 
 def _drive(
-    gen: Generator[_RecordedCall, object, object], responder: Responder
+    gen: Generator[_RecordedCall, object, object],
+    responder: Responder,
+    *,
+    calls: list[_RecordedCall] | None = None,
 ) -> tuple[list[_RecordedCall], object]:
-    calls: list[_RecordedCall] = []
+    calls = calls if calls is not None else []
     try:
         call = next(gen)
     except StopIteration as stop:
@@ -126,7 +131,7 @@ def _make_responder(
         if name == "ensure_grading_config":
             return {"valid": True, "missing_vars": []}
         if name == "run_llm_grading":
-            return {"decision": "pass"}
+            return {"outcome": "success", "decision": {"decision": "pass"}}
         if name == "apply_llm_grading_results":
             return {"status": "graded"}
         if name == "finalize_verification_attempt":
@@ -166,11 +171,123 @@ class TestAttemptOrchestration:
             ("activity_with_retry", "prepare_verification_attempt"),
             ("activity_with_retry", "execute_requirement_verification"),
             ("activity", "ensure_grading_config"),
-            ("activity_with_retry", "run_llm_grading"),
+            ("activity", "run_llm_grading"),
             ("activity", "apply_llm_grading_results"),
             ("activity_with_retry", "finalize_verification_attempt"),
         ]
+        assert calls[3].payload == {"request": {"task": "a"}}
         assert result == {"attempt_id": "a-1", "outcome": "succeeded"}
+
+    def test_llm_error_uses_safe_durable_payload_without_outer_retry(self) -> None:
+        payload = _prepared_payload(
+            journal_api_verifier_requirement(slug="journal"),
+            "https://github.com/alice/journal",
+        )
+        prepared = PreparedVerificationAttempt.from_payload(payload)
+        outcome = function_app._PreparedOutcome(
+            attempt_id="a-1",
+            prepared_payload=payload,
+            prepared_attempt=prepared,
+        )
+        ctx = _FakeOrchestrationContext({"attempt_id": "a-1"})
+
+        def responder(call: _RecordedCall) -> object:
+            if call.name == "ensure_grading_config":
+                return {"valid": True, "missing_vars": []}
+            if call.name == "run_llm_grading":
+                return {"outcome": "error", "error_type": "llm.rate_limit"}
+            if call.name == "llm_grading_failed":
+                return {"status": "unavailable"}
+            raise AssertionError(call.name)
+
+        calls, _ = _drive(
+            function_app._llm_grading_step(
+                ctx,
+                outcome,
+                {"grading_requests": [{"task": "a"}]},
+            ),
+            responder,
+        )
+
+        assert _sequence(calls) == [
+            ("activity", "ensure_grading_config"),
+            ("activity", "run_llm_grading"),
+            ("activity", "llm_grading_failed"),
+        ]
+        assert calls[-1].payload == {
+            "run_result": {"grading_requests": [{"task": "a"}]},
+            "error_type": "llm.rate_limit",
+            "outcome": "error",
+        }
+
+    def test_content_filter_is_not_retried(self) -> None:
+        payload = _prepared_payload(
+            journal_api_verifier_requirement(slug="journal"),
+            "https://github.com/alice/journal",
+        )
+        prepared = PreparedVerificationAttempt.from_payload(payload)
+        outcome = function_app._PreparedOutcome(
+            attempt_id="a-1",
+            prepared_payload=payload,
+            prepared_attempt=prepared,
+        )
+        ctx = _FakeOrchestrationContext({"attempt_id": "a-1"})
+
+        def responder(call: _RecordedCall) -> object:
+            if call.name == "ensure_grading_config":
+                return {"valid": True, "missing_vars": []}
+            if call.name == "run_llm_grading":
+                return {"outcome": "content_filtered"}
+            if call.name == "llm_grading_failed":
+                return {"status": "filtered"}
+            raise AssertionError(call.name)
+
+        calls, _ = _drive(
+            function_app._llm_grading_step(
+                ctx,
+                outcome,
+                {"grading_requests": [{"task": "a"}]},
+            ),
+            responder,
+        )
+        assert _sequence(calls) == [
+            ("activity", "ensure_grading_config"),
+            ("activity", "run_llm_grading"),
+            ("activity", "llm_grading_failed"),
+        ]
+        assert calls[-1].payload["outcome"] == "content_filtered"
+
+    def test_unknown_durable_error_category_is_normalized(self) -> None:
+        payload = _prepared_payload(
+            journal_api_verifier_requirement(slug="journal"),
+            "https://github.com/alice/journal",
+        )
+        prepared = PreparedVerificationAttempt.from_payload(payload)
+        outcome = function_app._PreparedOutcome(
+            attempt_id="a-1",
+            prepared_payload=payload,
+            prepared_attempt=prepared,
+        )
+        ctx = _FakeOrchestrationContext({"attempt_id": "a-1"})
+
+        def responder(call: _RecordedCall) -> object:
+            if call.name == "ensure_grading_config":
+                return {"valid": True, "missing_vars": []}
+            if call.name == "run_llm_grading":
+                return {"outcome": "error", "error_type": "provider raw detail"}
+            if call.name == "llm_grading_failed":
+                return {"status": "unavailable"}
+            raise AssertionError(call.name)
+
+        calls, _ = _drive(
+            function_app._llm_grading_step(
+                ctx,
+                outcome,
+                {"grading_requests": [{"task": "a"}]},
+            ),
+            responder,
+        )
+        assert calls[-1].payload["error_type"] == "llm.unknown"
 
     def test_prepare_failure_terminalizes(self) -> None:
         payload = _prepared_payload(
@@ -181,7 +298,13 @@ class TestAttemptOrchestration:
         responder = _make_responder(
             payload, fail_activity="prepare_verification_attempt"
         )
-        calls, result = _drive(function_app._run_attempt_orchestration(ctx), responder)
+        calls: list[_RecordedCall] = []
+        with pytest.raises(RuntimeError, match="activity failed"):
+            _drive(
+                function_app._run_attempt_orchestration(ctx),
+                responder,
+                calls=calls,
+            )
         assert _sequence(calls) == [
             ("activity_with_retry", "prepare_verification_attempt"),
             ("activity_with_retry", "terminalize_verification_attempt"),
@@ -189,7 +312,6 @@ class TestAttemptOrchestration:
         assert calls[-1].payload["terminal_source"] == (
             "orchestrator_prepare_exception"
         )
-        assert result == {"attempt_id": "a-1", "outcome": "server_error"}
 
     def test_verify_failure_terminalizes(self) -> None:
         payload = _prepared_payload(
@@ -200,7 +322,13 @@ class TestAttemptOrchestration:
         responder = _make_responder(
             payload, fail_activity="execute_requirement_verification"
         )
-        calls, _ = _drive(function_app._run_attempt_orchestration(ctx), responder)
+        calls: list[_RecordedCall] = []
+        with pytest.raises(RuntimeError, match="activity failed"):
+            _drive(
+                function_app._run_attempt_orchestration(ctx),
+                responder,
+                calls=calls,
+            )
         assert _sequence(calls) == [
             ("activity_with_retry", "prepare_verification_attempt"),
             ("activity_with_retry", "execute_requirement_verification"),

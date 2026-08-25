@@ -7,7 +7,7 @@ Tests ASGI middleware:
 - UserTrackingMiddleware sets OTel span attributes for authenticated users
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -169,10 +169,10 @@ class TestUserTrackingMiddleware:
 
         await middleware(scope, _noop_receive, _noop_send)
 
-        mock_span.set_attribute.assert_any_call("enduser.id", "42")
-        mock_span.set_attribute.assert_any_call("app.user_id", "42")
-        mock_span.set_attribute.assert_any_call("enduser.name", "testuser")
-        mock_span.set_attribute.assert_any_call("app.github_username", "testuser")
+        assert mock_span.set_attribute.call_args_list == [
+            call("enduser.id", "42"),
+            call("enduser.pseudo.id", scope["session"]["session_id"]),
+        ]
 
     @patch("learn_to_cloud.core.middleware.trace", autospec=True)
     async def test_sets_session_attributes_when_session_id_present(self, mock_trace):
@@ -191,9 +191,10 @@ class TestUserTrackingMiddleware:
 
         await middleware(scope, _noop_receive, _noop_send)
 
-        mock_span.set_attribute.assert_any_call("enduser.pseudo.id", "session-123")
-        mock_span.set_attribute.assert_any_call("app.session_id", "session-123")
-        mock_span.set_attribute.assert_any_call("ai.session.id", "session-123")
+        assert mock_span.set_attribute.call_args_list == [
+            call("enduser.id", "42"),
+            call("enduser.pseudo.id", "session-123"),
+        ]
 
     @patch("learn_to_cloud.core.middleware.trace", autospec=True)
     @patch("learn_to_cloud.core.middleware.new_session_id", autospec=True)
@@ -213,11 +214,10 @@ class TestUserTrackingMiddleware:
 
         await middleware(scope, _noop_receive, _noop_send)
 
-        mock_span.set_attribute.assert_any_call("enduser.id", "42")
-        mock_span.set_attribute.assert_any_call("app.user_id", "42")
-        mock_span.set_attribute.assert_any_call(
-            "enduser.pseudo.id", "generated-session"
-        )
+        assert mock_span.set_attribute.call_args_list == [
+            call("enduser.id", "42"),
+            call("enduser.pseudo.id", "generated-session"),
+        ]
         assert scope["session"]["session_id"] == "generated-session"
 
     @patch("learn_to_cloud.core.middleware.trace", autospec=True)

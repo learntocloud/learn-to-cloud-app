@@ -11,15 +11,13 @@ import logging
 
 import httpx
 from opentelemetry import metrics, trace
-from opentelemetry.util.types import AttributeValue
 
 from learn_to_cloud_shared.schemas import ValidationResult
 
 logger = logging.getLogger(__name__)
 
 _meter = metrics.get_meter("learn_to_cloud")
-# Low-cardinality counter for alerting on upstream/auth failures. Owner/repo
-# stay out of the metric (high cardinality); they live on the log and span.
+# Low-cardinality counter for alerting on upstream/auth failures.
 _GITHUB_API_ERROR_COUNTER = _meter.create_counter(
     name="github.api_error",
     description="GitHub API calls that failed with an auth, client, or server error",
@@ -84,7 +82,6 @@ def github_error_to_result(
     e: Exception,
     *,
     event: str,
-    context: dict[str, AttributeValue],
 ) -> ValidationResult:
     """Map GitHub API exceptions to a user-facing ValidationResult.
 
@@ -99,7 +96,6 @@ def github_error_to_result(
     Args:
         e: The caught exception.
         event: Structured log event name (e.g. ``"pr_verification.api_error"``).
-        context: Extra fields for structured logging (owner, repo, pr, etc.).
     """
     if isinstance(e, httpx.HTTPStatusError):
         status = e.response.status_code
@@ -109,8 +105,9 @@ def github_error_to_result(
                 message="Resource not found on GitHub. Check the URL and try again.",
             )
         span = trace.get_current_span()
-        span.add_event(event, {**context, "status": status})
-        logger.warning(event, extra={**context, "status": status})
+        span.set_attribute("http.response.status_code", status)
+        span.add_event(event, {"http.response.status_code": status})
+        logger.warning(event, extra={"http.response.status_code": status})
         _GITHUB_API_ERROR_COUNTER.add(1, {"status": status})
         return ValidationResult(
             is_valid=False,
@@ -119,9 +116,11 @@ def github_error_to_result(
         )
 
     # RETRIABLE_EXCEPTIONS (RequestError, TimeoutException, etc.)
+    error_type = type(e).__name__
     span = trace.get_current_span()
-    span.add_event(event, {**context, "error": str(e)})
-    logger.warning(event, extra={**context, "error": str(e)})
+    span.set_attribute("error.type", error_type)
+    span.add_event(event, {"error.type": error_type})
+    logger.warning(event, extra={"error.type": error_type})
     _GITHUB_API_ERROR_COUNTER.add(1, {"status": "transient"})
     return ValidationResult(
         is_valid=False,
@@ -132,7 +131,6 @@ def github_error_to_result(
 
 def deployed_api_error_to_result(
     exc: Exception,
-    entries_url: str,
     *,
     step: str = "",
 ) -> ValidationResult:
@@ -142,10 +140,14 @@ def deployed_api_error_to_result(
     and server errors that can occur during any HTTP call in the flow.
     """
     step_prefix = f"{step}: " if step else ""
+    span = trace.get_current_span()
 
     if isinstance(exc, httpx.TimeoutException):
-        span = trace.get_current_span()
-        span.add_event("deployed_api_timeout", {"url": entries_url, "step": step})
+        span.set_attribute("error.type", "timeout")
+        span.add_event(
+            "deployed_api_timeout",
+            {"error.type": "timeout", "verification.operation": step or "request"},
+        )
         return ValidationResult(
             is_valid=False,
             message=(
@@ -155,10 +157,13 @@ def deployed_api_error_to_result(
         )
 
     if isinstance(exc, DeployedApiServerError):
-        span = trace.get_current_span()
+        span.set_attribute("error.type", "server_error")
         span.add_event(
             "deployed_api_server_error",
-            {"url": entries_url, "error": str(exc), "step": step},
+            {
+                "error.type": "server_error",
+                "verification.operation": step or "request",
+            },
         )
         return ValidationResult(
             is_valid=False,
@@ -169,10 +174,13 @@ def deployed_api_error_to_result(
         )
 
     if isinstance(exc, httpx.RequestError):
-        span = trace.get_current_span()
+        span.set_attribute("error.type", "request_error")
         span.add_event(
             "deployed_api_request_error",
-            {"url": entries_url, "error": str(exc), "step": step},
+            {
+                "error.type": "request_error",
+                "verification.operation": step or "request",
+            },
         )
         return ValidationResult(
             is_valid=False,

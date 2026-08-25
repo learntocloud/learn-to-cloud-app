@@ -10,7 +10,9 @@ import pytest
 import verification_agents
 from verification_agents import (
     ContentFilteredError,
+    LLMGradingError,
     _find_content_filter_error,
+    classify_llm_error,
     grade_evidence,
 )
 
@@ -69,9 +71,35 @@ def test_grade_evidence_translates_content_filter(monkeypatch) -> None:
         asyncio.run(grade_evidence("grade this"))
 
 
-def test_grade_evidence_reraises_other_errors(monkeypatch) -> None:
+def test_grade_evidence_maps_unknown_errors_without_raw_detail(monkeypatch) -> None:
     agent = _FakeAgent(RuntimeError("network down"))
     monkeypatch.setattr(verification_agents, "get_verification_grader", lambda: agent)
 
-    with pytest.raises(RuntimeError, match="network down"):
+    with pytest.raises(LLMGradingError) as caught:
         asyncio.run(grade_evidence("grade this"))
+    assert caught.value.error_type == "llm.unknown"
+    assert str(caught.value) == "llm.unknown"
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected"),
+    [
+        (
+            openai.APITimeoutError(
+                request=httpx.Request("POST", "https://example.com")
+            ),
+            "llm.timeout",
+        ),
+        (
+            openai.APIConnectionError(
+                request=httpx.Request("POST", "https://example.com")
+            ),
+            "llm.network",
+        ),
+    ],
+)
+def test_classify_llm_error_uses_safe_categories(
+    exc: BaseException,
+    expected: str,
+) -> None:
+    assert classify_llm_error(exc).error_type == expected
