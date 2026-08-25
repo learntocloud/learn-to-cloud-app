@@ -1,9 +1,11 @@
-"""Grants test for the column-level Functions role migration (0051).
+"""Grants tests for the column-level Functions role migrations.
 
 Creates the Functions role, runs the migration chain through the column-grant
 narrowing, and asserts the role can SELECT the prepare/reconcile columns and
 UPDATE only the result/lifecycle columns -- never the immutable
 user/requirement/snapshot/submitted-value identity, and never INSERT/DELETE.
+The head assertion also verifies the removed traceparent column and grant stay
+absent.
 """
 
 from __future__ import annotations
@@ -17,7 +19,8 @@ from sqlalchemy import create_engine, text
 
 MIGRATION_DB = "test_verification_attempt_grants"
 _BEFORE = "0048_validate_deployment_architecture_type"
-_HEAD = "0051_narrow_functions_role_attempt_grants"
+_NARROWED = "0051_narrow_functions_role_attempt_grants"
+_HEAD = "0057_drop_verification_attempt_traceparent"
 
 _EXPECTED_UPDATE_COLUMNS = {
     "outcome",
@@ -43,6 +46,28 @@ _IMMUTABLE_COLUMNS = (
     "github_username_snapshot",
     "legacy_job_id",
 )
+
+_EXPECTED_HEAD_SELECT_COLUMNS = {
+    "id",
+    "user_id",
+    "requirement_uuid",
+    "snapshot_source",
+    "payload_version",
+    "requirement_snapshot",
+    "requirement_snapshot_hash",
+    "submission_value_kind",
+    "submitted_value",
+    "github_username_snapshot",
+    "cloud_provider",
+    "outcome",
+    "started_at",
+    "created_at",
+    "completed_at",
+    "error_code",
+    "validation_message",
+    "terminal_source",
+    "feedback_json",
+}
 
 
 def _sync_url() -> str:
@@ -112,7 +137,7 @@ def test_functions_role_column_grants(alembic_runner, alembic_engine, monkeypatc
             conn.execute(text(f'CREATE ROLE "{role}"'))
         admin.dispose()
 
-        alembic_runner.migrate_up_to(_HEAD)
+        alembic_runner.migrate_up_to(_NARROWED)
 
         with alembic_engine.connect() as conn:
             update_columns = set(
@@ -169,6 +194,38 @@ def test_functions_role_column_grants(alembic_runner, alembic_engine, monkeypatc
         assert "DELETE" not in table_grants
         assert select_ok is True
         assert not any(immutable_update.values()), immutable_update
+
+        alembic_runner.migrate_up_to(_HEAD)
+        with alembic_engine.connect() as conn:
+            attempt_columns = set(
+                conn.execute(
+                    text(
+                        """
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = 'verification_attempts'
+                        """
+                    )
+                ).scalars()
+            )
+            select_columns = set(
+                conn.execute(
+                    text(
+                        """
+                        SELECT column_name
+                        FROM information_schema.column_privileges
+                        WHERE grantee = :role
+                          AND table_name = 'verification_attempts'
+                          AND privilege_type = 'SELECT'
+                        """
+                    ),
+                    {"role": role},
+                ).scalars()
+            )
+
+        assert "traceparent" not in attempt_columns
+        assert select_columns == _EXPECTED_HEAD_SELECT_COLUMNS
     finally:
         admin = create_engine(_admin_url(), isolation_level="AUTOCOMMIT")
         with admin.connect() as conn:

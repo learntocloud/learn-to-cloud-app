@@ -163,3 +163,25 @@ def test_contract_removes_legacy_database_objects(
     assert "legacy_job_id" not in attempt_columns
     assert "legacy_submission_id" not in attempt_columns
     assert temporary_functions == set()
+
+
+def test_head_removes_unused_attempt_traceparent(
+    alembic_runner, alembic_engine
+) -> None:
+    alembic_runner.migrate_up_to("0057_drop_verification_attempt_traceparent")
+
+    with alembic_engine.connect() as conn:
+        attempt_columns = set(
+            conn.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'verification_attempts'
+                    """
+                )
+            ).scalars()
+        )
+
+    assert "traceparent" not in attempt_columns
