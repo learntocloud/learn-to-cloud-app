@@ -107,6 +107,50 @@ def _sequence(calls: list[_RecordedCall]) -> list[tuple[str, str]]:
     return [call.as_tuple() for call in calls]
 
 
+class _Span:
+    def __init__(self) -> None:
+        self.attributes: dict[str, object] = {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args) -> None:
+        return None
+
+    def is_recording(self) -> bool:
+        return True
+
+    def set_attribute(self, key: str, value: object) -> None:
+        self.attributes[key] = value
+
+
+class _Tracer:
+    def __init__(self) -> None:
+        self.spans: list[tuple[str, _Span]] = []
+
+    def start_as_current_span(self, name: str) -> _Span:
+        span = _Span()
+        self.spans.append((name, span))
+        return span
+
+
+def test_business_span_uses_canonical_identity_only() -> None:
+    tracer = _Tracer()
+    with patch.object(function_app.otel_trace, "get_tracer", return_value=tracer):
+        with function_app._verification_span(
+            "verification.start",
+            attempt_id="attempt-1",
+            user_id=42,
+        ):
+            pass
+
+    assert tracer.spans[0][0] == "verification.start"
+    assert tracer.spans[0][1].attributes == {
+        "verification.attempt.id": "attempt-1",
+        "enduser.id": "42",
+    }
+
+
 def _make_responder(
     prepared_payload: dict[str, object],
     *,
@@ -126,7 +170,7 @@ def _make_responder(
         if name == "ensure_grading_config":
             return {"valid": True, "missing_vars": []}
         if name == "run_llm_grading":
-            return {"decision": "pass"}
+            return {"outcome": "success", "decision": {"decision": "pass"}}
         if name == "apply_llm_grading_results":
             return {"status": "graded"}
         if name == "finalize_verification_attempt":
@@ -166,11 +210,122 @@ class TestAttemptOrchestration:
             ("activity_with_retry", "prepare_verification_attempt"),
             ("activity_with_retry", "execute_requirement_verification"),
             ("activity", "ensure_grading_config"),
-            ("activity_with_retry", "run_llm_grading"),
+            ("activity", "run_llm_grading"),
             ("activity", "apply_llm_grading_results"),
             ("activity_with_retry", "finalize_verification_attempt"),
         ]
         assert result == {"attempt_id": "a-1", "outcome": "succeeded"}
+
+    def test_llm_error_uses_safe_durable_payload_without_outer_retry(self) -> None:
+        payload = _prepared_payload(
+            journal_api_verifier_requirement(slug="journal"),
+            "https://github.com/alice/journal",
+        )
+        prepared = PreparedVerificationAttempt.from_payload(payload)
+        outcome = function_app._PreparedOutcome(
+            attempt_id="a-1",
+            prepared_payload=payload,
+            prepared_attempt=prepared,
+        )
+        ctx = _FakeOrchestrationContext({"attempt_id": "a-1"})
+
+        def responder(call: _RecordedCall) -> object:
+            if call.name == "ensure_grading_config":
+                return {"valid": True, "missing_vars": []}
+            if call.name == "run_llm_grading":
+                return {"outcome": "error", "error_type": "llm.rate_limit"}
+            if call.name == "llm_grading_failed":
+                return {"status": "unavailable"}
+            raise AssertionError(call.name)
+
+        calls, _ = _drive(
+            function_app._llm_grading_step(
+                ctx,
+                outcome,
+                {"grading_requests": [{"task": "a"}]},
+            ),
+            responder,
+        )
+
+        assert _sequence(calls) == [
+            ("activity", "ensure_grading_config"),
+            ("activity", "run_llm_grading"),
+            ("activity", "llm_grading_failed"),
+        ]
+        assert calls[-1].payload == {
+            "run_result": {"grading_requests": [{"task": "a"}]},
+            "error_type": "llm.rate_limit",
+            "outcome": "error",
+        }
+
+    def test_content_filter_is_not_retried(self) -> None:
+        payload = _prepared_payload(
+            journal_api_verifier_requirement(slug="journal"),
+            "https://github.com/alice/journal",
+        )
+        prepared = PreparedVerificationAttempt.from_payload(payload)
+        outcome = function_app._PreparedOutcome(
+            attempt_id="a-1",
+            prepared_payload=payload,
+            prepared_attempt=prepared,
+        )
+        ctx = _FakeOrchestrationContext({"attempt_id": "a-1"})
+
+        def responder(call: _RecordedCall) -> object:
+            if call.name == "ensure_grading_config":
+                return {"valid": True, "missing_vars": []}
+            if call.name == "run_llm_grading":
+                return {"outcome": "content_filtered"}
+            if call.name == "llm_grading_failed":
+                return {"status": "filtered"}
+            raise AssertionError(call.name)
+
+        calls, _ = _drive(
+            function_app._llm_grading_step(
+                ctx,
+                outcome,
+                {"grading_requests": [{"task": "a"}]},
+            ),
+            responder,
+        )
+        assert _sequence(calls) == [
+            ("activity", "ensure_grading_config"),
+            ("activity", "run_llm_grading"),
+            ("activity", "llm_grading_failed"),
+        ]
+        assert calls[-1].payload["outcome"] == "content_filtered"
+
+    def test_unknown_durable_error_category_is_normalized(self) -> None:
+        payload = _prepared_payload(
+            journal_api_verifier_requirement(slug="journal"),
+            "https://github.com/alice/journal",
+        )
+        prepared = PreparedVerificationAttempt.from_payload(payload)
+        outcome = function_app._PreparedOutcome(
+            attempt_id="a-1",
+            prepared_payload=payload,
+            prepared_attempt=prepared,
+        )
+        ctx = _FakeOrchestrationContext({"attempt_id": "a-1"})
+
+        def responder(call: _RecordedCall) -> object:
+            if call.name == "ensure_grading_config":
+                return {"valid": True, "missing_vars": []}
+            if call.name == "run_llm_grading":
+                return {"outcome": "error", "error_type": "provider raw detail"}
+            if call.name == "llm_grading_failed":
+                return {"status": "unavailable"}
+            raise AssertionError(call.name)
+
+        calls, _ = _drive(
+            function_app._llm_grading_step(
+                ctx,
+                outcome,
+                {"grading_requests": [{"task": "a"}]},
+            ),
+            responder,
+        )
+        assert calls[-1].payload["error_type"] == "llm.unknown"
 
     def test_prepare_failure_terminalizes(self) -> None:
         payload = _prepared_payload(

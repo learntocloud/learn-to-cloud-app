@@ -25,6 +25,19 @@ VERIFICATION_SUCCEEDED_CODE = "verification_succeeded"
 OUTCOME_SUCCEEDED = "succeeded"
 OUTCOME_FAILED = "failed"
 OUTCOME_SERVER_ERROR = "server_error"
+LLM_ERROR_TYPES = frozenset(
+    {
+        "llm.configuration",
+        "llm.authentication",
+        "llm.authorization",
+        "llm.rate_limit",
+        "llm.provider_unavailable",
+        "llm.network",
+        "llm.timeout",
+        "llm.response_validation",
+        "llm.unknown",
+    }
+)
 
 
 class GradingDisposition(StrEnum):
@@ -86,6 +99,7 @@ class VerificationRunResult:
     evidence: list[EvidenceBundle] | None = None
     grading_requests: list[LLMGradingRequest] | None = None
     grading_disposition: GradingDisposition | None = None
+    llm_error_type: str | None = None
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -106,6 +120,7 @@ class VerificationRunResult:
                 if self.grading_disposition is not None
                 else None
             ),
+            "llm_error_type": self.llm_error_type,
         }
 
     @classmethod
@@ -138,6 +153,11 @@ class VerificationRunResult:
             evidence=evidence,
             grading_requests=grading_requests,
             grading_disposition=grading_disposition,
+            llm_error_type=(
+                _expect_str(payload["llm_error_type"], "llm_error_type")
+                if payload.get("llm_error_type") is not None
+                else None
+            ),
         )
 
     def without_transport_data(self) -> VerificationRunResult:

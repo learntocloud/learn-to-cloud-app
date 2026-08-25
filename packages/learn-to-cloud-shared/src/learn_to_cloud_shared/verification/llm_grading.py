@@ -9,6 +9,8 @@ content-filter results.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from learn_to_cloud_shared.verification.grading_requests import (
     LLMGradingDecisionPayload,
     LLMGradingRequest,
@@ -69,6 +71,8 @@ def apply_llm_grading_decisions(
 
 def llm_grading_unavailable_result(
     run_result: VerificationRunResult,
+    *,
+    error_type: str,
 ) -> VerificationRunResult:
     """Return a server-error validation result for LLM grader failures.
 
@@ -80,16 +84,15 @@ def llm_grading_unavailable_result(
             "is_valid": False,
             "message": (
                 "Automated grading is temporarily unavailable. This is a "
-                "problem on our end, not yours. Please report it so we can "
-                "fix it."
+                "problem on our end, not yours. Please submit again later."
             ),
             "verification_completed": False,
         }
     )
-    return VerificationRunResult(
-        attempt=run_result.attempt,
+    return replace(
+        run_result,
         validation_result=validation_result,
-        grading_disposition=run_result.grading_disposition,
+        llm_error_type=error_type,
     )
 
 
@@ -114,7 +117,7 @@ def llm_grading_content_filtered_result(
                 "or instructions, and submit again. If it keeps happening, "
                 "report it so we can help."
             ),
-            "verification_completed": False,
+            "verification_completed": True,
         }
     )
     return VerificationRunResult(

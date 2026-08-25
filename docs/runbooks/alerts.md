@@ -240,6 +240,62 @@ Fix the underlying dependency or code path before asking the learner to retry.
 Do not rewrite a final outcome. Use established replay/reset procedures only
 after confirming they are safe for that attempt.
 
+## Verification LLM grading failures
+
+### Meaning
+
+The grader produced a bounded operational category after its OpenAI-compatible
+SDK retry budget was exhausted. Notifications contain only the category, count,
+15-minute window when applicable, and the safe query link. They never contain
+learner data, attempt IDs, provider request IDs, prompts, completions, response
+bodies, or raw exception text.
+
+`llm.configuration`, `llm.authentication`, `llm.authorization`,
+`llm.response_validation`, and `llm.unknown` page immediately after controlled
+production smoke validation. `llm.rate_limit`, `llm.provider_unavailable`,
+`llm.network`, and `llm.timeout` page only after three exhausted failures of
+the same category in 15 minutes. Content filtering is a completed learner
+rewrite path, not an error or alert.
+
+### First checks
+
+1. Start with the alert category and count; do not add customer information to
+   the query.
+2. Confirm the Functions revision and model deployment configuration.
+3. For transient categories, check Foundry and Azure service health, quotas,
+   outbound connectivity, and whether the count continues after the alert
+   window.
+
+### Detailed Kusto
+
+```kusto
+traces
+| where timestamp > ago(2h)
+| where message == "verification.llm_grading.failed"
+| extend ErrorType = tostring(customDimensions["error.type"])
+| where ErrorType in (
+    "llm.configuration", "llm.authentication", "llm.authorization",
+    "llm.rate_limit", "llm.provider_unavailable", "llm.network",
+    "llm.timeout", "llm.response_validation", "llm.unknown"
+)
+| summarize FailureCount = count() by ErrorType, bin(timestamp, 15m)
+| order by timestamp desc
+```
+
+For authorized support investigation, resolve a learner to an internal attempt
+ID through the production database, then use that opaque ID and a narrow time
+window to inspect correlated Application Insights spans. Do not add usernames,
+provider IDs, or raw exception data to the alert, query annotations, or incident
+notes.
+
+### Safe recovery
+
+Correct configuration, credentials, or permissions before retrying a controlled
+production smoke validation. For a response-validation category, inspect the
+deployed structured response contract and model deployment, not learner
+evidence. Keep the SDK's 10-minute timeout until 100 successful calls have been
+observed over 30 days; do not introduce a shorter deadline from an alert alone.
+
 ## Verification active beyond limit
 
 ### Meaning

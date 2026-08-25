@@ -48,6 +48,7 @@ from learn_to_cloud_shared.verification_attempt_snapshot import (
     validate_snapshot_integrity,
 )
 from learn_to_cloud_shared.verification_workflow import (
+    LLM_ERROR_TYPES,
     PreparedVerificationAttempt,
     VerificationRunResult,
     code_for_outcome,
@@ -172,7 +173,11 @@ async def finalize_verification_attempt(
     attempt = run_result.attempt
     validation_result = run_result.validation_result
     outcome = outcome_for_validation(validation_result)
-    error_code = code_for_outcome(outcome)
+    error_code = (
+        run_result.llm_error_type
+        if run_result.llm_error_type in LLM_ERROR_TYPES
+        else code_for_outcome(outcome)
+    )
     validation_message = (
         persisted_validation_message(validation_result.message)
         if not validation_result.is_valid
