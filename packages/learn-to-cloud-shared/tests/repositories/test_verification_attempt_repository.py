@@ -7,7 +7,7 @@ from datetime import timedelta
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import (
@@ -308,6 +308,42 @@ async def test_create_or_get_active_creates_new_attempt(
     assert attempt.id == attempt_id
     assert attempt.snapshot_source == "submitted"
     assert attempt.submitted_value == "https://github.com/attemptrepo/repo"
+
+
+async def test_create_or_get_active_omits_traceparent_from_insert(
+    test_engine: AsyncEngine,
+    session_maker: async_sessionmaker[AsyncSession],
+    user: int,
+) -> None:
+    statements: list[str] = []
+
+    def capture_insert(
+        _connection,
+        _cursor,
+        statement: str,
+        _parameters,
+        _context,
+        _executemany,
+    ) -> None:
+        if statement.lstrip().startswith("INSERT INTO verification_attempts"):
+            statements.append(statement)
+
+    event.listen(test_engine.sync_engine, "before_cursor_execute", capture_insert)
+    try:
+        async with session_maker() as db:
+            await VerificationAttemptRepository(db).create_or_get_active(
+                **_create_kwargs(
+                    id=uuid4(),
+                    requirement_uuid=uuid4(),
+                    submitted_value=_submitted_value(),
+                )
+            )
+            await db.commit()
+    finally:
+        event.remove(test_engine.sync_engine, "before_cursor_execute", capture_insert)
+
+    assert len(statements) == 1
+    assert "traceparent" not in statements[0]
 
 
 async def test_create_or_get_active_returns_existing_active_attempt(
