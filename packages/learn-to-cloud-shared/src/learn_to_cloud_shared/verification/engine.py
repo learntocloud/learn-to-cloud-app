@@ -24,6 +24,7 @@ from typing import ClassVar
 
 import httpx
 from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 from pydantic import Field, model_validator
 
 from learn_to_cloud_shared.github_target import GitHubTarget
@@ -404,7 +405,6 @@ async def _check_llm_rubric_review(
             result = github_error_to_result(
                 exc,
                 event="llm_rubric_review.repo_tree_error",
-                context={"owner": target.owner, "repo": target.repo},
             )
             return StepResult(
                 passed=False,
@@ -1073,6 +1073,42 @@ def _grading_disposition_for(
     raise ValueError("Rubric profile completed without a grading request")
 
 
+def _step_result_state(result: StepResult) -> str:
+    if result.passed:
+        return "passed"
+    if (
+        result.validation_result is not None
+        and not result.validation_result.verification_completed
+    ):
+        return "unavailable"
+    return "failed"
+
+
+async def _run_step(step: Step, context: StepContext) -> StepResult:
+    with _tracer.start_as_current_span(
+        "verification.step",
+        attributes={
+            "verification.check.name": step.params.check_name,
+            "verification.task.id": step.task_id,
+        },
+        record_exception=False,
+        set_status_on_exception=False,
+    ) as span:
+        try:
+            result = await check_for(step.params)(context, step.params)
+        except Exception as exc:
+            span.set_attribute("verification.step.result", "error")
+            span.set_attribute("error.type", type(exc).__name__)
+            span.set_status(Status(StatusCode.ERROR))
+            raise
+
+        result_state = _step_result_state(result)
+        span.set_attribute("verification.step.result", result_state)
+        if result_state == "unavailable":
+            span.set_status(Status(StatusCode.ERROR))
+        return result
+
+
 async def run_profile(
     job: PreparedVerificationAttempt,
     *,
@@ -1128,7 +1164,7 @@ async def run_profile(
     step_results: list[StepResult] = []
     bundles: list[EvidenceBundle] = []
     for step in steps:
-        result = await check_for(step.params)(context, step.params)
+        result = await _run_step(step, context)
         step_results.append(result)
         if result.evidence:
             bundles.extend(result.evidence)

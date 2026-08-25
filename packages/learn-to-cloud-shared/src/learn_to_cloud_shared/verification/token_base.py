@@ -132,9 +132,7 @@ def verify_lab_token(
             return _fail("Invalid timestamp. The token appears to be from the future.")
 
         span = trace.get_current_span()
-        span.set_attribute("token.verified", True)
-        span.set_attribute("token.display_name", display_name)
-        span.set_attribute("token.challenges", challenges)
+        span.add_event("token_verification_succeeded")
 
         return ValidationResult(
             is_valid=True,
@@ -145,9 +143,13 @@ def verify_lab_token(
             cloud_provider=cloud_provider,
         )
 
-    except Exception as e:
+    except Exception:
         span = trace.get_current_span()
-        span.record_exception(e)
+        span.set_attribute("error.type", "unexpected_exception")
+        span.add_event(
+            "token_verification_failed",
+            {"error.type": "unexpected_exception"},
+        )
         return _fail(
             "Token verification failed. Please try again or contact support.",
             completed=False,

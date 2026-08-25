@@ -39,7 +39,6 @@ from learn_to_cloud_shared.verification_attempt_snapshot import (
     build_requirement_snapshot,
     compute_snapshot_hash,
 )
-from opentelemetry.propagate import inject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
@@ -147,13 +146,6 @@ class VerificationAttemptSubmission:
     created: bool
 
 
-def _current_traceparent() -> str | None:
-    """Return the active W3C trace parent when telemetry is available."""
-    carrier: dict[str, str] = {}
-    inject(carrier)
-    return carrier.get("traceparent")
-
-
 async def _check_submission_preconditions(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
@@ -244,7 +236,6 @@ async def create_verification_attempt(
     requirement_snapshot = build_requirement_snapshot(ctx.requirement)
     requirement_snapshot_hash = compute_snapshot_hash(requirement_snapshot)
     attempt_id = uuid4()
-    traceparent = _current_traceparent()
 
     async with session_maker() as write_session:
         attempt_repo = VerificationAttemptRepository(write_session)
@@ -262,7 +253,6 @@ async def create_verification_attempt(
                 github_username_snapshot=github_username,
                 submitted_value=typed_value,
                 cloud_provider=None,
-                traceparent=traceparent,
             )
         except AttemptAlreadyValidatedError as exc:
             raise AlreadyValidatedError(

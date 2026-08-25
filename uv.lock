@@ -1001,7 +1001,6 @@ dependencies = [
     { name = "azure-functions" },
     { name = "azure-functions-durable" },
     { name = "azure-identity" },
-    { name = "azure-monitor-opentelemetry" },
     { name = "learn-to-cloud-shared" },
 ]
 
@@ -1019,7 +1018,6 @@ requires-dist = [
     { name = "azure-functions", specifier = ">=2.2.0" },
     { name = "azure-functions-durable", specifier = ">=1.7.0" },
     { name = "azure-identity", specifier = ">=1.25.3" },
-    { name = "azure-monitor-opentelemetry", specifier = ">=1.8.9" },
     { name = "learn-to-cloud-shared", editable = "packages/learn-to-cloud-shared" },
 ]
 

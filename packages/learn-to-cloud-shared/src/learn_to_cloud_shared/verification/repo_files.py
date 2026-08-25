@@ -67,10 +67,7 @@ class GitHubRepoFiles:
             response.raise_for_status()
         except httpx.HTTPStatusError:
             span = trace.get_current_span()
-            span.add_event(
-                "repo_file_fetch_failed",
-                {"owner": owner, "repo": repo, "path": path},
-            )
+            span.add_event("repo_file_fetch_failed")
             return None
         return response.text
 

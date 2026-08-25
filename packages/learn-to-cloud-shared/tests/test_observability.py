@@ -12,10 +12,16 @@ from learn_to_cloud_shared.core import observability
 @pytest.fixture(autouse=True)
 def _restore_telemetry_flag():
     """Restore module telemetry state after each test."""
-    original = observability._telemetry_enabled
+    original_telemetry = observability._telemetry_enabled
+    original_dependencies = observability._dependency_tracing_enabled
+    original_httpx = observability._httpx_instrumented
     observability._telemetry_enabled = False
+    observability._dependency_tracing_enabled = False
+    observability._httpx_instrumented = False
     yield
-    observability._telemetry_enabled = original
+    observability._telemetry_enabled = original_telemetry
+    observability._dependency_tracing_enabled = original_dependencies
+    observability._httpx_instrumented = original_httpx
 
 
 @pytest.mark.unit
@@ -33,12 +39,13 @@ def test_configure_observability_logs_missing_destination(
         ) as httpx_instrumentor,
         caplog.at_level("ERROR"),
     ):
-        observability.configure_observability()
+        configured = observability.configure_observability()
 
     azure_monitor.assert_not_called()
     otlp.assert_not_called()
     httpx_instrumentor.assert_not_called()
     assert observability._telemetry_enabled is False
+    assert configured is False
     records = [
         record
         for record in caplog.records
@@ -118,12 +125,13 @@ def test_configure_observability_uses_azure_monitor_when_connection_string_set()
             "learn_to_cloud_shared.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
     ):
-        observability.configure_observability()
+        configured = observability.configure_observability()
 
     azure_monitor.assert_called_once_with(resource)
     otlp.assert_not_called()
     httpx_instrumentor.return_value.instrument.assert_called_once_with()
     assert observability._telemetry_enabled is True
+    assert configured is True
 
 
 @pytest.mark.unit
@@ -147,12 +155,45 @@ def test_configure_observability_uses_otlp_when_endpoint_set():
             "learn_to_cloud_shared.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
     ):
-        observability.configure_observability()
+        configured = observability.configure_observability()
 
     azure_monitor.assert_not_called()
     otlp.assert_called_once_with(resource)
     httpx_instrumentor.return_value.instrument.assert_called_once_with()
     assert observability._telemetry_enabled is True
+    assert configured is True
+
+
+@pytest.mark.unit
+def test_configure_otlp_observability_never_uses_azure_monitor():
+    resource = MagicMock(spec=Resource)
+    with (
+        patch.dict(
+            "os.environ",
+            {
+                "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test",
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317",
+            },
+            clear=True,
+        ),
+        patch(
+            "learn_to_cloud_shared.core.observability._build_resource",
+            return_value=resource,
+        ),
+        patch(
+            "learn_to_cloud_shared.core.observability._configure_azure_monitor"
+        ) as azure_monitor,
+        patch("learn_to_cloud_shared.core.observability._configure_otlp") as otlp,
+        patch(
+            "learn_to_cloud_shared.core.observability.HTTPXClientInstrumentor"
+        ) as httpx_instrumentor,
+    ):
+        configured = observability.configure_otlp_observability()
+
+    assert configured is True
+    azure_monitor.assert_not_called()
+    otlp.assert_called_once_with(resource)
+    httpx_instrumentor.return_value.instrument.assert_called_once_with()
 
 
 @pytest.mark.unit
@@ -174,18 +215,20 @@ def test_configure_observability_azure_failure_is_nonfatal_by_default(
         ) as httpx_instrumentor,
         caplog.at_level("ERROR"),
     ):
-        observability.configure_observability()
+        configured = observability.configure_observability()
 
     azure_monitor.assert_called_once()
     httpx_instrumentor.assert_not_called()
     assert observability._telemetry_enabled is False
+    assert configured is False
     records = [
         record
         for record in caplog.records
         if record.message == "telemetry.configure.failed"
     ]
     assert len(records) == 1
-    assert records[0].exc_info is not None
+    assert records[0].exc_info is None
+    assert records[0].__dict__["error.type"] == "RuntimeError"
 
 
 @pytest.mark.unit
@@ -207,17 +250,19 @@ def test_configure_observability_otlp_failure_is_nonfatal(
         ) as httpx_instrumentor,
         caplog.at_level("ERROR"),
     ):
-        observability.configure_observability()
+        configured = observability.configure_observability()
 
     httpx_instrumentor.assert_not_called()
     assert observability._telemetry_enabled is False
+    assert configured is False
     records = [
         record
         for record in caplog.records
         if record.message == "telemetry.configure.failed"
     ]
     assert len(records) == 1
-    assert records[0].exc_info is not None
+    assert records[0].exc_info is None
+    assert records[0].__dict__["error.type"] == "RuntimeError"
 
 
 @pytest.mark.unit
@@ -232,10 +277,11 @@ def test_configure_observability_noops_when_already_enabled():
             "learn_to_cloud_shared.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
     ):
-        observability.configure_observability()
+        configured = observability.configure_observability()
 
     azure_monitor.assert_not_called()
     httpx_instrumentor.assert_not_called()
+    assert configured is True
 
 
 @pytest.mark.unit
@@ -394,7 +440,7 @@ def test_instrument_database_noops_when_telemetry_disabled():
     with patch(
         "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
     ) as instrumentor_cls:
-        observability._telemetry_enabled = False
+        observability._dependency_tracing_enabled = False
 
         observability.instrument_database(engine)
 
@@ -409,7 +455,7 @@ def test_instrument_database_uses_sync_engine():
     with patch(
         "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
     ) as instrumentor_cls:
-        observability._telemetry_enabled = True
+        observability._dependency_tracing_enabled = True
 
         observability.instrument_database(engine)
 

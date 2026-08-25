@@ -9,6 +9,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    FetchedValue,
     ForeignKey,
     Index,
     String,
@@ -114,6 +115,7 @@ class VerificationAttempt(TimestampMixin, Base):
     """One verification attempt, keyed by its Durable instance UUID."""
 
     __tablename__ = "verification_attempts"
+    __mapper_args__ = {"eager_defaults": False}
     __table_args__ = (
         CheckConstraint(
             "submission_value_kind IN ('github_url', 'token', 'deployed_url', 'text')",
@@ -197,7 +199,12 @@ class VerificationAttempt(TimestampMixin, Base):
     submission_value_kind: Mapped[str] = mapped_column(Text, nullable=False)
     submitted_value: Mapped[str] = mapped_column(Text, nullable=False)
     cloud_provider: Mapped[str | None] = mapped_column(Text, nullable=True)
-    traceparent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    traceparent: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        deferred=True,
+        server_default=FetchedValue(),
+    )
 
     outcome: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(

@@ -36,8 +36,6 @@ from learn_to_cloud_shared.verification.workflow_runs import (
     default_workflow_runs,
 )
 
-tracer = trace.get_tracer(__name__)
-
 # The workflow filename in learntocloud/journal-starter.
 _CI_WORKFLOW_FILE = "ci.yml"
 
@@ -62,93 +60,74 @@ async def verify_ci_status(
         ``main`` has ``conclusion == "success"``.
     """
     runs = runs or default_workflow_runs()
-    with tracer.start_as_current_span(
-        "ci_status_verification",
-        attributes={
-            "github.owner": owner,
-            "github.repo": repo,
-        },
-    ) as span:
-        # ── Fetch latest CI workflow run on main ──────────────────────────
-        try:
-            latest_run = await runs.latest_run(owner, repo, _CI_WORKFLOW_FILE)
-        except (
-            httpx.HTTPStatusError,
-            *RETRIABLE_EXCEPTIONS,
-        ) as e:
-            if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
-                span.set_attribute("verification.passed", False)
-                span.set_attribute("verification.reason", "workflow_not_found")
-                return ValidationResult(
-                    is_valid=False,
-                    message=(
-                        f"CI workflow not found in {owner}/{repo}. "
-                        "Make sure you've synced your fork with the upstream "
-                        "repository to get the .github/workflows/ci.yml file, "
-                        "and that GitHub Actions is enabled on your fork."
-                    ),
-                )
-            span.record_exception(e)
-            return github_error_to_result(
-                e,
-                event="ci_status.api_error",
-                context={"owner": owner, "repo": repo},
-            )
-
-        if latest_run is None:
-            span.set_attribute("verification.passed", False)
-            span.set_attribute("verification.reason", "no_runs")
+    span = trace.get_current_span()
+    try:
+        latest_run = await runs.latest_run(owner, repo, _CI_WORKFLOW_FILE)
+    except (
+        httpx.HTTPStatusError,
+        *RETRIABLE_EXCEPTIONS,
+    ) as e:
+        if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
+            span.set_attribute("http.response.status_code", 404)
+            span.add_event("ci.workflow_not_found")
             return ValidationResult(
                 is_valid=False,
                 message=(
-                    "No CI runs found on the main branch. "
-                    "Push a commit to main or merge a PR to trigger "
-                    "the CI workflow, then try again."
+                    f"CI workflow not found in {owner}/{repo}. "
+                    "Make sure you've synced your fork with the upstream "
+                    "repository to get the .github/workflows/ci.yml file, "
+                    "and that GitHub Actions is enabled on your fork."
                 ),
             )
+        return github_error_to_result(
+            e,
+            event="ci_status.api_error",
+        )
 
-        conclusion = latest_run.get("conclusion")
-        status = latest_run.get("status")
-        run_url = latest_run.get("html_url", "")
-        run_number = latest_run.get("run_number", 0)
-
-        span.set_attribute("ci.status", status or "unknown")
-        span.set_attribute("ci.conclusion", conclusion or "unknown")
-        span.set_attribute("ci.run_number", run_number)
-
-        # ── Still running ─────────────────────────────────────────────────
-        if status != "completed":
-            span.set_attribute("verification.passed", False)
-            span.set_attribute("verification.reason", "still_running")
-            return ValidationResult(
-                is_valid=False,
-                message=(
-                    f"CI run #{run_number} is still {status}. "
-                    "Wait for it to finish, then try again."
-                ),
-            )
-
-        # ── Completed — check conclusion ──────────────────────────────────
-        if conclusion == "success":
-            span.set_attribute("verification.passed", True)
-            return ValidationResult(
-                is_valid=True,
-                message=(
-                    f"CI tests are passing on main (run #{run_number}). "
-                    "Your Journal API implementation is verified!"
-                ),
-            )
-
-        # CI ran but did not succeed
-        span.set_attribute("verification.passed", False)
-        span.set_attribute("verification.reason", f"conclusion:{conclusion}")
+    if latest_run is None:
+        span.add_event("ci.no_runs")
         return ValidationResult(
             is_valid=False,
             message=(
-                f"CI run #{run_number} finished with "
-                f"conclusion '{conclusion}'. "
-                f"Check the run details at {run_url} "
-                "to see which tests are failing, fix them, "
-                "and push to main."
+                "No CI runs found on the main branch. "
+                "Push a commit to main or merge a PR to trigger "
+                "the CI workflow, then try again."
             ),
         )
+
+    conclusion = latest_run.get("conclusion")
+    status = latest_run.get("status")
+    run_url = latest_run.get("html_url", "")
+    run_number = latest_run.get("run_number", 0)
+
+    if status != "completed":
+        span.add_event("ci.still_running")
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                f"CI run #{run_number} is still {status}. "
+                "Wait for it to finish, then try again."
+            ),
+        )
+
+    if conclusion == "success":
+        span.add_event("ci.passed")
+        return ValidationResult(
+            is_valid=True,
+            message=(
+                f"CI tests are passing on main (run #{run_number}). "
+                "Your Journal API implementation is verified!"
+            ),
+        )
+
+    span.add_event("ci.failed")
+    return ValidationResult(
+        is_valid=False,
+        message=(
+            f"CI run #{run_number} finished with "
+            f"conclusion '{conclusion}'. "
+            f"Check the run details at {run_url} "
+            "to see which tests are failing, fix them, "
+            "and push to main."
+        ),
+    )

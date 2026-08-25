@@ -46,7 +46,6 @@ class AttemptPrepareState:
     submitted_value: str
     github_username_snapshot: str | None
     cloud_provider: str | None
-    traceparent: str | None
     outcome: str | None
     started_at: datetime | None
 
@@ -158,7 +157,6 @@ class VerificationAttemptRepository:
         github_username_snapshot: str | None,
         submitted_value: SubmittedValue,
         cloud_provider: str | None,
-        traceparent: str | None,
     ) -> tuple[VerificationAttempt, bool]:
         """Create a new attempt, or return the active one, under an advisory lock.
 
@@ -216,7 +214,6 @@ class VerificationAttemptRepository:
             payload_version=payload_version,
             github_username_snapshot=github_username_snapshot,
             cloud_provider=cloud_provider,
-            traceparent=traceparent,
             submission_value_kind=submitted_value.kind.value,
             submitted_value=submitted_value.as_text,
         )
@@ -256,7 +253,6 @@ class VerificationAttemptRepository:
                 VerificationAttempt.submitted_value,
                 VerificationAttempt.github_username_snapshot,
                 VerificationAttempt.cloud_provider,
-                VerificationAttempt.traceparent,
                 VerificationAttempt.outcome,
                 VerificationAttempt.started_at,
             ).where(VerificationAttempt.id == attempt_id)
@@ -276,7 +272,6 @@ class VerificationAttemptRepository:
             submitted_value=row.submitted_value,
             github_username_snapshot=row.github_username_snapshot,
             cloud_provider=row.cloud_provider,
-            traceparent=row.traceparent,
             outcome=row.outcome,
             started_at=row.started_at,
         )

@@ -16,7 +16,6 @@ from learn_to_cloud_shared.verification.tasks.phase5 import (
     PHASE5_REQUIRED_PATHS,
 )
 
-_tracer = trace.get_tracer(__name__)
 _FILES_TASK_NAME = "Required DevOps Files"
 
 
@@ -92,21 +91,15 @@ async def verify_required_devops_files(
 ) -> ValidationResult:
     """Fetch the repository tree and run the required-files gate."""
     repo_files = repo_files or default_repo_files()
-    with _tracer.start_as_current_span(
-        "devops_required_files",
-        attributes={"github.owner": owner, "github.repo": repo},
-    ) as span:
-        try:
-            all_files = await repo_files.tree(owner, repo)
-        except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
-            span.record_exception(exc)
-            return github_error_to_result(
-                exc,
-                event="devops_analysis.repo_tree_error",
-                context={"owner": owner, "repo": repo},
-            )
+    span = trace.get_current_span()
+    try:
+        all_files = await repo_files.tree(owner, repo)
+    except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
+        return github_error_to_result(
+            exc,
+            event="devops_analysis.repo_tree_error",
+        )
 
-        result = check_required_devops_files(all_files)
-        span.set_attribute("verification.passed", result.is_valid)
-        span.set_attribute("repo.total_files", len(all_files))
-        return result
+    result = check_required_devops_files(all_files)
+    span.add_event("devops.required_files_checked")
+    return result
