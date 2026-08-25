@@ -66,12 +66,12 @@ async def test_graduates_are_full_curriculum_completers(
     assert [member.github_username for member in community.graduates] == ["grad"]
 
 
-async def test_funnel_uses_authoritative_attempts_and_excludes_empty_phases(
+async def test_activity_uses_authoritative_attempts_and_current_phase_mapping(
     db_session: AsyncSession,
 ) -> None:
     counts = get_requirement_counts_by_phase()
     first_completable = min(order for order, count in counts.items() if count > 0)
-    db_session.add(User(id=60003, github_username="funnel"))
+    db_session.add(User(id=60003, github_username="activity"))
     await db_session.flush()
     await _complete_phase(db_session, user_id=60003, phase_order=first_completable)
 
@@ -81,7 +81,8 @@ async def test_funnel_uses_authoritative_attempts_and_excludes_empty_phases(
     ):
         community = await get_community_page_data(db_session)
 
-    assert community.total_accounts == 1
-    assert community.funnel[0].label == "Total accounts"
-    assert community.funnel[1].count == 1
-    assert len(community.funnel) == 1 + sum(count > 0 for count in counts.values())
+    assert community.activity.active_learners == 1
+    assert community.activity.attempts == counts[first_completable]
+    assert community.activity.projects_verified == counts[first_completable]
+    assert len(community.phase_activity) == 1
+    assert community.phase_activity[0].phase_order == first_completable

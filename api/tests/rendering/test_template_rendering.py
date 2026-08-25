@@ -404,15 +404,19 @@ def test_step_checkbox_keeps_keyboard_events_from_toggling_accordion():
 
 
 @pytest.mark.unit
-def test_community_page_renders_public_progress_and_canonical_footer_link():
+def test_community_page_renders_activity_and_canonical_footer_link():
     community = SimpleNamespace(
-        funnel=[
+        activity=SimpleNamespace(
+            active_learners=42,
+            attempts=75,
+            projects_verified=20,
+        ),
+        phase_activity=[
             SimpleNamespace(
-                label="Total accounts",
-                count=42,
-                pct_of_total=100.0,
-                pct_of_previous=None,
-                is_total=True,
+                label="Starting from Zero",
+                active_learners=30,
+                attempts=50,
+                projects_verified=12,
             )
         ],
         graduates=[],
@@ -427,15 +431,25 @@ def test_community_page_renders_public_progress_and_canonical_footer_link():
     )
 
     assert "Learn to Cloud community" in html
-    assert "Total accounts" in html
     assert "42" in html
+    assert "This week in the community" in html
+    assert "Starting from Zero" in html
     assert 'href="/community"' in html
     assert 'href="/stats"' not in html
 
 
 @pytest.mark.unit
 def test_community_page_renders_safe_external_resource_links():
-    community = SimpleNamespace(funnel=[], graduates=[], repo_updates=[])
+    community = SimpleNamespace(
+        activity=SimpleNamespace(
+            active_learners=0,
+            attempts=0,
+            projects_verified=0,
+        ),
+        phase_activity=[],
+        graduates=[],
+        repo_updates=[],
+    )
 
     html = _render(
         "pages/community.html",
@@ -455,7 +469,7 @@ def test_community_page_renders_safe_external_resource_links():
     for url in expected_links:
         assert f'href="{url}"' in html
     assert html.count('rel="noopener noreferrer"') >= len(expected_links)
-    assert "Verified learner progress is temporarily unavailable." in html
+    assert "No verification activity has been recorded in the past 7 days." in html
     assert "Curriculum updates are temporarily unavailable." in html
     assert "Discord" in html
     assert "GitHub Discussions" in html

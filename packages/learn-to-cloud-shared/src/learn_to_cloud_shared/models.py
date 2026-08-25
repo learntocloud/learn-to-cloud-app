@@ -161,6 +161,14 @@ class VerificationAttempt(TimestampMixin, Base):
             "requirement_uuid",
             text("created_at DESC"),
         ),
+        Index("ix_verification_attempts_created_at", "created_at"),
+        Index(
+            "ix_verification_attempts_succeeded_completed_requirement_user",
+            "completed_at",
+            "requirement_uuid",
+            "user_id",
+            postgresql_where=text("outcome = 'succeeded'"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
