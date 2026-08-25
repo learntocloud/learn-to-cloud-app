@@ -22,6 +22,8 @@ from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE
 logger = logging.getLogger(__name__)
 
 _telemetry_enabled: bool = False
+_dependency_tracing_enabled: bool = False
+_httpx_instrumented: bool = False
 
 
 def _build_resource() -> Resource:
@@ -147,14 +149,18 @@ def _configure_otlp(resource: Resource) -> None:
         raise ValueError(f"Unsupported OTLP protocol: {protocol}")
 
 
-def configure_observability() -> None:
-    """Set up the OTel telemetry pipeline."""
+def _configure_observability(*, allow_azure_monitor: bool) -> bool:
+    """Set up one telemetry pipeline and report whether it is active."""
     global _telemetry_enabled
 
     if _telemetry_enabled:
-        return
+        return True
 
-    conn_str = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
+    conn_str = (
+        os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
+        if allow_azure_monitor
+        else None
+    )
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
     resource = _build_resource()
 
@@ -168,18 +174,53 @@ def configure_observability() -> None:
                 "telemetry.configure.failed",
                 extra={"reason": "telemetry_destination_missing"},
             )
-            return
-    except Exception:
-        logger.exception("telemetry.configure.failed")
-        return
+            return False
+    except Exception as exc:
+        logger.error(
+            "telemetry.configure.failed",
+            extra={"error.type": type(exc).__name__},
+        )
+        return False
 
     _telemetry_enabled = True
-    HTTPXClientInstrumentor().instrument()
+    configure_dependency_instrumentation()
+    return True
+
+
+def configure_dependency_instrumentation() -> bool:
+    """Instrument dependencies against the active global tracer provider."""
+    global _dependency_tracing_enabled, _httpx_instrumented
+
+    _dependency_tracing_enabled = True
+    if _httpx_instrumented:
+        return True
+
+    try:
+        HTTPXClientInstrumentor().instrument()
+    except Exception as exc:
+        logger.warning(
+            "telemetry.httpx.failed",
+            extra={"error.type": type(exc).__name__},
+        )
+        return False
+
+    _httpx_instrumented = True
+    return True
+
+
+def configure_observability() -> bool:
+    """Set up manual Azure Monitor or local OTLP telemetry."""
+    return _configure_observability(allow_azure_monitor=True)
+
+
+def configure_otlp_observability() -> bool:
+    """Set up local OTLP without enabling Azure Monitor manually."""
+    return _configure_observability(allow_azure_monitor=False)
 
 
 def instrument_database(engine: Any) -> None:
     """Instrument a SQLAlchemy engine for database dependency spans."""
-    if not _telemetry_enabled:
+    if not _dependency_tracing_enabled:
         return
 
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
@@ -190,5 +231,5 @@ def instrument_database(engine: Any) -> None:
     except Exception as exc:
         logger.warning(
             "telemetry.sqlalchemy.failed",
-            extra={"error": str(exc)},
+            extra={"error.type": type(exc).__name__},
         )

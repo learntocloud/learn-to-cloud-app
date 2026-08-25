@@ -63,3 +63,11 @@ def configure_logging() -> None:
         "azure.monitor.opentelemetry",
     ):
         logging.getLogger(name).setLevel(logging.WARNING)
+
+
+def remove_app_stdout_handler() -> None:
+    """Remove only the JSON stdout handler owned by this application."""
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        if handler.get_name() == _APP_HANDLER_NAME:
+            root.removeHandler(handler)

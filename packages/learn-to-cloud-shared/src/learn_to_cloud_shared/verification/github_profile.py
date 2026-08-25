@@ -59,20 +59,23 @@ async def check_github_url_exists(
         )
     except RETRIABLE_EXCEPTIONS as e:
         span = trace.get_current_span()
-        span.record_exception(e)
-        span.add_event("url_check_failed", {"url": url})
+        span.set_attribute("error.type", type(e).__name__)
+        span.add_event("url_check_failed", {"error.type": type(e).__name__})
         return ValidationResult(
             is_valid=False,
-            message=f"Request error: {e!s}",
+            message="Could not reach GitHub. Please try again later.",
             verification_completed=False,
         )
-    except Exception as e:
+    except Exception:
         span = trace.get_current_span()
-        span.record_exception(e)
-        span.add_event("url_check_unexpected_error", {"url": url})
+        span.set_attribute("error.type", "unexpected_exception")
+        span.add_event(
+            "url_check_unexpected_error",
+            {"error.type": "unexpected_exception"},
+        )
         return ValidationResult(
             is_valid=False,
-            message=f"Unexpected error: {e!s}",
+            message="GitHub verification could not be completed.",
             verification_completed=False,
         )
 
@@ -119,31 +122,28 @@ async def check_repo_is_fork_of(
         )
     except RETRIABLE_EXCEPTIONS as e:
         span = trace.get_current_span()
-        span.record_exception(e)
-        span.add_event("fork_check_failed", {"username": username, "repo": repo_name})
+        span.set_attribute("error.type", type(e).__name__)
+        span.add_event("fork_check_failed", {"error.type": type(e).__name__})
         return ValidationResult(
             is_valid=False,
-            message=f"Request error: {e!s}",
+            message="Could not reach GitHub. Please try again later.",
             verification_completed=False,
         )
     except httpx.HTTPStatusError as e:
-        span = trace.get_current_span()
-        span.record_exception(e)
         return github_error_to_result(
             e,
             event="fork_check.api_error",
-            context={"username": username, "repo": repo_name},
         )
-    except Exception as e:
+    except Exception:
         span = trace.get_current_span()
-        span.record_exception(e)
+        span.set_attribute("error.type", "unexpected_exception")
         span.add_event(
             "fork_check_unexpected_error",
-            {"username": username, "repo": repo_name},
+            {"error.type": "unexpected_exception"},
         )
         return ValidationResult(
             is_valid=False,
-            message=f"Unexpected error: {e!s}",
+            message="GitHub verification could not be completed.",
             verification_completed=False,
         )
 

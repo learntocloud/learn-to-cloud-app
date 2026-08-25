@@ -5,7 +5,7 @@
     "logLevel": {
       "Host.Triggers.DurableTask": "Warning",
       "DurableTask.Core": "Warning",
-      "DurableTask.DurableTaskScheduler": "Warning"
+      "DurableTask.AzureManagedBackend": "Warning"
     }
   },
   "extensions": {

@@ -11,7 +11,6 @@ version = "0.1.0"
 description = "Durable Functions host for Learn to Cloud verification jobs"
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "azure-monitor-opentelemetry>=1.8.9",
     "azure-functions>=2.2.0",
     "azure-functions-durable>=1.7.0",
     "learn-to-cloud-shared",

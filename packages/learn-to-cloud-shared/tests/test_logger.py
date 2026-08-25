@@ -18,6 +18,7 @@ from learn_to_cloud_shared.core.logger import (
     _APP_HANDLER_NAME,
     _json_formatter,
     configure_logging,
+    remove_app_stdout_handler,
 )
 
 
@@ -233,6 +234,17 @@ class TestConfigureLogging:
 
         configure_logging()
 
+        assert external_handler in root.handlers
+
+    def test_remove_app_stdout_handler_preserves_external_handlers(self):
+        root = logging.getLogger()
+        external_handler = logging.NullHandler()
+        root.addHandler(external_handler)
+        configure_logging()
+
+        remove_app_stdout_handler()
+
+        assert _app_handlers() == []
         assert external_handler in root.handlers
 
     def test_child_logger_output_does_not_auto_add_github_username(self):

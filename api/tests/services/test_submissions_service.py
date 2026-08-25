@@ -415,12 +415,6 @@ class TestCreateVerificationAttempt:
                 "VerificationAttemptRepository",
                 autospec=True,
             ) as mock_attempt_repo_class,
-            patch(
-                "learn_to_cloud.services.submissions_service._current_traceparent",
-                return_value=(
-                    "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
-                ),
-            ),
         ):
             mock_attempt_repo = MagicMock()
             mock_attempt_repo.create_or_get_active = AsyncMock(
@@ -440,10 +434,9 @@ class TestCreateVerificationAttempt:
         assert result.attempt_id == mock_attempt.id
         assert result.created is True
         mock_attempt_repo.create_or_get_active.assert_awaited_once()
-        expected_traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
         attempt_create_await_args = mock_attempt_repo.create_or_get_active.await_args
         assert attempt_create_await_args is not None
-        assert attempt_create_await_args.kwargs["traceparent"] == expected_traceparent
+        assert "traceparent" not in attempt_create_await_args.kwargs
 
     @pytest.mark.asyncio
     async def test_returns_verification_attempt_submission(self):

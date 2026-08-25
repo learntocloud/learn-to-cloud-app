@@ -285,7 +285,6 @@ def _create_kwargs(
         "github_username_snapshot": "attemptrepo",
         "submitted_value": submitted_value,
         "cloud_provider": None,
-        "traceparent": None,
     }
 
 

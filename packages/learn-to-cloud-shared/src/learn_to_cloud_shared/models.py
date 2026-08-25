@@ -197,7 +197,7 @@ class VerificationAttempt(TimestampMixin, Base):
     submission_value_kind: Mapped[str] = mapped_column(Text, nullable=False)
     submitted_value: Mapped[str] = mapped_column(Text, nullable=False)
     cloud_provider: Mapped[str | None] = mapped_column(Text, nullable=True)
-    traceparent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    traceparent: Mapped[str | None] = mapped_column(Text, nullable=True, deferred=True)
 
     outcome: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(
