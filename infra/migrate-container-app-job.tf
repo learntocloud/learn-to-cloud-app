@@ -14,5 +14,5 @@ removed {
 
 import {
   to = azapi_resource.migrations
-  id = "${azurerm_resource_group.main.id}/providers/Microsoft.App/jobs/job-ltc-migrations-${var.environment}?api-version=2024-03-01"
+  id = "${azurerm_resource_group.main.id}/providers/Microsoft.App/jobs/job-ltc-migrations-${var.environment}?api-version=${local.migration_job_api_version}"
 }

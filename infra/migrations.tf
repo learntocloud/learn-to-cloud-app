@@ -3,7 +3,8 @@
 # even though this job has no secrets. A normal ARM GET is sufficient for this
 # resource and keeps the PR planning identity strictly read-only.
 locals {
-  migration_job_resource_type = "Microsoft.App/jobs@2024-03-01"
+  migration_job_api_version   = "2024-03-01"
+  migration_job_resource_type = "Microsoft.App/jobs@${local.migration_job_api_version}"
   migration_job_configuration = {
     triggerType       = "Manual"
     replicaTimeout    = 1800
