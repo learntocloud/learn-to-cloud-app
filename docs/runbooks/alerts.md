@@ -68,18 +68,19 @@ exact exception alert returns to a healthy state.
 
 ### Meaning
 
-The API could not configure Azure Monitor once, or the main Azure Monitor
-exporter logged at least three non-retryable transmission records in 15 minutes.
-This signal does **not** prove permanent telemetry loss or an Azure service
-fault. QuickPulse (Live Metrics) diagnostics are intentionally excluded.
+The API could not configure an OpenTelemetry destination once, or the main Azure
+Monitor exporter logged at least three non-retryable transmission records in 15
+minutes. The API continues serving when this alert fires; monitoring is
+degraded. This signal does **not** prove permanent telemetry loss or an Azure
+service fault. QuickPulse (Live Metrics) diagnostics are intentionally excluded.
 
 ### First checks
 
 1. Open the Log Analytics workspace used by the Container Apps environment.
-2. Identify whether the signal is configuration failure or repeated main
-   exporter transmission failure.
-3. Check the API revision, replica, connection-string reference, outbound
-   connectivity, and Azure Monitor service health.
+2. Identify whether the signal is a missing destination, a setup exception, or
+   repeated main exporter transmission failure.
+3. Check the API revision, replica, telemetry destination configuration,
+   outbound connectivity, and Azure Monitor service health.
 
 ### Detailed Kusto
 
@@ -92,7 +93,8 @@ ContainerAppConsoleLogs_CL
 | extend ParsedLog = parse_json(Log_s)
 | extend
     Event = tostring(ParsedLog.event),
-    Logger = tostring(ParsedLog.logger)
+    Logger = tostring(ParsedLog.logger),
+    Reason = tostring(ParsedLog.reason)
 | extend
     IsConfigureFailure = Event == "telemetry.configure.failed",
     IsMainExporterFailure =
@@ -105,31 +107,34 @@ ContainerAppConsoleLogs_CL
     ContainerGroupName_s,
     Event,
     Logger,
+    Reason,
     Log_s
 | order by TimeGenerated desc
 ```
 
 ### Likely causes
 
-- An invalid or unavailable Application Insights connection string prevented API
-  startup telemetry configuration.
+- `telemetry_destination_missing` means neither an Application Insights
+  connection string nor an OTLP endpoint was configured.
+- An invalid telemetry configuration or an SDK setup exception prevented
+  telemetry initialization.
 - Network, DNS, TLS, throttling, or authentication conditions blocked exporter
   transmission.
 - A payload was rejected as non-retryable by the ingestion endpoint.
 
 ### Escalation
 
-Escalate when configuration failures block a new API revision, exporter failures
-continue for more than 30 minutes, or the telemetry gap prevents incident
-response. Include revision names, timestamps, exporter logger, and the exact
-error text without including connection strings.
+Escalate when setup failures persist, exporter failures continue for more than
+30 minutes, or the telemetry gap prevents incident response. Include revision
+names, timestamps, the `reason` value, exporter logger, and the exact error
+text without including connection strings.
 
 ### Safe recovery
 
-Correct the secret reference, managed configuration, or outbound connectivity,
-then restart or roll forward the affected revision. Do not rotate or expose the
-connection string unless investigation confirms it is invalid. Confirm new
-traces, requests, exceptions, logs, and metrics arrive after recovery.
+Correct the telemetry destination configuration or outbound connectivity. Do
+not rotate or expose the connection string unless investigation confirms it is
+invalid. Confirm new traces, requests, exceptions, logs, and metrics arrive
+after recovery.
 
 ## Schema drift
 

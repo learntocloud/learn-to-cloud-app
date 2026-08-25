@@ -77,7 +77,7 @@ def _patch_startup_dependencies(test_settings):
         yield
 
 
-def test_observability_fails_fast_before_fastapi_construction():
+def test_observability_is_configured_before_fastapi_construction():
     tree = ast.parse(inspect.getsource(main_module))
     configure_call: ast.Call | None = None
     app_assignment_line: int | None = None
@@ -98,11 +98,8 @@ def test_observability_fails_fast_before_fastapi_construction():
     assert configure_call is not None
     assert app_assignment_line is not None
     assert configure_call.lineno < app_assignment_line
-    assert len(configure_call.keywords) == 1
-    keyword = configure_call.keywords[0]
-    assert keyword.arg == "fail_on_azure_error"
-    assert isinstance(keyword.value, ast.Constant)
-    assert keyword.value.value is True
+    assert not configure_call.args
+    assert not configure_call.keywords
 
 
 def test_exception_handlers_are_registered_for_their_dispatch_types():

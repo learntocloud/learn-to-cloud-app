@@ -10,8 +10,6 @@ Tests the stdlib-based logging configuration:
 import io
 import json
 import logging
-import os
-from unittest.mock import patch
 
 import pytest
 from pythonjsonlogger.json import JsonFormatter
@@ -217,16 +215,15 @@ class TestConfigureLogging:
         assert len(handlers) == 1
         assert handlers[0] is not first_handler
 
-    def test_json_format_when_app_insights_set(self):
-        with patch.dict(
-            os.environ,
-            {
-                "LOG_FORMAT": "",
-                "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test",
-            },
-        ):
-            configure_logging()
-            assert isinstance(_app_handlers()[0].formatter, JsonFormatter)
+    def test_json_format_without_telemetry_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.delenv("APPLICATIONINSIGHTS_CONNECTION_STRING", raising=False)
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+
+        configure_logging()
+
+        assert isinstance(_app_handlers()[0].formatter, JsonFormatter)
 
     def test_preserves_external_handlers(self):
         """Handlers not owned by the app should survive configure_logging()."""
@@ -239,21 +236,14 @@ class TestConfigureLogging:
         assert external_handler in root.handlers
 
     def test_child_logger_output_does_not_auto_add_github_username(self):
-        with patch.dict(
-            os.environ,
-            {
-                "LOG_FORMAT": "",
-                "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test",
-            },
-        ):
-            configure_logging()
-            stream = io.StringIO()
-            _app_handlers()[0].setStream(stream)
+        configure_logging()
+        stream = io.StringIO()
+        _app_handlers()[0].setStream(stream)
 
-            child_logger = logging.getLogger("test.child")
-            child_logger.setLevel(logging.NOTSET)
-            child_logger.propagate = True
-            child_logger.info("child.event")
+        child_logger = logging.getLogger("test.child")
+        child_logger.setLevel(logging.NOTSET)
+        child_logger.propagate = True
+        child_logger.info("child.event")
 
         parsed = json.loads(stream.getvalue())
 

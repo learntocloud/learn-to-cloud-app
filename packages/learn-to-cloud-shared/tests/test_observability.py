@@ -19,7 +19,9 @@ def _restore_telemetry_flag():
 
 
 @pytest.mark.unit
-def test_configure_observability_noops_without_exporter_env():
+def test_configure_observability_logs_missing_destination(
+    caplog: pytest.LogCaptureFixture,
+):
     with (
         patch.dict("os.environ", {}, clear=True),
         patch(
@@ -29,6 +31,7 @@ def test_configure_observability_noops_without_exporter_env():
         patch(
             "learn_to_cloud_shared.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
+        caplog.at_level("ERROR"),
     ):
         observability.configure_observability()
 
@@ -36,6 +39,14 @@ def test_configure_observability_noops_without_exporter_env():
     otlp.assert_not_called()
     httpx_instrumentor.assert_not_called()
     assert observability._telemetry_enabled is False
+    records = [
+        record
+        for record in caplog.records
+        if record.message == "telemetry.configure.failed"
+    ]
+    assert len(records) == 1
+    assert records[0].__dict__["reason"] == "telemetry_destination_missing"
+    assert records[0].exc_info is None
 
 
 @pytest.mark.unit
@@ -178,26 +189,35 @@ def test_configure_observability_azure_failure_is_nonfatal_by_default(
 
 
 @pytest.mark.unit
-def test_configure_observability_azure_failure_reraises_when_opted_in():
+def test_configure_observability_otlp_failure_is_nonfatal(
+    caplog: pytest.LogCaptureFixture,
+):
     with (
         patch.dict(
             "os.environ",
-            {"APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test"},
+            {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317"},
             clear=True,
         ),
         patch(
-            "learn_to_cloud_shared.core.observability._configure_azure_monitor",
+            "learn_to_cloud_shared.core.observability._configure_otlp",
             side_effect=RuntimeError("boom"),
         ),
         patch(
             "learn_to_cloud_shared.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
-        pytest.raises(RuntimeError, match="boom"),
+        caplog.at_level("ERROR"),
     ):
-        observability.configure_observability(fail_on_azure_error=True)
+        observability.configure_observability()
 
     httpx_instrumentor.assert_not_called()
     assert observability._telemetry_enabled is False
+    records = [
+        record
+        for record in caplog.records
+        if record.message == "telemetry.configure.failed"
+    ]
+    assert len(records) == 1
+    assert records[0].exc_info is not None
 
 
 @pytest.mark.unit
