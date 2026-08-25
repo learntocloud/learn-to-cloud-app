@@ -25,6 +25,7 @@ learn-to-cloud-shared = { workspace = true }
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.3.0",
     "ruff==0.15.12",
     "ty==0.0.34",
 ]

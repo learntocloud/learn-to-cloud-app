@@ -230,13 +230,33 @@ def _set_verification_span_attributes(
         span.set_attribute("enduser.id", str(user_id))
 
 
+def _mark_verification_span_success(
+    span: Span,
+    result: VerificationRunResult,
+) -> None:
+    """Apply the completed verification result to its recording span."""
+    _set_verification_span_attributes(
+        span,
+        attempt_id=str(result.attempt.id),
+        requirement_slug=result.attempt.requirement.slug,
+        submission_type=result.attempt.requirement.submission_type.value,
+        status=outcome_for_validation(result.validation_result),
+        grading_disposition=(
+            result.grading_disposition.value
+            if result.grading_disposition is not None
+            else None
+        ),
+    )
+    if span.is_recording():
+        span.set_status(Status(StatusCode.OK))
+
+
 @contextmanager
 def _verification_span(
     name: str,
     *,
     attempt_id: str,
     user_id: int | None = None,
-    result: VerificationRunResult | None = None,
 ) -> Iterator[Span]:
     """Create an explicit business span rather than enriching framework spans."""
     if name not in _VERIFICATION_SPAN_NAMES:
@@ -246,16 +266,6 @@ def _verification_span(
             span,
             attempt_id=attempt_id,
             user_id=user_id,
-            requirement_slug=result.attempt.requirement.slug if result else None,
-            submission_type=(
-                result.attempt.requirement.submission_type.value if result else None
-            ),
-            status=outcome_for_validation(result.validation_result) if result else None,
-            grading_disposition=(
-                result.grading_disposition.value
-                if result and result.grading_disposition is not None
-                else None
-            ),
         )
         yield span
 
@@ -396,6 +406,7 @@ async def execute_requirement_verification(
                     "verification.completed",
                     run_result.validation_result.verification_completed,
                 )
+            _mark_verification_span_success(span, run_result)
             return run_result.to_payload()
 
 
@@ -706,12 +717,12 @@ async def finalize_verification_attempt(
         with _verification_span(
             "verification.finalize",
             attempt_id=str(run_result.attempt.id),
-            result=run_result,
-        ):
+        ) as span:
             result = await finalize_attempt(
                 run_result,
                 session_maker=_get_session_maker(),
             )
+            _mark_verification_span_success(span, run_result)
         state = result.state
         return _terminal_state_payload(state)
 

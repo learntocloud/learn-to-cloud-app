@@ -8,8 +8,10 @@ Durable client and status are faked -- no live Azure calls.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Generator
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
@@ -21,12 +23,17 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptStatusRow,
 )
 from learn_to_cloud_shared.submission_values import SubmittedValue
+from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.testing.requirement_factories import (
     journal_api_verifier_requirement,
     repo_fork_requirement,
 )
 from learn_to_cloud_shared.verification_attempt_reconciler import stale_cutoff
-from learn_to_cloud_shared.verification_workflow import PreparedVerificationAttempt
+from learn_to_cloud_shared.verification_workflow import (
+    PreparedVerificationAttempt,
+    VerificationRunResult,
+)
+from opentelemetry.trace import Status, StatusCode
 
 
 # --------------------------------------------------------------------------- #
@@ -110,18 +117,26 @@ def _sequence(calls: list[_RecordedCall]) -> list[tuple[str, str]]:
 class _Span:
     def __init__(self) -> None:
         self.attributes: dict[str, object] = {}
+        self.status: Status | None = None
+        self.ended = False
+        self.exit_exception: BaseException | None = None
 
     def __enter__(self):
         return self
 
-    def __exit__(self, *_args) -> None:
-        return None
+    def __exit__(self, _exc_type, exc, _traceback) -> bool:
+        self.ended = True
+        self.exit_exception = exc
+        return False
 
     def is_recording(self) -> bool:
         return True
 
     def set_attribute(self, key: str, value: object) -> None:
         self.attributes[key] = value
+
+    def set_status(self, status: Status) -> None:
+        self.status = status
 
 
 class _Tracer:
@@ -148,6 +163,155 @@ def test_business_span_uses_canonical_identity_only() -> None:
     assert tracer.spans[0][1].attributes == {
         "verification.attempt.id": "attempt-1",
         "enduser.id": "42",
+    }
+
+
+def _successful_run_result() -> VerificationRunResult:
+    requirement = repo_fork_requirement(
+        slug="fork",
+        required_repo="owner/repo",
+    )
+    attempt = PreparedVerificationAttempt(
+        id=uuid4(),
+        user_id=1,
+        github_username="alice",
+        requirement=requirement,
+        submitted_value=SubmittedValue.from_raw(
+            requirement,
+            "https://github.com/alice/repo",
+        ),
+    )
+    return VerificationRunResult(
+        attempt=attempt,
+        validation_result=ValidationResult(
+            is_valid=True,
+            message="Verified.",
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("handler_name", "dependency_name", "span_name"),
+    [
+        (
+            "execute_requirement_verification",
+            "run_profile",
+            "verification.execute",
+        ),
+        (
+            "finalize_verification_attempt",
+            "finalize_attempt",
+            "verification.finalize",
+        ),
+    ],
+)
+def test_verification_activity_records_success_span(
+    handler_name: str,
+    dependency_name: str,
+    span_name: str,
+) -> None:
+    run_result = _successful_run_result()
+    tracer = _Tracer()
+    handler = getattr(function_app, handler_name).build()._func
+    dependency = AsyncMock(
+        return_value=(
+            run_result
+            if dependency_name == "run_profile"
+            else SimpleNamespace(
+                state=SimpleNamespace(
+                    id=run_result.attempt.id,
+                    outcome="succeeded",
+                    error_code=None,
+                    validation_message=None,
+                    terminal_source="orchestrator",
+                    completed_at=None,
+                )
+            )
+        )
+    )
+    payload = (
+        run_result.attempt.to_payload()
+        if handler_name == "execute_requirement_verification"
+        else run_result.to_payload()
+    )
+
+    with (
+        patch.object(function_app.otel_trace, "get_tracer", return_value=tracer),
+        patch.object(function_app, dependency_name, new=dependency),
+        patch.object(function_app, "_get_session_maker", return_value=object()),
+    ):
+        asyncio.run(handler(payload, None))
+
+    name, span = tracer.spans[0]
+    assert name == span_name
+    assert span.ended is True
+    assert span.exit_exception is None
+    expected_attributes = {
+        "verification.attempt.id": str(run_result.attempt.id),
+        "verification.requirement_slug": "fork",
+        "verification.submission_type": "repo_fork",
+        "verification.status": "succeeded",
+    }
+    if handler_name == "execute_requirement_verification":
+        expected_attributes.update(
+            {
+                "verification.is_valid": True,
+                "verification.completed": True,
+            }
+        )
+    assert span.attributes == expected_attributes
+    assert "enduser.id" not in span.attributes
+    assert span.status is not None
+    assert span.status.status_code is StatusCode.OK
+
+
+@pytest.mark.parametrize(
+    ("handler_name", "dependency_name", "span_name"),
+    [
+        (
+            "execute_requirement_verification",
+            "run_profile",
+            "verification.execute",
+        ),
+        (
+            "finalize_verification_attempt",
+            "finalize_attempt",
+            "verification.finalize",
+        ),
+    ],
+)
+def test_verification_activity_closes_span_when_dependency_raises(
+    handler_name: str,
+    dependency_name: str,
+    span_name: str,
+) -> None:
+    run_result = _successful_run_result()
+    tracer = _Tracer()
+    handler = getattr(function_app, handler_name).build()._func
+    payload = (
+        run_result.attempt.to_payload()
+        if handler_name == "execute_requirement_verification"
+        else run_result.to_payload()
+    )
+
+    with (
+        patch.object(function_app.otel_trace, "get_tracer", return_value=tracer),
+        patch.object(
+            function_app,
+            dependency_name,
+            new=AsyncMock(side_effect=RuntimeError("dependency failed")),
+        ),
+        patch.object(function_app, "_get_session_maker", return_value=object()),
+        pytest.raises(RuntimeError, match="dependency failed"),
+    ):
+        asyncio.run(handler(payload, None))
+
+    name, span = tracer.spans[0]
+    assert name == span_name
+    assert span.ended is True
+    assert isinstance(span.exit_exception, RuntimeError)
+    assert span.attributes == {
+        "verification.attempt.id": str(run_result.attempt.id),
     }
 
 
