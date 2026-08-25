@@ -32,7 +32,7 @@
             window.appInsights.loadAppInsights();
             window.appInsights.trackPageView({
                 name: document.title,
-                uri: window.location.href
+                uri: window.location.origin + window.location.pathname
             });
         }
     </script>

@@ -4,8 +4,6 @@ Provides phase listing with user progress and summary stats
 for the dashboard page.
 """
 
-import logging
-
 from learn_to_cloud_shared.content_service import (
     get_curriculum_overview,
     get_phase_by_slug,
@@ -24,8 +22,6 @@ from learn_to_cloud.services.progress_service import (
     phase_progress_to_data,
     resolve_continue_destination,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _build_phase_summary(
@@ -95,14 +91,6 @@ async def get_dashboard_data(
                 destination_url=destination_url,
                 label=f"Phase {current.order}: {current.name}",
             )
-
-    logger.debug(
-        "dashboard.built",
-        extra={
-            "user_id": user_id,
-            "phases_completed": user_progress.phases_completed,
-        },
-    )
 
     return DashboardData(
         phases=phase_summaries,

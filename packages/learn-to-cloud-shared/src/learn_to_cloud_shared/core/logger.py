@@ -6,7 +6,7 @@ Usage::
 
     import logging
     logger = logging.getLogger(__name__)
-    logger.info("user.login", extra={"user_id": "123", "method": "oauth"})
+    logger.info("auth.login.success")
 """
 
 import logging

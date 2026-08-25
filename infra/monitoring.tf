@@ -165,7 +165,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_telemetry_pipelin
   name                = "alert-ltc-api-telemetry-pipeline-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Detects API telemetry setup or transmission failures; it does not prove permanent telemetry loss or an Azure service fault. Response guide: https://github.com/learntocloud/learn-to-cloud-app/blob/main/docs/runbooks/alerts.md#telemetry-pipeline-failure"
+  description         = "Detects an API telemetry setup failure recorded by the app's canonical startup log. Response guide: https://github.com/learntocloud/learn-to-cloud-app/blob/main/docs/runbooks/alerts.md#telemetry-pipeline-failure"
   severity            = 1
   enabled             = true
   tags                = local.tags
@@ -181,18 +181,9 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_telemetry_pipelin
       | where ContainerAppName_s == "ca-ltc-api-${var.environment}"
       | where ContainerName_s == "api"
       | extend ParsedLog = parse_json(Log_s)
-      | extend
-          Event = tostring(ParsedLog.event),
-          Logger = tostring(ParsedLog.logger)
-      | extend
-          IsConfigureFailure = Event == "telemetry.configure.failed",
-          IsMainExporterFailure = Logger == "azure.monitor.opentelemetry.exporter.export._base"
-            and Log_s contains "Envelopes could not be exported and are not retryable:"
-      | where IsConfigureFailure or IsMainExporterFailure
-      | summarize
-          ConfigureFailureCount = countif(IsConfigureFailure),
-          ExportFailureCount = countif(IsMainExporterFailure)
-      | where ConfigureFailureCount >= 1 or ExportFailureCount >= 3
+      | where tostring(ParsedLog.event) == "telemetry.configure.failed"
+      | summarize ConfigureFailureCount = count()
+      | where ConfigureFailureCount >= 1
     QUERY
     time_aggregation_method = "Count"
     operator                = "GreaterThanOrEqual"

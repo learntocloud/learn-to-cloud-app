@@ -1,7 +1,7 @@
 """Unit tests for observability instrumentation helpers."""
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from opentelemetry.sdk.resources import Resource
@@ -14,13 +14,16 @@ def _restore_telemetry_flag():
     """Restore module telemetry state after each test."""
     original_telemetry = observability._telemetry_enabled
     original_dependencies = observability._dependency_tracing_enabled
+    original_fastapi = observability._fastapi_instrumented
     original_httpx = observability._httpx_instrumented
     observability._telemetry_enabled = False
     observability._dependency_tracing_enabled = False
+    observability._fastapi_instrumented = False
     observability._httpx_instrumented = False
     yield
     observability._telemetry_enabled = original_telemetry
     observability._dependency_tracing_enabled = original_dependencies
+    observability._fastapi_instrumented = original_fastapi
     observability._httpx_instrumented = original_httpx
 
 
@@ -124,12 +127,19 @@ def test_configure_observability_uses_azure_monitor_when_connection_string_set()
         patch(
             "learn_to_cloud_shared.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
+        patch(
+            "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor"
+        ) as fastapi_instrumentor,
     ):
         configured = observability.configure_observability()
 
     azure_monitor.assert_called_once_with(resource)
     otlp.assert_not_called()
-    httpx_instrumentor.return_value.instrument.assert_called_once_with()
+    httpx_instrumentor.return_value.instrument.assert_called_once_with(
+        request_hook=observability._sanitize_httpx_span,
+        async_request_hook=observability._sanitize_async_httpx_span,
+    )
+    fastapi_instrumentor.assert_not_called()
     assert observability._telemetry_enabled is True
     assert configured is True
 
@@ -154,12 +164,19 @@ def test_configure_observability_uses_otlp_when_endpoint_set():
         patch(
             "learn_to_cloud_shared.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
+        patch(
+            "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor"
+        ) as fastapi_instrumentor,
     ):
         configured = observability.configure_observability()
 
     azure_monitor.assert_not_called()
     otlp.assert_called_once_with(resource)
-    httpx_instrumentor.return_value.instrument.assert_called_once_with()
+    httpx_instrumentor.return_value.instrument.assert_called_once_with(
+        request_hook=observability._sanitize_httpx_span,
+        async_request_hook=observability._sanitize_async_httpx_span,
+    )
+    fastapi_instrumentor.return_value.instrument.assert_called_once_with()
     assert observability._telemetry_enabled is True
     assert configured is True
 
@@ -187,13 +204,20 @@ def test_configure_otlp_observability_never_uses_azure_monitor():
         patch(
             "learn_to_cloud_shared.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
+        patch(
+            "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor"
+        ) as fastapi_instrumentor,
     ):
         configured = observability.configure_otlp_observability()
 
     assert configured is True
     azure_monitor.assert_not_called()
     otlp.assert_called_once_with(resource)
-    httpx_instrumentor.return_value.instrument.assert_called_once_with()
+    httpx_instrumentor.return_value.instrument.assert_called_once_with(
+        request_hook=observability._sanitize_httpx_span,
+        async_request_hook=observability._sanitize_async_httpx_span,
+    )
+    fastapi_instrumentor.assert_not_called()
 
 
 @pytest.mark.unit
@@ -295,6 +319,7 @@ def test_configure_azure_monitor_uses_distro_instrumentation_defaults():
     configure_azure_monitor.assert_called_once()
     kwargs = configure_azure_monitor.call_args.kwargs
     assert kwargs["enable_live_metrics"] is True
+    assert kwargs["enable_trace_based_sampling_for_logs"] is False
     assert kwargs["logger_name"] == "learn_to_cloud"
     assert "instrumentation_options" not in kwargs
     assert kwargs["resource"] is resource
@@ -434,29 +459,57 @@ def test_configure_otlp_uses_http_exporters_when_protocol_is_http():
 
 
 @pytest.mark.unit
+def test_httpx_instrumentation_is_process_wide_and_idempotent():
+    with patch(
+        "learn_to_cloud_shared.core.observability.HTTPXClientInstrumentor"
+    ) as httpx_instrumentor:
+        assert observability.configure_dependency_instrumentation() is True
+        assert observability.configure_dependency_instrumentation() is True
+
+    httpx_instrumentor.return_value.instrument.assert_called_once_with(
+        request_hook=observability._sanitize_httpx_span,
+        async_request_hook=observability._sanitize_async_httpx_span,
+    )
+
+
+@pytest.mark.unit
+def test_httpx_hook_keeps_only_dependency_origin():
+    span = MagicMock()
+    span.is_recording.return_value = True
+    request = SimpleNamespace(url="https://api.example.com/users/123?token=sensitive")
+
+    observability._sanitize_httpx_span(span, request)
+
+    assert span.set_attribute.call_args_list == [
+        call("http.target", "/"),
+        call("http.url", "https://api.example.com"),
+        call("url.full", "https://api.example.com"),
+        call("url.path", "/"),
+        call("url.query", ""),
+    ]
+
+
+@pytest.mark.unit
 def test_instrument_database_noops_when_telemetry_disabled():
     engine = SimpleNamespace(sync_engine=object())
 
     with patch(
         "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
     ) as instrumentor_cls:
-        observability._dependency_tracing_enabled = False
-
         observability.instrument_database(engine)
 
     instrumentor_cls.assert_not_called()
 
 
 @pytest.mark.unit
-def test_instrument_database_uses_sync_engine():
+def test_instrument_database_uses_the_created_sync_engine():
     sync_engine = object()
     engine = SimpleNamespace(sync_engine=sync_engine)
+    observability._dependency_tracing_enabled = True
 
     with patch(
         "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
     ) as instrumentor_cls:
-        observability._dependency_tracing_enabled = True
-
         observability.instrument_database(engine)
 
     instrumentor_cls.return_value.instrument.assert_called_once_with(engine=sync_engine)

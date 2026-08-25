@@ -1,11 +1,10 @@
-"""Observability configuration — Azure Monitor/OpenTelemetry telemetry.
+"""Single-pipeline Azure Monitor and OTLP configuration.
 
-Called once from ``main.py`` before ``fastapi.FastAPI`` is instantiated so
-Azure Monitor's FastAPI instrumentation can patch the framework.
-
-Production: exports to Azure Monitor via APPLICATIONINSIGHTS_CONNECTION_STRING.
-Local dev:  exports to any OTLP backend (Aspire, Jaeger) via
-            OTEL_EXPORTER_OTLP_ENDPOINT.
+The API calls this before constructing FastAPI. Azure Monitor owns FastAPI
+instrumentation in production; local OTLP configures it explicitly. HTTPX and
+SQLAlchemy remain application-owned because the Azure distro does not bundle
+those instrumentations. Verification Functions reuse only the dependency setup
+and their host-owned OTLP pipeline.
 """
 
 from __future__ import annotations
@@ -13,6 +12,7 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any
+from urllib.parse import urlsplit
 
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.sdk.resources import Resource
@@ -23,7 +23,47 @@ logger = logging.getLogger(__name__)
 
 _telemetry_enabled: bool = False
 _dependency_tracing_enabled: bool = False
+_fastapi_instrumented: bool = False
 _httpx_instrumented: bool = False
+
+
+def _httpx_origin(request: Any) -> str:
+    url = request.url
+    if isinstance(url, tuple):
+        scheme, host, port, _ = url
+        scheme_text = scheme.decode() if isinstance(scheme, bytes) else scheme
+        host_text = host.decode() if isinstance(host, bytes) else host
+        return (
+            f"{scheme_text}://{host_text}:{port}"
+            if port is not None
+            else f"{scheme_text}://{host_text}"
+        )
+
+    parsed = urlsplit(str(url))
+    host = parsed.hostname or ""
+    if ":" in host:
+        host = f"[{host}]"
+    return (
+        f"{parsed.scheme}://{host}:{parsed.port}"
+        if parsed.port is not None
+        else f"{parsed.scheme}://{host}"
+    )
+
+
+def _sanitize_httpx_span(span: Any, request: Any) -> None:
+    if not span.is_recording():
+        return
+
+    origin = _httpx_origin(request)
+    span.set_attribute("http.target", "/")
+    span.set_attribute("http.url", origin)
+    span.set_attribute("url.full", origin)
+    span.set_attribute("url.path", "/")
+    span.set_attribute("url.query", "")
+
+
+async def _sanitize_async_httpx_span(span: Any, request: Any) -> None:
+    _sanitize_httpx_span(span, request)
 
 
 def _build_resource() -> Resource:
@@ -52,6 +92,7 @@ def _configure_azure_monitor(resource: Resource) -> None:
 
     _configure_azure_monitor_sdk(
         enable_live_metrics=True,
+        enable_trace_based_sampling_for_logs=False,
         logger_name=APP_LOGGER_NAMESPACE,
         resource=resource,
     )
@@ -163,12 +204,14 @@ def _configure_observability(*, allow_azure_monitor: bool) -> bool:
     )
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
     resource = _build_resource()
+    instrument_fastapi_for_otlp = False
 
     try:
         if conn_str:
             _configure_azure_monitor(resource)
         elif otlp_endpoint:
             _configure_otlp(resource)
+            instrument_fastapi_for_otlp = allow_azure_monitor
         else:
             logger.error(
                 "telemetry.configure.failed",
@@ -183,12 +226,36 @@ def _configure_observability(*, allow_azure_monitor: bool) -> bool:
         return False
 
     _telemetry_enabled = True
+    if instrument_fastapi_for_otlp:
+        configure_fastapi_instrumentation()
     configure_dependency_instrumentation()
     return True
 
 
+def configure_fastapi_instrumentation() -> bool:
+    """Instrument FastAPI when the Azure Monitor distro is not active."""
+    global _fastapi_instrumented
+
+    if _fastapi_instrumented:
+        return True
+
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+    try:
+        FastAPIInstrumentor().instrument()
+    except Exception as exc:
+        logger.warning(
+            "telemetry.fastapi.failed",
+            extra={"error.type": type(exc).__name__},
+        )
+        return False
+
+    _fastapi_instrumented = True
+    return True
+
+
 def configure_dependency_instrumentation() -> bool:
-    """Instrument dependencies against the active global tracer provider."""
+    """Instrument dependencies not bundled by the Azure Monitor distro."""
     global _dependency_tracing_enabled, _httpx_instrumented
 
     _dependency_tracing_enabled = True
@@ -196,7 +263,10 @@ def configure_dependency_instrumentation() -> bool:
         return True
 
     try:
-        HTTPXClientInstrumentor().instrument()
+        HTTPXClientInstrumentor().instrument(
+            request_hook=_sanitize_httpx_span,
+            async_request_hook=_sanitize_async_httpx_span,
+        )
     except Exception as exc:
         logger.warning(
             "telemetry.httpx.failed",
@@ -209,17 +279,17 @@ def configure_dependency_instrumentation() -> bool:
 
 
 def configure_observability() -> bool:
-    """Set up manual Azure Monitor or local OTLP telemetry."""
+    """Set up the API's Azure Monitor or local OTLP pipeline."""
     return _configure_observability(allow_azure_monitor=True)
 
 
 def configure_otlp_observability() -> bool:
-    """Set up local OTLP without enabling Azure Monitor manually."""
+    """Set up OTLP without adding an application-owned Azure exporter."""
     return _configure_observability(allow_azure_monitor=False)
 
 
 def instrument_database(engine: Any) -> None:
-    """Instrument a SQLAlchemy engine for database dependency spans."""
+    """Instrument an engine created after telemetry setup."""
     if not _dependency_tracing_enabled:
         return
 
@@ -227,7 +297,6 @@ def instrument_database(engine: Any) -> None:
 
     try:
         SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
-        logger.info("telemetry.sqlalchemy.instrumented")
     except Exception as exc:
         logger.warning(
             "telemetry.sqlalchemy.failed",

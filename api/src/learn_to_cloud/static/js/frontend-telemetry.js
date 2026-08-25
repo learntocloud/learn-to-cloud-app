@@ -1,7 +1,11 @@
 (function () {
     'use strict';
 
-    var lastTrackedUrl = window.location.href;
+    function pageUri() {
+        return window.location.origin + window.location.pathname;
+    }
+
+    var lastTrackedUrl = pageUri();
 
     function appInsights() {
         if (window.appInsights && typeof window.appInsights.trackEvent === 'function') {
@@ -12,34 +16,32 @@
 
     function trackHtmxPageView() {
         var telemetry = appInsights();
-        if (!telemetry || window.location.href === lastTrackedUrl) {
+        var currentUrl = pageUri();
+        if (!telemetry || currentUrl === lastTrackedUrl) {
             return;
         }
 
-        lastTrackedUrl = window.location.href;
+        lastTrackedUrl = currentUrl;
         telemetry.trackPageView({
             name: document.title,
-            uri: window.location.href,
+            uri: currentUrl,
             properties: {
                 navigationType: 'htmx'
             }
         });
     }
 
-    function trackHtmxError(eventName, event) {
+    function trackHtmxTransportError(event) {
         var telemetry = appInsights();
         if (!telemetry || !event.detail) {
             return;
         }
 
-        var xhr = event.detail.xhr;
         var requestConfig = event.detail.requestConfig || {};
         telemetry.trackEvent({
-            name: eventName,
+            name: 'htmx.transport_error',
             properties: {
                 method: requestConfig.verb || '',
-                path: requestConfig.path || '',
-                statusCode: xhr && xhr.status ? String(xhr.status) : '',
                 boosted: String(Boolean(event.detail.boosted))
             }
         });
@@ -51,11 +53,7 @@
         }
     });
 
-    document.addEventListener('htmx:responseError', function (event) {
-        trackHtmxError('htmx.response_error', event);
-    });
-
     document.addEventListener('htmx:sendError', function (event) {
-        trackHtmxError('htmx.send_error', event);
+        trackHtmxTransportError(event);
     });
 })();

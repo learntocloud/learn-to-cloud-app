@@ -103,12 +103,15 @@ async def ready(request: Request) -> HealthResponse:
             request.app.state.engine,
             request.app.state.settings.database,
         )
-    except Exception as e:
-        logger.warning("health.ready.db_unavailable", extra={"error": str(e)})
+    except Exception as exc:
+        logger.warning(
+            "health.ready.db_unavailable",
+            extra={"error.type": type(exc).__name__},
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database unavailable",
-        ) from e
+        ) from exc
 
     # Schema drift is a paging signal, not a readiness failure: log a warning
     # for the Azure Monitor alert to pick up, but never fail this probe over
@@ -117,9 +120,10 @@ async def ready(request: Request) -> HealthResponse:
     if code_head is not None:
         try:
             db_head = await _get_db_alembic_head(request.app.state.engine)
-        except Exception as e:
+        except Exception as exc:
             logger.warning(
-                "health.ready.schema_drift_check_failed", extra={"error": str(e)}
+                "health.ready.schema_drift_check_failed",
+                extra={"error.type": type(exc).__name__},
             )
         else:
             if db_head != code_head:

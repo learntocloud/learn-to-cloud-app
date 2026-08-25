@@ -172,6 +172,18 @@ resource "azurerm_container_app" "api" {
         value = "learn-to-cloud-api"
       }
 
+      # Azure Monitor Python 1.8.6+ defaults to rate-limited trace sampling.
+      # Pin the production policy so SDK default changes cannot raise ingestion.
+      env {
+        name  = "OTEL_TRACES_SAMPLER"
+        value = "microsoft.rate_limited"
+      }
+
+      env {
+        name  = "OTEL_TRACES_SAMPLER_ARG"
+        value = "1"
+      }
+
       env {
         name  = "VERIFICATION_FUNCTIONS__BASE_URL"
         value = "https://${azapi_resource.verification_functions.output.properties.defaultHostName}"
