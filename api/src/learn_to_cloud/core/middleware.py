@@ -79,7 +79,6 @@ class UserTrackingMiddleware:
 
         session = scope.get("session", {})
         user_id = session.get("user_id")
-        github_username = session.get("github_username")
 
         if user_id is not None:
             session_id = session.get(SESSION_ID_KEY)
@@ -89,12 +88,6 @@ class UserTrackingMiddleware:
             span = trace.get_current_span()
             if span.is_recording():
                 span.set_attribute("enduser.id", str(user_id))
-                span.set_attribute("app.user_id", str(user_id))
                 span.set_attribute("enduser.pseudo.id", session_id)
-                span.set_attribute("app.session_id", session_id)
-                span.set_attribute("ai.session.id", session_id)
-                if github_username:
-                    span.set_attribute("enduser.name", github_username)
-                    span.set_attribute("app.github_username", github_username)
 
         await self.app(scope, receive, send)

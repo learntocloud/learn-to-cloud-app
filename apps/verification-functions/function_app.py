@@ -49,6 +49,7 @@ from learn_to_cloud_shared.verification.llm_grading import (
 )
 from learn_to_cloud_shared.verification.engine import run_profile
 from learn_to_cloud_shared.verification_workflow import (
+    LLM_ERROR_TYPES,
     PreparedVerificationAttempt,
     VerificationRunResult,
     outcome_for_validation,
@@ -58,10 +59,15 @@ from opentelemetry import trace as otel_trace
 from opentelemetry.propagate import extract
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from verification_agents import (
-    CONTENT_FILTER_MARKER,
+    ContentFilteredError,
+    LLM_OUTCOME_CONTENT_FILTERED,
+    LLM_OUTCOME_ERROR,
+    LLM_OUTCOME_SUCCESS,
+    LLMGradingError,
     grade_evidence,
     missing_grading_config,
 )
+from opentelemetry.trace import Span, Status, StatusCode
 
 
 def _telemetry_destination_configured() -> bool:
@@ -101,9 +107,14 @@ _TRANSIENT_RETRY_OPTIONS = df.RetryOptions(
     first_retry_interval_in_milliseconds=2000,
     max_number_of_attempts=3,
 )
-_LLM_RETRY_OPTIONS = df.RetryOptions(
-    first_retry_interval_in_milliseconds=3000,
-    max_number_of_attempts=4,
+_VERIFICATION_SPAN_NAMES = frozenset(
+    {
+        "verification.start",
+        "verification.prepare",
+        "verification.execute",
+        "verification.grade",
+        "verification.finalize",
+    }
 )
 
 _engine: AsyncEngine | None = None
@@ -182,19 +193,25 @@ def _activity_payloads(value: object) -> list[dict[str, object]]:
     return [_activity_payload(item) for item in value]
 
 
+def _safe_llm_error_type(value: object) -> str:
+    """Return a whitelisted LLM error category."""
+    if isinstance(value, str) and value in LLM_ERROR_TYPES:
+        return value
+    return "llm.unknown"
+
+
 def _set_verification_span_attributes(
+    span: Span,
     *,
     attempt_id: str,
     user_id: int | None = None,
-    github_username: str | None = None,
     phase_id: int | None = None,
     requirement_slug: str | None = None,
     submission_type: str | None = None,
     status: str | None = None,
     grading_disposition: str | None = None,
 ) -> None:
-    """Add verification identity to the current span when telemetry is enabled."""
-    span = otel_trace.get_current_span()
+    """Add the approved verification attributes to one business span."""
     if not span.is_recording():
         return
 
@@ -210,39 +227,37 @@ def _set_verification_span_attributes(
     if grading_disposition:
         span.set_attribute("verification.grading_disposition", grading_disposition)
     if user_id is not None:
-        user_id_text = str(user_id)
-        span.set_attribute("enduser.id", user_id_text)
-        span.set_attribute("app.user_id", user_id_text)
-    if github_username:
-        span.set_attribute("enduser.name", github_username)
-        span.set_attribute("app.github_username", github_username)
+        span.set_attribute("enduser.id", str(user_id))
 
 
-def _set_attempt_span_attributes(attempt: PreparedVerificationAttempt) -> None:
-    _set_verification_span_attributes(
-        attempt_id=str(attempt.id),
-        user_id=attempt.user_id,
-        github_username=attempt.github_username,
-        requirement_slug=attempt.requirement.slug,
-        submission_type=attempt.requirement.submission_type.value,
-    )
-
-
-def _set_result_span_attributes(result: VerificationRunResult) -> None:
-    attempt = result.attempt
-    _set_verification_span_attributes(
-        attempt_id=str(attempt.id),
-        user_id=attempt.user_id,
-        github_username=attempt.github_username,
-        requirement_slug=attempt.requirement.slug,
-        submission_type=attempt.requirement.submission_type.value,
-        status=outcome_for_validation(result.validation_result),
-        grading_disposition=(
-            result.grading_disposition.value
-            if result.grading_disposition is not None
-            else None
-        ),
-    )
+@contextmanager
+def _verification_span(
+    name: str,
+    *,
+    attempt_id: str,
+    user_id: int | None = None,
+    result: VerificationRunResult | None = None,
+) -> Iterator[Span]:
+    """Create an explicit business span rather than enriching framework spans."""
+    if name not in _VERIFICATION_SPAN_NAMES:
+        raise ValueError(f"Unknown verification span name: {name}")
+    with otel_trace.get_tracer(__name__).start_as_current_span(name) as span:
+        _set_verification_span_attributes(
+            span,
+            attempt_id=attempt_id,
+            user_id=user_id,
+            requirement_slug=result.attempt.requirement.slug if result else None,
+            submission_type=(
+                result.attempt.requirement.submission_type.value if result else None
+            ),
+            status=outcome_for_validation(result.validation_result) if result else None,
+            grading_disposition=(
+                result.grading_disposition.value
+                if result and result.grading_disposition is not None
+                else None
+            ),
+        )
+        yield span
 
 
 def _attempt_custom_status(
@@ -322,45 +337,41 @@ def _llm_grading_step(
     )
     config_status = yield context.call_activity("ensure_grading_config", None)
     if not config_status.get("valid"):
-        missing = config_status.get("missing_vars") or []
         return (
             yield context.call_activity(
                 "llm_grading_failed",
-                {
-                    "run_result": run_result,
-                    "detail": f"missing grading config: {', '.join(missing)}",
-                    "error_type": "MissingGradingConfig",
-                },
+                {"run_result": run_result, "error_type": "llm.configuration"},
             )
         )
 
-    try:
-        decisions: list[dict[str, object]] = []
-        for request_payload in llm_requests:
-            decision_payload = yield context.call_activity_with_retry(
-                "run_llm_grading",
-                _LLM_RETRY_OPTIONS,
-                request_payload,
+    decisions: list[dict[str, object]] = []
+    for request_payload in llm_requests:
+        grading_result = yield context.call_activity(
+            "run_llm_grading",
+            {"attempt_id": outcome.attempt_id, "request": request_payload},
+        )
+        result_payload = _activity_payload(grading_result)
+        technical_outcome = result_payload.get("outcome")
+        if technical_outcome != LLM_OUTCOME_SUCCESS:
+            error_type = _safe_llm_error_type(result_payload.get("error_type"))
+            return (
+                yield context.call_activity(
+                    "llm_grading_failed",
+                    {
+                        "run_result": run_result,
+                        "error_type": error_type,
+                        "outcome": technical_outcome,
+                    },
+                )
             )
-            decisions.append(_activity_payload(decision_payload))
+        decisions.append(_activity_payload(result_payload["decision"]))
 
-        return (
-            yield context.call_activity(
-                "apply_llm_grading_results",
-                {"run_result": run_result, "decisions": decisions},
-            )
+    return (
+        yield context.call_activity(
+            "apply_llm_grading_results",
+            {"run_result": run_result, "decisions": decisions},
         )
-    except Exception as exc:
-        return (
-            yield context.call_activity(
-                "llm_grading_failed",
-                {
-                    "run_result": run_result,
-                    "detail": str(exc),
-                    "error_type": type(exc).__name__,
-                },
-            )
-        )
+    )
 
 
 @app.activity_trigger(input_name="job_payload")
@@ -373,20 +384,19 @@ async def execute_requirement_verification(
         prepared_attempt = PreparedVerificationAttempt.from_payload(
             _activity_payload(job_payload)
         )
-        _set_attempt_span_attributes(prepared_attempt)
-        run_result = await run_profile(prepared_attempt)
-        span = otel_trace.get_current_span()
-        if span.is_recording():
-            span.set_attribute(
-                "verification.is_valid", run_result.validation_result.is_valid
-            )
-            span.set_attribute(
-                "verification.completed",
-                run_result.validation_result.verification_completed,
-            )
-        result_payload = run_result.to_payload()
-        _set_result_span_attributes(run_result)
-        return result_payload
+        with _verification_span(
+            "verification.execute", attempt_id=str(prepared_attempt.id)
+        ) as span:
+            run_result = await run_profile(prepared_attempt)
+            if span.is_recording():
+                span.set_attribute(
+                    "verification.is_valid", run_result.validation_result.is_valid
+                )
+                span.set_attribute(
+                    "verification.completed",
+                    run_result.validation_result.verification_completed,
+                )
+            return run_result.to_payload()
 
 
 @app.activity_trigger(input_name="payload")
@@ -412,15 +422,38 @@ async def run_llm_grading(
 ) -> dict[str, object]:
     """Call Foundry for one LLM grading request and return durable-safe JSON."""
     with _attached_invocation_context(context):
-        request = LLMGradingRequest.model_validate(_activity_payload(request_payload))
-        span = otel_trace.get_current_span()
-        if span.is_recording():
-            span.set_attribute("verification.llm_thread_id", request.thread_id)
-        decision = await grade_evidence(request.message)
-        return LLMGradingDecisionPayload(
-            task=request.task,
-            decision=decision,
-        ).model_dump(mode="json")
+        data = _activity_payload(request_payload)
+        attempt_id = str(data["attempt_id"])
+        request = LLMGradingRequest.model_validate(_activity_payload(data["request"]))
+        with _verification_span("verification.grade", attempt_id=attempt_id) as span:
+            try:
+                decision = await grade_evidence(request.message)
+            except LLMGradingError as exc:
+                if span.is_recording():
+                    span.set_attribute("verification.llm.outcome", LLM_OUTCOME_ERROR)
+                    span.set_attribute("error.type", exc.error_type)
+                    if exc.http_status is not None:
+                        span.set_attribute("http.response.status_code", exc.http_status)
+                    span.set_status(Status(StatusCode.ERROR))
+                return {
+                    "outcome": LLM_OUTCOME_ERROR,
+                    "error_type": exc.error_type,
+                }
+            except ContentFilteredError:
+                if span.is_recording():
+                    span.set_attribute(
+                        "verification.llm.outcome", LLM_OUTCOME_CONTENT_FILTERED
+                    )
+                return {"outcome": LLM_OUTCOME_CONTENT_FILTERED}
+            if span.is_recording():
+                span.set_attribute("verification.llm.outcome", LLM_OUTCOME_SUCCESS)
+            return {
+                "outcome": LLM_OUTCOME_SUCCESS,
+                "decision": LLMGradingDecisionPayload(
+                    task=request.task,
+                    decision=decision,
+                ).model_dump(mode="json"),
+            }
 
 
 @app.activity_trigger(input_name="payload")
@@ -433,7 +466,6 @@ async def apply_llm_grading_results(
         data = _activity_payload(payload)
         run_payload = _activity_payload(data["run_result"])
         run_result_payload = VerificationRunResult.from_payload(run_payload)
-        _set_attempt_span_attributes(run_result_payload.attempt)
         decision_payloads = [
             LLMGradingDecisionPayload.model_validate(item)
             for item in _activity_payloads(data["decisions"])
@@ -442,21 +474,7 @@ async def apply_llm_grading_results(
             run_result_payload,
             decision_payloads,
         )
-        result_payload = run_result.to_payload()
-        _set_result_span_attributes(run_result)
-        return result_payload
-
-
-def _is_content_filter_failure(error_type: str, detail: str) -> bool:
-    """Classify a grading failure as an Azure content-safety block.
-
-    Durable Functions may deliver the activity error to the orchestrator as a
-    wrapped exception, so the original type can be lost while the message text
-    survives. Check both the type name and the detail for the stable marker.
-    """
-    return (
-        error_type == "ContentFilteredError" or CONTENT_FILTER_MARKER in detail.lower()
-    )
+        return run_result.to_payload()
 
 
 @app.activity_trigger(input_name="payload")
@@ -467,33 +485,23 @@ async def llm_grading_failed(
     """Convert LLM grader errors into a persisted server-error result."""
     with _attached_invocation_context(context):
         data = _activity_payload(payload)
-        detail = data.get("detail")
-        if not isinstance(detail, str) or not detail:
-            detail = "unknown_error"
-        error_type = data.get("error_type")
-        if not isinstance(error_type, str) or not error_type:
-            error_type = "unknown"
+        error_type = _safe_llm_error_type(data.get("error_type"))
+        technical_outcome = data.get("outcome")
         run_result_payload = VerificationRunResult.from_payload(
             _activity_payload(data["run_result"])
         )
-        _set_attempt_span_attributes(run_result_payload.attempt)
-        # Record the real cause in telemetry so operators can diagnose the
-        # failure. The user-facing result stays generic on purpose.
-        span = otel_trace.get_current_span()
-        if span.is_recording():
-            span.set_attribute("verification.llm_grading_error_type", error_type)
-            span.set_attribute("verification.llm_grading_error_detail", detail)
-        logger.error(
-            "verification.llm_grading.failed",
-            extra={"error_type": error_type, "detail": detail},
-        )
-        if _is_content_filter_failure(error_type, detail):
+        if technical_outcome == LLM_OUTCOME_CONTENT_FILTERED:
             run_result = llm_grading_content_filtered_result(run_result_payload)
         else:
-            run_result = llm_grading_unavailable_result(run_result_payload)
-        result_payload = run_result.to_payload()
-        _set_result_span_attributes(run_result)
-        return result_payload
+            logger.error(
+                "verification.llm_grading.failed",
+                extra={"error.type": error_type},
+            )
+            run_result = llm_grading_unavailable_result(
+                run_result_payload,
+                error_type=error_type,
+            )
+        return run_result.to_payload()
 
 
 @app.route(route="verification/attempts/{instance_id}/status", methods=["GET"])
@@ -514,7 +522,6 @@ async def get_verification_attempt_status(
         except ValueError:
             return _json_response({"error": "invalid_instance_id"}, status_code=400)
 
-        _set_verification_span_attributes(attempt_id=instance_id)
         status = await client.get_status(
             instance_id,
             show_history=False,
@@ -614,7 +621,6 @@ def _run_attempt_orchestration(context: df.DurableOrchestrationContext):
     orchestration tests can drive it directly.
     """
     attempt_id = _attempt_id_from_input(context)
-    _set_verification_span_attributes(attempt_id=attempt_id)
     context.set_custom_status({"step": "preparing", "attempt_id": attempt_id})
     failure_stage = "prepare"
     try:
@@ -627,7 +633,6 @@ def _run_attempt_orchestration(context: df.DurableOrchestrationContext):
         prepared_attempt = PreparedVerificationAttempt.from_payload(
             _activity_payload(prepared_attempt_payload)
         )
-        _set_attempt_span_attributes(prepared_attempt)
         outcome = _PreparedOutcome(
             attempt_id=attempt_id,
             prepared_payload=prepared_attempt_payload,
@@ -676,12 +681,17 @@ async def prepare_verification_attempt(
         if not isinstance(raw_attempt_id, str):
             raise TypeError("prepare_verification_attempt: missing attempt_id")
         attempt_id = UUID(raw_attempt_id)
-        _set_verification_span_attributes(attempt_id=str(attempt_id))
-        preparation = await prepare_attempt(
-            attempt_id,
-            session_maker=_get_session_maker(),
-        )
-        _set_attempt_span_attributes(preparation.attempt)
+        with _verification_span("verification.prepare", attempt_id=str(attempt_id)):
+            preparation = await prepare_attempt(
+                attempt_id,
+                session_maker=_get_session_maker(),
+            )
+        with _verification_span(
+            "verification.start",
+            attempt_id=str(attempt_id),
+            user_id=preparation.attempt.user_id,
+        ):
+            pass
         return preparation.to_payload()
 
 
@@ -693,11 +703,15 @@ async def finalize_verification_attempt(
     """Compare-and-set the attempt's real outcome."""
     with _attached_invocation_context(context):
         run_result = VerificationRunResult.from_payload(_activity_payload(run_payload))
-        _set_attempt_span_attributes(run_result.attempt)
-        result = await finalize_attempt(
-            run_result,
-            session_maker=_get_session_maker(),
-        )
+        with _verification_span(
+            "verification.finalize",
+            attempt_id=str(run_result.attempt.id),
+            result=run_result,
+        ):
+            result = await finalize_attempt(
+                run_result,
+                session_maker=_get_session_maker(),
+            )
         state = result.state
         return _terminal_state_payload(state)
 
@@ -922,8 +936,6 @@ async def start_verification_attempt(
             return _json_response({"error": "invalid_attempt_id"}, status_code=400)
 
         instance_id = str(attempt_uuid)
-        _set_verification_span_attributes(attempt_id=instance_id)
-
         outcome = await _start_attempt_orchestration(
             client,
             attempt_uuid,

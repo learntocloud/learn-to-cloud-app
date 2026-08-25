@@ -261,6 +261,97 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
   }
 }
 
+# LLM grading emits only a fixed safe category in the application log. The alert
+# query deliberately excludes attempt, learner, provider-request, and error-detail
+# fields so the common alert payload is safe to deliver to the action group.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_llm_immediate_failure" {
+  name                = "alert-ltc-verification-llm-immediate-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert immediately for non-retryable LLM grading failures. Query: https://portal.azure.com/#view/Microsoft_Azure_Monitoring_Logs/LogsBlade. Response guide: https://github.com/learntocloud/learn-to-cloud-app/blob/main/docs/runbooks/alerts.md#verification-llm-grading-failures"
+  severity            = 1
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      traces
+      | where message == "verification.llm_grading.failed"
+      | extend ErrorType = tostring(customDimensions["error.type"])
+      | where ErrorType in ("llm.configuration", "llm.authentication", "llm.authorization", "llm.response_validation", "llm.unknown")
+      | summarize FailureCount = count() by ErrorType, bin(timestamp, 5m)
+    QUERY
+    time_aggregation_method = "Maximum"
+    metric_measure_column   = "FailureCount"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    dimension {
+      name     = "ErrorType"
+      operator = "Include"
+      values   = ["llm.configuration", "llm.authentication", "llm.authorization", "llm.response_validation", "llm.unknown"]
+    }
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_llm_transient_failure" {
+  name                = "alert-ltc-verification-llm-transient-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert after three exhausted same-category transient LLM grading failures in 15 minutes. Query: https://portal.azure.com/#view/Microsoft_Azure_Monitoring_Logs/LogsBlade. Response guide: https://github.com/learntocloud/learn-to-cloud-app/blob/main/docs/runbooks/alerts.md#verification-llm-grading-failures"
+  severity            = 2
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT15M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      traces
+      | where message == "verification.llm_grading.failed"
+      | extend ErrorType = tostring(customDimensions["error.type"])
+      | where ErrorType in ("llm.rate_limit", "llm.provider_unavailable", "llm.network", "llm.timeout")
+      | summarize FailureCount = count() by ErrorType
+    QUERY
+    time_aggregation_method = "Maximum"
+    metric_measure_column   = "FailureCount"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 3
+
+    dimension {
+      name     = "ErrorType"
+      operator = "Include"
+      values   = ["llm.rate_limit", "llm.provider_unavailable", "llm.network", "llm.timeout"]
+    }
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
 # Keep the existing Terraform address and Azure resource name to avoid an alert
 # replacement gap; the operator-facing description uses the clearer wording.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_stuck" {
