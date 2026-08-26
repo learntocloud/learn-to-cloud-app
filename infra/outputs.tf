@@ -82,7 +82,7 @@ output "smoke_auth_scope" {
 
 output "migration_job_name" {
   description = "Container Apps Job name used to run database migrations"
-  value       = azurerm_container_app_job.migrations.name
+  value       = azapi_resource.migrations.name
 }
 
 output "migration_identity_client_id" {

@@ -38,7 +38,9 @@ provider "azurerm" {
   storage_use_azuread = true
 }
 
-provider "azapi" {}
+provider "azapi" {
+  subscription_id = var.subscription_id
+}
 
 resource "random_string" "suffix" {
   length  = 6
