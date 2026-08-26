@@ -100,7 +100,7 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
-    "ruff==0.15.12",
+    "ruff==0.16.4",
     "ty==0.0.34",
     "pytest-alembic>=0.12.1",
     "squawk-cli>=2.53.0",
