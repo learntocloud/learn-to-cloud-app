@@ -1,13 +1,12 @@
-"""ASGI middleware — security headers and user tracking."""
+"""ASGI middleware for security headers and telemetry sanitization."""
 
 from __future__ import annotations
 
 from typing import ClassVar
 
 from opentelemetry import trace
+from starlette.routing import Match
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
-
-from learn_to_cloud.core.auth import SESSION_ID_KEY, new_session_id
 
 
 class SecurityHeadersMiddleware:
@@ -58,36 +57,40 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, send_wrapper)
 
 
-class UserTrackingMiddleware:
-    """Stamps user identity on the active OTel span.
-
-    ``enduser.id`` maps to App Insights ``AuthenticatedUserId``.
-    ``enduser.pseudo.id`` maps to App Insights ``UserId``.
-
-    Must be added BEFORE ``SessionMiddleware`` in ``add_middleware()``
-    calls so that Starlette's ``insert(0, ...)`` ordering places it
-    inside the session layer (Session runs first, then UserTracking).
-    """
+class TelemetrySanitizationMiddleware:
+    """Replace request URL attributes with a bounded route template."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
+
+    @staticmethod
+    def _route_template(scope: Scope) -> str:
+        partial_match: str | None = None
+        app = scope.get("app")
+        router = getattr(app, "router", None)
+        for route in getattr(router, "routes", ()):
+            match, _ = route.matches(scope)
+            route_path = getattr(route, "path", None)
+            if not isinstance(route_path, str):
+                continue
+            if match is Match.FULL:
+                return route_path
+            if match is Match.PARTIAL and partial_match is None:
+                partial_match = route_path
+        return partial_match or "/unmatched"
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
-        session = scope.get("session", {})
-        user_id = session.get("user_id")
-
-        if user_id is not None:
-            session_id = session.get(SESSION_ID_KEY)
-            if not isinstance(session_id, str) or not session_id:
-                session_id = new_session_id()
-                session[SESSION_ID_KEY] = session_id
-            span = trace.get_current_span()
-            if span.is_recording():
-                span.set_attribute("enduser.id", str(user_id))
-                span.set_attribute("enduser.pseudo.id", session_id)
+        span = trace.get_current_span()
+        if span.is_recording():
+            route_path = self._route_template(scope)
+            span.set_attribute("http.target", route_path)
+            span.set_attribute("http.url", route_path)
+            span.set_attribute("url.full", route_path)
+            span.set_attribute("url.path", route_path)
+            span.set_attribute("url.query", "")
 
         await self.app(scope, receive, send)

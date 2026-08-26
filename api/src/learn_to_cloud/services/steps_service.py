@@ -10,7 +10,6 @@ from learn_to_cloud_shared.repositories import (
     LearnerStepCompletionRepository,
 )
 from learn_to_cloud_shared.schemas import LearningStep, StepCompletionResult
-from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
@@ -77,16 +76,9 @@ async def complete_step(
         completed_at=completed_at,
     )
 
-    span = trace.get_current_span()
-    span.set_attribute("step.uuid", str(step.uuid))
-    span.set_attribute("step.slug", step.slug)
-    span.set_attribute("topic.slug", topic.slug)
-    span.set_attribute("step.order", step.order)
-
     completed = await get_valid_completed_steps(db, user_id, topic)
 
     if completion is None:
-        span.set_attribute("step.action", "already_completed")
         return (
             StepCompletionResult(
                 topic_slug=topic.slug,
@@ -96,8 +88,6 @@ async def complete_step(
             topic,
             completed,
         )
-
-    span.set_attribute("step.action", "completed")
 
     return (
         StepCompletionResult(
@@ -127,13 +117,6 @@ async def uncomplete_step(
     deleted = await LearnerStepCompletionRepository(db).delete(
         user_id=user_id, step_uuid=step.uuid
     )
-
-    span = trace.get_current_span()
-    span.set_attribute("step.uuid", str(step.uuid))
-    span.set_attribute("step.slug", step.slug)
-    span.set_attribute("topic.slug", topic.slug)
-    span.set_attribute("step.order", step.order)
-    span.set_attribute("step.action", "uncompleted")
 
     completed = await get_valid_completed_steps(db, user_id, topic)
 

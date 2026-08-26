@@ -132,9 +132,9 @@ async def test_global_exception_handler_logs_once_and_returns_500(
     assert len(records) == 1
     record = records[0]
     assert record.exc_info is not None
-    assert record.__dict__["exc_type"] == "RuntimeError"
-    assert record.__dict__["path"] == "/api/crash"
-    assert record.__dict__["method"] == "POST"
+    assert "exc_type" not in record.__dict__
+    assert "path" not in record.__dict__
+    assert "method" not in record.__dict__
 
 
 @pytest.mark.asyncio

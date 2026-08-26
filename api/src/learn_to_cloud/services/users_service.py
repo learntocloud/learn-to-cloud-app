@@ -62,12 +62,6 @@ async def get_or_create_user_from_github(
         avatar_url=avatar_url,
         github_username=normalized_username,
     )
-
-    logger.info(
-        "user.upserted",
-        extra={"user_id": github_id, "github_username": normalized_username},
-    )
-
     return user
 
 
@@ -92,10 +86,5 @@ async def delete_user_account(db: AsyncSession, user_id: int) -> None:
     if user is None:
         raise UserNotFoundError(user_id)
 
-    github_username = user.github_username
     await user_repo.delete(user_id)
-
-    logger.info(
-        "user.account_deleted",
-        extra={"user_id": user_id, "github_username": github_username},
-    )
+    logger.info("user.account_deleted")

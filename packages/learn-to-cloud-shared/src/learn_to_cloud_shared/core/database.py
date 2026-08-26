@@ -64,10 +64,7 @@ async def _azure_asyncpg_creator(settings: DatabaseConfig):
             },
         )
     except asyncpg.PostgresConnectionError:
-        logger.exception(
-            "db.connection.failed",
-            extra={"host": settings.host, "port": settings.port},
-        )
+        logger.exception("db.connection.failed")
         raise
 
 
@@ -103,9 +100,7 @@ def create_engine(settings: DatabaseConfig) -> AsyncEngine:
         engine_kwargs["async_creator"] = async_creator
 
     engine = create_async_engine(database_url, **engine_kwargs)
-
     instrument_database(engine)
-
     return engine
 
 
@@ -135,7 +130,10 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession]:
             try:
                 await session.rollback()
             except Exception as rollback_err:
-                logger.warning("db.rollback.failed", extra={"error": str(rollback_err)})
+                logger.warning(
+                    "db.rollback.failed",
+                    extra={"error.type": type(rollback_err).__name__},
+                )
             raise
 
 
@@ -154,7 +152,10 @@ async def get_db_readonly(request: Request) -> AsyncGenerator[AsyncSession]:
             try:
                 await session.rollback()
             except Exception as rollback_err:
-                logger.warning("db.rollback.failed", extra={"error": str(rollback_err)})
+                logger.warning(
+                    "db.rollback.failed",
+                    extra={"error.type": type(rollback_err).__name__},
+                )
             raise
 
 

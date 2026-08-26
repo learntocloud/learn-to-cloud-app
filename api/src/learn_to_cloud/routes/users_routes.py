@@ -1,7 +1,5 @@
 """User-related endpoints."""
 
-import logging
-
 from fastapi import APIRouter, HTTPException, Request
 from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.schemas import UserResponse
@@ -13,8 +11,6 @@ from learn_to_cloud.services.users_service import (
     delete_user_account,
     get_user_by_id,
 )
-
-logger = logging.getLogger(__name__)
 
 __all__ = ["router"]
 
@@ -54,5 +50,4 @@ async def delete_current_user(request: Request, user_id: UserId, db: DbSession) 
     except UserNotFoundError as exc:
         raise HTTPException(status_code=404, detail="User not found") from exc
 
-    logger.info("user.account_deleted_via_api", extra={"user_id": user_id})
     request.session.clear()

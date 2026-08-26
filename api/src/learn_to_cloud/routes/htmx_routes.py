@@ -44,7 +44,6 @@ if TYPE_CHECKING:
 
 from learn_to_cloud.core.auth import AuthenticatedUser, CurrentUser, UserId
 from learn_to_cloud.core.ratelimit import limiter
-from learn_to_cloud.core.telemetry import add_span_event, record_span_exception
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.context import (
     build_progress_dict,
@@ -330,15 +329,7 @@ async def htmx_complete_step(
     """Complete a step and return the updated step partial."""
     try:
         _, topic, completed = await complete_step(db, user_id, step_uuid)
-    except StepValidationError as e:
-        add_span_event(
-            "step_complete_invalid",
-            {
-                "user_id": user_id,
-                "step_uuid": str(step_uuid),
-                "error": str(e),
-            },
-        )
+    except StepValidationError:
         # Step UUID doesn't exist in current content (stale cached page).
         # Force a full page reload so the user gets the current steps.
         response = HTMLResponse("")
@@ -359,15 +350,7 @@ async def htmx_uncomplete_step(
     """Uncomplete a step and return the updated step partial."""
     try:
         _, topic, step, completed = await uncomplete_step(db, user_id, step_uuid)
-    except StepValidationError as e:
-        add_span_event(
-            "step_uncomplete_invalid",
-            {
-                "user_id": user_id,
-                "step_uuid": str(step_uuid),
-                "error": str(e),
-            },
-        )
+    except StepValidationError:
         response = HTMLResponse("")
         response.headers["HX-Refresh"] = "true"
         return response
@@ -473,11 +456,9 @@ async def htmx_submit_verification(
     except _USER_FACING_ERRORS as exc:
         return _render_card(error_banner=str(exc))
     except Exception as exc:
-        record_span_exception(exc)
         logger.exception(
             "htmx.submit.unexpected_error",
             extra={
-                "user_id": user_id,
                 "requirement_slug": requirement_slug,
                 "error_type": type(exc).__name__,
             },
@@ -555,30 +536,15 @@ async def _start_async_attempt_and_render(
         DurableVerificationAuthError,
         DurableVerificationStartError,
     ) as exc:
-        exception_attributes: dict[str, str | bool | int] = {
-            "verification.attempt.id": str(attempt_submission.attempt_id),
-            "verification.failure.kind": exc.failure_kind.value,
-            "verification.retryable": exc.retryable,
-        }
-        if exc.status_code is not None:
-            exception_attributes["http.response.status_code"] = exc.status_code
-        record_span_exception(exc, exception_attributes)
         logger.exception(
             "htmx.submit.durable_start_failed",
             extra={
-                "user_id": user_id,
                 "requirement_slug": requirement_slug,
                 "attempt_id": str(attempt_submission.attempt_id),
                 "error_type": type(exc).__name__,
                 "failure_kind": exc.failure_kind.value,
                 "retryable": exc.retryable,
                 "status_code": exc.status_code,
-                "error_message": str(exc),
-                "error_cause": (
-                    f"{type(exc.__cause__).__name__}: {exc.__cause__}"
-                    if exc.__cause__ is not None
-                    else None
-                ),
             },
         )
         await terminalize_unstarted_verification_attempt(
@@ -613,11 +579,7 @@ async def htmx_verification_attempt_status(
             token,
             expected_user_id=user_id,
         )
-    except VerificationStatusTokenError as exc:
-        add_span_event(
-            "verification_status_token_invalid",
-            {"user_id": user_id, "error": str(exc)},
-        )
+    except VerificationStatusTokenError:
         return _status_error_response(
             "Verification status expired. Refresh the page to check for results.",
             status_code=400,
@@ -630,19 +592,9 @@ async def htmx_verification_attempt_status(
         DurableVerificationConfigError,
         DurableVerificationStatusError,
     ) as exc:
-        record_span_exception(
-            exc,
-            {
-                "user.id": user_id,
-                "verification.attempt.id": str(token_data.job_id),
-                "verification.failure.kind": exc.failure_kind.value,
-                "verification.retryable": exc.retryable,
-            },
-        )
         logger.warning(
             "verification.status.durable_read_failed",
             extra={
-                "user_id": user_id,
                 "attempt_id": token_data.job_id,
                 "error_type": type(exc).__name__,
                 "failure_kind": exc.failure_kind.value,
@@ -694,7 +646,6 @@ async def htmx_verification_attempt_status(
     logger.warning(
         "verification.status.unexpected_durable_status",
         extra={
-            "user_id": user_id,
             "attempt_id": token_data.job_id,
             "runtime_status": durable_status.runtime_status,
         },
@@ -717,7 +668,6 @@ async def htmx_delete_account(
     try:
         await delete_user_account(db, user_id)
     except UserNotFoundError:
-        add_span_event("account_delete_not_found", {"user_id": user_id})
         return HTMLResponse(
             '<p class="text-sm text-red-600">Account not found.</p>',
             status_code=404,

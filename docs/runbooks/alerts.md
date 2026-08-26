@@ -4,6 +4,19 @@ These guides cover the first response to production alerts. Run queries in the
 Application Insights **Logs** blade unless a section says to use the Log
 Analytics workspace. Replace `dev` if the alert came from another environment.
 
+## Signal contracts
+
+| Alert resource | Canonical source | Audit result |
+| --- | --- | --- |
+| `availability` | Application Insights standard web-test metric | Unchanged; platform-owned uptime signal. |
+| `api_unhandled_exception` | `unhandled.exception` structured exception log | Unchanged; the FastAPI exception boundary emits it once. |
+| `api_telemetry_pipeline_failure` | `telemetry.configure.failed` JSON stdout log | Narrowed to the app-owned setup signal; removed the Azure SDK's internal logger text. |
+| `verification_attempt_system_error` | `verification.attempt.completed` structured business log | Unchanged; #780 owns this persisted final-outcome contract. |
+| `verification_llm_immediate_failure` | `verification.llm_grading.failed` structured business log | Unchanged; bounded `error.type` remains the alert dimension. |
+| `verification_llm_transient_failure` | `verification.llm_grading.failed` structured business log | Unchanged; bounded `error.type` remains the alert dimension. |
+| `verification_attempt_stuck` | `verification.attempt.stuck` structured business log | Unchanged; #780 owns the reconciler contract. |
+| `schema_drift` | `health.ready.schema_drift*` structured health logs | Unchanged; the query uses event names, not exception text or spans. |
+
 ## Unhandled API exception
 
 ### Meaning
@@ -68,19 +81,16 @@ exact exception alert returns to a healthy state.
 
 ### Meaning
 
-The API could not configure an OpenTelemetry destination once, or the main Azure
-Monitor exporter logged at least three non-retryable transmission records in 15
-minutes. The API continues serving when this alert fires; monitoring is
-degraded. This signal does **not** prove permanent telemetry loss or an Azure
-service fault. QuickPulse (Live Metrics) diagnostics are intentionally excluded.
+The API emitted `telemetry.configure.failed` to JSON stdout because it could not
+configure its Azure Monitor or local OTLP destination. The API continues serving
+when this alert fires, but application telemetry is degraded. This signal does
+**not** prove an Azure Monitor service fault or detect later transmission loss.
 
 ### First checks
 
 1. Open the Log Analytics workspace used by the Container Apps environment.
-2. Identify whether the signal is a missing destination, a setup exception, or
-   repeated main exporter transmission failure.
-3. Check the API revision, replica, telemetry destination configuration,
-   outbound connectivity, and Azure Monitor service health.
+2. Identify whether the signal is a missing destination or a setup exception.
+3. Check the API revision, replica, and telemetry destination configuration.
 
 ### Detailed Kusto
 
@@ -93,21 +103,16 @@ ContainerAppConsoleLogs_CL
 | extend ParsedLog = parse_json(Log_s)
 | extend
     Event = tostring(ParsedLog.event),
-    Logger = tostring(ParsedLog.logger),
-    Reason = tostring(ParsedLog.reason)
-| extend
-    IsConfigureFailure = Event == "telemetry.configure.failed",
-    IsMainExporterFailure =
-        Logger == "azure.monitor.opentelemetry.exporter.export._base"
-        and Log_s contains "Envelopes could not be exported and are not retryable:"
-| where IsConfigureFailure or IsMainExporterFailure
+    Reason = tostring(ParsedLog.reason),
+    ErrorType = tostring(ParsedLog["error.type"])
+| where Event == "telemetry.configure.failed"
 | project
     TimeGenerated,
     RevisionName_s,
     ContainerGroupName_s,
     Event,
-    Logger,
     Reason,
+    ErrorType,
     Log_s
 | order by TimeGenerated desc
 ```
@@ -118,23 +123,18 @@ ContainerAppConsoleLogs_CL
   connection string nor an OTLP endpoint was configured.
 - An invalid telemetry configuration or an SDK setup exception prevented
   telemetry initialization.
-- Network, DNS, TLS, throttling, or authentication conditions blocked exporter
-  transmission.
-- A payload was rejected as non-retryable by the ingestion endpoint.
 
 ### Escalation
 
-Escalate when setup failures persist, exporter failures continue for more than
-30 minutes, or the telemetry gap prevents incident response. Include revision
-names, timestamps, the `reason` value, exporter logger, and the exact error
-text without including connection strings.
+Escalate when setup failures persist or the telemetry gap prevents incident
+response. Include revision names, timestamps, the `reason` value, and bounded
+error type without including connection strings.
 
 ### Safe recovery
 
-Correct the telemetry destination configuration or outbound connectivity. Do
-not rotate or expose the connection string unless investigation confirms it is
-invalid. Confirm new traces, requests, exceptions, logs, and metrics arrive
-after recovery.
+Correct the telemetry destination configuration. Do not rotate or expose the
+connection string unless investigation confirms it is invalid. Confirm new
+traces, requests, exceptions, logs, and metrics arrive after recovery.
 
 ## Schema drift
 

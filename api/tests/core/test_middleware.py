@@ -4,16 +4,18 @@ Tests ASGI middleware:
 - SecurityHeadersMiddleware adds security headers to HTTP responses
 - SecurityHeadersMiddleware skips non-HTTP scopes
 - SecurityHeadersMiddleware adds cache-control for static paths
-- UserTrackingMiddleware sets OTel span attributes for authenticated users
+- TelemetrySanitizationMiddleware removes raw URLs and query strings
 """
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+from starlette.routing import Match
 
 from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
-    UserTrackingMiddleware,
+    TelemetrySanitizationMiddleware,
 )
 
 
@@ -149,105 +151,49 @@ class TestSecurityHeadersMiddleware:
 
 
 @pytest.mark.unit
-class TestUserTrackingMiddleware:
-    """Test UserTrackingMiddleware sets OTel span attributes."""
-
+class TestTelemetrySanitizationMiddleware:
     @patch("learn_to_cloud.core.middleware.trace", autospec=True)
-    async def test_sets_span_attributes_when_authenticated(self, mock_trace):
-        mock_span = MagicMock()
-        mock_span.is_recording.return_value = True
-        mock_trace.get_current_span.return_value = mock_span
+    async def test_replaces_url_attributes_with_route_template(self, mock_trace):
+        span = MagicMock()
+        span.is_recording.return_value = True
+        mock_trace.get_current_span.return_value = span
 
-        async def inner_app(scope, receive, send):
-            pass
-
-        middleware = UserTrackingMiddleware(inner_app)
+        route = SimpleNamespace(
+            path="/steps/{step_uuid}",
+            matches=MagicMock(return_value=(Match.FULL, {})),
+        )
+        middleware = TelemetrySanitizationMiddleware(_make_app_that_sends_response)
         scope = {
             "type": "http",
-            "session": {"user_id": 42, "github_username": "testuser"},
+            "path": "/steps/2ea4225e",
+            "query_string": b"token=sensitive",
+            "app": SimpleNamespace(router=SimpleNamespace(routes=[route])),
         }
 
         await middleware(scope, _noop_receive, _noop_send)
 
-        assert mock_span.set_attribute.call_args_list == [
-            call("enduser.id", "42"),
-            call("enduser.pseudo.id", scope["session"]["session_id"]),
+        assert span.set_attribute.call_args_list == [
+            call("http.target", "/steps/{step_uuid}"),
+            call("http.url", "/steps/{step_uuid}"),
+            call("url.full", "/steps/{step_uuid}"),
+            call("url.path", "/steps/{step_uuid}"),
+            call("url.query", ""),
         ]
 
     @patch("learn_to_cloud.core.middleware.trace", autospec=True)
-    async def test_sets_session_attributes_when_session_id_present(self, mock_trace):
-        mock_span = MagicMock()
-        mock_span.is_recording.return_value = True
-        mock_trace.get_current_span.return_value = mock_span
+    async def test_uses_fixed_value_for_unmatched_routes(self, mock_trace):
+        span = MagicMock()
+        span.is_recording.return_value = True
+        mock_trace.get_current_span.return_value = span
 
-        async def inner_app(scope, receive, send):
-            pass
-
-        middleware = UserTrackingMiddleware(inner_app)
+        middleware = TelemetrySanitizationMiddleware(_make_app_that_sends_response)
         scope = {
             "type": "http",
-            "session": {"user_id": 42, "session_id": "session-123"},
+            "path": "/arbitrary",
+            "query_string": b"code=secret",
+            "app": SimpleNamespace(router=SimpleNamespace(routes=[])),
         }
 
         await middleware(scope, _noop_receive, _noop_send)
 
-        assert mock_span.set_attribute.call_args_list == [
-            call("enduser.id", "42"),
-            call("enduser.pseudo.id", "session-123"),
-        ]
-
-    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
-    @patch("learn_to_cloud.core.middleware.new_session_id", autospec=True)
-    async def test_sets_only_user_id_when_no_username(
-        self, mock_new_session_id, mock_trace
-    ):
-        mock_span = MagicMock()
-        mock_span.is_recording.return_value = True
-        mock_trace.get_current_span.return_value = mock_span
-        mock_new_session_id.return_value = "generated-session"
-
-        async def inner_app(scope, receive, send):
-            pass
-
-        middleware = UserTrackingMiddleware(inner_app)
-        scope = {"type": "http", "session": {"user_id": 42}}
-
-        await middleware(scope, _noop_receive, _noop_send)
-
-        assert mock_span.set_attribute.call_args_list == [
-            call("enduser.id", "42"),
-            call("enduser.pseudo.id", "generated-session"),
-        ]
-        assert scope["session"]["session_id"] == "generated-session"
-
-    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
-    async def test_skips_non_http_scopes(self, mock_trace):
-        called = False
-
-        async def inner_app(scope, receive, send):
-            nonlocal called
-            called = True
-
-        middleware = UserTrackingMiddleware(inner_app)
-        scope = {"type": "websocket"}
-
-        await middleware(scope, _noop_receive, _noop_send)
-
-        assert called
-        mock_trace.get_current_span.assert_not_called()
-
-    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
-    async def test_no_span_attributes_when_unauthenticated(self, mock_trace):
-        mock_span = MagicMock()
-        mock_span.is_recording.return_value = True
-        mock_trace.get_current_span.return_value = mock_span
-
-        async def inner_app(scope, receive, send):
-            pass
-
-        middleware = UserTrackingMiddleware(inner_app)
-        scope = {"type": "http", "session": {}}
-
-        await middleware(scope, _noop_receive, _noop_send)
-
-        mock_span.set_attribute.assert_not_called()
+        span.set_attribute.assert_any_call("url.full", "/unmatched")

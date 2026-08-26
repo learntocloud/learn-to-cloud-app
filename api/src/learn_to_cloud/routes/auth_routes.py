@@ -7,7 +7,6 @@ Handles:
 """
 
 import logging
-import time
 
 import httpx
 from authlib.integrations.starlette_client import OAuthError
@@ -16,7 +15,7 @@ from fastapi.responses import RedirectResponse
 from learn_to_cloud_shared.core.config import get_web_settings
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from learn_to_cloud.core.auth import UserId, ensure_session_id, oauth
+from learn_to_cloud.core.auth import UserId, oauth
 from learn_to_cloud.core.ratelimit import limiter
 from learn_to_cloud.services.users_service import (
     get_or_create_user_from_github,
@@ -76,20 +75,23 @@ async def callback(request: Request) -> RedirectResponse:
         return RedirectResponse(url="/", status_code=302)
 
     try:
-        t0 = time.perf_counter()
         token = await github.authorize_access_token(request)
-    except (OAuthError, httpx.HTTPError):
-        logger.exception("auth.callback.token_exchange_failed")
+    except (OAuthError, httpx.HTTPError) as exc:
+        logger.warning(
+            "auth.callback.token_exchange_failed",
+            extra={"error.type": type(exc).__name__},
+        )
         return RedirectResponse(url="/", status_code=302)
 
-    t1 = time.perf_counter()
     try:
         resp = await github.get("user", token=token)
         github_user = resp.json()
-    except httpx.HTTPError:
-        logger.exception("auth.callback.profile_fetch_failed")
+    except httpx.HTTPError as exc:
+        logger.warning(
+            "auth.callback.profile_fetch_failed",
+            extra={"error.type": type(exc).__name__},
+        )
         return RedirectResponse(url="/", status_code=302)
-    t2 = time.perf_counter()
 
     github_id = github_user.get("id")
     if github_id is None:
@@ -122,23 +124,10 @@ async def callback(request: Request) -> RedirectResponse:
             github_username=github_username.lower(),
         )
         await db.commit()
-    t3 = time.perf_counter()
 
     request.session["user_id"] = user.id
     request.session["github_username"] = user.github_username or ""
-    ensure_session_id(request)
-
-    logger.info(
-        "auth.login.success",
-        extra={
-            "user_id": user.id,
-            "github_username": github_username,
-            "token_exchange_ms": round((t1 - t0) * 1000, 1),
-            "github_user_fetch_ms": round((t2 - t1) * 1000, 1),
-            "db_upsert_ms": round((t3 - t2) * 1000, 1),
-            "total_ms": round((t3 - t0) * 1000, 1),
-        },
-    )
+    logger.info("auth.login.success")
 
     return RedirectResponse(url="/dashboard", status_code=302)
 
@@ -152,8 +141,4 @@ async def callback(request: Request) -> RedirectResponse:
 async def logout(request: Request, user_id: UserId) -> RedirectResponse:
     """Clear the session cookie and redirect to home."""
     request.session.clear()
-
-    if user_id:
-        logger.info("auth.logout", extra={"user_id": user_id})
-
     return RedirectResponse(url="/", status_code=302)

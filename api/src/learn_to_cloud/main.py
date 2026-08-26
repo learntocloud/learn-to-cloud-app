@@ -31,7 +31,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from learn_to_cloud.core.auth import init_oauth
 from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
-    UserTrackingMiddleware,
+    TelemetrySanitizationMiddleware,
 )
 from learn_to_cloud.core.ratelimit import limiter, rate_limit_exceeded_handler
 from learn_to_cloud.core.templates import templates
@@ -102,10 +102,7 @@ async def lifespan(app: fastapi.FastAPI):
         raise RuntimeError("Application startup timed out") from None
     except Exception as e:
         app.state.init_error = str(e)
-        logger.exception(
-            "init.failed",
-            extra={"error": str(e)},
-        )
+        logger.exception("init.failed")
         raise
 
     try:
@@ -146,17 +143,9 @@ app.exception_handler(RateLimitExceeded)(rate_limit_exceeded_handler)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
+    _request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """Handler for request validation errors."""
-    logger.warning(
-        "request.validation_error",
-        extra={
-            "path": request.url.path,
-            "method": request.method,
-            "error_count": len(exc.errors()),
-        },
-    )
     return JSONResponse(
         status_code=422,
         content={"detail": exc.errors()},
@@ -182,23 +171,16 @@ async def not_found_handler(
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def global_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
     """Last-resort handler for unhandled exceptions."""
-    logger.exception(
-        "unhandled.exception",
-        extra={
-            "exc_type": type(exc).__name__,
-            "path": request.url.path,
-            "method": request.method,
-        },
-    )
+    logger.exception("unhandled.exception")
     return JSONResponse(
         status_code=500,
         content={"detail": "An unexpected error occurred. Please try again."},
     )
 
 
-app.add_middleware(UserTrackingMiddleware)
+app.add_middleware(TelemetrySanitizationMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=_settings.session.secret_key,

@@ -155,7 +155,7 @@ class TestJSONFormatter:
         parsed = json.loads(output)
         assert parsed["data"] == "col1\tcol2"
 
-    def test_preserves_explicit_github_username_extra(self):
+    def test_preserves_explicit_structured_extra(self):
         formatter = _json_formatter()
         record = logging.LogRecord(
             name="test",
@@ -166,12 +166,12 @@ class TestJSONFormatter:
             args=(),
             exc_info=None,
         )
-        record.github_username = "octocat"
+        record.operation = "oauth"
 
         output = formatter.format(record)
         parsed = json.loads(output)
 
-        assert parsed["github_username"] == "octocat"
+        assert parsed["operation"] == "oauth"
 
     def test_preserves_explicit_trace_context_extras(self):
         formatter = _json_formatter()
@@ -247,7 +247,7 @@ class TestConfigureLogging:
         assert _app_handlers() == []
         assert external_handler in root.handlers
 
-    def test_child_logger_output_does_not_auto_add_github_username(self):
+    def test_child_logger_output_does_not_auto_add_user_identity(self):
         configure_logging()
         stream = io.StringIO()
         _app_handlers()[0].setStream(stream)
@@ -260,3 +260,4 @@ class TestConfigureLogging:
         parsed = json.loads(stream.getvalue())
 
         assert "github_username" not in parsed
+        assert "user_id" not in parsed
