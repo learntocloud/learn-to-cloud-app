@@ -29,6 +29,7 @@ from learn_to_cloud.routes.htmx_routes import (
     htmx_submit_verification,
     htmx_uncomplete_step,
     htmx_verification_attempt_status,
+    htmx_verification_history,
 )
 from learn_to_cloud.services.durable_verification_client import (
     DurableStatusResult,
@@ -40,6 +41,9 @@ from learn_to_cloud.services.submissions_service import (
     VerificationAttemptSubmission,
 )
 from learn_to_cloud.services.users_service import UserNotFoundError
+from learn_to_cloud.services.verification_history_cursors import (
+    VerificationHistoryCursorError,
+)
 from learn_to_cloud.services.verification_status_tokens import VerificationStatusToken
 
 
@@ -54,6 +58,54 @@ def _mock_request(*, session: dict | None = None) -> MagicMock:
     request.app.state.session_maker = MagicMock()
 
     return request
+
+
+@pytest.mark.unit
+class TestHtmxVerificationHistory:
+    async def test_history_page_is_authenticated_and_rendered(self, _patch_templates):
+        history = MagicMock()
+        requirement = MagicMock()
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_verification_history_page",
+                return_value=history,
+            ) as service,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=requirement,
+            ),
+        ):
+            response = await htmx_verification_history(
+                _mock_request(),
+                phase_id=3,
+                requirement_slug="project",
+                cursor="opaque",
+                db=AsyncMock(),
+                current_user=AuthenticatedUser(user_id=7, github_username="learner"),
+            )
+
+        assert response.status_code == 200
+        service.assert_awaited_once()
+        assert (
+            _patch_templates.TemplateResponse.call_args[0][1]
+            == "partials/verification_history_page.html"
+        )
+
+    async def test_invalid_history_cursor_returns_400(self):
+        with patch(
+            "learn_to_cloud.routes.htmx_routes.get_verification_history_page",
+            side_effect=VerificationHistoryCursorError,
+        ):
+            response = await htmx_verification_history(
+                _mock_request(),
+                phase_id=3,
+                requirement_slug="project",
+                cursor="bad",
+                db=AsyncMock(),
+                current_user=AuthenticatedUser(user_id=7, github_username="learner"),
+            )
+
+        assert response.status_code == 400
 
 
 @pytest.fixture(autouse=True)

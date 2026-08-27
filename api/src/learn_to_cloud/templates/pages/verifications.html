@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "macros/badges.html" import status_pill %}
+{% block title %}Verifications - Learn to Cloud{% endblock %}
+
+{% block content %}
+<header class="border-b border-gray-200 pb-10 dark:border-gray-700">
+    <p class="text-sm font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Hands-on work</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-[-0.03em] text-gray-950 dark:text-white sm:text-4xl">Verifications</h1>
+    <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-300">Submit your phase projects, follow checks as they run, and review feedback from earlier attempts.</p>
+    <div class="mt-6">
+        {% with
+            value=overview.percentage,
+            label='Overall verification progress — ' ~ overview.requirements_verified ~ '/' ~ overview.requirements_required ~ ' requirements',
+            complete=overview.requirements_verified >= overview.requirements_required,
+            aria_label='Requirements verified: ' ~ overview.requirements_verified ~ ' of ' ~ overview.requirements_required
+        %}
+        {% include "partials/progress_bar.html" %}
+        {% endwith %}
+    </div>
+</header>
+
+<section class="pt-10" aria-labelledby="phase-verifications-heading">
+    <h2 id="phase-verifications-heading" class="text-2xl font-bold text-gray-950 dark:text-white">By phase</h2>
+    <div class="mt-6 grid gap-4">
+        {% for item in overview.phases %}
+        <a href="/verifications/phase/{{ item.phase.order }}" class="group rounded-lg border border-gray-200 p-5 hover:border-blue-300 hover:bg-blue-50/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:border-gray-700 dark:hover:border-blue-700 dark:hover:bg-blue-950/20">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Phase {{ item.phase.order }}</p>
+                    <h3 class="mt-1 text-lg font-bold text-gray-950 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">{{ item.phase.name }}</h3>
+                </div>
+                {% if item.progress.verification.is_complete %}
+                {{ status_pill("Verified", "success") }}
+                {% elif item.progress.verification.requirements_required == 0 %}
+                {{ status_pill("No requirements", "info") }}
+                {% else %}
+                <span class="text-sm font-bold text-gray-600 dark:text-gray-300">{{ item.progress.verification.requirements_verified }}/{{ item.progress.verification.requirements_required }}</span>
+                {% endif %}
+            </div>
+            {% if item.progress.verification.requirements_required > 0 %}
+            <div class="mt-4">
+                {% with
+                    value=item.progress.verification.percentage,
+                    label='Verification progress',
+                    complete=item.progress.verification.is_complete,
+                    aria_label='Phase ' ~ item.phase.order ~ ' requirements verified: ' ~ item.progress.verification.requirements_verified ~ ' of ' ~ item.progress.verification.requirements_required
+                %}
+                {% include "partials/progress_bar.html" %}
+                {% endwith %}
+            </div>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

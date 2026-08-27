@@ -7,6 +7,7 @@ avoids duplicated dict-building logic.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 from learn_to_cloud_shared.submission_derivation import (
@@ -361,7 +362,7 @@ def build_requirement_card_context(
     requirement: Any,
     github_username: str | None,
     submission: Any = None,
-    feedback_tasks: list[dict[str, Any]] | None = None,
+    feedback_tasks: Sequence[Mapping[str, object]] | None = None,
     feedback_passed: int = 0,
     server_error: bool = False,
     server_error_message: str | None = None,

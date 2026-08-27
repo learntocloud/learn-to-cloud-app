@@ -41,6 +41,8 @@ from learn_to_cloud_shared.verification_attempt_snapshot import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from learn_to_cloud.services.verification_feedback import convert_feedback
+
 
 async def get_phase_submission_context(
     db: AsyncSession,
@@ -71,26 +73,6 @@ async def get_phase_submission_context(
     submissions_by_req: dict[str, SubmissionData] = {}
     feedback_by_req: dict[str, dict[str, object]] = {}
 
-    def _record_feedback(
-        requirement_slug: str, feedback_json: list[dict] | None
-    ) -> None:
-        # Surface rubric feedback for both passing and failing submissions
-        # (#425). Stored as JSONB (#459) so the rows arrive as a list of
-        # TaskResult dicts and we don't need json.loads / try / except.
-        if not feedback_json:
-            return
-        tasks = [
-            {
-                "name": t.get("task_name", ""),
-                "passed": t.get("passed", False),
-                "message": t.get("feedback", ""),
-                "next_steps": t.get("next_steps", ""),
-            }
-            for t in feedback_json
-        ]
-        passed = sum(1 for t in tasks if t["passed"])
-        feedback_by_req[requirement_slug] = {"tasks": tasks, "passed": passed}
-
     for attempt in latest_attempts:
         requirement = requirements_by_uuid.get(attempt.requirement_uuid)
         if requirement is None:
@@ -99,7 +81,12 @@ async def get_phase_submission_context(
             # slips one past us we skip silently rather than crash the page.
             continue
         submissions_by_req[requirement.slug] = attempt_to_submission_data(attempt)
-        _record_feedback(requirement.slug, attempt.feedback_json)
+        feedback = convert_feedback(attempt.feedback_json)
+        if feedback is not None:
+            feedback_by_req[requirement.slug] = {
+                "tasks": feedback.tasks,
+                "passed": feedback.passed,
+            }
 
     return PhaseSubmissionContext(
         submissions_by_req=submissions_by_req,

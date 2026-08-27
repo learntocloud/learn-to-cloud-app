@@ -585,7 +585,7 @@ class TestResolveContinueDestination:
                 AsyncMock(), user_id=1, phase=phase
             )
 
-        assert destination == "/phase/3#verification-section"
+        assert destination == "/verifications/phase/3"
 
     @pytest.mark.asyncio
     async def test_hands_on_only_phase_links_straight_to_verification(self):
@@ -601,7 +601,7 @@ class TestResolveContinueDestination:
                 AsyncMock(), user_id=1, phase=phase
             )
 
-        assert destination == "/phase/3#verification-section"
+        assert destination == "/verifications/phase/3"
         mock_resolve.assert_awaited_once()
 
     @pytest.mark.asyncio

@@ -75,11 +75,17 @@ from learn_to_cloud.services.users_service import (
     delete_user_account,
     get_user_by_id,
 )
+from learn_to_cloud.services.verification_history_cursors import (
+    VerificationHistoryCursorError,
+)
 from learn_to_cloud.services.verification_status_tokens import (
     VerificationStatusToken,
     VerificationStatusTokenError,
     create_verification_status_token,
     load_verification_status_token,
+)
+from learn_to_cloud.services.verifications_service import (
+    get_verification_history_page,
 )
 
 logger = logging.getLogger(__name__)
@@ -654,6 +660,47 @@ async def htmx_verification_attempt_status(
         "Verification is in an unexpected state. "
         "Refresh the page to check for results.",
         status_code=409,
+    )
+
+
+@router.get(
+    "/verifications/phase/{phase_id:int}/requirements/{requirement_slug}/history",
+    response_class=HTMLResponse,
+)
+async def htmx_verification_history(
+    request: Request,
+    phase_id: int,
+    requirement_slug: str,
+    cursor: Annotated[str, Query(max_length=4096)],
+    db: DbSession,
+    current_user: CurrentUser,
+) -> HTMLResponse:
+    """Append older terminal attempts for one current catalog requirement."""
+    try:
+        history = await get_verification_history_page(
+            db,
+            current_user.user_id,
+            phase_id,
+            requirement_slug,
+            cursor,
+        )
+    except VerificationHistoryCursorError:
+        return _status_error_response(
+            "Attempt history link is invalid.", status_code=400
+        )
+    requirement = get_requirement_by_slug(requirement_slug)
+    if history is None or requirement is None:
+        return _status_error_response(
+            "Verification requirement not found.", status_code=404
+        )
+    return templates.TemplateResponse(
+        request,
+        "partials/verification_history_page.html",
+        {
+            "history": history,
+            "phase_id": phase_id,
+            "requirement": requirement,
+        },
     )
 
 

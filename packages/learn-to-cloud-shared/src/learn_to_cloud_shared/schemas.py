@@ -671,8 +671,8 @@ class ContinuePhaseData(FrozenModel):
 
     ``destination_url`` already resolves to the specific place that matters
     -- the first unchecked learning step's topic, or the phase's
-    verification section once every step is checked -- so templates never
-    need to re-derive a phase link from separate id/order/slug fields.
+    dedicated verification page once every step is checked -- so templates
+    never need to re-derive a phase link from separate id/order/slug fields.
     """
 
     destination_url: str

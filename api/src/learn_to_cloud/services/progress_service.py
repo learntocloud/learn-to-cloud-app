@@ -249,7 +249,7 @@ async def resolve_continue_destination(
 
     Points at the first unchecked step's topic, since that's where a
     learner actually left off -- falls back to the phase's verification
-    section once every current step is checked.
+    page once every current step is checked.
     """
     all_step_uuids = [
         step.uuid for topic in phase.topics for step in topic.learning_steps
@@ -265,5 +265,5 @@ async def resolve_continue_destination(
         phase.hands_on_verification is not None
         and phase.hands_on_verification.requirements
     ):
-        return f"/phase/{phase.order}#verification-section"
+        return f"/verifications/phase/{phase.order}"
     return f"/phase/{phase.order}"

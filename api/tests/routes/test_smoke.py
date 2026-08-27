@@ -20,6 +20,7 @@ Marked @pytest.mark.smoke so they can be run separately:
 """
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -273,6 +274,28 @@ class TestAuthPageSmoke:
             response = await auth_client.get("/account")
         assert response.status_code == 200
 
+    async def test_verifications_overview_renders(self, auth_client: AsyncClient):
+        overview = SimpleNamespace(
+            phases=(),
+            requirements_verified=0,
+            requirements_required=0,
+            percentage=100.0,
+        )
+        with (
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                return_value=_fake_user(),
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_verification_overview",
+                return_value=overview,
+            ),
+        ):
+            response = await auth_client.get("/verifications")
+
+        assert response.status_code == 200
+        assert "Verifications" in response.text
+
     async def test_phase_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1 renders the phase detail template."""
         from learn_to_cloud_shared.content_yaml_loader import (
@@ -293,10 +316,6 @@ class TestAuthPageSmoke:
             topic_progress={},
         )
 
-        mock_sub_context = MagicMock()
-        mock_sub_context.submissions_by_req = {}
-        mock_sub_context.feedback_by_req = {}
-
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_user_by_id",
@@ -306,25 +325,11 @@ class TestAuthPageSmoke:
                 "learn_to_cloud.routes.pages_routes.fetch_phase_progress",
                 return_value=detail,
             ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_phase_submission_context",
-                return_value=mock_sub_context,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.VerificationAttemptRepository",
-                return_value=MagicMock(
-                    get_active_for_requirements=AsyncMock(return_value=[])
-                ),
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.is_phase_verification_locked",
-                return_value=(False, None),
-            ),
         ):
             response = await auth_client.get("/phase/1")
         assert response.status_code == 200
 
-    async def test_phase_page_shows_feedback_on_verified_requirement(
+    async def test_verification_page_shows_feedback_on_verified_requirement(
         self, auth_client: AsyncClient
     ):
         """A passed requirement still surfaces its rubric feedback (the why)."""
@@ -340,8 +345,6 @@ class TestAuthPageSmoke:
         )
         if not phase or not phase.hands_on_verification:
             pytest.skip("No hands-on requirements in phase1")
-        req_slug = phase.hands_on_verification.requirements[0].slug
-
         verified_submission = SubmissionData(
             id=uuid4(),
             submitted_value="https://github.com/testuser/repo",
@@ -350,22 +353,6 @@ class TestAuthPageSmoke:
             verification_completed=True,
             created_at=datetime(2024, 1, 2, tzinfo=UTC),
         )
-        mock_sub_context = MagicMock()
-        mock_sub_context.submissions_by_req = {req_slug: verified_submission}
-        mock_sub_context.feedback_by_req = {
-            req_slug: {
-                "tasks": [
-                    {
-                        "name": "Reflection depth",
-                        "passed": True,
-                        "message": "You clearly explained what you explored.",
-                        "next_steps": "",
-                    }
-                ],
-                "passed": 1,
-            }
-        }
-
         detail = PhaseProgress(
             phase_id=1,
             learning=LearningProgress(steps_completed=0, steps_required=0),
@@ -374,6 +361,42 @@ class TestAuthPageSmoke:
             ),
             topic_progress={},
         )
+        from learn_to_cloud.rendering.context import build_requirement_card_context
+        from learn_to_cloud.services.verifications_service import (
+            PhaseVerificationContext,
+            RequirementVerificationContext,
+            VerificationHistoryPage,
+        )
+
+        requirement = phase.hands_on_verification.requirements[0]
+        card = build_requirement_card_context(
+            requirement=requirement,
+            github_username="testuser",
+            submission=verified_submission,
+            feedback_tasks=[
+                {
+                    "name": "Reflection depth",
+                    "passed": True,
+                    "message": "You clearly explained what you explored.",
+                    "next_steps": "",
+                }
+            ],
+            feedback_passed=1,
+        )
+        verification = PhaseVerificationContext(
+            phase=phase,
+            progress=detail,
+            requirements=(
+                RequirementVerificationContext(
+                    requirement=requirement,
+                    card=card,
+                    page_state="passed",
+                    history=VerificationHistoryPage(items=(), next_cursor=None),
+                ),
+            ),
+            verification_locked=False,
+            prerequisite_phase_id=None,
+        )
 
         with (
             patch(
@@ -381,25 +404,11 @@ class TestAuthPageSmoke:
                 return_value=_fake_user(),
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.fetch_phase_progress",
-                return_value=detail,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_phase_submission_context",
-                return_value=mock_sub_context,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.VerificationAttemptRepository",
-                return_value=MagicMock(
-                    get_active_for_requirements=AsyncMock(return_value=[])
-                ),
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.is_phase_verification_locked",
-                return_value=(False, None),
+                "learn_to_cloud.routes.pages_routes.get_phase_verification_context",
+                return_value=verification,
             ),
         ):
-            response = await auth_client.get("/phase/1")
+            response = await auth_client.get("/verifications/phase/1")
 
         assert response.status_code == 200
         assert "All checks passed" in response.text

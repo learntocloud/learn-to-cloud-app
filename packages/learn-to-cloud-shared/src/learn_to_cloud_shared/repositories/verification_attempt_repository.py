@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -14,12 +15,14 @@ from sqlalchemy import (
     column,
     func,
     literal,
+    or_,
     select,
     text,
     union_all,
     update,
     values,
 )
+from sqlalchemy.engine import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.models import (
@@ -98,6 +101,35 @@ class AttemptCardProjection:
     completed_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class AttemptHistoryProjection:
+    """Terminal attempt fields safe for learner history rendering."""
+
+    id: UUID
+    requirement_uuid: UUID
+    submission_value_kind: str
+    submitted_value: str
+    outcome: str
+    feedback_json: list[dict] | None
+    validation_message: str | None
+    completed_at: datetime | None
+    created_at: datetime
+
+
+def _to_history_projection(row: Row[Any]) -> AttemptHistoryProjection:
+    return AttemptHistoryProjection(
+        id=row.id,
+        requirement_uuid=row.requirement_uuid,
+        submission_value_kind=row.submission_value_kind,
+        submitted_value=row.submitted_value,
+        outcome=row.outcome,
+        feedback_json=row.feedback_json,
+        validation_message=row.validation_message,
+        completed_at=row.completed_at,
+        created_at=row.created_at,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -611,20 +643,7 @@ class VerificationAttemptRepository:
         if not uuids:
             return []
 
-        latest_sq = (
-            select(
-                VerificationAttempt.requirement_uuid,
-                func.max(VerificationAttempt.created_at).label("max_created_at"),
-            )
-            .where(
-                VerificationAttempt.user_id == user_id,
-                VerificationAttempt.requirement_uuid.in_(uuids),
-                VerificationAttempt.outcome.is_not(None),
-            )
-            .group_by(VerificationAttempt.requirement_uuid)
-            .subquery()
-        )
-        result = await self.db.execute(
+        ranked_sq = (
             select(
                 VerificationAttempt.id,
                 VerificationAttempt.requirement_uuid,
@@ -638,16 +657,38 @@ class VerificationAttemptRepository:
                 VerificationAttempt.completed_at,
                 VerificationAttempt.created_at,
                 VerificationAttempt.updated_at,
+                func.row_number()
+                .over(
+                    partition_by=VerificationAttempt.requirement_uuid,
+                    order_by=(
+                        VerificationAttempt.created_at.desc(),
+                        VerificationAttempt.id.desc(),
+                    ),
+                )
+                .label("row_number"),
             )
-            .join(
-                latest_sq,
-                and_(
-                    VerificationAttempt.requirement_uuid
-                    == latest_sq.c.requirement_uuid,
-                    VerificationAttempt.created_at == latest_sq.c.max_created_at,
-                ),
+            .where(
+                VerificationAttempt.user_id == user_id,
+                VerificationAttempt.requirement_uuid.in_(uuids),
+                VerificationAttempt.outcome.is_not(None),
             )
-            .where(VerificationAttempt.user_id == user_id)
+            .subquery()
+        )
+        result = await self.db.execute(
+            select(
+                ranked_sq.c.id,
+                ranked_sq.c.requirement_uuid,
+                ranked_sq.c.submission_value_kind,
+                ranked_sq.c.submitted_value,
+                ranked_sq.c.github_username_snapshot,
+                ranked_sq.c.cloud_provider,
+                ranked_sq.c.outcome,
+                ranked_sq.c.feedback_json,
+                ranked_sq.c.validation_message,
+                ranked_sq.c.completed_at,
+                ranked_sq.c.created_at,
+                ranked_sq.c.updated_at,
+            ).where(ranked_sq.c.row_number == 1)
         )
         return [
             AttemptCardProjection(
@@ -666,6 +707,114 @@ class VerificationAttemptRepository:
             )
             for row in result.all()
         ]
+
+    async def get_terminal_history_for_requirements(
+        self,
+        user_id: int,
+        requirement_uuids: Iterable[UUID],
+        *,
+        per_requirement_limit: int,
+    ) -> list[AttemptHistoryProjection]:
+        """Return each requirement's newest terminal attempts in one query."""
+        uuids = list(requirement_uuids)
+        if not uuids or per_requirement_limit <= 0:
+            return []
+
+        ranked_sq = (
+            select(
+                VerificationAttempt.id,
+                VerificationAttempt.requirement_uuid,
+                VerificationAttempt.submission_value_kind,
+                VerificationAttempt.submitted_value,
+                VerificationAttempt.outcome,
+                VerificationAttempt.feedback_json,
+                VerificationAttempt.validation_message,
+                VerificationAttempt.completed_at,
+                VerificationAttempt.created_at,
+                func.row_number()
+                .over(
+                    partition_by=VerificationAttempt.requirement_uuid,
+                    order_by=(
+                        VerificationAttempt.created_at.desc(),
+                        VerificationAttempt.id.desc(),
+                    ),
+                )
+                .label("row_number"),
+            )
+            .where(
+                VerificationAttempt.user_id == user_id,
+                VerificationAttempt.requirement_uuid.in_(uuids),
+                VerificationAttempt.outcome.is_not(None),
+            )
+            .subquery()
+        )
+        result = await self.db.execute(
+            select(
+                ranked_sq.c.id,
+                ranked_sq.c.requirement_uuid,
+                ranked_sq.c.submission_value_kind,
+                ranked_sq.c.submitted_value,
+                ranked_sq.c.outcome,
+                ranked_sq.c.feedback_json,
+                ranked_sq.c.validation_message,
+                ranked_sq.c.completed_at,
+                ranked_sq.c.created_at,
+            )
+            .where(ranked_sq.c.row_number <= per_requirement_limit)
+            .order_by(
+                ranked_sq.c.requirement_uuid,
+                ranked_sq.c.created_at.desc(),
+                ranked_sq.c.id.desc(),
+            )
+        )
+        return [_to_history_projection(row) for row in result.all()]
+
+    async def get_terminal_history(
+        self,
+        user_id: int,
+        requirement_uuid: UUID,
+        *,
+        limit: int,
+        before: tuple[datetime, UUID] | None = None,
+    ) -> list[AttemptHistoryProjection]:
+        """Return one cursor page of terminal attempts, newest first."""
+        if limit <= 0:
+            return []
+
+        query = select(
+            VerificationAttempt.id,
+            VerificationAttempt.requirement_uuid,
+            VerificationAttempt.submission_value_kind,
+            VerificationAttempt.submitted_value,
+            VerificationAttempt.outcome,
+            VerificationAttempt.feedback_json,
+            VerificationAttempt.validation_message,
+            VerificationAttempt.completed_at,
+            VerificationAttempt.created_at,
+        ).where(
+            VerificationAttempt.user_id == user_id,
+            VerificationAttempt.requirement_uuid == requirement_uuid,
+            VerificationAttempt.outcome.is_not(None),
+        )
+        if before is not None:
+            created_at, attempt_id = before
+            query = query.where(
+                or_(
+                    VerificationAttempt.created_at < created_at,
+                    and_(
+                        VerificationAttempt.created_at == created_at,
+                        VerificationAttempt.id < attempt_id,
+                    ),
+                )
+            )
+
+        result = await self.db.execute(
+            query.order_by(
+                VerificationAttempt.created_at.desc(),
+                VerificationAttempt.id.desc(),
+            ).limit(limit)
+        )
+        return [_to_history_projection(row) for row in result.all()]
 
     async def list_phase_completions(
         self,

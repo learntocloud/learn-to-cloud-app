@@ -1,0 +1,30 @@
+{% for attempt in history.items %}
+<article class="border-l-2 {% if attempt.outcome == 'succeeded' %}border-green-500{% elif attempt.outcome == 'failed' %}border-red-500{% else %}border-amber-500{% endif %} pl-4">
+    <div class="flex flex-wrap items-center gap-2">
+        <time datetime="{{ attempt.occurred_at.isoformat() }}" class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ attempt.occurred_at.strftime('%b %d, %Y at %H:%M UTC') }}</time>
+        <span class="rounded-full px-2 py-0.5 text-xs font-bold {% if attempt.outcome == 'succeeded' %}bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200{% elif attempt.outcome == 'failed' %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200{% else %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200{% endif %}">{{ attempt.outcome | replace('_', ' ') | title }}</span>
+    </div>
+    {% if attempt.validation_message %}
+    <p class="mt-2 break-words text-sm text-gray-700 dark:text-gray-300">{{ attempt.validation_message }}</p>
+    {% endif %}
+    {% if attempt.artifact_url %}
+    <p class="mt-2 break-all text-xs text-gray-600 dark:text-gray-400">Artifact: <a href="{{ attempt.artifact_url }}" target="_blank" rel="noopener noreferrer" class="font-medium underline">{{ attempt.artifact_url }}</a></p>
+    {% endif %}
+    {% if attempt.feedback_tasks %}
+        {% with feedback_tasks=attempt.feedback_tasks, feedback_passed=attempt.feedback_passed, requirement_slug=requirement.slug ~ '-history-' ~ attempt.id %}
+        {% include "partials/verification_feedback.html" %}
+        {% endwith %}
+    {% endif %}
+</article>
+{% endfor %}
+{% if history.next_cursor %}
+<div>
+    <button
+        type="button"
+        hx-get="/htmx/verifications/phase/{{ phase_id }}/requirements/{{ requirement.slug }}/history?cursor={{ history.next_cursor | urlencode }}"
+        hx-target="closest div"
+        hx-swap="outerHTML"
+        class="inline-flex min-h-11 items-center text-sm font-bold text-blue-700 underline underline-offset-4 dark:text-blue-300"
+    >Load 10 older attempts</button>
+</div>
+{% endif %}

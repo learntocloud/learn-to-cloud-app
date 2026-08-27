@@ -78,6 +78,45 @@ def _card_contexts(
     }
 
 
+def _phase_verification_context(
+    requirements: list[SimpleNamespace],
+    submissions_by_req: dict[str, object],
+    *,
+    locked: bool,
+) -> SimpleNamespace:
+    cards = _card_contexts(requirements, submissions_by_req)
+    found_current = False
+    items = []
+    for requirement in requirements:
+        card = cards[requirement.slug]
+        if card["card_state"] == "passed":
+            page_state = "passed"
+        elif locked:
+            page_state = "locked"
+        elif not found_current:
+            page_state = "current"
+            found_current = True
+        else:
+            page_state = "up_next"
+        items.append(
+            SimpleNamespace(
+                requirement=requirement,
+                card=card,
+                page_state=page_state,
+                history=SimpleNamespace(items=[], next_cursor=None),
+            )
+        )
+    return SimpleNamespace(
+        phase=SimpleNamespace(name="Phase", order=6 if locked else 1),
+        progress=SimpleNamespace(
+            verification=SimpleNamespace(is_complete=False),
+        ),
+        requirements=items,
+        verification_locked=locked,
+        prerequisite_phase_id=5 if locked else None,
+    )
+
+
 @pytest.mark.unit
 def test_phase5_holistic_feedback_renders_in_shared_panel():
     html = _render(
@@ -183,7 +222,7 @@ def test_passing_feedback_panel_pluralizes_suggestions():
 
 @pytest.mark.unit
 class TestPhaseVerificationLocked:
-    """The gated (`verification_locked`) branch of pages/phase.html."""
+    """The gated branch of the dedicated verification page."""
 
     def _render_phase(
         self,
@@ -191,14 +230,10 @@ class TestPhaseVerificationLocked:
         submissions_by_req: dict[str, object],
     ) -> str:
         return _render(
-            "pages/phase.html",
-            phase=SimpleNamespace(name="Phase 6", description="", order=6),
-            topics=[],
-            phase_progress=None,
-            requirements=requirements,
-            card_contexts_by_req=_card_contexts(requirements, submissions_by_req),
-            verification_locked=True,
-            prerequisite_phase_id=5,
+            "pages/phase_verification.html",
+            verification=_phase_verification_context(
+                requirements, submissions_by_req, locked=True
+            ),
         )
 
     def test_validated_requirement_renders_as_complete_when_locked(self):
@@ -238,7 +273,7 @@ class TestPhaseVerificationLocked:
 
 @pytest.mark.unit
 class TestPhaseVerificationCardStates:
-    """The unlocked branch's verification-card states in pages/phase.html."""
+    """The dedicated page's unlocked verification-card states."""
 
     def _render_phase(
         self,
@@ -246,14 +281,10 @@ class TestPhaseVerificationCardStates:
         submissions_by_req: dict[str, object],
     ) -> str:
         return _render(
-            "pages/phase.html",
-            phase=SimpleNamespace(name="Phase 1", description="", order=1),
-            topics=[],
-            phase_progress=None,
-            requirements=requirements,
-            card_contexts_by_req=_card_contexts(requirements, submissions_by_req),
-            verification_locked=False,
-            prerequisite_phase_id=None,
+            "pages/phase_verification.html",
+            verification=_phase_verification_context(
+                requirements, submissions_by_req, locked=False
+            ),
         )
 
     def test_not_started_shows_form_no_pill(self):
@@ -383,12 +414,14 @@ def test_phase_progress_uses_distinct_labels_without_explanatory_copy():
         phase=SimpleNamespace(name="Phase 1", description="", order=1),
         topics=[],
         phase_progress=phase_progress,
-        requirements=[],
+        has_verification=True,
     )
 
     assert "Verification progress — 1/2 requirements" in html
     assert "Learning progress — 2/5 steps" in html
     assert "Verification is what counts" not in html
+    assert 'href="/verifications/phase/1"' in html
+    assert 'hx-post="/htmx/github/submit"' not in html
 
 
 @pytest.mark.unit

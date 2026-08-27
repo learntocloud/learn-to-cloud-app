@@ -201,6 +201,37 @@ async def test_get_prepare_state_and_status(
     assert status.outcome is None
 
 
+async def test_terminal_history_cursor_is_equal_timestamp_safe(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    requirement_uuid = uuid4()
+    created_at = utcnow()
+    ids = sorted([uuid4(), uuid4(), uuid4()], reverse=True)
+    for attempt_id in ids:
+        await _insert_attempt(
+            session_maker,
+            attempt_id=attempt_id,
+            requirement_uuid=requirement_uuid,
+            created_at=created_at,
+            outcome="failed",
+        )
+
+    async with session_maker() as db:
+        repository = VerificationAttemptRepository(db)
+        first = await repository.get_terminal_history(
+            USER_ID, requirement_uuid, limit=2
+        )
+        second = await repository.get_terminal_history(
+            USER_ID,
+            requirement_uuid,
+            limit=2,
+            before=(first[-1].created_at, first[-1].id),
+        )
+
+    assert [row.id for row in first] == ids[:2]
+    assert [row.id for row in second] == ids[2:]
+
+
 async def test_mark_started_is_idempotent(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
