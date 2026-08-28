@@ -567,6 +567,7 @@ class TestDashboardPrimaryState:
 
         assert "Start the curriculum" in html
         assert "Resume" not in html
+        assert "Full curriculum" not in html
 
     def test_returning_learner_sees_resume_state(self):
         phase = SimpleNamespace(order=0, name="Prerequisites", progress=None)
