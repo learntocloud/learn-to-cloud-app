@@ -75,7 +75,7 @@
     <div class="mt-6 border-y border-gray-200 dark:border-gray-700">
         {% for item in overview.phases %}
         <a href="/verifications/phase/{{ item.phase.order }}" class="group grid min-h-11 grid-cols-[2.75rem_1fr] gap-4 py-4 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:grid-cols-[2.75rem_1fr_auto] sm:items-center {% if not loop.last %}border-b border-gray-200 dark:border-gray-700{% endif %}">
-            <span class="flex h-9 w-9 items-center justify-center rounded-full {% if item.status == 'complete' %}bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200{% elif item.status == 'locked' %}bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200{% else %}bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200{% endif %} text-xs font-bold">
+            <span class="flex h-9 w-9 items-center justify-center rounded-full {% if item.status == 'complete' %}bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200{% elif item.status == 'locked' %}bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-200{% else %}bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200{% endif %} text-xs font-bold">
                 {{ item.phase.order }}
             </span>
             <span class="min-w-0">
