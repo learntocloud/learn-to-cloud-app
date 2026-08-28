@@ -539,6 +539,8 @@ class TestDashboardPrimaryState:
 
         assert "Continue learning" in html
         assert 'href="/phase/0/linux"' in html
+        assert "border-purple-200 bg-purple-50" in html
+        assert "bg-purple-700" in html
 
     def test_completed_learner_sees_completion_state(self):
         progress = SimpleNamespace(

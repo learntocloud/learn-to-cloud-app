@@ -11,13 +11,13 @@
 
 {% block page_body %}
 {% if dashboard.continue_phase %}
-<section class="mb-10 rounded-lg border border-blue-200 bg-blue-50 p-5 dark:border-blue-800 dark:bg-blue-950/40" aria-labelledby="continue-heading">
+<section class="mb-10 rounded-lg border border-purple-200 bg-purple-50 p-5 dark:border-purple-800 dark:bg-purple-950/40" aria-labelledby="continue-heading">
     <div class="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
         <div class="min-w-0">
-            <h2 id="continue-heading" class="text-xl font-bold text-blue-950 dark:text-blue-100">Continue learning</h2>
-            <p class="mt-1 break-words text-sm leading-6 text-blue-800 dark:text-blue-200">{{ dashboard.continue_phase.label }}</p>
+            <h2 id="continue-heading" class="text-xl font-bold text-purple-950 dark:text-purple-100">Continue learning</h2>
+            <p class="mt-1 break-words text-sm leading-6 text-purple-800 dark:text-purple-200">{{ dashboard.continue_phase.label }}</p>
         </div>
-        <a href="{{ dashboard.continue_phase.destination_url }}" class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-blue-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-400 dark:text-blue-950 dark:hover:bg-blue-300">
+        <a href="{{ dashboard.continue_phase.destination_url }}" class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-purple-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-purple-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-700 dark:bg-purple-400 dark:text-purple-950 dark:hover:bg-purple-300">
             Resume
             <svg class="ml-2 h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h12m-5-5 5 5-5 5"/>
