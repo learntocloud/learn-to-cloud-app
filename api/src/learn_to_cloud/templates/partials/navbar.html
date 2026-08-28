@@ -14,6 +14,9 @@
                     <a href="/dashboard" class="inline-flex min-h-11 items-center text-sm font-medium text-gray-600 hover:text-gray-900 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:text-white">
                         Dashboard
                     </a>
+                    <a href="/verifications" class="inline-flex min-h-11 items-center text-sm font-medium text-gray-600 hover:text-gray-900 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:text-white">
+                        Verifications
+                    </a>
                     {% endif %}
                     <a href="/community" class="inline-flex min-h-11 items-center text-sm font-medium text-gray-600 hover:text-gray-900 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:text-white">
                         Community
@@ -84,6 +87,7 @@
             <div class="grid gap-1">
                 {% if user %}
                 <a href="/dashboard" @click="mobileOpen = false" class="flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 dark:text-gray-200 dark:hover:bg-gray-800">Dashboard</a>
+                <a href="/verifications" @click="mobileOpen = false" class="flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 dark:text-gray-200 dark:hover:bg-gray-800">Verifications</a>
                 {% endif %}
                 <a href="/community" @click="mobileOpen = false" class="flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 dark:text-gray-200 dark:hover:bg-gray-800">Community</a>
                 <a href="/faq" @click="mobileOpen = false" class="flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 dark:text-gray-200 dark:hover:bg-gray-800">FAQ</a>

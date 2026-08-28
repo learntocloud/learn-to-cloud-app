@@ -231,7 +231,7 @@ def find_first_incomplete_step(
 
     ``None`` means every step in ``phase`` is checked (including trivially,
     when the phase has no steps at all) -- the caller should point the
-    learner at verification instead.
+    learner at the phase verification workspace instead.
     """
     for topic in phase.topics:
         for step in topic.learning_steps:
@@ -248,8 +248,8 @@ async def resolve_continue_destination(
     """Where the dashboard's "Continue" action should send this learner.
 
     Points at the first unchecked step's topic, since that's where a
-    learner actually left off -- falls back to the phase's verification
-    section once every current step is checked.
+    learner actually left off -- falls back to the dedicated phase
+    verification workspace once every current step is checked.
     """
     all_step_uuids = [
         step.uuid for topic in phase.topics for step in topic.learning_steps
@@ -265,5 +265,5 @@ async def resolve_continue_destination(
         phase.hands_on_verification is not None
         and phase.hands_on_verification.requirements
     ):
-        return f"/phase/{phase.order}#verification-section"
+        return f"/verifications/phase/{phase.order}"
     return f"/phase/{phase.order}"

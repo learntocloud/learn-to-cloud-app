@@ -20,6 +20,7 @@ Marked @pytest.mark.smoke so they can be run separately:
 """
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -293,10 +294,6 @@ class TestAuthPageSmoke:
             topic_progress={},
         )
 
-        mock_sub_context = MagicMock()
-        mock_sub_context.submissions_by_req = {}
-        mock_sub_context.feedback_by_req = {}
-
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_user_by_id",
@@ -306,25 +303,48 @@ class TestAuthPageSmoke:
                 "learn_to_cloud.routes.pages_routes.fetch_phase_progress",
                 return_value=detail,
             ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_phase_submission_context",
-                return_value=mock_sub_context,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.VerificationAttemptRepository",
-                return_value=MagicMock(
-                    get_active_for_requirements=AsyncMock(return_value=[])
-                ),
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.is_phase_verification_locked",
-                return_value=(False, None),
-            ),
         ):
             response = await auth_client.get("/phase/1")
         assert response.status_code == 200
 
-    async def test_phase_page_shows_feedback_on_verified_requirement(
+    async def test_verifications_page_renders(self, auth_client: AsyncClient):
+        """GET /verifications renders the workspace hub."""
+        phase = SimpleNamespace(
+            phase=SimpleNamespace(order=1, name="Phase 1"),
+            progress=VerificationProgress(
+                requirements_verified=0,
+                requirements_required=1,
+            ),
+            status="not_started",
+            is_locked=False,
+            prerequisite_phase_id=None,
+        )
+        overview = SimpleNamespace(
+            phases=[phase],
+            requirements_verified=0,
+            requirements_required=1,
+            percentage=0.0,
+            is_complete=False,
+            next_phase=phase,
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                return_value=_fake_user(),
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_verifications_overview",
+                return_value=overview,
+            ),
+        ):
+            response = await auth_client.get("/verifications")
+
+        assert response.status_code == 200
+        assert "Verification workspace" in response.text
+        assert 'href="/verifications/phase/1"' in response.text
+
+    async def test_phase_verification_page_shows_feedback(
         self, auth_client: AsyncClient
     ):
         """A passed requirement still surfaces its rubric feedback (the why)."""
@@ -334,6 +354,8 @@ class TestAuthPageSmoke:
             get_all_phases_from_yaml,
         )
         from learn_to_cloud_shared.schemas import SubmissionData
+
+        from learn_to_cloud.rendering.context import build_requirement_card_context
 
         phase = next(
             (p for p in get_all_phases_from_yaml() if p.slug == "phase1"), None
@@ -350,21 +372,15 @@ class TestAuthPageSmoke:
             verification_completed=True,
             created_at=datetime(2024, 1, 2, tzinfo=UTC),
         )
-        mock_sub_context = MagicMock()
-        mock_sub_context.submissions_by_req = {req_slug: verified_submission}
-        mock_sub_context.feedback_by_req = {
-            req_slug: {
-                "tasks": [
-                    {
-                        "name": "Reflection depth",
-                        "passed": True,
-                        "message": "You clearly explained what you explored.",
-                        "next_steps": "",
-                    }
-                ],
-                "passed": 1,
+        requirement = phase.hands_on_verification.requirements[0]
+        feedback_tasks = [
+            {
+                "name": "Reflection depth",
+                "passed": True,
+                "message": "You clearly explained what you explored.",
+                "next_steps": "",
             }
-        }
+        ]
 
         detail = PhaseProgress(
             phase_id=1,
@@ -374,6 +390,22 @@ class TestAuthPageSmoke:
             ),
             topic_progress={},
         )
+        workspace = SimpleNamespace(
+            phase=phase,
+            phase_progress=detail,
+            requirements=[requirement],
+            card_contexts_by_req={
+                req_slug: build_requirement_card_context(
+                    requirement=requirement,
+                    github_username="testuser",
+                    submission=verified_submission,
+                    feedback_tasks=feedback_tasks,
+                    feedback_passed=1,
+                )
+            },
+            verification_locked=False,
+            prerequisite_phase_id=None,
+        )
 
         with (
             patch(
@@ -381,25 +413,11 @@ class TestAuthPageSmoke:
                 return_value=_fake_user(),
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.fetch_phase_progress",
-                return_value=detail,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_phase_submission_context",
-                return_value=mock_sub_context,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.VerificationAttemptRepository",
-                return_value=MagicMock(
-                    get_active_for_requirements=AsyncMock(return_value=[])
-                ),
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.is_phase_verification_locked",
-                return_value=(False, None),
+                "learn_to_cloud.routes.pages_routes.get_phase_verification_workspace",
+                return_value=workspace,
             ),
         ):
-            response = await auth_client.get("/phase/1")
+            response = await auth_client.get("/verifications/phase/1")
 
         assert response.status_code == 200
         assert "All checks passed" in response.text
@@ -442,8 +460,16 @@ class TestAuthPageSmoke:
 class TestRedirectSmoke:
     """Verify redirect routes work through the full ASGI stack."""
 
-    async def test_auth_required_redirects_to_login(self, anon_client: AsyncClient):
-        """GET /dashboard without auth redirects to /auth/login."""
-        response = await anon_client.get("/dashboard", follow_redirects=False)
+    @pytest.mark.parametrize(
+        "path",
+        ["/dashboard", "/verifications", "/verifications/phase/1"],
+    )
+    async def test_auth_required_redirects_to_login(
+        self,
+        anon_client: AsyncClient,
+        path: str,
+    ):
+        """Authenticated pages redirect anonymous visitors to login."""
+        response = await anon_client.get(path, follow_redirects=False)
         assert response.status_code == 307
         assert "/auth/login" in response.headers["location"]

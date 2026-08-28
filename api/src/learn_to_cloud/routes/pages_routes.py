@@ -15,12 +15,6 @@ from learn_to_cloud_shared.content_service import (
 )
 from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.models import User
-from learn_to_cloud_shared.repositories.verification_attempt_repository import (
-    VerificationAttemptRepository,
-)
-from learn_to_cloud_shared.requirements import (
-    is_phase_verification_locked,
-)
 
 from learn_to_cloud.core.auth import OptionalUserId, UserId
 from learn_to_cloud.core.templates import templates
@@ -30,18 +24,16 @@ from learn_to_cloud.rendering.context import (
     HELP_LINKS,
     build_phase_topics,
     build_progress_dict,
-    build_requirement_card_context,
     build_topic_nav,
-    feedback_tasks_and_passed,
 )
 from learn_to_cloud.services.community_service import get_community_page_data
 from learn_to_cloud.services.dashboard_service import get_dashboard_data
 from learn_to_cloud.services.progress_service import fetch_phase_progress
 from learn_to_cloud.services.steps_service import get_valid_completed_steps
-from learn_to_cloud.services.submissions_service import get_phase_submission_context
 from learn_to_cloud.services.users_service import get_user_by_id
-from learn_to_cloud.services.verification_status_tokens import (
-    create_verification_status_token,
+from learn_to_cloud.services.verification_page_service import (
+    get_phase_verification_workspace,
+    get_verifications_overview,
 )
 
 logger = logging.getLogger(__name__)
@@ -112,7 +104,7 @@ async def phase_page(
     db: DbSession,
     user_id: UserId,
 ) -> HTMLResponse:
-    """Single phase detail with topics and verification (requires auth)."""
+    """Single phase learning detail (requires auth)."""
     user = await _get_user_or_none(db, user_id)
     phase = get_phase_by_slug(f"phase{phase_id}")
     if phase is None:
@@ -125,66 +117,8 @@ async def phase_page(
 
     detail = await fetch_phase_progress(db, user_id, phase)
     topics = build_phase_topics(phase, detail)
-
-    requirements = []
-    hands_on = phase.hands_on_verification
-    if hands_on:
-        requirements = hands_on.requirements
-
-    sub_context = await get_phase_submission_context(db, user_id, phase)
-    submissions_by_req = sub_context.submissions_by_req
-    feedback_by_req = sub_context.feedback_by_req
-    requirements_by_uuid = {req.uuid: req for req in requirements}
-    active_attempts = await VerificationAttemptRepository(
-        db
-    ).get_active_for_requirements(
-        user_id,
-        requirements_by_uuid.keys(),
-    )
-    active_jobs_by_req = {
-        requirements_by_uuid[attempt.requirement_uuid].slug: attempt
-        for attempt in active_attempts
-        if attempt.requirement_uuid in requirements_by_uuid
-    }
-    # The Durable orchestration instance id is the attempt UUID, so the status
-    # token keys off that same id.
-    verification_status_tokens_by_req = {
-        requirements_by_uuid[attempt.requirement_uuid].slug: (
-            create_verification_status_token(
-                user_id=user_id,
-                job_id=attempt.id,
-                instance_id=str(attempt.id),
-                requirement_slug=requirements_by_uuid[attempt.requirement_uuid].slug,
-            )
-        )
-        for attempt in active_attempts
-        if attempt.requirement_uuid in requirements_by_uuid
-    }
-
-    # Pre-compute one verification-card context per requirement -- derived
-    # URL, card state, and banner text all in one place, so the template
-    # never re-derives a card's flags from raw submission fields (also the
-    # single source of truth the locked and unlocked branches both read).
-    github_username = user.github_username if user else None
-    card_contexts_by_req: dict[str, dict] = {}
-    for req in requirements:
-        feedback_tasks, feedback_passed = feedback_tasks_and_passed(
-            feedback_by_req.get(req.slug)
-        )
-        active_job = active_jobs_by_req.get(req.slug)
-        card_contexts_by_req[req.slug] = build_requirement_card_context(
-            requirement=req,
-            github_username=github_username,
-            submission=submissions_by_req.get(req.slug),
-            feedback_tasks=feedback_tasks,
-            feedback_passed=feedback_passed,
-            processing=active_job is not None,
-            verification_status_token=verification_status_tokens_by_req.get(req.slug),
-        )
-
-    # Sequential phase gating — check if prerequisite phase is complete
-    verification_locked, prerequisite_phase_id = await is_phase_verification_locked(
-        db, user_id, phase_id
+    has_verification = bool(
+        phase.hands_on_verification and phase.hands_on_verification.requirements
     )
 
     return templates.TemplateResponse(
@@ -195,11 +129,80 @@ async def phase_page(
             user=user,
             phase=phase,
             topics=topics,
-            requirements=requirements,
-            card_contexts_by_req=card_contexts_by_req,
             phase_progress=detail,
-            verification_locked=verification_locked,
-            prerequisite_phase_id=prerequisite_phase_id,
+            has_verification=has_verification,
+        ),
+    )
+
+
+@router.get(
+    "/verifications",
+    response_class=HTMLResponse,
+    summary="Verification workspace",
+)
+async def verifications_page(
+    request: Request,
+    db: DbSession,
+    user_id: UserId,
+) -> HTMLResponse:
+    """Verification progress and phase navigation (requires auth)."""
+    user = await _get_user_or_none(db, user_id)
+    if user is None:
+        return templates.TemplateResponse(
+            request,
+            "pages/404.html",
+            _template_context(request),
+            status_code=404,
+        )
+
+    overview = await get_verifications_overview(db, user_id)
+    return templates.TemplateResponse(
+        request,
+        "pages/verifications.html",
+        _template_context(request, user=user, overview=overview),
+    )
+
+
+@router.get(
+    "/verifications/phase/{phase_id:int}",
+    response_class=HTMLResponse,
+    summary="Phase verification",
+)
+async def phase_verification_page(
+    request: Request,
+    phase_id: int,
+    db: DbSession,
+    user_id: UserId,
+) -> HTMLResponse:
+    """One phase's verification requirements and feedback (requires auth)."""
+    user = await _get_user_or_none(db, user_id)
+    phase = get_phase_by_slug(f"phase{phase_id}")
+    if user is None or phase is None:
+        return templates.TemplateResponse(
+            request,
+            "pages/404.html",
+            _template_context(request, user=user),
+            status_code=404,
+        )
+
+    workspace = await get_phase_verification_workspace(
+        db,
+        user_id,
+        phase,
+        user.github_username,
+    )
+    return templates.TemplateResponse(
+        request,
+        "pages/verification_phase.html",
+        _template_context(
+            request,
+            user=user,
+            phase=workspace.phase,
+            phase_progress=workspace.phase_progress,
+            requirements=workspace.requirements,
+            card_contexts_by_req=workspace.card_contexts_by_req,
+            verification_locked=workspace.verification_locked,
+            prerequisite_phase_id=workspace.prerequisite_phase_id,
         ),
     )
 
