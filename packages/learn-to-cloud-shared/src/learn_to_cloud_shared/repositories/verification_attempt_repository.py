@@ -101,6 +101,18 @@ class AttemptCardProjection:
 
 
 @dataclass(frozen=True, slots=True)
+class AttemptHistoryProjection:
+    """Learner-safe terminal attempt fields for history views."""
+
+    id: UUID
+    requirement_uuid: UUID
+    outcome: str
+    feedback_json: list[dict] | None
+    validation_message: str | None
+    completed_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
 class FinalizeResult:
     """Outcome of a compare-and-set finalize.
 
@@ -663,6 +675,57 @@ class VerificationAttemptRepository:
                 completed_at=row.completed_at,
                 created_at=row.created_at,
                 updated_at=row.updated_at,
+            )
+            for row in result.all()
+        ]
+
+    async def list_terminal_history_for_requirements(
+        self,
+        user_id: int,
+        requirement_uuids: Iterable[UUID],
+        *,
+        limit: int,
+        offset: int = 0,
+    ) -> list[AttemptHistoryProjection]:
+        """List terminal attempts without submitted values or internal metadata."""
+        if limit < 1:
+            raise ValueError("limit must be at least 1")
+        if offset < 0:
+            raise ValueError("offset must not be negative")
+
+        uuids = list(requirement_uuids)
+        if not uuids:
+            return []
+
+        result = await self.db.execute(
+            select(
+                VerificationAttempt.id,
+                VerificationAttempt.requirement_uuid,
+                VerificationAttempt.outcome,
+                VerificationAttempt.feedback_json,
+                VerificationAttempt.validation_message,
+                VerificationAttempt.completed_at,
+            )
+            .where(
+                VerificationAttempt.user_id == user_id,
+                VerificationAttempt.requirement_uuid.in_(uuids),
+                VerificationAttempt.outcome.is_not(None),
+            )
+            .order_by(
+                VerificationAttempt.created_at.desc(),
+                VerificationAttempt.id.desc(),
+            )
+            .limit(limit)
+            .offset(offset)
+        )
+        return [
+            AttemptHistoryProjection(
+                id=row.id,
+                requirement_uuid=row.requirement_uuid,
+                outcome=row.outcome,
+                feedback_json=row.feedback_json,
+                validation_message=row.validation_message,
+                completed_at=row.completed_at,
             )
             for row in result.all()
         ]

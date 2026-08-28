@@ -205,6 +205,12 @@ class TestPhaseVerificationLocked:
             card_contexts_by_req=_card_contexts(requirements, submissions_by_req),
             verification_locked=True,
             prerequisite_phase_id=5,
+            history=SimpleNamespace(
+                items=[],
+                page=1,
+                has_previous=False,
+                has_next=False,
+            ),
         )
 
     def test_validated_requirement_renders_as_complete_when_locked(self):
@@ -266,6 +272,12 @@ class TestPhaseVerificationCardStates:
             card_contexts_by_req=_card_contexts(requirements, submissions_by_req),
             verification_locked=False,
             prerequisite_phase_id=None,
+            history=SimpleNamespace(
+                items=[],
+                page=1,
+                has_previous=False,
+                has_next=False,
+            ),
         )
 
     def test_not_started_shows_form_no_pill(self):
@@ -432,6 +444,61 @@ def test_phase_page_links_to_verification_workspace_without_rendering_form():
     assert 'href="/verifications/phase/4"' in html
     assert "Continue verification" in html
     assert 'hx-post="/htmx/github/submit"' not in html
+
+
+@pytest.mark.unit
+def test_phase_verification_renders_paginated_safe_attempt_history():
+    requirement = _requirement("journal-api", "Journal API")
+    history_item = SimpleNamespace(
+        id="history-id",
+        requirement=requirement,
+        outcome="failed",
+        status_label="Needs work",
+        status_variant="error",
+        validation_message="The required endpoint is missing.",
+        feedback_tasks=[
+            {
+                "name": "API shape",
+                "passed": False,
+                "message": "No health endpoint was found.",
+                "next_steps": "Add GET /health.",
+            }
+        ],
+        feedback_passed=0,
+        completed_at=datetime(2026, 8, 28, 18, 0),
+    )
+    phase_progress = SimpleNamespace(
+        verification=SimpleNamespace(
+            requirements_required=1,
+            requirements_verified=0,
+            percentage=0,
+            is_complete=False,
+        )
+    )
+
+    html = _render(
+        "pages/verification_phase.html",
+        phase=SimpleNamespace(name="Phase 3", description="", order=3),
+        phase_progress=phase_progress,
+        requirements=[],
+        card_contexts_by_req={},
+        verification_locked=False,
+        prerequisite_phase_id=None,
+        history=SimpleNamespace(
+            items=[history_item],
+            page=2,
+            has_previous=True,
+            has_next=True,
+        ),
+    )
+
+    assert "Attempt history" in html
+    assert "The required endpoint is missing." in html
+    assert "No health endpoint was found." in html
+    assert "Add GET /health." in html
+    assert "submitted-token-value" not in html
+    assert 'href="/verifications/phase/3?history_page=1"' in html
+    assert 'href="/verifications/phase/3?history_page=3"' in html
 
 
 @pytest.mark.unit

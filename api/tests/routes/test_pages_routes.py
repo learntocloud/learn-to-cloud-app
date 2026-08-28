@@ -301,6 +301,7 @@ class TestPhaseVerificationPage:
             card_contexts_by_req={},
             verification_locked=True,
             prerequisite_phase_id=3,
+            history=MagicMock(),
         )
 
         with (
@@ -322,13 +323,18 @@ class TestPhaseVerificationPage:
             await phase_verification_page(request, phase_id=4, db=mock_db, user_id=42)
 
         get_workspace.assert_awaited_once_with(
-            mock_db, 42, phase, mock_user.github_username
+            mock_db,
+            42,
+            phase,
+            mock_user.github_username,
+            history_page=1,
         )
         assert template.call_args[0][1] == "pages/verification_phase.html"
         ctx = template.call_args[0][2]
         assert ctx["phase"] is phase
         assert ctx["verification_locked"] is True
         assert ctx["prerequisite_phase_id"] == 3
+        assert ctx["history"] is workspace.history
 
 
 @pytest.mark.unit

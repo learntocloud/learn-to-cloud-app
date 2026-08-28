@@ -6,8 +6,9 @@ JSON API routes but render HTML templates instead of returning JSON.
 
 import logging
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from learn_to_cloud_shared.content_service import (
     get_curriculum_overview,
@@ -173,6 +174,7 @@ async def phase_verification_page(
     phase_id: int,
     db: DbSession,
     user_id: UserId,
+    history_page: Annotated[int, Query(ge=1)] = 1,
 ) -> HTMLResponse:
     """One phase's verification requirements and feedback (requires auth)."""
     user = await _get_user_or_none(db, user_id)
@@ -190,6 +192,7 @@ async def phase_verification_page(
         user_id,
         phase,
         user.github_username,
+        history_page=history_page,
     )
     return templates.TemplateResponse(
         request,
@@ -203,6 +206,7 @@ async def phase_verification_page(
             card_contexts_by_req=workspace.card_contexts_by_req,
             verification_locked=workspace.verification_locked,
             prerequisite_phase_id=workspace.prerequisite_phase_id,
+            history=workspace.history,
         ),
     )
 

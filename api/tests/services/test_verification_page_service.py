@@ -1,10 +1,14 @@
 """Tests for verification workspace view data."""
 
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    AttemptHistoryProjection,
+)
 from learn_to_cloud_shared.schemas import (
     LearningProgress,
     Phase,
@@ -16,6 +20,7 @@ from learn_to_cloud_shared.schemas import (
     VerificationProgress,
 )
 from learn_to_cloud_shared.testing.requirement_factories import (
+    career_reflection_requirement,
     repo_fork_requirement,
 )
 
@@ -131,7 +136,8 @@ async def test_phase_workspace_preserves_active_attempt_polling_state():
         requirement_uuid=requirement.uuid,
     )
     repository = MagicMock(
-        get_active_for_requirements=AsyncMock(return_value=[active_attempt])
+        get_active_for_requirements=AsyncMock(return_value=[active_attempt]),
+        list_terminal_history_for_requirements=AsyncMock(return_value=[]),
     )
 
     with (
@@ -176,4 +182,116 @@ async def test_phase_workspace_preserves_active_attempt_polling_state():
     assert card["verification_status_token"] == "status-token"
     repository.get_active_for_requirements.assert_awaited_once_with(
         42, {requirement.uuid: requirement}
+    )
+    repository.list_terminal_history_for_requirements.assert_awaited_once_with(
+        42,
+        {requirement.uuid: requirement},
+        limit=11,
+        offset=0,
+    )
+
+
+@pytest.mark.unit
+async def test_phase_workspace_maps_safe_history_and_suppresses_reflection_feedback():
+    repository_requirement = repo_fork_requirement(slug="verify-repository")
+    reflection_requirement = career_reflection_requirement(slug="career-reflection")
+    phase = Phase(
+        uuid=uuid4(),
+        order=7,
+        name="Career",
+        slug="phase7",
+        hands_on_verification=PhaseHandsOnVerificationOverview(
+            requirements=[repository_requirement, reflection_requirement]
+        ),
+    )
+    progress = _phase_progress(7, verified=0, required=2)
+    completed_at = datetime.now(UTC)
+    repository_attempt = AttemptHistoryProjection(
+        id=uuid4(),
+        requirement_uuid=repository_requirement.uuid,
+        outcome="failed",
+        feedback_json=[
+            {
+                "task_name": "Repository",
+                "passed": False,
+                "feedback": "Add the required file.",
+                "next_steps": "Commit the file and retry.",
+            }
+        ],
+        validation_message="Repository evidence is incomplete.",
+        completed_at=completed_at,
+    )
+    reflection_attempt = AttemptHistoryProjection(
+        id=uuid4(),
+        requirement_uuid=reflection_requirement.uuid,
+        outcome="succeeded",
+        feedback_json=[
+            {
+                "task_name": "Private reflection",
+                "passed": True,
+                "feedback": "Sensitive retained coaching.",
+                "next_steps": "",
+            }
+        ],
+        validation_message=None,
+        completed_at=completed_at,
+    )
+    history_rows = [repository_attempt, reflection_attempt]
+    history_rows.extend([repository_attempt] * 9)
+    repository = MagicMock(
+        get_active_for_requirements=AsyncMock(return_value=[]),
+        list_terminal_history_for_requirements=AsyncMock(return_value=history_rows),
+    )
+
+    with (
+        patch(
+            "learn_to_cloud.services.verification_page_service.fetch_phase_progress",
+            new=AsyncMock(return_value=progress),
+        ),
+        patch(
+            "learn_to_cloud.services.verification_page_service.get_phase_submission_context",
+            new=AsyncMock(
+                return_value=PhaseSubmissionContext(
+                    submissions_by_req={},
+                    feedback_by_req={},
+                )
+            ),
+        ),
+        patch(
+            "learn_to_cloud.services.verification_page_service.VerificationAttemptRepository",
+            return_value=repository,
+        ),
+        patch(
+            "learn_to_cloud.services.verification_page_service.is_phase_verification_locked",
+            new=AsyncMock(return_value=(False, None)),
+        ),
+    ):
+        result = await get_phase_verification_workspace(
+            AsyncMock(),
+            user_id=42,
+            phase=phase,
+            github_username="learner",
+            history_page=2,
+        )
+
+    assert result.history.page == 2
+    assert result.history.has_previous is True
+    assert result.history.has_next is True
+    assert len(result.history.items) == 10
+    first = result.history.items[0]
+    assert first.status_label == "Needs work"
+    assert first.status_variant == "error"
+    assert first.feedback_tasks[0]["message"] == "Add the required file."
+    assert first.completed_at == completed_at
+    reflection = result.history.items[1]
+    assert reflection.feedback_tasks == []
+    assert reflection.feedback_passed == 0
+    repository.list_terminal_history_for_requirements.assert_awaited_once_with(
+        42,
+        {
+            repository_requirement.uuid: repository_requirement,
+            reflection_requirement.uuid: reflection_requirement,
+        },
+        limit=11,
+        offset=10,
     )

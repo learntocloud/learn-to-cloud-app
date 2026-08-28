@@ -27,7 +27,7 @@
     </div>
     <p class="mt-3 text-lg font-medium text-gray-700 dark:text-gray-200">{{ phase.name }}</p>
     <p class="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
-        Submit proof of your hands-on work. Requirements unlock in sequence, and the latest result and feedback stay with each requirement.
+        Submit proof of your hands-on work. Requirements unlock in sequence, and completed attempts remain available below.
     </p>
     <div class="mt-5 flex flex-wrap gap-4">
         <a href="/phase/{{ phase.order }}" class="inline-flex min-h-11 items-center font-bold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:decoration-blue-800 dark:hover:decoration-blue-300">
@@ -133,4 +133,67 @@
     </div>
 </section>
 {% endif %}
+
+<section class="mt-14 border-t border-gray-200 pt-12 dark:border-gray-700 sm:mt-16 sm:pt-14" aria-labelledby="attempt-history-heading">
+    <div>
+        <h2 id="attempt-history-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Attempt history</h2>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
+            Completed attempts are kept as a private record. Sensitive submitted values and internal grading metadata are not shown.
+        </p>
+    </div>
+
+    {% if history.items %}
+    <div class="mt-6 space-y-3">
+        {% for item in history.items %}
+        <article class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-950 dark:text-white">{{ item.requirement.name }}</h3>
+                    {% if item.completed_at %}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ item.completed_at.strftime('%b %d, %Y at %H:%M %Z') }}</p>
+                    {% endif %}
+                </div>
+                {{ status_pill(item.status_label, item.status_variant) }}
+            </div>
+
+            {% if item.validation_message %}
+            <p class="mt-3 text-sm leading-6 {% if item.outcome == 'failed' %}text-red-700 dark:text-red-300{% else %}text-gray-600 dark:text-gray-300{% endif %}">
+                {{ item.validation_message }}
+            </p>
+            {% endif %}
+
+            {% if item.feedback_tasks %}
+            {% with
+                feedback_tasks=item.feedback_tasks,
+                feedback_passed=item.feedback_passed,
+                requirement_slug='history-' ~ item.id
+            %}
+            {% include "partials/verification_feedback.html" %}
+            {% endwith %}
+            {% endif %}
+        </article>
+        {% endfor %}
+    </div>
+
+    {% if history.has_previous or history.has_next %}
+    <nav class="mt-6 flex items-center justify-between gap-4" aria-label="Attempt history pages">
+        {% if history.has_previous %}
+        <a href="/verifications/phase/{{ phase.order }}?history_page={{ history.page - 1 }}" class="inline-flex min-h-11 items-center font-bold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">Newer attempts</a>
+        {% else %}
+        <span></span>
+        {% endif %}
+        {% if history.has_next %}
+        <a href="/verifications/phase/{{ phase.order }}?history_page={{ history.page + 1 }}" class="inline-flex min-h-11 items-center font-bold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">Older attempts</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
+        <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">No completed attempts yet. Your results and allowed feedback will appear here after verification finishes.</p>
+        {% if history.has_previous %}
+        <a href="/verifications/phase/{{ phase.order }}?history_page={{ history.page - 1 }}" class="mt-3 inline-flex min-h-11 items-center font-bold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">View newer attempts</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</section>
 {% endblock %}

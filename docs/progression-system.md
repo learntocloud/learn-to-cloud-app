@@ -19,8 +19,8 @@ Learning and verification use separate page spaces:
 
 - `/phase/{phase}` contains curriculum topics and learning progress.
 - `/verifications` summarizes hands-on progress across phases.
-- `/verifications/phase/{phase}` contains submissions, active checks, and the
-  latest retained feedback for that phase.
+- `/verifications/phase/{phase}` contains submissions, active checks, and
+  paginated learner-safe attempt and feedback history for that phase.
 
 ## Progress Calculation
 

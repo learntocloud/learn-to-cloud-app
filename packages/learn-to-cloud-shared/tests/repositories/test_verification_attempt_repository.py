@@ -55,12 +55,15 @@ async def _insert_attempt(
     completed_at=None,
     started_at=None,
     outcome: str | None = None,
+    user_id: int = USER_ID,
+    feedback_json: list[dict] | None = None,
+    validation_message: str | None = None,
 ) -> UUID:
     attempt_id = attempt_id or uuid4()
     async with session_maker() as db:
         attempt = VerificationAttempt(
             id=attempt_id,
-            user_id=USER_ID,
+            user_id=user_id,
             requirement_uuid=requirement_uuid or uuid4(),
             snapshot_source="reconstructed",
             submission_value_kind="github_url",
@@ -68,6 +71,8 @@ async def _insert_attempt(
             started_at=started_at,
             outcome=outcome,
             completed_at=completed_at or (utcnow() if outcome is not None else None),
+            feedback_json=feedback_json,
+            validation_message=validation_message,
         )
         if created_at is not None:
             attempt.created_at = created_at
@@ -703,6 +708,103 @@ async def test_get_latest_terminal_for_requirements_empty_input(
             db
         ).get_latest_terminal_for_requirements(USER_ID, [])
     assert rows == []
+
+
+async def test_list_terminal_history_is_scoped_ordered_paginated_and_safe(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    req = uuid4()
+    other_req = uuid4()
+    other_user_id = USER_ID + 1
+    now = utcnow()
+
+    async with session_maker() as db:
+        await UserRepository(db).upsert(
+            other_user_id,
+            github_username="otherattemptrepo",
+        )
+        await db.commit()
+
+    oldest_id = await _insert_attempt(
+        session_maker,
+        requirement_uuid=req,
+        created_at=now - timedelta(hours=3),
+        outcome="failed",
+        feedback_json=[{"task_name": "old"}],
+        validation_message="Needs work.",
+    )
+    middle_id = await _insert_attempt(
+        session_maker,
+        requirement_uuid=req,
+        created_at=now - timedelta(hours=2),
+        outcome="server_error",
+    )
+    newest_id = await _insert_attempt(
+        session_maker,
+        requirement_uuid=req,
+        created_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+    await _insert_attempt(
+        session_maker,
+        requirement_uuid=req,
+        created_at=now,
+    )
+    await _insert_attempt(
+        session_maker,
+        requirement_uuid=other_req,
+        outcome="succeeded",
+    )
+    await _insert_attempt(
+        session_maker,
+        requirement_uuid=req,
+        outcome="succeeded",
+        user_id=other_user_id,
+    )
+
+    async with session_maker() as db:
+        first_page = await VerificationAttemptRepository(
+            db
+        ).list_terminal_history_for_requirements(
+            USER_ID,
+            [req],
+            limit=2,
+        )
+        second_page = await VerificationAttemptRepository(
+            db
+        ).list_terminal_history_for_requirements(
+            USER_ID,
+            [req],
+            limit=2,
+            offset=2,
+        )
+
+    assert [row.id for row in first_page] == [newest_id, middle_id]
+    assert [row.id for row in second_page] == [oldest_id]
+    assert second_page[0].feedback_json == [{"task_name": "old"}]
+    assert second_page[0].validation_message == "Needs work."
+    assert not hasattr(second_page[0], "submitted_value")
+    assert not hasattr(second_page[0], "error_code")
+
+
+async def test_list_terminal_history_validates_pagination(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    async with session_maker() as db:
+        repository = VerificationAttemptRepository(db)
+        with pytest.raises(ValueError, match="limit"):
+            await repository.list_terminal_history_for_requirements(
+                USER_ID,
+                [],
+                limit=0,
+            )
+        with pytest.raises(ValueError, match="offset"):
+            await repository.list_terminal_history_for_requirements(
+                USER_ID,
+                [],
+                limit=1,
+                offset=-1,
+            )
 
 
 class TestListPhaseCompletions:
