@@ -670,8 +670,8 @@ class ContinuePhaseData(FrozenModel):
     """Where the dashboard's "Continue" action should take the learner.
 
     ``destination_url`` already resolves to the specific place that matters
-    -- the first unchecked learning step's topic, or the phase's
-    verification section once every step is checked -- so templates never
+    -- the first unchecked learning step's topic, or the dedicated phase
+    verification workspace once every step is checked -- so templates never
     need to re-derive a phase link from separate id/order/slug fields.
     """
 

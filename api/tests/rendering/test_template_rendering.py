@@ -183,7 +183,7 @@ def test_passing_feedback_panel_pluralizes_suggestions():
 
 @pytest.mark.unit
 class TestPhaseVerificationLocked:
-    """The gated (`verification_locked`) branch of pages/phase.html."""
+    """The gated branch of pages/verification_phase.html."""
 
     def _render_phase(
         self,
@@ -191,10 +191,16 @@ class TestPhaseVerificationLocked:
         submissions_by_req: dict[str, object],
     ) -> str:
         return _render(
-            "pages/phase.html",
+            "pages/verification_phase.html",
             phase=SimpleNamespace(name="Phase 6", description="", order=6),
-            topics=[],
-            phase_progress=None,
+            phase_progress=SimpleNamespace(
+                verification=SimpleNamespace(
+                    requirements_required=len(requirements),
+                    requirements_verified=len(submissions_by_req),
+                    percentage=0,
+                    is_complete=False,
+                )
+            ),
             requirements=requirements,
             card_contexts_by_req=_card_contexts(requirements, submissions_by_req),
             verification_locked=True,
@@ -238,7 +244,7 @@ class TestPhaseVerificationLocked:
 
 @pytest.mark.unit
 class TestPhaseVerificationCardStates:
-    """The unlocked branch's verification-card states in pages/phase.html."""
+    """The unlocked branch's cards in pages/verification_phase.html."""
 
     def _render_phase(
         self,
@@ -246,10 +252,16 @@ class TestPhaseVerificationCardStates:
         submissions_by_req: dict[str, object],
     ) -> str:
         return _render(
-            "pages/phase.html",
+            "pages/verification_phase.html",
             phase=SimpleNamespace(name="Phase 1", description="", order=1),
-            topics=[],
-            phase_progress=None,
+            phase_progress=SimpleNamespace(
+                verification=SimpleNamespace(
+                    requirements_required=len(requirements),
+                    requirements_verified=len(submissions_by_req),
+                    percentage=0,
+                    is_complete=False,
+                )
+            ),
             requirements=requirements,
             card_contexts_by_req=_card_contexts(requirements, submissions_by_req),
             verification_locked=False,
@@ -383,12 +395,43 @@ def test_phase_progress_uses_distinct_labels_without_explanatory_copy():
         phase=SimpleNamespace(name="Phase 1", description="", order=1),
         topics=[],
         phase_progress=phase_progress,
-        requirements=[],
+        has_verification=False,
     )
 
     assert "Verification progress — 1/2 requirements" in html
     assert "Learning progress — 2/5 steps" in html
     assert "Verification is what counts" not in html
+
+
+@pytest.mark.unit
+def test_phase_page_links_to_verification_workspace_without_rendering_form():
+    phase_progress = SimpleNamespace(
+        status="learning_complete",
+        verification=SimpleNamespace(
+            requirements_required=2,
+            requirements_verified=1,
+            percentage=50.0,
+            is_complete=False,
+        ),
+        learning=SimpleNamespace(
+            steps_required=5,
+            steps_completed=5,
+            percentage=100.0,
+            is_complete=True,
+        ),
+    )
+
+    html = _render(
+        "pages/phase.html",
+        phase=SimpleNamespace(name="Phase 4", description="", order=4),
+        topics=[],
+        phase_progress=phase_progress,
+        has_verification=True,
+    )
+
+    assert 'href="/verifications/phase/4"' in html
+    assert "Continue verification" in html
+    assert 'hx-post="/htmx/github/submit"' not in html
 
 
 @pytest.mark.unit
@@ -524,6 +567,7 @@ class TestDashboardPrimaryState:
 
         assert "Start the curriculum" in html
         assert "Resume" not in html
+        assert "Full curriculum" not in html
 
     def test_returning_learner_sees_resume_state(self):
         phase = SimpleNamespace(order=0, name="Prerequisites", progress=None)
@@ -537,7 +581,7 @@ class TestDashboardPrimaryState:
             help_links=[],
         )
 
-        assert "Continue learning" in html
+        assert "Continue your path" in html
         assert 'href="/phase/0/linux"' in html
 
     def test_completed_learner_sees_completion_state(self):
@@ -574,7 +618,7 @@ def test_primary_links_are_in_navbar_and_footer_is_minimal():
     navbar = _render("partials/navbar.html")
     footer = _render("partials/footer.html")
 
-    for path in ("/community", "/faq"):
+    for path in ("/verifications", "/community", "/faq"):
         assert f'href="{path}"' in navbar
         assert f'href="{path}"' not in footer
 

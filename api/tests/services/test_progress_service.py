@@ -572,7 +572,7 @@ class TestResolveContinueDestination:
         assert destination == "/phase/3/topic1"
 
     @pytest.mark.asyncio
-    async def test_falls_back_to_verification_section_when_all_steps_checked(self):
+    async def test_falls_back_to_verification_workspace_when_all_steps_checked(self):
         topic = _make_topic("t1", steps=["s1"])
         phase = _with_requirement(_make_phase(3, topics=[topic]))
         completed = {s.uuid for s in topic.learning_steps}
@@ -585,7 +585,7 @@ class TestResolveContinueDestination:
                 AsyncMock(), user_id=1, phase=phase
             )
 
-        assert destination == "/phase/3#verification-section"
+        assert destination == "/verifications/phase/3"
 
     @pytest.mark.asyncio
     async def test_hands_on_only_phase_links_straight_to_verification(self):
@@ -601,7 +601,7 @@ class TestResolveContinueDestination:
                 AsyncMock(), user_id=1, phase=phase
             )
 
-        assert destination == "/phase/3#verification-section"
+        assert destination == "/verifications/phase/3"
         mock_resolve.assert_awaited_once()
 
     @pytest.mark.asyncio

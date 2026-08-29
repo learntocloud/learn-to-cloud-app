@@ -15,6 +15,13 @@ curriculum in any order. Hands-on verification is sequential from Phase 4
 through Phase 7: each phase's requirements must be verified before submissions
 for the next phase unlock.
 
+Learning and verification use separate page spaces:
+
+- `/phase/{phase}` contains curriculum topics and learning progress.
+- `/verifications` summarizes hands-on progress across phases.
+- `/verifications/phase/{phase}` contains submissions, active checks, and the
+  latest retained feedback for that phase.
+
 ## Progress Calculation
 
 **Topic:** `Steps Completed / Total Steps`
@@ -34,6 +41,7 @@ requirements is complete by definition.
 | Progress | `api/src/learn_to_cloud/services/progress_service.py` |
 | Hands-on | `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/requirements.py` |
 | Catalog reads | `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content_service.py` |
+| Verification pages | `api/src/learn_to_cloud/services/verification_page_service.py` |
 
 ## Important
 

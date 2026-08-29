@@ -3,7 +3,9 @@
 Tests cover:
 - GET / — home page (public)
 - GET /curriculum — curriculum page (public)
-- GET /phase/{id} — phase detail (requires auth)
+- GET /phase/{id} — phase learning detail (requires auth)
+- GET /verifications — verification workspace (requires auth)
+- GET /verifications/phase/{id} — phase verification (requires auth)
 - GET /phase/{id}/{topic} — topic detail (requires auth)
 - GET /dashboard — user dashboard (requires auth)
 - GET /account — account settings (requires auth)
@@ -32,10 +34,12 @@ from learn_to_cloud.routes.pages_routes import (
     faq_page,
     home_page,
     phase_page,
+    phase_verification_page,
     privacy_page,
     stats_page_redirect,
     terms_page,
     topic_page,
+    verifications_page,
 )
 
 
@@ -184,15 +188,11 @@ class TestPhasePage:
         assert call_kwargs.get("status_code") == 404
 
     async def test_phase_renders_with_progress_data(self, _patch_templates):
-        """Valid phase renders with topics, progress, and submissions."""
+        """Valid phase renders learning content without loading attempts."""
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
         phase = _fake_phase()
         mock_user = MagicMock()
-
-        mock_sub_context = MagicMock()
-        mock_sub_context.submissions_by_req = {}
-        mock_sub_context.feedback_by_req = {}
 
         with (
             patch(
@@ -213,22 +213,6 @@ class TestPhasePage:
                 "learn_to_cloud.routes.pages_routes.build_phase_topics",
                 return_value=[],
             ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_phase_submission_context",
-                autospec=True,
-                return_value=mock_sub_context,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.VerificationAttemptRepository",
-                return_value=MagicMock(
-                    get_active_for_requirements=AsyncMock(return_value=[]),
-                ),
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.is_phase_verification_locked",
-                autospec=True,
-                return_value=(False, None),
-            ),
         ):
             await phase_page(request, phase_id=1, db=mock_db, user_id=42)
 
@@ -236,7 +220,115 @@ class TestPhasePage:
         ctx = template.call_args[0][2]
         assert ctx["phase"] is phase
         assert ctx["user"] is mock_user
-        assert ctx["verification_locked"] is False
+        assert ctx["has_verification"] is False
+
+
+@pytest.mark.unit
+class TestVerificationsPage:
+    """Tests for GET /verifications."""
+
+    async def test_verifications_renders_overview(self, _patch_templates):
+        request, template = _mock_request(_patch_templates)
+        mock_db = AsyncMock()
+        mock_user = MagicMock()
+        mock_overview = MagicMock()
+
+        with (
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=mock_user,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_verifications_overview",
+                autospec=True,
+                return_value=mock_overview,
+            ),
+        ):
+            await verifications_page(request, mock_db, user_id=42)
+
+        assert template.call_args[0][1] == "pages/verifications.html"
+        ctx = template.call_args[0][2]
+        assert ctx["user"] is mock_user
+        assert ctx["overview"] is mock_overview
+
+    async def test_verifications_returns_404_when_user_missing(self, _patch_templates):
+        request, template = _mock_request(_patch_templates)
+
+        with patch(
+            "learn_to_cloud.routes.pages_routes.get_user_by_id",
+            autospec=True,
+            return_value=None,
+        ):
+            await verifications_page(request, AsyncMock(), user_id=999)
+
+        assert template.call_args[0][1] == "pages/404.html"
+
+
+@pytest.mark.unit
+class TestPhaseVerificationPage:
+    """Tests for GET /verifications/phase/{phase_id}."""
+
+    async def test_unknown_phase_returns_404(self, _patch_templates):
+        request, template = _mock_request(_patch_templates)
+
+        with (
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+                return_value=None,
+            ),
+        ):
+            await phase_verification_page(
+                request, phase_id=999, db=AsyncMock(), user_id=42
+            )
+
+        assert template.call_args[0][1] == "pages/404.html"
+
+    async def test_phase_verification_renders_workspace(self, _patch_templates):
+        request, template = _mock_request(_patch_templates)
+        mock_db = AsyncMock()
+        mock_user = MagicMock(github_username="learner")
+        phase = _fake_phase(order=4)
+        workspace = MagicMock(
+            phase=phase,
+            phase_progress=MagicMock(),
+            requirements=[],
+            card_contexts_by_req={},
+            verification_locked=True,
+            prerequisite_phase_id=3,
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=mock_user,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+                return_value=phase,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_phase_verification_workspace",
+                autospec=True,
+                return_value=workspace,
+            ) as get_workspace,
+        ):
+            await phase_verification_page(request, phase_id=4, db=mock_db, user_id=42)
+
+        get_workspace.assert_awaited_once_with(
+            mock_db, 42, phase, mock_user.github_username
+        )
+        assert template.call_args[0][1] == "pages/verification_phase.html"
+        ctx = template.call_args[0][2]
+        assert ctx["phase"] is phase
+        assert ctx["verification_locked"] is True
+        assert ctx["prerequisite_phase_id"] == 3
 
 
 @pytest.mark.unit

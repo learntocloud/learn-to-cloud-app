@@ -14,7 +14,7 @@
 <section class="mb-10 rounded-lg border border-blue-200 bg-blue-50 p-5 dark:border-blue-800 dark:bg-blue-950/40" aria-labelledby="continue-heading">
     <div class="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
         <div class="min-w-0">
-            <h2 id="continue-heading" class="text-xl font-bold text-blue-950 dark:text-blue-100">Continue learning</h2>
+            <h2 id="continue-heading" class="text-xl font-bold text-blue-950 dark:text-blue-100">Continue your path</h2>
             <p class="mt-1 break-words text-sm leading-6 text-blue-800 dark:text-blue-200">{{ dashboard.continue_phase.label }}</p>
         </div>
         <a href="{{ dashboard.continue_phase.destination_url }}" class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-blue-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-400 dark:text-blue-950 dark:hover:bg-blue-300">
@@ -46,13 +46,16 @@
 
 {% if dashboard.phases %}
 <section class="mb-12" aria-labelledby="progress-heading">
-    <div class="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+    <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
             <h2 id="progress-heading" class="text-xl font-bold text-gray-950 dark:text-white">Your progress</h2>
             <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">
                 {{ dashboard.phases_completed }} of {{ dashboard.total_phases }} phases complete. Complete each phase's verification to progress.
             </p>
         </div>
+        <a href="/verifications" class="inline-flex min-h-11 items-center text-sm font-bold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:decoration-blue-800 dark:hover:decoration-blue-300">
+            Open verification workspace
+        </a>
     </div>
 
     <div class="mt-5 grid gap-6 border-y border-gray-200 py-6 dark:border-gray-700 sm:grid-cols-2 sm:gap-10">
@@ -100,11 +103,8 @@
     <div class="flex items-end justify-between gap-4">
         <div>
             <h2 id="phase-progress-heading" class="text-xl font-bold text-gray-950 dark:text-white">Phases</h2>
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Open a phase to continue learning or complete verification.</p>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Open a phase to continue learning. Use the verification workspace to submit hands-on work.</p>
         </div>
-        <a href="/curriculum" class="hidden min-h-11 items-center text-sm font-bold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:decoration-blue-800 dark:hover:decoration-blue-300 sm:inline-flex">
-            Full curriculum
-        </a>
     </div>
 
     <div class="mt-8">
@@ -177,9 +177,6 @@
         {% endfor %}
     </div>
 
-    <a href="/curriculum" class="mt-6 inline-flex min-h-11 items-center text-sm font-bold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:decoration-blue-800 dark:hover:decoration-blue-300 sm:hidden">
-        Full curriculum
-    </a>
 </section>
 {% else %}
 <section class="rounded-lg border border-gray-200 bg-gray-50 p-8 dark:border-gray-700 dark:bg-gray-800/50" aria-labelledby="dashboard-empty-heading">
