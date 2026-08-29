@@ -405,6 +405,12 @@ class TestAuthPageSmoke:
             },
             verification_locked=False,
             prerequisite_phase_id=None,
+            history=SimpleNamespace(
+                items=[],
+                page=1,
+                has_previous=False,
+                has_next=False,
+            ),
         )
 
         with (

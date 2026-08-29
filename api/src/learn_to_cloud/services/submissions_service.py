@@ -71,26 +71,6 @@ async def get_phase_submission_context(
     submissions_by_req: dict[str, SubmissionData] = {}
     feedback_by_req: dict[str, dict[str, object]] = {}
 
-    def _record_feedback(
-        requirement_slug: str, feedback_json: list[dict] | None
-    ) -> None:
-        # Surface rubric feedback for both passing and failing submissions
-        # (#425). Stored as JSONB (#459) so the rows arrive as a list of
-        # TaskResult dicts and we don't need json.loads / try / except.
-        if not feedback_json:
-            return
-        tasks = [
-            {
-                "name": t.get("task_name", ""),
-                "passed": t.get("passed", False),
-                "message": t.get("feedback", ""),
-                "next_steps": t.get("next_steps", ""),
-            }
-            for t in feedback_json
-        ]
-        passed = sum(1 for t in tasks if t["passed"])
-        feedback_by_req[requirement_slug] = {"tasks": tasks, "passed": passed}
-
     for attempt in latest_attempts:
         requirement = requirements_by_uuid.get(attempt.requirement_uuid)
         if requirement is None:
@@ -99,12 +79,36 @@ async def get_phase_submission_context(
             # slips one past us we skip silently rather than crash the page.
             continue
         submissions_by_req[requirement.slug] = attempt_to_submission_data(attempt)
-        _record_feedback(requirement.slug, attempt.feedback_json)
+        feedback = feedback_context_from_json(attempt.feedback_json)
+        if feedback is not None:
+            feedback_by_req[requirement.slug] = feedback
 
     return PhaseSubmissionContext(
         submissions_by_req=submissions_by_req,
         feedback_by_req=feedback_by_req,
     )
+
+
+def feedback_context_from_json(
+    feedback_json: list[dict] | None,
+) -> dict[str, object] | None:
+    """Convert persisted rubric results into learner-facing feedback context."""
+    if not feedback_json:
+        return None
+
+    tasks = [
+        {
+            "name": task.get("task_name", ""),
+            "passed": task.get("passed", False),
+            "message": task.get("feedback", ""),
+            "next_steps": task.get("next_steps", ""),
+        }
+        for task in feedback_json
+    ]
+    return {
+        "tasks": tasks,
+        "passed": sum(1 for task in tasks if task["passed"]),
+    }
 
 
 class RequirementNotFoundError(Exception):
