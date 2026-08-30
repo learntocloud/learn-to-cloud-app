@@ -6,6 +6,34 @@
       "type": "shell",
       "command": "cd ${workspaceFolder}/api && uv run alembic upgrade head",
       "problemMatcher": []
+    },
+    {
+      "label": "Verification: prepare Functions host",
+      "type": "shell",
+      "command": "test -f local.settings.json || cp local.settings.example.json local.settings.json; uv sync --all-packages --locked",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/apps/verification-functions"
+      }
+    },
+    {
+      "label": "func: host start",
+      "type": "func",
+      "command": "host start",
+      "problemMatcher": "$func-python-watch",
+      "isBackground": true,
+      "dependsOn": "Verification: prepare Functions host",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/verification-functions",
+        "env": {
+          "VIRTUAL_ENV": "${workspaceFolder}/.venv",
+          "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
+          "languageWorkers__python__defaultExecutablePath": "${workspaceFolder}/.venv/bin/python",
+          "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
+          "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317",
+          "OTEL_SERVICE_NAME": "learn-to-cloud-verification-functions"
+        }
+      }
     }
   ]
 }

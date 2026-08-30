@@ -1,4 +1,8 @@
 {
+  "azureFunctions.projectSubpath": "apps/verification-functions",
+  "azureFunctions.projectLanguage": "Python",
+  "azureFunctions.projectRuntime": "~4",
+  "azureFunctions.pythonVenv": ".venv",
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
   "python.terminal.activateEnvironment": true
 }

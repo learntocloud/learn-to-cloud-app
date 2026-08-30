@@ -83,7 +83,9 @@ cd apps/verification-functions
 uv run func start --port 7071
 ```
 
-Or use VS Code's **"API + Verification"** compound launch configuration.
+Or install the workspace's recommended Azure Functions extension and use
+VS Code's **"API + Verification"** compound launch configuration. It starts
+Core Tools and attaches the Python debugger to the Functions worker.
 
 **Notes:**
 - The API does not start local dependencies for you. Run `docker compose up -d db azurite dts` first.
