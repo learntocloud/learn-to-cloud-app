@@ -12,9 +12,9 @@ on the snapshot alone would silently miss them.
 Examples:
     uv run python scripts/reset_local_submissions.py
     uv run python scripts/reset_local_submissions.py --dry-run
-    uv run python scripts/reset_local_submissions.py --user-id 12345
+    uv run python scripts/reset_local_submissions.py --user-id 12345 --yes
     uv run python scripts/reset_local_submissions.py \
-        --requirement-slug devops-implementation
+        --requirement-slug devops-implementation --yes
 """
 
 from __future__ import annotations
@@ -28,15 +28,13 @@ from uuid import UUID
 
 from learn_to_cloud_shared.core.config import get_migration_settings
 from learn_to_cloud_shared.core.database import create_engine
-from learn_to_cloud_shared.requirements import get_requirement_by_slug
+from learn_to_cloud_shared.requirements import (
+    get_requirement_by_slug,
+    load_requirement_index,
+)
 from sqlalchemy import bindparam, text
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_REQUIREMENT_SLUGS = [
-    "devops-implementation",
-    "journal-api-implementation",
-]
 
 
 def resolve_requirement_uuids(requirement_slugs: list[str]) -> dict[str, UUID]:
@@ -62,6 +60,7 @@ async def reset_attempts(
     requirement_slugs: list[str],
     user_ids: list[int] | None,
     dry_run: bool,
+    assume_yes: bool,
 ) -> int:
     """Delete matching verification attempts, returning the number removed."""
     uuid_by_slug = resolve_requirement_uuids(requirement_slugs)
@@ -101,6 +100,10 @@ async def reset_attempts(
                 print("Dry run enabled: no changes applied.")
                 return 0
 
+            if not assume_yes and not _confirm_deletion():
+                print("Reset cancelled.")
+                return 0
+
             delete_query = text(
                 f"""
                 DELETE FROM verification_attempts
@@ -125,7 +128,7 @@ def parse_args() -> argparse.Namespace:
         dest="requirement_slugs",
         help=(
             "Requirement slug to reset (repeatable). "
-            "Defaults to devops-implementation and journal-api-implementation."
+            "Defaults to every requirement in the curriculum."
         ),
     )
     parser.add_argument(
@@ -135,12 +138,31 @@ def parse_args() -> argparse.Namespace:
         dest="user_ids",
         help="Restrict deletion to one or more user IDs.",
     )
-    parser.add_argument(
+    confirmation = parser.add_mutually_exclusive_group()
+    confirmation.add_argument(
         "--dry-run",
         action="store_true",
         help="Show what would be deleted without applying changes.",
     )
+    confirmation.add_argument(
+        "--yes",
+        action="store_true",
+        help="Delete matching attempts without prompting for confirmation.",
+    )
     return parser.parse_args()
+
+
+def _confirm_deletion() -> bool:
+    """Ask for explicit confirmation before deleting attempts."""
+    try:
+        response = input("Delete the verification attempts shown above? [y/N] ")
+    except EOFError:
+        print(
+            "No confirmation input was available; no changes applied.",
+            file=sys.stderr,
+        )
+        return False
+    return response.strip().lower() in {"y", "yes"}
 
 
 def _is_local_database(url: str) -> bool:
@@ -164,9 +186,11 @@ def main() -> None:
 
     deleted_count = asyncio.run(
         reset_attempts(
-            requirement_slugs=args.requirement_slugs or DEFAULT_REQUIREMENT_SLUGS,
+            requirement_slugs=args.requirement_slugs
+            or sorted(load_requirement_index().by_slug),
             user_ids=args.user_ids,
             dry_run=args.dry_run,
+            assume_yes=args.yes,
         )
     )
     logger.info("local.attempt_reset.completed", extra={"deleted": deleted_count})
