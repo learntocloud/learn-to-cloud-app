@@ -48,23 +48,6 @@ services:
     environment:
       ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
 
-  # Test service to reproduce multi-worker migration race condition
-  # Usage: docker compose up db api-multiworker --build
-  api-multiworker:
-    build:
-      context: .
-      dockerfile: api/Dockerfile
-    ports:
-      - "127.0.0.1:8000:8000"
-    environment:
-      - DATABASE__URL=postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud
-      - GITHUB__TOKEN=test_token
-      - APPLICATIONINSIGHTS_CONNECTION_STRING=
-    depends_on:
-      db:
-        condition: service_healthy
-    # Uses default CMD from Dockerfile (single uvicorn worker)
-
 volumes:
   postgres_data:
   azurite_data:
