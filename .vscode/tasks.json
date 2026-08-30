@@ -28,6 +28,7 @@
         "env": {
           "VIRTUAL_ENV": "${workspaceFolder}/.venv",
           "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
+          "languageWorkers__python__defaultExecutablePath": "${workspaceFolder}/.venv/bin/python",
           "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
           "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317",
           "OTEL_SERVICE_NAME": "learn-to-cloud-verification-functions"
