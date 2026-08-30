@@ -29,15 +29,14 @@
     },
     {
       "name": "Verification: Durable Functions",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "test -f local.settings.json || cp local.settings.example.json local.settings.json; uv sync --all-packages --locked; uv run func start --port 7071",
-      "cwd": "${workspaceFolder}/apps/verification-functions",
-      "env": {
-        "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
-        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317",
-        "OTEL_SERVICE_NAME": "learn-to-cloud-verification-functions"
-      }
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 9091
+      },
+      "preLaunchTask": "Verification: start Functions host",
+      "justMyCode": false
     }
   ],
   "compounds": [
@@ -50,7 +49,8 @@
       "configurations": [
         "Verification: Durable Functions",
         "API: FastAPI (uvicorn)"
-      ]
+      ],
+      "stopAll": true
     }
   ]
 }
