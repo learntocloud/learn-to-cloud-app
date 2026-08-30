@@ -33,7 +33,7 @@
         "host": "localhost",
         "port": 9091
       },
-      "preLaunchTask": "Verification: start Functions host",
+      "preLaunchTask": "func: host start",
       "justMyCode": false
     }
   ],

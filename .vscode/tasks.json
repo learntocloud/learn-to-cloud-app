@@ -17,7 +17,7 @@
       }
     },
     {
-      "label": "Verification: start Functions host",
+      "label": "func: host start",
       "type": "func",
       "command": "host start",
       "problemMatcher": "$func-python-watch",
