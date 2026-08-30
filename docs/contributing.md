@@ -72,6 +72,13 @@ deleting them. To limit the reset to one GitHub user ID:
 scripts/reset-local-submissions.sh --user-id 6733686
 ```
 
+From `api/`, the underlying Python script resets every local verification
+attempt immediately when run without flags:
+
+```bash
+uv run python scripts/reset_local_submissions.py
+```
+
 ### Optional toolsets
 
 #### Frontend and verification worker

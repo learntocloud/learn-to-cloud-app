@@ -28,15 +28,13 @@ from uuid import UUID
 
 from learn_to_cloud_shared.core.config import get_migration_settings
 from learn_to_cloud_shared.core.database import create_engine
-from learn_to_cloud_shared.requirements import get_requirement_by_slug
+from learn_to_cloud_shared.requirements import (
+    get_requirement_by_slug,
+    load_requirement_index,
+)
 from sqlalchemy import bindparam, text
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_REQUIREMENT_SLUGS = [
-    "devops-implementation",
-    "journal-api-implementation",
-]
 
 
 def resolve_requirement_uuids(requirement_slugs: list[str]) -> dict[str, UUID]:
@@ -125,7 +123,7 @@ def parse_args() -> argparse.Namespace:
         dest="requirement_slugs",
         help=(
             "Requirement slug to reset (repeatable). "
-            "Defaults to devops-implementation and journal-api-implementation."
+            "Defaults to every requirement in the curriculum."
         ),
     )
     parser.add_argument(
@@ -164,7 +162,8 @@ def main() -> None:
 
     deleted_count = asyncio.run(
         reset_attempts(
-            requirement_slugs=args.requirement_slugs or DEFAULT_REQUIREMENT_SLUGS,
+            requirement_slugs=args.requirement_slugs
+            or sorted(load_requirement_index().by_slug),
             user_ids=args.user_ids,
             dry_run=args.dry_run,
         )

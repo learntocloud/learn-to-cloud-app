@@ -22,8 +22,8 @@ uv run python scripts/reset_local_submissions.py --dry-run
 uv run python scripts/reset_local_submissions.py [options]
 ```
 
-The defaults are `devops-implementation` and
-`journal-api-implementation`. Options are repeatable:
+Without options, the Python script resets every requirement for every local
+user. Options are repeatable:
 
 ```text
 --user-id <github-user-id>

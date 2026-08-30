@@ -9,7 +9,6 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 api_dir="$repo_root/api"
-curriculum="$repo_root/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/curriculum.json"
 
 usage() {
     cat <<'EOF'
@@ -43,42 +42,17 @@ while (($#)); do
     esac
 done
 
-requirement_args=()
-while IFS= read -r slug; do
-    requirement_args+=(--requirement-slug "$slug")
-done < <(
-    uv run python -c '
-import json
-import sys
-
-with open(sys.argv[1]) as curriculum_file:
-    curriculum = json.load(curriculum_file)
-
-for phase in curriculum["phases"]:
-    verification = phase.get("hands_on_verification") or {}
-    for slug in verification.get("requirement_slugs", []):
-        print(slug)
-' "$curriculum"
-)
-
-if ((${#requirement_args[@]} == 0)); then
-    echo "Error: no verification requirements found in the curriculum." >&2
-    exit 1
-fi
-
 cd "$api_dir"
 uv run python scripts/reset_local_submissions.py \
     --dry-run \
-    "${user_args[@]}" \
-    "${requirement_args[@]}"
+    "${user_args[@]}"
 
 echo
 read -r -p "Delete the verification attempts shown above? [y/N] " confirmation
 case "$confirmation" in
     y|Y|yes|YES)
         uv run python scripts/reset_local_submissions.py \
-            "${user_args[@]}" \
-            "${requirement_args[@]}"
+            "${user_args[@]}"
         ;;
     *)
         echo "Reset cancelled."
