@@ -211,7 +211,8 @@ worthless anywhere else.
    ```bash
    cd api && uv run python scripts/reset_local_submissions.py \
      --requirement-slug <requirement-slug> \
-     --user-id 6733686
+     --user-id 6733686 \
+     --yes
    ```
 
    If the reset script fails, report it as a defect and stop the submission
