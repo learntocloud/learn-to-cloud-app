@@ -136,23 +136,22 @@ cd api && uv run alembic current
 cd api && uv run alembic history --verbose
 ```
 
-## Using docker compose
+## Using the Compose database
 
-When running the full stack with `docker compose up`, you need to run migrations manually since they no longer auto-run on startup:
+Compose runs the local PostgreSQL dependency. Run migrations and the API
+directly from the Python workspace:
 
 ```bash
 # Start the database
 docker compose up db -d
 
-# Run migrations against the compose database
-docker compose run --rm api-multiworker python -m alembic upgrade head
+# Run migrations against the Compose database
+cd api
+uv run alembic upgrade head
 
-# Then start the API
-docker compose up api-multiworker
+# Start the API
+uv run python -m uvicorn learn_to_cloud.main:app --reload --port 8000
 ```
-
-`api-multiworker` is a diagnostic Compose service rather than the normal local
-development path. For day-to-day work, run Alembic directly from `api/`.
 
 ## Tips
 
