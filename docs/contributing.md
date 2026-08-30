@@ -57,6 +57,21 @@ docker compose version
 uv run poe check
 ```
 
+### Resetting local verification submissions
+
+Preview and reset every local verification attempt:
+
+```bash
+scripts/reset-local-submissions.sh
+```
+
+The script shows the matching attempts and asks for confirmation before
+deleting them. To limit the reset to one GitHub user ID:
+
+```bash
+scripts/reset-local-submissions.sh --user-id 6733686
+```
+
 ### Optional toolsets
 
 #### Frontend and verification worker

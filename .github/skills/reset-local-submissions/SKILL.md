@@ -5,7 +5,17 @@ description: Reset local verification attempts so verification flows can be rete
 
 # Reset Local Submissions
 
-Use the guarded repository script from `api/`:
+To reset every curriculum requirement, use the interactive wrapper from the
+repository root:
+
+```bash
+scripts/reset-local-submissions.sh
+scripts/reset-local-submissions.sh --user-id <github-user-id>
+```
+
+The wrapper previews matches and asks for confirmation before deleting them.
+
+For selected requirements, use the guarded repository script from `api/`:
 
 ```bash
 uv run python scripts/reset_local_submissions.py --dry-run
