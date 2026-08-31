@@ -1,17 +1,30 @@
-{% extends "layouts/content_page.html" %}
+{% extends "base.html" %}
+{% set footer_margin = "mt-8" %}
 {% block title %}FAQ - Learn to Cloud{% endblock %}
+{% block description %}Answers to common questions about the Learn to Cloud curriculum, prerequisites, projects, certifications, and community.{% endblock %}
 
-{% block page_header %}
-<h1 class="text-3xl font-bold text-gray-900 dark:text-white text-center">Frequently Asked Questions</h1>
-{% endblock %}
+{% block content %}
+<header class="border-b border-gray-200 pb-12 pt-4 dark:border-gray-700 sm:pb-16 sm:pt-8">
+    <h1 class="text-balance text-4xl font-bold tracking-[-0.035em] text-gray-950 dark:text-white sm:text-5xl">
+        Frequently asked questions
+    </h1>
+    <p class="mt-5 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-300">
+        Everything you need to know before starting the Learn to Cloud curriculum.
+    </p>
+</header>
 
-{% block page_body %}
-<div class="space-y-6">
-    {% for question, answer in faqs %}
-    <div>
-        <h3 class="font-medium text-gray-900 dark:text-white">{{ question }}</h3>
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ answer|safe }}</p>
+<section class="pt-12 sm:pt-16" aria-label="Frequently asked questions">
+    <div class="max-w-3xl">
+        <div class="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+            {% for question, answer in faqs %}
+            <article class="py-7 sm:py-8">
+                <h2 class="text-lg font-bold tracking-[-0.015em] text-gray-950 dark:text-white">
+                    {{ question }}
+                </h2>
+                <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-300">{{ answer|safe }}</p>
+            </article>
+            {% endfor %}
+        </div>
     </div>
-    {% endfor %}
-</div>
+</section>
 {% endblock %}
