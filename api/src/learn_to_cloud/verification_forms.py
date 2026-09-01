@@ -59,6 +59,25 @@ def verification_submit_action(
     return f"/htmx/verifications/{requirement_slug}/submit/{shape.value}"
 
 
+def verification_form_template(submission_type: SubmissionType) -> str | None:
+    """Return the trusted field partial for a submission type."""
+    if (
+        input_shape_for_submission_type(submission_type)
+        == VerificationInputShape.DERIVED
+    ):
+        return "partials/verification_forms/derived.html"
+    if submission_type in {
+        SubmissionType.CTF_TOKEN,
+        SubmissionType.NETWORKING_TOKEN,
+    }:
+        return "partials/verification_forms/token.html"
+    if submission_type == SubmissionType.DEPLOYED_API:
+        return "partials/verification_forms/deployed_url.html"
+    if submission_type == SubmissionType.CAREER_REFLECTION:
+        return "partials/verification_forms/reflection.html"
+    return None
+
+
 class DerivedVerificationForm(BaseModel):
     """A server-derived verification submits no learner-controlled value."""
 

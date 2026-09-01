@@ -93,6 +93,22 @@
       "additionalProperties": false,
       "description": "Config for ctf_token requirements.",
       "properties": {
+        "max_length": {
+          "default": 2048,
+          "description": "Maximum accepted input length.",
+          "maximum": 2048,
+          "minimum": 1,
+          "title": "Max Length",
+          "type": "integer"
+        },
+        "min_length": {
+          "default": 1,
+          "description": "Minimum characters required before submission.",
+          "maximum": 2048,
+          "minimum": 1,
+          "title": "Min Length",
+          "type": "integer"
+        },
         "placeholder": {
           "anyOf": [
             {
@@ -153,6 +169,22 @@
       "additionalProperties": false,
       "description": "Config for deployed_api requirements.",
       "properties": {
+        "max_length": {
+          "default": 2048,
+          "description": "Maximum accepted input length.",
+          "maximum": 2048,
+          "minimum": 1,
+          "title": "Max Length",
+          "type": "integer"
+        },
+        "min_length": {
+          "default": 1,
+          "description": "Minimum characters required before submission.",
+          "maximum": 2048,
+          "minimum": 1,
+          "title": "Min Length",
+          "type": "integer"
+        },
         "placeholder": {
           "anyOf": [
             {
@@ -407,6 +439,22 @@
       "additionalProperties": false,
       "description": "Config for networking_token requirements.",
       "properties": {
+        "max_length": {
+          "default": 2048,
+          "description": "Maximum accepted input length.",
+          "maximum": 2048,
+          "minimum": 1,
+          "title": "Max Length",
+          "type": "integer"
+        },
+        "min_length": {
+          "default": 1,
+          "description": "Minimum characters required before submission.",
+          "maximum": 2048,
+          "minimum": 1,
+          "title": "Min Length",
+          "type": "integer"
+        },
         "placeholder": {
           "anyOf": [
             {

@@ -26,6 +26,7 @@ from learn_to_cloud_shared.requirements import get_requirement_by_slug
 from learn_to_cloud_shared.schemas import (
     CareerReflectionRequirement,
     HandsOnRequirement,
+    PlaceholderConfig,
     SubmissionData,
 )
 from learn_to_cloud_shared.submission_derivation import derive_submission_value
@@ -599,23 +600,40 @@ async def htmx_submit_value_verification(
     )
     if requirement is None:
         return HTMLResponse(_reload_verification_html())
-    if not matches:
+    if not matches or not isinstance(requirement.type_config, PlaceholderConfig):
         return _invalid_form_response(request, current_user, requirement)
     form = await _parse_verification_form(request, ValueVerificationForm)
     if form is None:
         return _invalid_form_response(request, current_user, requirement)
-    if not form.submitted_value.strip():
+    submitted_value = form.submitted_value.strip()
+    if not submitted_value:
         return _invalid_form_response(
             request,
             current_user,
             requirement,
             "Please enter a value before submitting.",
         )
+    min_length = requirement.type_config.min_length
+    max_length = requirement.type_config.max_length
+    if len(submitted_value) < min_length:
+        return _invalid_form_response(
+            request,
+            current_user,
+            requirement,
+            f"Please enter at least {min_length} characters before submitting.",
+        )
+    if len(submitted_value) > max_length:
+        return _invalid_form_response(
+            request,
+            current_user,
+            requirement,
+            f"Please enter no more than {max_length} characters.",
+        )
     try:
         submitted_value = derive_submission_value(
             requirement=requirement,
             github_username=current_user.github_username,
-            user_input=form.submitted_value,
+            user_input=submitted_value,
         )
     except ValueError as exc:
         return _invalid_form_response(request, current_user, requirement, str(exc))

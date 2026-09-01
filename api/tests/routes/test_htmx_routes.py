@@ -276,8 +276,12 @@ class TestHtmxSubmitVerification:
             ctf_token_requirement,
         )
 
-        requirement = ctf_token_requirement(slug="linux-token")
-        request = _mock_request(form_items=[("submitted_value", "token-123")])
+        requirement = ctf_token_requirement(
+            slug="linux-token",
+            min_length=200,
+        )
+        token = "t" * 200
+        request = _mock_request(form_items=[("submitted_value", token)])
         current_user = AuthenticatedUser(user_id=1, github_username="user")
 
         with (
@@ -302,7 +306,7 @@ class TestHtmxSubmitVerification:
             request,
             current_user,
             requirement,
-            "token-123",
+            token,
         )
 
     @pytest.mark.parametrize(
@@ -310,8 +314,9 @@ class TestHtmxSubmitVerification:
         [
             [],
             [("submitted_value", "   ")],
-            [("submitted_value", "token-123"), ("answers", "unexpected")],
+            [("submitted_value", "t" * 200), ("answers", "unexpected")],
             [("submitted_value", "first"), ("submitted_value", "second")],
+            [("submitted_value", "x")],
         ],
     )
     async def test_value_route_rejects_invalid_form_shapes(self, form_items):
@@ -319,7 +324,10 @@ class TestHtmxSubmitVerification:
             ctf_token_requirement,
         )
 
-        requirement = ctf_token_requirement(slug="linux-token")
+        requirement = ctf_token_requirement(
+            slug="linux-token",
+            min_length=200,
+        )
         request = _mock_request(form_items=form_items)
         current_user = AuthenticatedUser(user_id=1, github_username="user")
 

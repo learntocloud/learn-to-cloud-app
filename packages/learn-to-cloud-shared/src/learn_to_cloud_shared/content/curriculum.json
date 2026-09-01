@@ -1,6 +1,6 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "118a17ab06847498f9d37e892950739b1b8b78059d4eb24bad30ac17f27b5624",
+  "content_hash": "2cec2bed713d1e7487594c4afb43ba8f0932a6d588a3bbb8b393286039867dc4",
   "curriculum_version": 9,
   "phases": [
     {
@@ -671,6 +671,8 @@
             "slug": "linux-ctfs-token",
             "submission_type": "ctf_token",
             "type_config": {
+              "max_length": 2048,
+              "min_length": 200,
               "placeholder": "Paste your CTF completion token here"
             },
             "uuid": "ec20af63-2ea2-418f-ac14-2c2ae3d06ca7"
@@ -1432,6 +1434,8 @@
             "slug": "networking-lab-token",
             "submission_type": "networking_token",
             "type_config": {
+              "max_length": 2048,
+              "min_length": 200,
               "placeholder": "Paste your Networking Lab completion token here"
             },
             "uuid": "c359bc2e-3215-4841-ab9b-e51be59ed3ff"
@@ -2550,6 +2554,8 @@
             "slug": "deployed-journal-api",
             "submission_type": "deployed_api",
             "type_config": {
+              "max_length": 2048,
+              "min_length": 8,
               "placeholder": "https://your-api.example.com"
             },
             "uuid": "cd4dfc97-5081-4361-a345-a3690c86f1e6"

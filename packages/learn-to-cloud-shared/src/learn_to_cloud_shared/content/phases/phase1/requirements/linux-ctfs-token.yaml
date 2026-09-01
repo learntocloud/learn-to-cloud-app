@@ -6,3 +6,5 @@ name: Submit the Linux CTF Completion Token
 description: Finish all 18 Linux CTF challenges and submit the final completion token to verify completion.
 type_config:
   placeholder: Paste your CTF completion token here
+  min_length: 200
+  max_length: 2048

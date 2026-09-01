@@ -88,6 +88,8 @@ def ctf_token_requirement(
     name: str = "Test CTF token requirement",
     description: str = "Test description",
     placeholder: str | None = None,
+    min_length: int = 1,
+    max_length: int = 2048,
 ) -> CtfTokenRequirement:
     return CtfTokenRequirement(
         uuid=uuid4(),
@@ -95,7 +97,11 @@ def ctf_token_requirement(
         submission_type=SubmissionType.CTF_TOKEN,
         name=name,
         description=description,
-        type_config=CtfTokenConfig(placeholder=placeholder),
+        type_config=CtfTokenConfig(
+            placeholder=placeholder,
+            min_length=min_length,
+            max_length=max_length,
+        ),
     )
 
 
@@ -105,6 +111,8 @@ def networking_token_requirement(
     name: str = "Test networking token requirement",
     description: str = "Test description",
     placeholder: str | None = None,
+    min_length: int = 1,
+    max_length: int = 2048,
 ) -> NetworkingTokenRequirement:
     return NetworkingTokenRequirement(
         uuid=uuid4(),
@@ -112,7 +120,11 @@ def networking_token_requirement(
         submission_type=SubmissionType.NETWORKING_TOKEN,
         name=name,
         description=description,
-        type_config=NetworkingTokenConfig(placeholder=placeholder),
+        type_config=NetworkingTokenConfig(
+            placeholder=placeholder,
+            min_length=min_length,
+            max_length=max_length,
+        ),
     )
 
 
@@ -139,6 +151,8 @@ def deployed_api_requirement(
     name: str = "Test deployed API requirement",
     description: str = "Test description",
     placeholder: str | None = None,
+    min_length: int = 1,
+    max_length: int = 2048,
 ) -> DeployedApiRequirement:
     return DeployedApiRequirement(
         uuid=uuid4(),
@@ -146,7 +160,11 @@ def deployed_api_requirement(
         submission_type=SubmissionType.DEPLOYED_API,
         name=name,
         description=description,
-        type_config=DeployedApiConfig(placeholder=placeholder),
+        type_config=DeployedApiConfig(
+            placeholder=placeholder,
+            min_length=min_length,
+            max_length=max_length,
+        ),
     )
 
 

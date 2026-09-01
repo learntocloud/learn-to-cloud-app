@@ -7,6 +7,7 @@ Tests cover:
 - build_requirement_card_context card_state derivation
 """
 
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -220,6 +221,10 @@ class TestBuildRequirementCardContext:
             github_username="alice",
         )
         assert ctx["derived_url"] == "https://github.com/alice/alice"
+        assert (
+            ctx["submission_form_template"]
+            == "partials/verification_forms/derived.html"
+        )
 
     def test_derivable_journal_api_verifier_uses_required_repo(self):
         req = _make_requirement(
@@ -239,6 +244,22 @@ class TestBuildRequirementCardContext:
             github_username="alice",
         )
         assert ctx["derived_url"] is None
+        assert (
+            ctx["submission_form_template"] == "partials/verification_forms/token.html"
+        )
+
+    def test_missing_derived_url_disables_submission(self):
+        req = SimpleNamespace(
+            slug="journal-api",
+            submission_type=SubmissionType.JOURNAL_API_VERIFIER,
+            type_config=SimpleNamespace(required_repo=None),
+        )
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username="alice",
+        )
+        assert ctx["derived_url"] is None
+        assert ctx["submission_action"] is None
 
     def test_graded_url_exposes_the_url_that_was_verified(self):
         """The verified card shows which value was graded (#701)."""

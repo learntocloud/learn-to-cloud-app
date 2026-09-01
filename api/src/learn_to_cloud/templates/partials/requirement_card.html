@@ -49,91 +49,24 @@
     </div>
     {% elif card_state != 'passed' %}
     {% set is_reflection = requirement.submission_type == 'career_reflection' %}
-    {% if submission_action %}
+    {% if submission_action and submission_form_template %}
     <form
         hx-post="{{ submission_action }}"
         hx-target="#requirement-{{ requirement.slug }}"
         hx-swap="outerHTML"
         hx-indicator="#spinner-{{ requirement.slug }}"
         hx-disabled-elt="find button[type='submit']"
+        x-data="{ valid: false }"
+        x-init="valid = $el.checkValidity()"
+        @input="valid = $el.checkValidity()"
+        @change="valid = $el.checkValidity()"
         class="flex flex-col gap-3 {% if is_reflection %}gap-4{% else %}sm:flex-row sm:items-start{% endif %}"
     >
-        {% if is_reflection %}
-        {# Career reflection — one textarea per configured question. The answers
-           post as a repeated ``answers`` field, combined server-side into one
-           text submission and graded by the LLM rubric. #}
-        {% for question in requirement.type_config.questions %}
-        <div class="flex flex-col gap-1">
-            <label for="answer-{{ requirement.slug }}-{{ loop.index0 }}" class="text-sm font-medium text-gray-800 dark:text-gray-200">
-                {{ question.prompt }}
-            </label>
-            <textarea
-                id="answer-{{ requirement.slug }}-{{ loop.index0 }}"
-                name="answers"
-                rows="5"
-                minlength="{{ requirement.type_config.min_answer_length }}"
-                placeholder="Write at least {{ requirement.type_config.min_answer_length }} characters."
-                class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                required
-            ></textarea>
-        </div>
-        {% endfor %}
-        {% elif requirement.submission_type in ['ctf_token', 'networking_token'] %}
-        {# Token input — learner pastes the completion token. #}
-        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
-        <input
-            id="input-{{ requirement.slug }}"
-            type="text"
-            name="submitted_value"
-            placeholder="{{ requirement.type_config.placeholder | default('Paste your completion token here') }}"
-            value=""
-            class="min-h-11 flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            required
-        >
-        {% elif requirement.submission_type == 'deployed_api' %}
-        {# Free-form deployed API URL — the learner owns the hostname. #}
-        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
-        <input
-            id="input-{{ requirement.slug }}"
-            type="url"
-            name="submitted_value"
-            placeholder="{{ requirement.type_config.placeholder | default('https://your-api.example.com') }}"
-            value="{% if submission %}{{ submission.submitted_value }}{% endif %}"
-            class="min-h-11 flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            required
-        >
-        {% elif derived_url %}
-        {# Derivable URL types — the server builds the URL from the learner's
-           GitHub username + the requirement's ``required_repo``.  The field is
-           read-only so the learner cannot tamper with it; the form posts no
-           user-editable value. #}
-        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
-        <input
-            id="input-{{ requirement.slug }}"
-            type="url"
-            value="{{ derived_url }}"
-            readonly
-            aria-readonly="true"
-            class="min-h-11 flex-1 cursor-default select-all rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
-        >
-        {% else %}
-        {# Fallback: requirement is misconfigured or the learner has no
-           linked GitHub username.  Show a disabled input and let the server
-           return an error banner on submit. #}
-        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
-        <input
-            id="input-{{ requirement.slug }}"
-            type="url"
-            value=""
-            disabled
-            aria-disabled="true"
-            placeholder="Unable to auto-derive submission URL"
-            class="min-h-11 flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
-        >
-        {% endif %}
+        {% include submission_form_template %}
 
         <button
             type="submit"
+            :disabled="!valid"
             class="inline-flex min-h-11 items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:opacity-50"
         >
             Verify

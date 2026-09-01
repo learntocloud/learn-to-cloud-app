@@ -14,7 +14,10 @@ from learn_to_cloud_shared.submission_derivation import (
     is_derivable,
 )
 
-from learn_to_cloud.verification_forms import verification_submit_action
+from learn_to_cloud.verification_forms import (
+    verification_form_template,
+    verification_submit_action,
+)
 
 if TYPE_CHECKING:
     from learn_to_cloud_shared.schemas import (
@@ -433,6 +436,18 @@ def build_requirement_card_context(
     elif card_state == "failed" and error_banner is None and submission is not None:
         error_banner = submission.validation_message
 
+    submission_action = (
+        verification_submit_action(
+            requirement.slug,
+            requirement.submission_type,
+        )
+        if requirement is not None
+        else None
+    )
+    if requirement is not None and is_derivable(requirement.submission_type):
+        if derived_url is None:
+            submission_action = None
+
     return {
         "requirement": requirement,
         "submission": submission,
@@ -447,9 +462,9 @@ def build_requirement_card_context(
         "verification_status_token": verification_status_token,
         "verification_status_delay_seconds": verification_status_delay_seconds,
         "derived_url": derived_url,
-        "submission_action": verification_submit_action(
-            requirement.slug,
-            requirement.submission_type,
+        "submission_action": submission_action,
+        "submission_form_template": verification_form_template(
+            requirement.submission_type
         )
         if requirement is not None
         else None,

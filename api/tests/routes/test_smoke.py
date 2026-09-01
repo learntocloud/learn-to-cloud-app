@@ -295,7 +295,10 @@ class TestAuthPageSmoke:
 
         requirements = {
             "profile-readme": profile_readme_requirement(slug="profile-readme"),
-            "linux-token": ctf_token_requirement(slug="linux-token"),
+            "linux-token": ctf_token_requirement(
+                slug="linux-token",
+                min_length=200,
+            ),
             "career-reflection": career_reflection_requirement(
                 slug="career-reflection",
                 min_answer_length=3,
@@ -319,7 +322,7 @@ class TestAuthPageSmoke:
             )
             value = await auth_client.post(
                 "/htmx/verifications/linux-token/submit/value",
-                data={"submitted_value": "token-123"},
+                data={"submitted_value": "t" * 200},
             )
             reflection = await auth_client.post(
                 "/htmx/verifications/career-reflection/submit/reflection",

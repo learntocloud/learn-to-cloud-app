@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -42,7 +43,11 @@ def _requirement(slug: str, name: str) -> SimpleNamespace:
         name=name,
         description="",
         submission_type=SubmissionType.CTF_TOKEN,
-        type_config=SimpleNamespace(placeholder=None),
+        type_config=SimpleNamespace(
+            placeholder=None,
+            min_length=1,
+            max_length=2048,
+        ),
     )
 
 
@@ -64,7 +69,7 @@ def _submission(
 
 
 def _card_contexts(
-    requirements: list[SimpleNamespace],
+    requirements: list[Any],
     submissions_by_req: dict[str, object],
 ) -> dict[str, dict]:
     """Build the same card_contexts_by_req shape pages_routes.py builds."""
@@ -187,7 +192,7 @@ class TestPhaseVerificationLocked:
 
     def _render_phase(
         self,
-        requirements: list[SimpleNamespace],
+        requirements: list[Any],
         submissions_by_req: dict[str, object],
     ) -> str:
         return _render(
@@ -254,7 +259,7 @@ class TestPhaseVerificationCardStates:
 
     def _render_phase(
         self,
-        requirements: list[SimpleNamespace],
+        requirements: list[Any],
         submissions_by_req: dict[str, object],
     ) -> str:
         return _render(
@@ -287,6 +292,56 @@ class TestPhaseVerificationCardStates:
         assert "Verified" not in html
         assert 'hx-post="/htmx/verifications/ci-status/submit/value"' in html
         assert 'name="requirement_slug"' not in html
+        assert ':disabled="!valid"' in html
+
+    def test_token_form_uses_configured_length_limits(self):
+        req = _requirement("linux-token", "Linux token")
+        req.type_config = SimpleNamespace(
+            placeholder="Paste token",
+            min_length=200,
+            max_length=2048,
+        )
+
+        html = self._render_phase([req], {})
+
+        assert 'minlength="200"' in html
+        assert 'maxlength="2048"' in html
+        assert 'autocomplete="off"' in html
+        assert 'spellcheck="false"' in html
+
+    def test_deployed_url_form_uses_url_constraints(self):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            deployed_api_requirement,
+        )
+
+        req = deployed_api_requirement(
+            slug="deployed-api",
+            min_length=8,
+        )
+
+        html = self._render_phase([req], {})
+
+        assert 'type="url"' in html
+        assert 'minlength="8"' in html
+        assert 'maxlength="2048"' in html
+        assert 'autocomplete="url"' in html
+
+    def test_reflection_form_constrains_every_answer(self):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            career_reflection_requirement,
+        )
+
+        req = career_reflection_requirement(
+            slug="career-reflection",
+            min_answer_length=200,
+            question_count=3,
+        )
+
+        html = self._render_phase([req], {})
+
+        assert html.count('name="answers"') == 3
+        assert html.count('minlength="200"') == 3
+        assert html.count('maxlength="6000"') == 3
 
     def test_failed_shows_needs_work_pill_and_learner_message(self):
         req = _requirement("ci-status", "CI Status")

@@ -111,7 +111,8 @@
             verification_status_token=card.verification_status_token,
             verification_status_delay_seconds=card.verification_status_delay_seconds,
             derived_url=card.derived_url,
-            submission_action=card.submission_action
+            submission_action=card.submission_action,
+            submission_form_template=card.submission_form_template
         %}
         {% include "partials/requirement_card.html" %}
         {% endwith %}
