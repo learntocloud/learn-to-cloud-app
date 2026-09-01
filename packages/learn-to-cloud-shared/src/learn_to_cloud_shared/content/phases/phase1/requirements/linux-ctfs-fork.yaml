@@ -3,6 +3,6 @@ uuid: 44c3bbb6-d6c3-466d-8d55-c1fec757ace7
 slug: linux-ctfs-fork
 submission_type: repo_fork
 name: Fork the Linux CTFs Repository
-description: Fork learntocloud/linux-ctfs to your account so your challenge work is tied to your profile.
+description: We'll check that the Linux CTF repository is forked to your account.
 type_config:
   required_repo: learntocloud/linux-ctfs

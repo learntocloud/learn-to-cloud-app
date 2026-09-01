@@ -3,7 +3,7 @@ uuid: cd4dfc97-5081-4361-a345-a3690c86f1e6
 slug: deployed-journal-api
 submission_type: deployed_api
 name: Deploy a Public Journal API
-description: Submit your HTTPS API base URL so the verifier can create and retrieve a challenge entry, validate one live AI analysis response, and delete the entry.
+description: Enter your public HTTPS API base URL.
 type_config:
   placeholder: https://your-api.example.com
   min_length: 8

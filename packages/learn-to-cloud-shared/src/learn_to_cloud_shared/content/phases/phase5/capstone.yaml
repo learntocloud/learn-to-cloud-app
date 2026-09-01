@@ -136,15 +136,25 @@ learning_steps:
   code: "your-journal-starter/\n  ├── Dockerfile              # Step 1: Container definition\n  ├── .dockerignore            # Step 1: Exclude non-production files from build\n  ├── .github/\n  │   └── workflows/          # Step 3: CI/CD pipeline configs\n  │       └── *.yml\n  ├── infra/                   # Step 2: Terraform IaC configs\n  │   ├── main.tf\n  │   ├── variables.tf\n  │   ├── outputs.tf\n  │   └── providers.tf\n  ├── k8s/                     # Step 4: Kubernetes manifests\n  │   ├── deployment.yaml\n  │   ├── service.yaml\n  │   └── secrets.yaml.example # Example secrets (never commit real values)\n  ├── api/                     # Your FastAPI app code\n  └── README.md                # Step 6: Documentation"
   slug: phase5-topic6-build-required-project-structure
 
-- uuid: c43d5d38-c50f-40eb-af1b-c77cb41c4be2
+- uuid: 1a7cde59-eecf-4078-ab74-d9a2a54f4351
   order: 8
+  action: 'Practice:'
+  title: Submit the DevOps capstone for verification
+  description: Push the completed implementation to your fork's `main` branch. Automated verification reviews the container build, Terraform, CI/CD workflow, Kubernetes manifests, and secret handling. It also confirms that the workflow published `ghcr.io/<your-github-username>/journal-api:latest` and that the GHCR package is public.
+  tips:
+  - type: note
+    text: Keep your cloud registry and IAM-based Kubernetes image pull as the real deployment path. The public GHCR image is an additional copy used only for automated verification.
+  done_when: Your completed work is on `main`, the latest CI/CD run passes, and the public GHCR verification image is available.
+  slug: phase5-topic6-practice-submit-verification
+- uuid: c43d5d38-c50f-40eb-af1b-c77cb41c4be2
+  order: 9
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
   slug: phase5-topic6-reflect-share-your-progress
 
 - uuid: 8136ecc2-60e2-4909-89ac-cb4d3592725e
-  order: 9
+  order: 10
   action: 'Practice:'
   title: Clean up your cloud resources
   description: After you have submitted your repo for hands-on verification and received a passing result, delete all cloud resources.

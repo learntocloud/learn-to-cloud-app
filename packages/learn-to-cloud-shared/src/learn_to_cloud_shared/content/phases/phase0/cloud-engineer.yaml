@@ -33,15 +33,23 @@ learning_steps:
   description: 'Cloud engineering requires continuous learning and problem-solving. Consider: Do you enjoy figuring out how things work? Are you comfortable with change? Can you commit to learning new technologies regularly?'
   title: Is this for me?
   slug: phase0-topic6-reflect-is-this-for-me
-- uuid: 666c5db3-ada0-4aa6-b47b-f45df1af7fcd
+- uuid: 489661ee-07a6-483d-90a1-607656eef9aa
   order: 3
+  action: 'Practice:'
+  title: Create your GitHub profile README
+  url: https://docs.github.com/account-and-profile/how-tos/profile-customization/managing-your-profile-readme
+  description: Create a public repository whose name exactly matches your GitHub username, initialize it with a README, and add a short introduction to the profile README that GitHub displays on your account. Use the same account for your Learn to Cloud verification work.
+  done_when: Your GitHub profile displays the README from the repository named after your username.
+  slug: phase0-topic6-practice-create-profile-readme
+- uuid: 666c5db3-ada0-4aa6-b47b-f45df1af7fcd
+  order: 4
   action: 'Practice:'
   title: Follow Made by GPS on GitHub
   url: https://github.com/madebygps
   description: Follow the creator of Learn to Cloud on GitHub to stay connected with the community.
   slug: phase0-topic6-practice-follow-made-by-gps
 - uuid: 76c727e9-100a-498d-8871-2a13335d527d
-  order: 4
+  order: 5
   action: 'Practice:'
   title: Subscribe to youtube.com/@madebygps
   url: https://www.youtube.com/@madebygps
