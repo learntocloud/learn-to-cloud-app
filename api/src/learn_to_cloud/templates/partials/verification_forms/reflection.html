@@ -1,4 +1,4 @@
-{% for question in requirement.type_config.questions %}
+{% for question in verification_form.questions %}
 <div class="flex flex-col gap-1">
     <label for="answer-{{ requirement.slug }}-{{ loop.index0 }}" class="text-sm font-medium text-gray-800 dark:text-gray-200">
         {{ question.prompt }}
@@ -7,9 +7,9 @@
         id="answer-{{ requirement.slug }}-{{ loop.index0 }}"
         name="answers"
         rows="5"
-        minlength="{{ requirement.type_config.min_answer_length }}"
-        maxlength="6000"
-        placeholder="Write at least {{ requirement.type_config.min_answer_length }} characters."
+        minlength="{{ verification_form.min_answer_length }}"
+        maxlength="{{ verification_form.max_answer_length }}"
+        placeholder="Write at least {{ verification_form.min_answer_length }} characters."
         required
         class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
     ></textarea>

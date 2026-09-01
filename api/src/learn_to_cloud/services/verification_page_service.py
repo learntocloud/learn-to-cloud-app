@@ -204,7 +204,7 @@ async def get_phase_verification_workspace(
     db: AsyncSession,
     user_id: int,
     phase: Phase,
-    github_username: str | None,
+    github_username: str,
     *,
     history_page: int = 1,
 ) -> PhaseVerificationWorkspace:

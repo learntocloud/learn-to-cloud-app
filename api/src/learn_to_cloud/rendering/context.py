@@ -9,13 +9,26 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
+from learn_to_cloud_shared.schemas import (
+    CareerReflectionRequirement,
+    CtfTokenRequirement,
+    DeployedApiRequirement,
+    HandsOnRequirement,
+    NetworkingTokenRequirement,
+)
 from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
     is_derivable,
 )
 
 from learn_to_cloud.verification_forms import (
-    verification_form_template,
+    MAX_REFLECTION_ANSWER_LENGTH,
+    DeployedUrlFormContext,
+    DerivedFormContext,
+    ReflectionFormContext,
+    TokenFormContext,
+    UnsupportedFormContext,
+    VerificationFormContext,
     verification_submit_action,
 )
 
@@ -361,10 +374,71 @@ def _graded_url(submission: Any) -> str | None:
     return value if value.startswith(_URL_SCHEMES) else None
 
 
+def _build_verification_form_context(
+    requirement: HandsOnRequirement,
+    github_username: str,
+    submission: Any,
+) -> VerificationFormContext:
+    """Build exactly one valid rendering model for a requirement form."""
+    action = verification_submit_action(
+        requirement.slug,
+        requirement.submission_type,
+    )
+    if action is None:
+        return UnsupportedFormContext(
+            message="Verification is not currently available for this requirement."
+        )
+
+    if is_derivable(requirement.submission_type):
+        return DerivedFormContext(
+            action=action,
+            url=derive_submission_value(
+                requirement=requirement,
+                github_username=github_username,
+                user_input=None,
+            ),
+        )
+
+    if isinstance(requirement, CtfTokenRequirement | NetworkingTokenRequirement):
+        return TokenFormContext(
+            action=action,
+            placeholder=(
+                requirement.type_config.placeholder
+                or "Paste your completion token here"
+            ),
+            min_length=requirement.type_config.min_length,
+            max_length=requirement.type_config.max_length,
+        )
+
+    if isinstance(requirement, DeployedApiRequirement):
+        return DeployedUrlFormContext(
+            action=action,
+            placeholder=(
+                requirement.type_config.placeholder or "https://your-api.example.com"
+            ),
+            min_length=requirement.type_config.min_length,
+            max_length=requirement.type_config.max_length,
+            value=getattr(submission, "submitted_value", "") if submission else "",
+        )
+
+    if isinstance(requirement, CareerReflectionRequirement):
+        return ReflectionFormContext(
+            action=action,
+            questions=tuple(requirement.type_config.questions),
+            min_answer_length=requirement.type_config.min_answer_length,
+            max_answer_length=MAX_REFLECTION_ANSWER_LENGTH,
+        )
+
+    raise ValueError(
+        f"Submission type {requirement.submission_type.value!r} has an HTTP "
+        "action but no rendering form model."
+    )
+
+
 def build_requirement_card_context(
     *,
-    requirement: Any,
-    github_username: str | None,
+    requirement: HandsOnRequirement,
+    github_username: str,
     submission: Any = None,
     feedback_tasks: list[dict[str, Any]] | None = None,
     feedback_passed: int = 0,
@@ -382,16 +456,14 @@ def build_requirement_card_context(
     routes all produce identically-shaped dicts, and so a single
     ``card_state`` (see :func:`_derive_card_state`) -- not a scattered
     combination of flags -- drives which part of the card renders.
-    Pre-computes ``derived_url`` for read-only display so the Jinja template
-    never builds URLs.
+    Builds one typed form-context variant so template-specific values cannot
+    appear in invalid combinations.
 
     Args:
         requirement: The :class:`HandsOnRequirement` being rendered.
             Must not be ``None`` — callers should handle missing
             requirements before calling this function.
-        github_username: The authenticated learner's GitHub username, used
-            to derive canonical URLs.  ``None`` when the user is not
-            linked to GitHub.
+        github_username: The authenticated learner's GitHub username.
         submission: The latest :class:`SubmissionData` for this requirement
             (or ``None``).
         feedback_tasks: Pre-built task-feedback entries.
@@ -412,20 +484,6 @@ def build_requirement_card_context(
         verification_status_token: Signed token used by the HTMX polling card.
         verification_status_delay_seconds: Delay before the next status poll.
     """
-    derived_url: str | None = None
-    if requirement is not None and github_username:
-        try:
-            if is_derivable(requirement.submission_type):
-                derived_url = derive_submission_value(
-                    requirement=requirement,
-                    github_username=github_username,
-                    user_input=None,
-                )
-        except ValueError:
-            # Misconfigured requirement (e.g. missing required_repo).  The
-            # template will fall back to its read-only placeholder branch.
-            derived_url = None
-
     card_state = _derive_card_state(
         submission, processing=processing, server_error=server_error
     )
@@ -436,17 +494,11 @@ def build_requirement_card_context(
     elif card_state == "failed" and error_banner is None and submission is not None:
         error_banner = submission.validation_message
 
-    submission_action = (
-        verification_submit_action(
-            requirement.slug,
-            requirement.submission_type,
-        )
-        if requirement is not None
-        else None
+    verification_form = _build_verification_form_context(
+        requirement,
+        github_username,
+        submission,
     )
-    if requirement is not None and is_derivable(requirement.submission_type):
-        if derived_url is None:
-            submission_action = None
 
     return {
         "requirement": requirement,
@@ -461,13 +513,7 @@ def build_requirement_card_context(
         "processing": processing,
         "verification_status_token": verification_status_token,
         "verification_status_delay_seconds": verification_status_delay_seconds,
-        "derived_url": derived_url,
-        "submission_action": submission_action,
-        "submission_form_template": verification_form_template(
-            requirement.submission_type
-        )
-        if requirement is not None
-        else None,
+        "verification_form": verification_form,
         "graded_url": _graded_url(submission),
     }
 

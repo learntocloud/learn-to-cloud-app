@@ -34,20 +34,15 @@ def _render(template_name: str, **ctx: object) -> str:
     return _ENV.get_template(template_name).render(**_base_ctx(**ctx))
 
 
-def _requirement(slug: str, name: str) -> SimpleNamespace:
-    from learn_to_cloud_shared.models import SubmissionType
+def _requirement(slug: str, name: str, description: str = ""):
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        ctf_token_requirement,
+    )
 
-    return SimpleNamespace(
-        uuid=f"uuid-{slug}",
+    return ctf_token_requirement(
         slug=slug,
         name=name,
-        description="",
-        submission_type=SubmissionType.CTF_TOKEN,
-        type_config=SimpleNamespace(
-            placeholder=None,
-            min_length=1,
-            max_length=2048,
-        ),
+        description=description,
     )
 
 
@@ -295,8 +290,13 @@ class TestPhaseVerificationCardStates:
         assert ':disabled="!valid"' in html
 
     def test_token_form_uses_configured_length_limits(self):
-        req = _requirement("linux-token", "Linux token")
-        req.type_config = SimpleNamespace(
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            ctf_token_requirement,
+        )
+
+        req = ctf_token_requirement(
+            slug="linux-token",
+            name="Linux token",
             placeholder="Paste token",
             min_length=200,
             max_length=2048,
@@ -379,8 +379,11 @@ class TestPhaseVerificationCardStates:
 
     def test_passed_keeps_requirement_context_visible(self):
         """A verified requirement keeps its evidence on screen (#701)."""
-        req = _requirement("ci-status", "CI Status")
-        req.description = "Submit your Journal API fork URL"
+        req = _requirement(
+            "ci-status",
+            "CI Status",
+            description="Submit your Journal API fork URL",
+        )
         submission = _submission(
             is_validated=True,
             verification_completed=True,
@@ -411,12 +414,14 @@ class TestPhaseVerificationCardStates:
 
     def test_readonly_derived_url_is_explained(self):
         """The auto-derived, read-only field says why it can't be edited (#701)."""
-        from learn_to_cloud_shared.models import SubmissionType
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            journal_api_verifier_requirement,
+        )
 
-        req = _requirement("journal-api", "Journal API")
-        req.submission_type = SubmissionType.JOURNAL_API_VERIFIER
-        req.type_config = SimpleNamespace(
-            placeholder=None, required_repo="learntocloud/journal-api"
+        req = journal_api_verifier_requirement(
+            slug="journal-api",
+            name="Journal API",
+            required_repo="learntocloud/journal-api",
         )
         html = self._render_phase([req], {})
 

@@ -7,7 +7,7 @@ Tests cover:
 - build_requirement_card_context card_state derivation
 """
 
-from types import SimpleNamespace
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -28,6 +28,10 @@ from learn_to_cloud.rendering.context import (
     build_progress_dict,
     build_requirement_card_context,
     build_topic_nav,
+)
+from learn_to_cloud.verification_forms import (
+    DerivedFormContext,
+    TokenFormContext,
 )
 
 # ---------------------------------------------------------------------------
@@ -214,17 +218,16 @@ def _make_requirement(
 
 @pytest.mark.unit
 class TestBuildRequirementCardContext:
-    def test_derivable_profile_readme_populates_derived_url(self):
+    def test_derivable_profile_readme_builds_required_form_url(self):
         req = _make_requirement(SubmissionType.PROFILE_README)
         ctx = build_requirement_card_context(
             requirement=req,
             github_username="alice",
         )
-        assert ctx["derived_url"] == "https://github.com/alice/alice"
-        assert (
-            ctx["submission_form_template"]
-            == "partials/verification_forms/derived.html"
-        )
+        form = ctx["verification_form"]
+        assert isinstance(form, DerivedFormContext)
+        assert form.url == "https://github.com/alice/alice"
+        assert form.action == "/htmx/verifications/req-1/submit/derived"
 
     def test_derivable_journal_api_verifier_uses_required_repo(self):
         req = _make_requirement(
@@ -235,31 +238,32 @@ class TestBuildRequirementCardContext:
             requirement=req,
             github_username="bob",
         )
-        assert ctx["derived_url"] == "https://github.com/bob/journal-starter"
+        form = ctx["verification_form"]
+        assert isinstance(form, DerivedFormContext)
+        assert form.url == "https://github.com/bob/journal-starter"
 
-    def test_token_type_has_no_derived_url_or_prefix(self):
+    def test_token_type_builds_only_token_form_fields(self):
         req = _make_requirement(SubmissionType.CTF_TOKEN)
         ctx = build_requirement_card_context(
             requirement=req,
             github_username="alice",
         )
-        assert ctx["derived_url"] is None
-        assert (
-            ctx["submission_form_template"] == "partials/verification_forms/token.html"
-        )
+        form = ctx["verification_form"]
+        assert isinstance(form, TokenFormContext)
+        assert form.action == "/htmx/verifications/req-1/submit/value"
+        assert form.min_length == 1
+        assert not hasattr(form, "url")
 
-    def test_missing_derived_url_disables_submission(self):
-        req = SimpleNamespace(
-            slug="journal-api",
-            submission_type=SubmissionType.JOURNAL_API_VERIFIER,
-            type_config=SimpleNamespace(required_repo=None),
-        )
-        ctx = build_requirement_card_context(
-            requirement=req,
-            github_username="alice",
-        )
-        assert ctx["derived_url"] is None
-        assert ctx["submission_action"] is None
+    def test_misconfigured_derived_requirement_fails_context_build(self):
+        req = _make_requirement(SubmissionType.JOURNAL_API_VERIFIER)
+        with (
+            patch(
+                "learn_to_cloud.rendering.context.derive_submission_value",
+                side_effect=ValueError("missing required_repo"),
+            ),
+            pytest.raises(ValueError, match="missing required_repo"),
+        ):
+            build_requirement_card_context(requirement=req, github_username="alice")
 
     def test_graded_url_exposes_the_url_that_was_verified(self):
         """The verified card shows which value was graded (#701)."""

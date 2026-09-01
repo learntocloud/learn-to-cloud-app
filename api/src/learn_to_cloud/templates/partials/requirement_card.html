@@ -7,7 +7,7 @@
      requirement, submission, feedback_tasks, feedback_passed, card_state,
      server_error, server_error_message, server_error_retryable,
      error_banner, processing, verification_status_token,
-     verification_status_delay_seconds, derived_url
+     verification_status_delay_seconds, verification_form
 #}
 {% from "macros/badges.html" import status_pill %}
 {% from "macros/callouts.html" import banner %}
@@ -48,10 +48,9 @@
         Verification is running. Refresh the page to check for results.
     </div>
     {% elif card_state != 'passed' %}
-    {% set is_reflection = requirement.submission_type == 'career_reflection' %}
-    {% if submission_action and submission_form_template %}
+    {% if verification_form.kind != 'unsupported' %}
     <form
-        hx-post="{{ submission_action }}"
+        hx-post="{{ verification_form.action }}"
         hx-target="#requirement-{{ requirement.slug }}"
         hx-swap="outerHTML"
         hx-indicator="#spinner-{{ requirement.slug }}"
@@ -60,9 +59,9 @@
         x-init="valid = $el.checkValidity()"
         @input="valid = $el.checkValidity()"
         @change="valid = $el.checkValidity()"
-        class="flex flex-col gap-3 {% if is_reflection %}gap-4{% else %}sm:flex-row sm:items-start{% endif %}"
+        class="flex flex-col gap-3 {% if verification_form.kind == 'reflection' %}gap-4{% else %}sm:flex-row sm:items-start{% endif %}"
     >
-        {% include submission_form_template %}
+        {% include verification_form.template %}
 
         <button
             type="submit"
@@ -77,10 +76,10 @@
     </form>
     {% else %}
     <div class="text-amber-600 dark:text-amber-400 text-sm p-2" role="status">
-        Verification is not currently available for this requirement.
+        {{ verification_form.message }}
     </div>
     {% endif %}
-    {% if derived_url %}
+    {% if verification_form.kind == 'derived' %}
     {# The read-only field above is derived server-side, which is invisible to a
        learner whose fork is named differently or lives under an org (#701). #}
     <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
