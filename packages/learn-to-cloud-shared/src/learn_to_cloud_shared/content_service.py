@@ -71,36 +71,6 @@ def get_topic_containing_step(step_uuid: UUID) -> tuple[Topic, LearningStep] | N
     return topic, step
 
 
-def get_requirement_instruction_target(
-    requirement: HandsOnRequirement,
-) -> tuple[Phase, Topic, LearningStep] | None:
-    """Resolve a requirement's canonical curriculum instruction step."""
-    step_slug = requirement.instruction_step_slug
-    if not step_slug:
-        return None
-
-    catalog = get_curriculum_catalog()
-    phase_order = catalog.phase_order_by_requirement_uuid.get(requirement.uuid)
-    if phase_order is None:
-        return None
-    phase = catalog.phases_by_order.get(phase_order)
-    if phase is None:
-        return None
-
-    matches = [
-        step
-        for step in catalog.steps_by_phase_slug.get(phase.slug, ())
-        if step.slug == step_slug
-    ]
-    if len(matches) != 1:
-        return None
-    step = matches[0]
-    topic = catalog.topic_by_step_uuid.get(step.uuid)
-    if topic is None:
-        return None
-    return phase, topic, step
-
-
 def get_requirements_by_phase_order() -> dict[int, list[HandsOnRequirement]]:
     """Get all requirements grouped by parent phase order."""
     catalog = get_curriculum_catalog()

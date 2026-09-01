@@ -440,41 +440,6 @@ def _check_requirement_slugs_globally_unique(
     return errors
 
 
-def _check_requirement_instruction_steps(phases: tuple[Phase, ...]) -> list[str]:
-    """Return errors for missing, ambiguous, or cross-phase instruction steps."""
-    errors: list[str] = []
-    for phase in phases:
-        if phase.hands_on_verification is None:
-            continue
-        steps_by_slug: dict[str, list[str]] = {}
-        for topic in phase.topics:
-            for step in topic.learning_steps:
-                steps_by_slug.setdefault(step.slug, []).append(topic.slug)
-
-        for requirement in phase.hands_on_verification.requirements:
-            step_slug = requirement.instruction_step_slug
-            if not step_slug:
-                errors.append(
-                    f"phase[{phase.slug}].requirements[{requirement.slug}] "
-                    "must define instruction_step_slug"
-                )
-                continue
-            topic_slugs = steps_by_slug.get(step_slug, [])
-            if not topic_slugs:
-                errors.append(
-                    f"phase[{phase.slug}].requirements[{requirement.slug}] "
-                    f"instruction_step_slug '{step_slug}' does not resolve "
-                    "within the same phase"
-                )
-            elif len(topic_slugs) > 1:
-                errors.append(
-                    f"phase[{phase.slug}].requirements[{requirement.slug}] "
-                    f"instruction_step_slug '{step_slug}' is ambiguous across "
-                    f"topics: {', '.join(topic_slugs)}"
-                )
-    return errors
-
-
 def _check_phase_order_sequence(phases: tuple[Phase, ...]) -> list[str]:
     """Return errors unless phase orders form a gapless 0..N-1 sequence.
 
@@ -510,6 +475,5 @@ def validate_content(phases: tuple[Phase, ...] | None = None) -> list[str]:
     errors.extend(_check_step_order_uniqueness(phases))
     errors.extend(_check_requirement_slugs_resolve(phases))
     errors.extend(_check_requirement_slugs_globally_unique(phases))
-    errors.extend(_check_requirement_instruction_steps(phases))
     errors.extend(_check_phase_order_sequence(phases))
     return errors

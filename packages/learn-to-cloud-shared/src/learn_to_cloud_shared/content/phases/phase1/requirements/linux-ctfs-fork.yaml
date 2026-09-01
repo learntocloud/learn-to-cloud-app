@@ -4,6 +4,5 @@ slug: linux-ctfs-fork
 submission_type: repo_fork
 name: Fork the Linux CTFs Repository
 description: We'll check that the Linux CTF repository is forked to your account.
-instruction_step_slug: phase1-topic6-practice-linux-ctfs-repository
 type_config:
   required_repo: learntocloud/linux-ctfs

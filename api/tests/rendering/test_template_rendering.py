@@ -292,6 +292,8 @@ class TestPhaseVerificationCardStates:
         assert 'hx-post="/htmx/verifications/ci-status/submit/value"' in html
         assert 'name="requirement_slug"' not in html
         assert ':disabled="!valid"' in html
+        assert 'href="/phase/1"' in html
+        assert "Review Phase 1 learning" in html
 
     def test_token_form_uses_configured_length_limits(self):
         from learn_to_cloud_shared.testing.requirement_factories import (
@@ -473,24 +475,6 @@ class TestPhaseVerificationCardStates:
 
 
 @pytest.mark.unit
-def test_authored_requirement_card_links_to_exact_instruction_step():
-    from learn_to_cloud_shared.content_service import get_all_phases
-
-    phase = next(item for item in get_all_phases() if item.order == 4)
-    assert phase.hands_on_verification is not None
-    requirement = phase.hands_on_verification.requirements[0]
-    card = build_requirement_card_context(
-        requirement=requirement,
-        github_username="tester",
-    )
-
-    html = _render("partials/requirement_card.html", card=card)
-
-    assert 'href="/phase/4/capstone#step-a6ab032c-fe77-4d31-987f-564f6248ede6"' in html
-    assert "Review full instructions" in html
-
-
-@pytest.mark.unit
 class TestProgressBarAccessibility:
     """Progress bars expose visible text plus ARIA value attributes."""
 
@@ -632,8 +616,6 @@ def test_step_checkbox_keeps_keyboard_events_from_toggling_accordion():
     assert 'role="button"' not in source
     assert 'aria-label="Mark {{ step_label }} complete"' in source
     assert "x-collapse x-cloak" in source
-    assert "location.hash === '#step-{{ step.uuid }}'" in source
-    assert "@hashchange.window" in source
 
 
 @pytest.mark.unit

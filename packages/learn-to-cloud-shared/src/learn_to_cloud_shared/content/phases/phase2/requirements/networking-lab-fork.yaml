@@ -4,6 +4,5 @@ slug: networking-lab-fork
 submission_type: repo_fork
 name: Fork the Networking Lab Repository
 description: We'll check that the Networking Lab repository is forked to your account.
-instruction_step_slug: phase2-topic4-practice-networking-lab-repository
 type_config:
   required_repo: learntocloud/networking-lab

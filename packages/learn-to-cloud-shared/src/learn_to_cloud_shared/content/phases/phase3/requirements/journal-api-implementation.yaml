@@ -4,6 +4,5 @@ slug: journal-api-implementation
 submission_type: journal_api_verifier
 name: Verify Journal API Implementation
 description: We'll review the latest code on your fork's `main` branch.
-instruction_step_slug: phase3-topic5-practice-journal-starter-repository
 type_config:
   required_repo: learntocloud/journal-starter

@@ -4,7 +4,6 @@ slug: career-reflection
 submission_type: career_reflection
 name: Reflect on Your Job-Search Readiness
 description: Answer all three questions thoughtfully and in your own words.
-instruction_step_slug: phase7-capstone-practice-complete-the-reflection
 type_config:
   min_answer_length: 200
   questions:

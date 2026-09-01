@@ -4,6 +4,5 @@ slug: security-scanning
 submission_type: security_scanning
 name: Enable Security Scanning
 description: We'll check the latest CodeQL run for your fork's `main` branch.
-instruction_step_slug: phase6-capstone-practice-enable-security-scanning-on
 type_config:
   required_repo: learntocloud/journal-starter

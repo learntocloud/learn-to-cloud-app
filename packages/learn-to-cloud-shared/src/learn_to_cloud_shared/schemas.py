@@ -328,7 +328,6 @@ class _RequirementBase(StrictFrozenModel):
     slug: str
     name: str
     description: str
-    instruction_step_slug: str | None = None
 
 
 class ProfileReadmeRequirement(_RequirementBase):

@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from learn_to_cloud_shared.content_service import get_requirement_instruction_target
 from learn_to_cloud_shared.schemas import (
     CareerReflectionRequirement,
     CtfTokenRequirement,
@@ -319,7 +318,6 @@ class _RequirementCardBase:
     """Fields shared by every requirement-card state."""
 
     requirement: HandsOnRequirement
-    instruction_url: str | None
     feedback_tasks: list[dict[str, Any]]
     feedback_passed: int
 
@@ -409,14 +407,6 @@ def _graded_url(submission: SubmissionData) -> str | None:
     return value if value.startswith(_URL_SCHEMES) else None
 
 
-def _instruction_url(requirement: HandsOnRequirement) -> str | None:
-    target = get_requirement_instruction_target(requirement)
-    if target is None:
-        return None
-    phase, topic, step = target
-    return f"/phase/{phase.order}/{topic.slug}#step-{step.uuid}"
-
-
 def _build_verification_form_context(
     requirement: HandsOnRequirement,
     github_username: str,
@@ -497,7 +487,6 @@ def build_requirement_card_context(
     if submission is not None and submission.is_validated:
         return PassedCardContext(
             requirement=requirement,
-            instruction_url=_instruction_url(requirement),
             feedback_tasks=tasks,
             feedback_passed=passed,
             submission=submission,
@@ -511,7 +500,6 @@ def build_requirement_card_context(
     if submission is None:
         return NotStartedCardContext(
             requirement=requirement,
-            instruction_url=_instruction_url(requirement),
             feedback_tasks=tasks,
             feedback_passed=passed,
             verification_form=verification_form,
@@ -519,7 +507,6 @@ def build_requirement_card_context(
     if submission.verification_completed:
         return FailedCardContext(
             requirement=requirement,
-            instruction_url=_instruction_url(requirement),
             feedback_tasks=tasks,
             feedback_passed=passed,
             verification_form=verification_form,
@@ -529,7 +516,6 @@ def build_requirement_card_context(
         )
     return UnavailableCardContext(
         requirement=requirement,
-        instruction_url=_instruction_url(requirement),
         feedback_tasks=tasks,
         feedback_passed=passed,
         verification_form=verification_form,
@@ -550,7 +536,6 @@ def build_checking_requirement_card_context(
     tasks, passed = _card_feedback(feedback_tasks, feedback_passed)
     return CheckingCardContext(
         requirement=requirement,
-        instruction_url=_instruction_url(requirement),
         feedback_tasks=tasks,
         feedback_passed=passed,
         verification_status_token=verification_status_token,
@@ -567,7 +552,6 @@ def build_input_error_requirement_card_context(
     """Build a submittable card with a learner input error."""
     return NotStartedCardContext(
         requirement=requirement,
-        instruction_url=_instruction_url(requirement),
         feedback_tasks=[],
         feedback_passed=0,
         verification_form=_build_verification_form_context(
@@ -589,7 +573,6 @@ def build_unavailable_requirement_card_context(
     """Build an explicit verification-service failure card."""
     return UnavailableCardContext(
         requirement=requirement,
-        instruction_url=_instruction_url(requirement),
         feedback_tasks=[],
         feedback_passed=0,
         verification_form=_build_verification_form_context(

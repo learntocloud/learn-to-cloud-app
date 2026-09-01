@@ -56,18 +56,6 @@
           "title": "Description",
           "type": "string"
         },
-        "instruction_step_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Instruction Step Slug"
-        },
         "name": {
           "title": "Name",
           "type": "string"
@@ -145,18 +133,6 @@
           "title": "Description",
           "type": "string"
         },
-        "instruction_step_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Instruction Step Slug"
-        },
         "name": {
           "title": "Name",
           "type": "string"
@@ -233,18 +209,6 @@
           "title": "Description",
           "type": "string"
         },
-        "instruction_step_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Instruction Step Slug"
-        },
         "name": {
           "title": "Name",
           "type": "string"
@@ -319,18 +283,6 @@
           "title": "Description",
           "type": "string"
         },
-        "instruction_step_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Instruction Step Slug"
-        },
         "name": {
           "title": "Name",
           "type": "string"
@@ -386,18 +338,6 @@
         "description": {
           "title": "Description",
           "type": "string"
-        },
-        "instruction_step_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Instruction Step Slug"
         },
         "name": {
           "title": "Name",
@@ -461,18 +401,6 @@
         "description": {
           "title": "Description",
           "type": "string"
-        },
-        "instruction_step_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Instruction Step Slug"
         },
         "name": {
           "title": "Name",
@@ -693,18 +621,6 @@
           "title": "Description",
           "type": "string"
         },
-        "instruction_step_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Instruction Step Slug"
-        },
         "name": {
           "title": "Name",
           "type": "string"
@@ -849,18 +765,6 @@
           "title": "Description",
           "type": "string"
         },
-        "instruction_step_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Instruction Step Slug"
-        },
         "name": {
           "title": "Name",
           "type": "string"
@@ -952,18 +856,6 @@
           "title": "Description",
           "type": "string"
         },
-        "instruction_step_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Instruction Step Slug"
-        },
         "name": {
           "title": "Name",
           "type": "string"
@@ -1019,18 +911,6 @@
         "description": {
           "title": "Description",
           "type": "string"
-        },
-        "instruction_step_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Instruction Step Slug"
         },
         "name": {
           "title": "Name",

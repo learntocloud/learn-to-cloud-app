@@ -4,7 +4,6 @@ slug: deployed-journal-api
 submission_type: deployed_api
 name: Deploy a Public Journal API
 description: Enter your public HTTPS API base URL.
-instruction_step_slug: phase4-topic9-practice-verify-submit-deployment
 type_config:
   placeholder: https://your-api.example.com
   min_length: 8

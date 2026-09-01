@@ -30,20 +30,6 @@ def test_snapshot_round_trips_to_typed_requirement() -> None:
     assert restored == requirement
 
 
-def test_snapshot_excludes_presentation_fields() -> None:
-    requirement = repo_fork_requirement(
-        slug="fork", required_repo="owner/repo"
-    ).model_copy(
-        update={
-            "instruction_step_slug": "step-1",
-        }
-    )
-
-    snapshot = build_requirement_snapshot(requirement)
-
-    assert "instruction_step_slug" not in snapshot
-
-
 def test_hash_is_order_independent() -> None:
     requirement = journal_api_verifier_requirement(slug="journal")
     snapshot = build_requirement_snapshot(requirement)

@@ -1,6 +1,6 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "5d382c73a3d6bfc1f66efd3d9201e24b2978ef71e2fc4484da05a5e94725ff65",
+  "content_hash": "84d8eed265980201f5b195242b85f8d3fac3d1a311f59b15fc1895807053db6d",
   "curriculum_version": 11,
   "phases": [
     {
@@ -13,7 +13,6 @@
         "requirements": [
           {
             "description": "We'll check your GitHub profile README repository.",
-            "instruction_step_slug": "phase0-topic6-practice-create-profile-readme",
             "name": "Create Your GitHub Profile README",
             "slug": "profile-readme",
             "submission_type": "profile_readme",
@@ -672,7 +671,6 @@
         "requirements": [
           {
             "description": "We'll check that the Linux CTF repository is forked to your account.",
-            "instruction_step_slug": "phase1-topic6-practice-linux-ctfs-repository",
             "name": "Fork the Linux CTFs Repository",
             "slug": "linux-ctfs-fork",
             "submission_type": "repo_fork",
@@ -683,7 +681,6 @@
           },
           {
             "description": "Paste the token shown after completing all 18 challenges.",
-            "instruction_step_slug": "phase1-topic6-practice-linux-ctfs-repository",
             "name": "Submit the Linux CTF Completion Token",
             "slug": "linux-ctfs-token",
             "submission_type": "ctf_token",
@@ -1437,7 +1434,6 @@
         "requirements": [
           {
             "description": "We'll check that the Networking Lab repository is forked to your account.",
-            "instruction_step_slug": "phase2-topic4-practice-networking-lab-repository",
             "name": "Fork the Networking Lab Repository",
             "slug": "networking-lab-fork",
             "submission_type": "repo_fork",
@@ -1448,7 +1444,6 @@
           },
           {
             "description": "Paste the token shown after completing all four challenges.",
-            "instruction_step_slug": "phase2-topic4-practice-networking-lab-repository",
             "name": "Submit the Networking Lab Completion Token",
             "slug": "networking-lab-token",
             "submission_type": "networking_token",
@@ -1978,7 +1973,6 @@
         "requirements": [
           {
             "description": "We'll review the latest code on your fork's `main` branch.",
-            "instruction_step_slug": "phase3-topic5-practice-journal-starter-repository",
             "name": "Verify Journal API Implementation",
             "slug": "journal-api-implementation",
             "submission_type": "journal_api_verifier",
@@ -2570,7 +2564,6 @@
         "requirements": [
           {
             "description": "Enter your public HTTPS API base URL.",
-            "instruction_step_slug": "phase4-topic9-practice-verify-submit-deployment",
             "name": "Deploy a Public Journal API",
             "slug": "deployed-journal-api",
             "submission_type": "deployed_api",
@@ -3652,7 +3645,6 @@
         "requirements": [
           {
             "description": "We'll review the DevOps implementation on your fork's `main` branch.",
-            "instruction_step_slug": "phase5-topic6-practice-submit-verification",
             "name": "Complete the DevOps Capstone",
             "slug": "devops-implementation",
             "submission_type": "devops_analysis",
@@ -5064,7 +5056,6 @@
         "requirements": [
           {
             "description": "We'll check the latest CodeQL run for your fork's `main` branch.",
-            "instruction_step_slug": "phase6-capstone-practice-enable-security-scanning-on",
             "name": "Enable Security Scanning",
             "slug": "security-scanning",
             "submission_type": "security_scanning",
@@ -5908,7 +5899,6 @@
         "requirements": [
           {
             "description": "Answer all three questions thoughtfully and in your own words.",
-            "instruction_step_slug": "phase7-capstone-practice-complete-the-reflection",
             "name": "Reflect on Your Job-Search Readiness",
             "slug": "career-reflection",
             "submission_type": "career_reflection",

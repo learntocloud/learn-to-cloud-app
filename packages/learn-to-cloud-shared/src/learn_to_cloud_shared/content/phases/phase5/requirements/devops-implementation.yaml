@@ -4,6 +4,5 @@ slug: devops-implementation
 submission_type: devops_analysis
 name: Complete the DevOps Capstone
 description: We'll review the DevOps implementation on your fork's `main` branch.
-instruction_step_slug: phase5-topic6-practice-submit-verification
 type_config:
   required_repo: learntocloud/journal-starter
