@@ -6,7 +6,7 @@ import pytest
 from opentelemetry.trace import Status, StatusCode
 
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
-from learn_to_cloud_shared.submission_values import SubmittedValue
+from learn_to_cloud_shared.submission_values import submitted_value_from_raw
 from learn_to_cloud_shared.testing.requirement_factories import (
     repo_fork_requirement,
 )
@@ -104,7 +104,7 @@ def _job(requirement=None) -> PreparedVerificationAttempt:
         user_id=1,
         github_username="learner",
         requirement=requirement,
-        submitted_value=SubmittedValue.from_raw(
+        submitted_value=submitted_value_from_raw(
             requirement, "https://github.com/learner/test-repo"
         ),
     )
@@ -380,7 +380,7 @@ def _journal_job() -> PreparedVerificationAttempt:
         user_id=1,
         github_username="learner",
         requirement=requirement,
-        submitted_value=SubmittedValue.from_raw(
+        submitted_value=submitted_value_from_raw(
             requirement, "https://github.com/learner/journal-starter"
         ),
     )
@@ -451,7 +451,7 @@ def _deployment_job(description: str) -> PreparedVerificationAttempt:
         user_id=1,
         github_username="learner",
         requirement=requirement,
-        submitted_value=SubmittedValue.from_raw(requirement, description),
+        submitted_value=submitted_value_from_raw(requirement, description),
     )
 
 
@@ -530,7 +530,9 @@ def _deployed_api_job() -> PreparedVerificationAttempt:
         user_id=1,
         github_username=None,
         requirement=requirement,
-        submitted_value=SubmittedValue.from_raw(requirement, "https://api.example.com"),
+        submitted_value=submitted_value_from_raw(
+            requirement, "https://api.example.com"
+        ),
     )
 
 
@@ -548,7 +550,7 @@ def _devops_job() -> PreparedVerificationAttempt:
         user_id=1,
         github_username="learner",
         requirement=requirement,
-        submitted_value=SubmittedValue.from_raw(
+        submitted_value=submitted_value_from_raw(
             requirement, "https://github.com/learner/devops-repo"
         ),
     )
@@ -709,7 +711,7 @@ def _security_job() -> PreparedVerificationAttempt:
         user_id=1,
         github_username="learner",
         requirement=requirement,
-        submitted_value=SubmittedValue.from_raw(
+        submitted_value=submitted_value_from_raw(
             requirement, "https://github.com/learner/sec-repo"
         ),
     )
@@ -726,7 +728,7 @@ def _career_job(text: str) -> PreparedVerificationAttempt:
         user_id=1,
         github_username=None,
         requirement=requirement,
-        submitted_value=SubmittedValue.from_raw(requirement, text),
+        submitted_value=submitted_value_from_raw(requirement, text),
     )
 
 
@@ -814,7 +816,7 @@ def _phase02_job(requirement, submitted_value, github_username="learner"):
         user_id=1,
         github_username=github_username,
         requirement=requirement,
-        submitted_value=SubmittedValue.from_raw(requirement, submitted_value),
+        submitted_value=submitted_value_from_raw(requirement, submitted_value),
     )
 
 

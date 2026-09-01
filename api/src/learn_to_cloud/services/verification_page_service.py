@@ -26,6 +26,8 @@ from learn_to_cloud_shared.schemas import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud.rendering.context import (
+    RequirementCardContext,
+    build_checking_requirement_card_context,
     build_requirement_card_context,
     feedback_tasks_and_passed,
 )
@@ -138,7 +140,7 @@ class PhaseVerificationWorkspace:
     phase: Phase
     phase_progress: PhaseProgress
     requirements: list[HandsOnRequirement]
-    card_contexts_by_req: dict[str, dict[str, Any]]
+    card_contexts_by_req: dict[str, RequirementCardContext]
     verification_locked: bool
     prerequisite_phase_id: int | None
     history: VerificationHistoryPage
@@ -204,7 +206,7 @@ async def get_phase_verification_workspace(
     db: AsyncSession,
     user_id: int,
     phase: Phase,
-    github_username: str | None,
+    github_username: str,
     *,
     history_page: int = 1,
 ) -> PhaseVerificationWorkspace:
@@ -233,7 +235,7 @@ async def get_phase_verification_workspace(
         if attempt.requirement_uuid in requirements_by_uuid
     }
 
-    card_contexts_by_req: dict[str, dict[str, Any]] = {}
+    card_contexts_by_req: dict[str, RequirementCardContext] = {}
     for requirement in requirements:
         feedback_tasks, feedback_passed = feedback_tasks_and_passed(
             submission_context.feedback_by_req.get(requirement.slug)
@@ -249,15 +251,23 @@ async def get_phase_verification_workspace(
             if active_attempt is not None
             else None
         )
-        card_contexts_by_req[requirement.slug] = build_requirement_card_context(
-            requirement=requirement,
-            github_username=github_username,
-            submission=submission_context.submissions_by_req.get(requirement.slug),
-            feedback_tasks=feedback_tasks,
-            feedback_passed=feedback_passed,
-            processing=active_attempt is not None,
-            verification_status_token=status_token,
-        )
+        if active_attempt is not None:
+            card_contexts_by_req[requirement.slug] = (
+                build_checking_requirement_card_context(
+                    requirement=requirement,
+                    verification_status_token=status_token,
+                    feedback_tasks=feedback_tasks,
+                    feedback_passed=feedback_passed,
+                )
+            )
+        else:
+            card_contexts_by_req[requirement.slug] = build_requirement_card_context(
+                requirement=requirement,
+                github_username=github_username,
+                submission=submission_context.submissions_by_req.get(requirement.slug),
+                feedback_tasks=feedback_tasks,
+                feedback_passed=feedback_passed,
+            )
 
     history_rows = await attempt_repository.list_terminal_history_for_requirements(
         user_id,

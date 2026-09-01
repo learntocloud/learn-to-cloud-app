@@ -1,38 +1,28 @@
-{# Requirement verification card. One ``card_state`` (from
-   build_requirement_card_context) drives the whole card instead of a
-   scattered combination of submission/processing/server_error flags:
-   'checking' | 'passed' | 'failed' | 'unavailable' | 'not_started'.
-
-   Required context (all provided by build_requirement_card_context):
-     requirement, submission, feedback_tasks, feedback_passed, card_state,
-     server_error, server_error_message, server_error_retryable,
-     error_banner, processing, verification_status_token,
-     verification_status_delay_seconds, derived_url
-#}
+{# Required context: ``card`` is one RequirementCardContext variant. #}
 {% from "macros/badges.html" import status_pill %}
 {% from "macros/callouts.html" import banner %}
-<div id="requirement-{{ requirement.slug }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+<div id="requirement-{{ card.requirement.slug }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
     <div class="flex items-center justify-between mb-2">
-        <h3 class="font-medium text-gray-900 dark:text-gray-100">{{ requirement.name }}</h3>
-        {% if card_state == 'passed' %}
+        <h3 class="font-medium text-gray-900 dark:text-gray-100">{{ card.requirement.name }}</h3>
+        {% if card.kind == 'passed' %}
         {{ status_pill("Verified", "success") }}
-        {% elif card_state == 'unavailable' %}
+        {% elif card.kind == 'unavailable' %}
         {{ status_pill("Service unavailable", "warning") }}
-        {% elif card_state == 'failed' %}
+        {% elif card.kind == 'failed' %}
         {{ status_pill("Needs work", "error") }}
         {% endif %}
     </div>
 
-    {% if requirement.description %}
-    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ requirement.description }}</p>
+    {% if card.requirement.description %}
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ card.requirement.description }}</p>
     {% endif %}
 
-    {% if card_state == 'checking' and verification_status_token %}
+    {% if card.kind == 'checking' and card.verification_status_token %}
     {# Verification in progress — poll the Durable status proxy until terminal. #}
     <div
-        hx-get="/htmx/verification/attempts/status?token={{ verification_status_token | urlencode }}"
-        hx-trigger="load delay:{{ verification_status_delay_seconds | default(2) }}s"
-        hx-target="#requirement-{{ requirement.slug }}"
+        hx-get="/htmx/verification/attempts/status?token={{ card.verification_status_token | urlencode }}"
+        hx-trigger="load delay:{{ card.verification_status_delay_seconds }}s"
+        hx-target="#requirement-{{ card.requirement.slug }}"
         hx-swap="outerHTML"
         class="flex items-center gap-3 py-3"
         role="status"
@@ -43,128 +33,45 @@
             Analyzing your code... this usually takes 30–60 seconds.
         </span>
     </div>
-    {% elif card_state == 'checking' %}
+    {% elif card.kind == 'checking' %}
     <div class="text-amber-600 dark:text-amber-400 text-sm p-2" role="status">
         Verification is running. Refresh the page to check for results.
     </div>
-    {% elif card_state != 'passed' %}
-    {% set is_reflection = requirement.submission_type == 'career_reflection' %}
-    {% set is_architecture = requirement.submission_type == 'deployment_architecture' %}
+    {% elif card.kind != 'passed' %}
+    {% if card.verification_form.kind != 'unsupported' %}
     <form
-        hx-post="/htmx/github/submit"
-        hx-target="#requirement-{{ requirement.slug }}"
+        hx-post="{{ card.verification_form.action }}"
+        hx-target="#requirement-{{ card.requirement.slug }}"
         hx-swap="outerHTML"
-        hx-indicator="#spinner-{{ requirement.slug }}"
+        hx-indicator="#spinner-{{ card.requirement.slug }}"
         hx-disabled-elt="find button[type='submit']"
-        class="flex flex-col gap-3 {% if is_reflection or is_architecture %}gap-4{% else %}sm:flex-row sm:items-start{% endif %}"
+        x-data="{ valid: false }"
+        x-init="valid = $el.checkValidity()"
+        @input="valid = $el.checkValidity()"
+        @change="valid = $el.checkValidity()"
+        class="flex flex-col gap-3 {% if card.verification_form.kind == 'reflection' %}gap-4{% else %}sm:flex-row sm:items-start{% endif %}"
     >
-        <input type="hidden" name="requirement_slug" value="{{ requirement.slug }}">
-
-        {% if is_reflection %}
-        {# Career reflection — one textarea per configured question. The answers
-           post as a repeated ``answers`` field, combined server-side into one
-           text submission and graded by the LLM rubric. #}
-        {% for question in requirement.type_config.questions %}
-        <div class="flex flex-col gap-1">
-            <label for="answer-{{ requirement.slug }}-{{ loop.index0 }}" class="text-sm font-medium text-gray-800 dark:text-gray-200">
-                {{ question.prompt }}
-            </label>
-            <textarea
-                id="answer-{{ requirement.slug }}-{{ loop.index0 }}"
-                name="answers"
-                rows="5"
-                minlength="{{ requirement.type_config.min_answer_length }}"
-                placeholder="Write at least {{ requirement.type_config.min_answer_length }} characters."
-                class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                required
-            ></textarea>
-        </div>
-        {% endfor %}
-        {% elif is_architecture %}
-        {# Deployment architecture — one long-text field describing the learner's
-           deploy.sh. Posts as ``architecture_description`` (not the 2048-capped
-           ``submitted_value``) and is graded against the fetched deploy.sh by
-           the LLM rubric. #}
-        <div class="flex flex-col gap-1">
-            <label for="architecture-{{ requirement.slug }}" class="text-sm font-medium text-gray-800 dark:text-gray-200">
-                {{ requirement.type_config.prompt }}
-            </label>
-            <textarea
-                id="architecture-{{ requirement.slug }}"
-                name="architecture_description"
-                rows="8"
-                minlength="{{ requirement.type_config.min_answer_length }}"
-                maxlength="20000"
-                placeholder="Write at least {{ requirement.type_config.min_answer_length }} characters."
-                class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                required
-            ></textarea>
-        </div>
-        {% elif requirement.submission_type in ['ctf_token', 'networking_token'] %}
-        {# Token input — learner pastes the completion token. #}
-        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
-        <input
-            id="input-{{ requirement.slug }}"
-            type="text"
-            name="submitted_value"
-            placeholder="{{ requirement.type_config.placeholder | default('Paste your completion token here') }}"
-            value=""
-            class="min-h-11 flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            required
-        >
-        {% elif requirement.submission_type == 'deployed_api' %}
-        {# Free-form deployed API URL — the learner owns the hostname. #}
-        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
-        <input
-            id="input-{{ requirement.slug }}"
-            type="url"
-            name="submitted_value"
-            placeholder="{{ requirement.type_config.placeholder | default('https://your-api.example.com') }}"
-            value="{% if submission %}{{ submission.submitted_value }}{% endif %}"
-            class="min-h-11 flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            required
-        >
-        {% elif derived_url %}
-        {# Derivable URL types — the server builds the URL from the learner's
-           GitHub username + the requirement's ``required_repo``.  The field is
-           read-only so the learner cannot tamper with it; the form posts no
-           user-editable value. #}
-        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
-        <input
-            id="input-{{ requirement.slug }}"
-            type="url"
-            value="{{ derived_url }}"
-            readonly
-            aria-readonly="true"
-            class="min-h-11 flex-1 cursor-default select-all rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
-        >
-        {% else %}
-        {# Fallback: requirement is misconfigured or the learner has no
-           linked GitHub username.  Show a disabled input and let the server
-           return an error banner on submit. #}
-        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
-        <input
-            id="input-{{ requirement.slug }}"
-            type="url"
-            value=""
-            disabled
-            aria-disabled="true"
-            placeholder="Unable to auto-derive submission URL"
-            class="min-h-11 flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
-        >
-        {% endif %}
+        {% with verification_form=card.verification_form, requirement=card.requirement %}
+        {% include card.verification_form.template %}
+        {% endwith %}
 
         <button
             type="submit"
+            :disabled="!valid"
             class="inline-flex min-h-11 items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:opacity-50"
         >
             Verify
         </button>
-        <span id="spinner-{{ requirement.slug }}" class="htmx-indicator inline-flex items-center text-sm text-gray-500">
+        <span id="spinner-{{ card.requirement.slug }}" class="htmx-indicator inline-flex items-center text-sm text-gray-500">
             Checking...
         </span>
     </form>
-    {% if derived_url %}
+    {% else %}
+    <div class="text-amber-600 dark:text-amber-400 text-sm p-2" role="status">
+        {{ card.verification_form.message }}
+    </div>
+    {% endif %}
+    {% if card.verification_form.kind == 'derived' %}
     {# The read-only field above is derived server-side, which is invisible to a
        learner whose fork is named differently or lives under an org (#701). #}
     <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
@@ -176,32 +83,32 @@
     {% endif %}
     {% endif %}
 
-    {% if card_state == 'unavailable' %}
+    {% if card.kind == 'unavailable' %}
     {# System/retryable fault -- not the learner's doing, so always worth
        reporting and never blamed on them (covers both server_error and
        cancelled outcomes). #}
     {{ banner(
-        (server_error_message or 'The verification service encountered an error.')
+        card.message
         + (' This attempt was not counted against your rate limit, so you can try again immediately.'
-           if server_error_retryable
+           if card.retryable
            else ' This attempt was not counted against your rate limit.'),
         'warning',
         report=true,
-        report_title='Verification error: ' ~ requirement.name,
-        report_context='requirement=' ~ requirement.slug
+        report_title='Verification error: ' ~ card.requirement.name,
+        report_context='requirement=' ~ card.requirement.slug
     ) }}
-    {% elif error_banner %}
+    {% elif card.kind in ('not_started', 'failed') and card.error_message %}
     {# A real learner-facing outcome: either a pre-submit validation issue,
        or the rubric's reason a completed attempt didn't pass. #}
     {{ banner(
-        error_banner,
+        card.error_message,
         'error',
         report=false
     ) }}
     {% endif %}
 
-    {% if feedback_tasks %}
-    {% with feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, requirement_slug=requirement.slug %}
+    {% if card.feedback_tasks %}
+    {% with feedback_tasks=card.feedback_tasks, feedback_passed=card.feedback_passed, requirement_slug=card.requirement.slug %}
     {% include "partials/verification_feedback.html" %}
     {% endwith %}
     {% endif %}

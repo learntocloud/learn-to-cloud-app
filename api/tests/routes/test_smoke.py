@@ -26,6 +26,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from fastapi.responses import HTMLResponse
 from httpx import ASGITransport, AsyncClient
 from learn_to_cloud_shared.core.database import get_db, get_db_readonly
 from learn_to_cloud_shared.schemas import (
@@ -37,7 +38,12 @@ from learn_to_cloud_shared.schemas import (
     VerificationProgress,
 )
 
-from learn_to_cloud.core.auth import optional_auth, require_auth
+from learn_to_cloud.core.auth import (
+    AuthenticatedUser,
+    optional_auth,
+    require_auth,
+    require_authenticated_user,
+)
 
 # =============================================================================
 # Fixtures
@@ -187,10 +193,14 @@ async def auth_client(_patched_content):
     def _override_optional_auth():
         return 1
 
+    def _override_current_user():
+        return AuthenticatedUser(user_id=1, github_username="testuser")
+
     app.dependency_overrides[get_db] = _override_get_db
     app.dependency_overrides[get_db_readonly] = _override_get_db_readonly
     app.dependency_overrides[require_auth] = _override_require_auth
     app.dependency_overrides[optional_auth] = _override_optional_auth
+    app.dependency_overrides[require_authenticated_user] = _override_current_user
 
     app.state.init_done = True
     app.state.init_error = None
@@ -273,6 +283,103 @@ class TestAuthPageSmoke:
         ):
             response = await auth_client.get("/account")
         assert response.status_code == 200
+
+    async def test_typed_verification_submission_routes_bind_forms(
+        self, auth_client: AsyncClient
+    ):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            career_reflection_requirement,
+            ctf_token_requirement,
+            profile_readme_requirement,
+        )
+
+        requirements = {
+            "profile-readme": profile_readme_requirement(slug="profile-readme"),
+            "linux-token": ctf_token_requirement(
+                slug="linux-token",
+                min_length=200,
+            ),
+            "career-reflection": career_reflection_requirement(
+                slug="career-reflection",
+                min_answer_length=3,
+                question_count=2,
+            ),
+        }
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                side_effect=requirements.get,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes._submit_canonical_verification",
+                new_callable=AsyncMock,
+                return_value=HTMLResponse("processing"),
+            ) as mock_submit,
+        ):
+            derived = await auth_client.post(
+                "/htmx/verifications/profile-readme/submit/derived"
+            )
+            value = await auth_client.post(
+                "/htmx/verifications/linux-token/submit/value",
+                data={"submitted_value": "t" * 200},
+            )
+            reflection = await auth_client.post(
+                "/htmx/verifications/career-reflection/submit/reflection",
+                content="answers=first+answer&answers=second+answer",
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+
+        assert derived.status_code == 200
+        assert value.status_code == 200
+        assert reflection.status_code == 200
+        assert mock_submit.await_count == 3
+
+    async def test_verification_routes_share_one_rate_limit(
+        self, auth_client: AsyncClient
+    ):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            ctf_token_requirement,
+            profile_readme_requirement,
+        )
+
+        from learn_to_cloud.core.ratelimit import limiter
+
+        requirements = {
+            "profile-readme": profile_readme_requirement(slug="profile-readme"),
+            "linux-token": ctf_token_requirement(slug="linux-token"),
+        }
+        paths = [
+            ("/htmx/verifications/profile-readme/submit/derived", None),
+            (
+                "/htmx/verifications/linux-token/submit/value",
+                {"submitted_value": "token-123"},
+            ),
+        ]
+
+        limiter.reset()
+        try:
+            with (
+                patch.object(limiter, "enabled", True),
+                patch(
+                    "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                    side_effect=requirements.get,
+                ),
+                patch(
+                    "learn_to_cloud.routes.htmx_routes._submit_canonical_verification",
+                    new_callable=AsyncMock,
+                    return_value=HTMLResponse("processing"),
+                ),
+            ):
+                responses = [
+                    await auth_client.post(path, data=data)
+                    for path, data in (paths * 6)[:11]
+                ]
+        finally:
+            limiter.reset()
+
+        assert all(response.status_code == 200 for response in responses[:10])
+        assert responses[10].status_code == 429
 
     async def test_phase_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1 renders the phase detail template."""

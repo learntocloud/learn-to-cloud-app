@@ -3,7 +3,7 @@
 Tests cover:
 - POST /htmx/steps/complete — mark a step complete
 - DELETE /htmx/steps/{topic_id}/{step_id} — uncomplete a step
-- POST /htmx/github/submit — submit verification
+- POST /htmx/verifications/{slug}/submit/{shape} — submit verification
 - DELETE /htmx/account — delete user account
 
 Testing approach:
@@ -19,13 +19,24 @@ from uuid import uuid4
 
 import pytest
 from fastapi.responses import HTMLResponse
+from learn_to_cloud_shared.submission_values import (
+    GitHubUrlValue,
+    TextValue,
+    TokenValue,
+)
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.datastructures import FormData, UploadFile
 
 from learn_to_cloud.core.auth import AuthenticatedUser
+from learn_to_cloud.rendering.context import UnavailableCardContext
 from learn_to_cloud.routes.htmx_routes import (
     _combine_reflection_answers,
+    _submit_canonical_verification,
     htmx_complete_step,
     htmx_delete_account,
+    htmx_submit_derived_verification,
+    htmx_submit_reflection_verification,
+    htmx_submit_value_verification,
     htmx_submit_verification,
     htmx_uncomplete_step,
     htmx_verification_attempt_status,
@@ -47,11 +58,16 @@ def _mock_attempt_submission(*, created: bool = True) -> VerificationAttemptSubm
     return VerificationAttemptSubmission(attempt_id=uuid4(), created=created)
 
 
-def _mock_request(*, session: dict | None = None) -> MagicMock:
+def _mock_request(
+    *,
+    session: dict | None = None,
+    form_items: list[tuple[str, str | UploadFile]] | None = None,
+) -> MagicMock:
     """Build mock Request with session support."""
     request = MagicMock()
     request.session = session if session is not None else {}
     request.app.state.session_maker = MagicMock()
+    request.form = AsyncMock(return_value=FormData(form_items or []))
 
     return request
 
@@ -192,11 +208,220 @@ class TestHtmxUncompleteStep:
 
 @pytest.mark.unit
 class TestHtmxSubmitVerification:
-    """Tests for POST /htmx/github/submit.
+    """Tests for typed verification submission boundaries.
 
-    The route is thin: derive value, persist an attempt, start Durable,
-    return spinner.
+    Routes validate one form shape, then share attempt creation and startup.
     """
+
+    async def test_derived_route_uses_server_built_url(self):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            profile_readme_requirement,
+        )
+
+        requirement = profile_readme_requirement(slug="profile-readme")
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=requirement,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes._submit_canonical_verification",
+                new_callable=AsyncMock,
+                return_value=HTMLResponse("processing"),
+            ) as mock_submit,
+        ):
+            result = await htmx_submit_derived_verification(
+                request,
+                current_user,
+                requirement_slug="profile-readme",
+            )
+
+        assert result.status_code == 200
+        mock_submit.assert_awaited_once_with(
+            request,
+            current_user,
+            requirement,
+            GitHubUrlValue("https://github.com/user/user"),
+        )
+
+    async def test_derived_route_rejects_spoofed_value(self):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            profile_readme_requirement,
+        )
+
+        requirement = profile_readme_requirement(slug="profile-readme")
+        request = _mock_request(
+            form_items=[("submitted_value", "https://github.com/other/other")]
+        )
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=requirement,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes._submit_canonical_verification",
+                new_callable=AsyncMock,
+            ) as mock_submit,
+        ):
+            result = await htmx_submit_derived_verification(
+                request,
+                current_user,
+                requirement_slug="profile-readme",
+            )
+
+        assert result.status_code == 200
+        mock_submit.assert_not_awaited()
+
+    async def test_value_route_passes_only_submitted_value(self):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            ctf_token_requirement,
+        )
+
+        requirement = ctf_token_requirement(
+            slug="linux-token",
+            min_length=200,
+        )
+        token = "t" * 200
+        request = _mock_request(form_items=[("submitted_value", token)])
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=requirement,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes._submit_canonical_verification",
+                new_callable=AsyncMock,
+                return_value=HTMLResponse("processing"),
+            ) as mock_submit,
+        ):
+            result = await htmx_submit_value_verification(
+                request,
+                current_user,
+                requirement_slug="linux-token",
+            )
+
+        assert result.status_code == 200
+        mock_submit.assert_awaited_once_with(
+            request,
+            current_user,
+            requirement,
+            TokenValue(token),
+        )
+
+    @pytest.mark.parametrize(
+        "form_items",
+        [
+            [],
+            [("submitted_value", "   ")],
+            [("submitted_value", "t" * 200), ("answers", "unexpected")],
+            [("submitted_value", "first"), ("submitted_value", "second")],
+            [("submitted_value", "x")],
+        ],
+    )
+    async def test_value_route_rejects_invalid_form_shapes(self, form_items):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            ctf_token_requirement,
+        )
+
+        requirement = ctf_token_requirement(
+            slug="linux-token",
+            min_length=200,
+        )
+        request = _mock_request(form_items=form_items)
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=requirement,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes._submit_canonical_verification",
+                new_callable=AsyncMock,
+            ) as mock_submit,
+        ):
+            result = await htmx_submit_value_verification(
+                request,
+                current_user,
+                requirement_slug="linux-token",
+            )
+
+        assert result.status_code == 200
+        mock_submit.assert_not_awaited()
+
+    async def test_reflection_route_combines_repeated_answers(self):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            career_reflection_requirement,
+        )
+
+        requirement = career_reflection_requirement(
+            slug="career-reflection",
+            min_answer_length=3,
+            question_count=2,
+        )
+        request = _mock_request(
+            form_items=[("answers", "first answer"), ("answers", "second answer")]
+        )
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=requirement,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes._submit_canonical_verification",
+                new_callable=AsyncMock,
+                return_value=HTMLResponse("processing"),
+            ) as mock_submit,
+        ):
+            result = await htmx_submit_reflection_verification(
+                request,
+                current_user,
+                requirement_slug="career-reflection",
+            )
+
+        assert result.status_code == 200
+        mock_submit.assert_awaited_once()
+        submitted_value = mock_submit.await_args_list[0].args[3]
+        assert isinstance(submitted_value, TextValue)
+        assert "## Question 0?" in submitted_value.text
+        assert "first answer" in submitted_value.text
+        assert "## Question 1?" in submitted_value.text
+        assert "second answer" in submitted_value.text
+
+    async def test_unknown_requirement_refreshes_stale_page(self):
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+
+        with patch(
+            "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+            return_value=None,
+        ):
+            result = await htmx_submit_derived_verification(
+                request,
+                current_user,
+                requirement_slug="removed-requirement",
+            )
+
+        assert result.status_code == 200
+        assert "location.reload()" in result.body.decode()
+
+    async def test_legacy_route_refreshes_open_pages(self):
+        result = await htmx_submit_verification(
+            _mock_request(),
+            AuthenticatedUser(user_id=1, github_username="user"),
+        )
+
+        assert result.status_code == 200
+        assert result.headers["HX-Refresh"] == "true"
 
     async def test_submit_success_returns_processing_card(self):
         """Successful submission starts Durable and returns processing card."""
@@ -231,11 +456,11 @@ class TestHtmxSubmitVerification:
                 return_value=start_result,
             ) as mock_start,
         ):
-            result = await htmx_submit_verification(
+            result = await _submit_canonical_verification(
                 request,
                 current_user,
-                requirement_slug="req-1",
-                submitted_value="https://github.com/user/repo",
+                MagicMock(slug="req-1"),
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         # Should return a processing card, not a final result
@@ -274,11 +499,11 @@ class TestHtmxSubmitVerification:
             ),
             caplog.at_level(logging.INFO, logger="learn_to_cloud.routes.htmx_routes"),
         ):
-            await htmx_submit_verification(
+            await _submit_canonical_verification(
                 request,
                 current_user,
-                requirement_slug="req-1",
-                submitted_value="https://github.com/user/repo",
+                MagicMock(slug="req-1"),
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         record = next(
@@ -310,11 +535,11 @@ class TestHtmxSubmitVerification:
                 side_effect=RuntimeError("boom"),
             ),
         ):
-            result = await htmx_submit_verification(
+            result = await _submit_canonical_verification(
                 request,
                 current_user,
-                requirement_slug="req-1",
-                submitted_value="test",
+                MagicMock(slug="req-1"),
+                GitHubUrlValue("https://github.com/user/user"),
             )
 
         # Should render a server error card, not crash
@@ -352,11 +577,11 @@ class TestHtmxSubmitVerification:
                 new_callable=AsyncMock,
             ) as terminalize,
         ):
-            result = await htmx_submit_verification(
+            result = await _submit_canonical_verification(
                 request,
                 current_user,
-                requirement_slug="req-1",
-                submitted_value="https://github.com/user/repo",
+                MagicMock(slug="req-1"),
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         assert isinstance(result, HTMLResponse)
@@ -403,25 +628,23 @@ class TestHtmxSubmitVerification:
                 new_callable=AsyncMock,
             ) as terminalize,
         ):
-            result = await htmx_submit_verification(
+            result = await _submit_canonical_verification(
                 request,
                 current_user,
-                requirement_slug="req-1",
-                submitted_value="https://github.com/user/repo",
+                MagicMock(slug="req-1"),
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         assert isinstance(result, HTMLResponse)
         terminalize.assert_awaited_once()
         _, _, context = _patch_templates.TemplateResponse.call_args.args
-        assert context["server_error"] is True
-        assert context["server_error_retryable"] is False
-        assert "open" in context["server_error_message"].lower()
-        assert (
-            "github.com/learntocloud/learn-to-cloud-app/issues"
-            in context["server_error_message"]
-        )
-        assert "immediately" not in context["server_error_message"]
-        assert "team has been notified" not in context["server_error_message"]
+        card = context["card"]
+        assert isinstance(card, UnavailableCardContext)
+        assert card.retryable is False
+        assert "open" in card.message.lower()
+        assert "github.com/learntocloud/learn-to-cloud-app/issues" in card.message
+        assert "immediately" not in card.message
+        assert "team has been notified" not in card.message
 
     async def test_durable_start_error_invites_retry(self, _patch_templates):
         """A transient start error should still mark the banner retryable."""
@@ -455,16 +678,17 @@ class TestHtmxSubmitVerification:
                 new_callable=AsyncMock,
             ) as terminalize,
         ):
-            await htmx_submit_verification(
+            await _submit_canonical_verification(
                 request,
                 current_user,
-                requirement_slug="req-1",
-                submitted_value="https://github.com/user/repo",
+                MagicMock(slug="req-1"),
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         _, _, context = _patch_templates.TemplateResponse.call_args.args
-        assert context["server_error"] is True
-        assert context["server_error_retryable"] is True
+        card = context["card"]
+        assert isinstance(card, UnavailableCardContext)
+        assert card.retryable is True
         terminalize.assert_awaited_once()
 
     async def test_async_submit_still_returns_processing_card(self):
@@ -501,20 +725,17 @@ class TestHtmxSubmitVerification:
                 return_value=start_result,
             ) as mock_start,
         ):
-            result = await htmx_submit_verification(
+            result = await _submit_canonical_verification(
                 request,
                 current_user,
-                requirement_slug="req-1",
-                submitted_value="https://github.com/user/repo",
+                MagicMock(slug="req-1"),
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         assert isinstance(result, HTMLResponse)
         mock_start.assert_awaited_once_with(attempt_submission.attempt_id)
 
-    async def test_deployment_architecture_long_description_reaches_derive(self):
-        """A >2048-char architecture description must not be truncated by the
-        shared ``submitted_value`` cap; it flows via ``architecture_description``
-        into ``derive_submission_value`` intact and starts an orchestration."""
+    async def test_deployment_architecture_is_rejected_by_value_route(self):
         from learn_to_cloud_shared.testing.requirement_factories import (
             deployment_architecture_requirement,
         )
@@ -523,62 +744,7 @@ class TestHtmxSubmitVerification:
             slug="deployment-architecture",
             required_repo="learntocloud/journal-starter",
         )
-        long_description = "A detailed two-tier deployment description. " * 100
-        assert len(long_description) > 2048
-
-        request = _mock_request()
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        attempt_submission = _mock_attempt_submission(created=True)
-        start_result = SimpleNamespace(instance_id=str(attempt_submission.attempt_id))
-        write_session = AsyncMock()
-        request.app.state.session_maker.return_value.__aenter__.return_value = (
-            write_session
-        )
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=requirement,
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value=long_description,
-            ) as mock_derive,
-            patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
-                new_callable=AsyncMock,
-                return_value=attempt_submission,
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes."
-                "start_verification_attempt_orchestration",
-                new_callable=AsyncMock,
-                return_value=start_result,
-            ) as mock_start,
-        ):
-            result = await htmx_submit_verification(
-                request,
-                current_user,
-                requirement_slug="deployment-architecture",
-                architecture_description=long_description,
-            )
-
-        assert isinstance(result, HTMLResponse)
-        mock_start.assert_awaited_once()
-        derive_kwargs = mock_derive.call_args.kwargs
-        assert derive_kwargs["user_input"] == long_description.strip()
-
-    async def test_deployment_architecture_empty_description_shows_error(self):
-        from learn_to_cloud_shared.testing.requirement_factories import (
-            deployment_architecture_requirement,
-        )
-
-        requirement = deployment_architecture_requirement(
-            slug="deployment-architecture",
-            required_repo="learntocloud/journal-starter",
-        )
-        request = _mock_request()
+        request = _mock_request(form_items=[("submitted_value", "description")])
         current_user = AuthenticatedUser(user_id=1, github_username="user")
 
         with (
@@ -591,11 +757,41 @@ class TestHtmxSubmitVerification:
                 new_callable=AsyncMock,
             ) as mock_create,
         ):
-            result = await htmx_submit_verification(
+            result = await htmx_submit_value_verification(
                 request,
                 current_user,
                 requirement_slug="deployment-architecture",
-                architecture_description="   ",
+            )
+
+        assert isinstance(result, HTMLResponse)
+        mock_create.assert_not_awaited()
+
+    async def test_deployment_architecture_is_rejected_by_reflection_route(self):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            deployment_architecture_requirement,
+        )
+
+        requirement = deployment_architecture_requirement(
+            slug="deployment-architecture",
+            required_repo="learntocloud/journal-starter",
+        )
+        request = _mock_request(form_items=[("answers", "description")])
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=requirement,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
+                new_callable=AsyncMock,
+            ) as mock_create,
+        ):
+            result = await htmx_submit_reflection_verification(
+                request,
+                current_user,
+                requirement_slug="deployment-architecture",
             )
 
         assert isinstance(result, HTMLResponse)
@@ -632,11 +828,11 @@ class TestHtmxSubmitVerification:
                 new_callable=AsyncMock,
             ) as mock_start,
         ):
-            result = await htmx_submit_verification(
+            result = await _submit_canonical_verification(
                 request,
                 current_user,
-                requirement_slug="req-1",
-                submitted_value="https://github.com/user/repo",
+                MagicMock(slug="req-1"),
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         assert isinstance(result, HTMLResponse)
@@ -882,10 +1078,11 @@ class TestHtmxVerificationAttemptStatus:
             session_maker=request.app.state.session_maker,
         )
         _, _, context = _patch_templates.TemplateResponse.call_args.args
-        assert context["server_error"] is True
-        assert context["server_error_retryable"] is False
+        card = context["card"]
+        assert isinstance(card, UnavailableCardContext)
+        assert card.retryable is False
         assert (
-            context["server_error_message"]
+            card.message
             == "Verification failed because the verification service hit an internal "
             "error. Please try again in a few minutes. If it keeps failing, open an "
             "issue at https://github.com/learntocloud/learn-to-cloud-app/issues."

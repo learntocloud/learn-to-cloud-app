@@ -11,7 +11,6 @@ from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import (
-    SubmissionValueKind,
     VerificationAttempt,
     VerificationAttemptOutcome,
     utcnow,
@@ -21,7 +20,7 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
     VerificationAttemptRepository,
 )
-from learn_to_cloud_shared.submission_values import SubmittedValue
+from learn_to_cloud_shared.submission_values import GitHubUrlValue, SubmittedValue
 
 pytestmark = pytest.mark.integration
 
@@ -136,7 +135,7 @@ async def test_community_activity_uses_distinct_projects_and_completion_time(
 def _submitted_value(
     value: str = "https://github.com/attemptrepo/repo",
 ) -> SubmittedValue:
-    return SubmittedValue(kind=SubmissionValueKind.GITHUB_URL, github_url=value)
+    return GitHubUrlValue(value)
 
 
 async def test_finalize_sets_terminal_state(

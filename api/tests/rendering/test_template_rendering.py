@@ -1,9 +1,12 @@
 """Rendered-HTML tests for phase and dashboard progress states."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from types import SimpleNamespace
+from typing import Any
+from uuid import uuid4
 
 import pytest
+from learn_to_cloud_shared.schemas import SubmissionData
 
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.context import (
@@ -33,16 +36,15 @@ def _render(template_name: str, **ctx: object) -> str:
     return _ENV.get_template(template_name).render(**_base_ctx(**ctx))
 
 
-def _requirement(slug: str, name: str) -> SimpleNamespace:
-    from learn_to_cloud_shared.models import SubmissionType
+def _requirement(slug: str, name: str, description: str = ""):
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        ctf_token_requirement,
+    )
 
-    return SimpleNamespace(
-        uuid=f"uuid-{slug}",
+    return ctf_token_requirement(
         slug=slug,
         name=name,
-        description="",
-        submission_type=SubmissionType.CTF_TOKEN,
-        type_config=SimpleNamespace(placeholder=None),
+        description=description,
     )
 
 
@@ -53,20 +55,22 @@ def _submission(
     validation_message: str | None = None,
     submitted_value: str = "",
     validated_at: datetime | None = None,
-) -> SimpleNamespace:
-    return SimpleNamespace(
+) -> SubmissionData:
+    return SubmissionData(
+        id=uuid4(),
         is_validated=is_validated,
         verification_completed=verification_completed,
         validation_message=validation_message,
         submitted_value=submitted_value,
         validated_at=validated_at,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
 
 def _card_contexts(
-    requirements: list[SimpleNamespace],
-    submissions_by_req: dict[str, object],
-) -> dict[str, dict]:
+    requirements: list[Any],
+    submissions_by_req: dict[str, SubmissionData],
+) -> dict[str, object]:
     """Build the same card_contexts_by_req shape pages_routes.py builds."""
     return {
         req.slug: build_requirement_card_context(
@@ -187,8 +191,8 @@ class TestPhaseVerificationLocked:
 
     def _render_phase(
         self,
-        requirements: list[SimpleNamespace],
-        submissions_by_req: dict[str, object],
+        requirements: list[Any],
+        submissions_by_req: dict[str, SubmissionData],
     ) -> str:
         return _render(
             "pages/verification_phase.html",
@@ -254,8 +258,8 @@ class TestPhaseVerificationCardStates:
 
     def _render_phase(
         self,
-        requirements: list[SimpleNamespace],
-        submissions_by_req: dict[str, object],
+        requirements: list[Any],
+        submissions_by_req: dict[str, SubmissionData],
     ) -> str:
         return _render(
             "pages/verification_phase.html",
@@ -285,7 +289,63 @@ class TestPhaseVerificationCardStates:
         html = self._render_phase([req], {})
         assert "Needs work" not in html
         assert "Verified" not in html
-        assert 'hx-post="/htmx/github/submit"' in html
+        assert 'hx-post="/htmx/verifications/ci-status/submit/value"' in html
+        assert 'name="requirement_slug"' not in html
+        assert ':disabled="!valid"' in html
+
+    def test_token_form_uses_configured_length_limits(self):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            ctf_token_requirement,
+        )
+
+        req = ctf_token_requirement(
+            slug="linux-token",
+            name="Linux token",
+            placeholder="Paste token",
+            min_length=200,
+            max_length=2048,
+        )
+
+        html = self._render_phase([req], {})
+
+        assert 'minlength="200"' in html
+        assert 'maxlength="2048"' in html
+        assert 'autocomplete="off"' in html
+        assert 'spellcheck="false"' in html
+
+    def test_deployed_url_form_uses_url_constraints(self):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            deployed_api_requirement,
+        )
+
+        req = deployed_api_requirement(
+            slug="deployed-api",
+            min_length=8,
+        )
+
+        html = self._render_phase([req], {})
+
+        assert 'type="url"' in html
+        assert 'minlength="8"' in html
+        assert 'maxlength="2048"' in html
+        assert 'autocomplete="url"' in html
+
+    def test_reflection_form_constrains_every_answer(self):
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            career_reflection_requirement,
+        )
+
+        req = career_reflection_requirement(
+            slug="career-reflection",
+            min_answer_length=200,
+            question_count=3,
+        )
+
+        html = self._render_phase([req], {})
+
+        assert html.count('name="answers"') == 3
+        assert html.count('minlength="200"') == 3
+        assert html.count('maxlength="6000"') == 3
 
     def test_failed_shows_needs_work_pill_and_learner_message(self):
         req = _requirement("ci-status", "CI Status")
@@ -323,8 +383,11 @@ class TestPhaseVerificationCardStates:
 
     def test_passed_keeps_requirement_context_visible(self):
         """A verified requirement keeps its evidence on screen (#701)."""
-        req = _requirement("ci-status", "CI Status")
-        req.description = "Submit your Journal API fork URL"
+        req = _requirement(
+            "ci-status",
+            "CI Status",
+            description="Submit your Journal API fork URL",
+        )
         submission = _submission(
             is_validated=True,
             verification_completed=True,
@@ -355,16 +418,20 @@ class TestPhaseVerificationCardStates:
 
     def test_readonly_derived_url_is_explained(self):
         """The auto-derived, read-only field says why it can't be edited (#701)."""
-        from learn_to_cloud_shared.models import SubmissionType
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            journal_api_verifier_requirement,
+        )
 
-        req = _requirement("journal-api", "Journal API")
-        req.submission_type = SubmissionType.JOURNAL_API_VERIFIER
-        req.type_config = SimpleNamespace(
-            placeholder=None, required_repo="learntocloud/journal-api"
+        req = journal_api_verifier_requirement(
+            slug="journal-api",
+            name="Journal API",
+            required_repo="learntocloud/journal-api",
         )
         html = self._render_phase([req], {})
 
         assert "readonly" in html
+        assert 'hx-post="/htmx/verifications/journal-api/submit/derived"' in html
+        assert 'name="submitted_value"' not in html
         assert "can't be edited" in html
         assert "under an organization" in html
 

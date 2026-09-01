@@ -1,0 +1,14 @@
+<label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
+<input
+    id="input-{{ requirement.slug }}"
+    type="url"
+    name="submitted_value"
+    placeholder="{{ verification_form.placeholder }}"
+    value="{{ verification_form.value }}"
+    minlength="{{ verification_form.min_length }}"
+    maxlength="{{ verification_form.max_length }}"
+    autocomplete="url"
+    inputmode="url"
+    required
+    class="min-h-11 flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+>

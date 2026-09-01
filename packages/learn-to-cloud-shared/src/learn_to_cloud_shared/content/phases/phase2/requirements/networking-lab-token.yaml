@@ -6,3 +6,5 @@ name: Submit the Networking Lab Completion Token
 description: Finish all four networking challenges and submit the completion token shown at the end.
 type_config:
   placeholder: Paste your Networking Lab completion token here
+  min_length: 200
+  max_length: 2048

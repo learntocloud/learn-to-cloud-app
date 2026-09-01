@@ -74,7 +74,7 @@
     <div class="space-y-3">
         {% for req in requirements %}
         {% set card = card_contexts_by_req[req.slug] %}
-        {% if card.card_state == 'passed' %}
+        {% if card.kind == 'passed' %}
         {% include "partials/verified_requirement_row.html" %}
         {% else %}
         <div class="flex min-h-11 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50">
@@ -93,27 +93,11 @@
     <div class="mt-6 space-y-3">
         {% for req in requirements %}
         {% set card = card_contexts_by_req[req.slug] %}
-        {% if card.card_state == 'passed' %}
+        {% if card.kind == 'passed' %}
         {% include "partials/verified_requirement_row.html" %}
         {% elif not ns.found_active %}
         {% set ns.found_active = true %}
-        {% with
-            requirement=card.requirement,
-            submission=card.submission,
-            feedback_tasks=card.feedback_tasks,
-            feedback_passed=card.feedback_passed,
-            card_state=card.card_state,
-            server_error=card.server_error,
-            server_error_message=card.server_error_message,
-            server_error_retryable=card.server_error_retryable,
-            error_banner=card.error_banner,
-            processing=card.processing,
-            verification_status_token=card.verification_status_token,
-            verification_status_delay_seconds=card.verification_status_delay_seconds,
-            derived_url=card.derived_url
-        %}
         {% include "partials/requirement_card.html" %}
-        {% endwith %}
         {% else %}
         <div class="flex min-h-11 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50">
             <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-400 text-xs text-gray-500 dark:border-gray-500 dark:text-gray-400" aria-hidden="true">{{ loop.index }}</span>

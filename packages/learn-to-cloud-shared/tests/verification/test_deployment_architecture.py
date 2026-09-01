@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from learn_to_cloud_shared.github_target import GitHubTarget
-from learn_to_cloud_shared.submission_values import SubmittedValue
+from learn_to_cloud_shared.submission_values import submitted_value_from_raw
 from learn_to_cloud_shared.testing.requirement_factories import (
     deployment_architecture_requirement,
 )
@@ -161,7 +161,7 @@ class TestJobTarget:
             user_id=1,
             github_username="alice",
             requirement=req,
-            submitted_value=SubmittedValue.from_raw(
+            submitted_value=submitted_value_from_raw(
                 req, "my long architecture description"
             ),
         )
@@ -187,7 +187,7 @@ class TestJobTarget:
             user_id=1,
             github_username="",
             requirement=req,
-            submitted_value=SubmittedValue.from_raw(
+            submitted_value=submitted_value_from_raw(
                 req, "my long architecture description"
             ),
         )

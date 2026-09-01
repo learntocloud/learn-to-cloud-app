@@ -6,10 +6,8 @@ the authenticated learner's ``github_username`` and the requirement's
 atoms describe; the pipeline reads it everywhere instead of parsing a URL
 back into an identity.
 
-``derive_submission_value`` builds the display/persist string shown in the
-UI and stored in ``Submission.submitted_value``. Token-based types, the
-deployed API type, and the journal API response type accept free-form input
-and pass through unchanged.
+``derive_submission_value`` constructs only server-derived GitHub URL values.
+Learner-controlled values are validated separately at their HTTP boundary.
 """
 
 from __future__ import annotations
@@ -17,6 +15,7 @@ from __future__ import annotations
 from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import HandsOnRequirement
+from learn_to_cloud_shared.submission_values import GitHubUrlValue
 
 # Derivable types: the server constructs the URL from username + required_repo.
 # The template renders these as read-only fields so the learner cannot edit
@@ -30,19 +29,6 @@ _DERIVABLE_TYPES: frozenset[SubmissionType] = frozenset(
         SubmissionType.SECURITY_SCANNING,
     }
 )
-
-# Free-form types: the server passes the learner's raw input through to the
-# validator unchanged.
-_PASS_THROUGH_TYPES: frozenset[SubmissionType] = frozenset(
-    {
-        SubmissionType.CTF_TOKEN,
-        SubmissionType.NETWORKING_TOKEN,
-        SubmissionType.DEPLOYED_API,
-        SubmissionType.CAREER_REFLECTION,
-        SubmissionType.DEPLOYMENT_ARCHITECTURE,
-    }
-)
-
 
 # Repo-target types: the verified GitHub location is the learner's fork of the
 # requirement's ``required_repo``, living at ``<username>/<fork-name>``.
@@ -125,28 +111,12 @@ def build_target(
 def derive_submission_value(
     requirement: HandsOnRequirement,
     github_username: str,
-    user_input: str | None = None,
-) -> str:
-    """Build the canonical submission value for a requirement.
-
-    Args:
-        requirement: The requirement being submitted.
-        github_username: The authenticated learner's GitHub username.
-        user_input: For types that still accept user input, the raw form
-            value.  Ignored for derivable URL types.
-
-    Returns:
-        The canonical value that should be persisted in
-        ``Submission.submitted_value`` and passed to the validator.
-
-    Raises:
-        ValueError: If the requirement is misconfigured (e.g. missing
-            ``required_repo``).
-    """
+) -> GitHubUrlValue:
+    """Build the typed GitHub URL for a server-derived requirement."""
     sub_type = requirement.submission_type
 
     if sub_type == SubmissionType.PROFILE_README:
-        return f"https://github.com/{github_username}/{github_username}"
+        return GitHubUrlValue(f"https://github.com/{github_username}/{github_username}")
 
     if sub_type in (
         SubmissionType.REPO_FORK,
@@ -160,12 +130,6 @@ def derive_submission_value(
                 f"Requirement {requirement.slug!r} is missing required_repo"
             )
         fork = fork_name_from_required_repo(required_repo)
-        return f"https://github.com/{github_username}/{fork}"
+        return GitHubUrlValue(f"https://github.com/{github_username}/{fork}")
 
-    if sub_type in _PASS_THROUGH_TYPES:
-        return user_input or ""
-
-    raise ValueError(
-        f"Unhandled submission type {sub_type!r}. Add it to "
-        "_DERIVABLE_TYPES or _PASS_THROUGH_TYPES in submission_derivation.py."
-    )
+    raise ValueError(f"Submission type {sub_type.value!r} is not server-derived.")

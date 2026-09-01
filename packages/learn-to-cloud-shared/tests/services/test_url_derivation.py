@@ -111,14 +111,14 @@ class TestDeriveSubmissionValue:
     def test_profile_readme(self):
         req = _req(SubmissionType.PROFILE_README)
         assert (
-            derive_submission_value(req, "octocat")
+            derive_submission_value(req, "octocat").github_url
             == "https://github.com/octocat/octocat"
         )
 
     def test_repo_fork(self):
         req = _req(SubmissionType.REPO_FORK, required_repo="learntocloud/linux-ctfs")
         assert (
-            derive_submission_value(req, "alice")
+            derive_submission_value(req, "alice").github_url
             == "https://github.com/alice/linux-ctfs"
         )
 
@@ -128,7 +128,7 @@ class TestDeriveSubmissionValue:
             required_repo="learntocloud/journal-starter",
         )
         assert (
-            derive_submission_value(req, "bob")
+            derive_submission_value(req, "bob").github_url
             == "https://github.com/bob/journal-starter"
         )
 
@@ -138,7 +138,7 @@ class TestDeriveSubmissionValue:
             required_repo="learntocloud/journal-starter",
         )
         assert (
-            derive_submission_value(req, "carol")
+            derive_submission_value(req, "carol").github_url
             == "https://github.com/carol/journal-starter"
         )
 
@@ -148,7 +148,7 @@ class TestDeriveSubmissionValue:
             required_repo="learntocloud/journal-starter",
         )
         assert (
-            derive_submission_value(req, "dave")
+            derive_submission_value(req, "dave").github_url
             == "https://github.com/dave/journal-starter"
         )
 
@@ -170,47 +170,24 @@ class TestDeriveSubmissionValue:
             "through normal construction."
         )
 
-    def test_ctf_token_passes_through(self):
-        req = _req(SubmissionType.CTF_TOKEN)
-        assert derive_submission_value(req, "alice", user_input="ctf-xyz") == "ctf-xyz"
-
-    def test_networking_token_passes_through(self):
-        req = _req(SubmissionType.NETWORKING_TOKEN)
-        assert derive_submission_value(req, "alice", user_input="net-abc") == "net-abc"
-
-    def test_deployed_api_passes_through(self):
-        req = _req(SubmissionType.DEPLOYED_API)
-        assert (
-            derive_submission_value(req, "alice", user_input="https://api.example.com")
-            == "https://api.example.com"
-        )
-
-    def test_career_reflection_passes_through(self):
-        req = _req(SubmissionType.CAREER_REFLECTION)
-        combined = "## Question 0?\n\nMy answer."
-        assert derive_submission_value(req, "alice", user_input=combined) == combined
-
-    def test_deployment_architecture_passes_through(self):
-        req = _req(
+    @pytest.mark.parametrize(
+        "submission_type",
+        [
+            SubmissionType.CTF_TOKEN,
+            SubmissionType.NETWORKING_TOKEN,
+            SubmissionType.DEPLOYED_API,
+            SubmissionType.CAREER_REFLECTION,
             SubmissionType.DEPLOYMENT_ARCHITECTURE,
-            required_repo="learntocloud/journal-starter",
+        ],
+    )
+    def test_non_derived_type_is_rejected(self, submission_type: SubmissionType):
+        req = _req(
+            submission_type,
+            required_repo=(
+                "learntocloud/journal-starter"
+                if submission_type == SubmissionType.DEPLOYMENT_ARCHITECTURE
+                else None
+            ),
         )
-        description = "My two-tier deployment: public API, private database."
-        assert (
-            derive_submission_value(req, "alice", user_input=description) == description
-        )
-
-    def test_derivable_ignores_user_input(self):
-        """Tampered submitted_value for derivable types is silently ignored.
-
-        This is the key regression guard for issue #234: even if a learner
-        tries to post a crafted URL, the server ignores it and rebuilds the
-        canonical URL from their github_username.
-        """
-        req = _req(SubmissionType.PROFILE_README)
-        assert (
-            derive_submission_value(
-                req, "alice", user_input="https://evil.example.com/pwn"
-            )
-            == "https://github.com/alice/alice"
-        )
+        with pytest.raises(ValueError, match="not server-derived"):
+            derive_submission_value(req, "alice")

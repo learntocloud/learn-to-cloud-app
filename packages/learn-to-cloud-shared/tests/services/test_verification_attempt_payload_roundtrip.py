@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from learn_to_cloud_shared.submission_values import SubmittedValue
+from learn_to_cloud_shared.submission_values import submitted_value_from_raw
 from learn_to_cloud_shared.testing.requirement_factories import (
     deployed_api_requirement,
     profile_readme_requirement,
@@ -24,7 +24,7 @@ class TestPreparedVerificationAttemptRoundTrip:
             user_id=42,
             github_username="alice",
             requirement=requirement,
-            submitted_value=SubmittedValue.from_raw(
+            submitted_value=submitted_value_from_raw(
                 requirement, "https://github.com/alice/repo"
             ),
         )
@@ -43,7 +43,7 @@ class TestPreparedVerificationAttemptRoundTrip:
             user_id=1,
             github_username="bob",
             requirement=requirement,
-            submitted_value=SubmittedValue.from_raw(
+            submitted_value=submitted_value_from_raw(
                 requirement, "https://github.com/bob/bob"
             ),
         )
@@ -61,7 +61,7 @@ class TestPreparedVerificationAttemptRoundTrip:
             user_id=99,
             github_username=None,
             requirement=requirement,
-            submitted_value=SubmittedValue.from_raw(
+            submitted_value=submitted_value_from_raw(
                 requirement, "https://api.example.com"
             ),
         )

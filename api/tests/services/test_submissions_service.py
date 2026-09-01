@@ -13,12 +13,18 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
 )
 from learn_to_cloud_shared.requirements import RequirementIndex
 from learn_to_cloud_shared.schemas import HandsOnRequirement, Phase
+from learn_to_cloud_shared.submission_values import (
+    GitHubUrlValue,
+    TokenValue,
+    submitted_value_from_raw,
+)
 
 from learn_to_cloud.services.submissions_service import (
     _SMOKE_USER_ID as SMOKE_USER_ID,
 )
 from learn_to_cloud.services.submissions_service import (
     AlreadyValidatedError,
+    InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
     VerificationAttemptSubmission,
@@ -57,7 +63,7 @@ def _make_mock_submission(
         requirement_slug="test-requirement",
         submission_type=submission_type,
         phase_id=3,
-        submitted_value="https://github.com/user/repo",
+        submitted_value=GitHubUrlValue("https://github.com/user/repo"),
         submission_value_kind=SubmissionValueKind.GITHUB_URL.value,
         github_url="https://github.com/user/repo",
         token_value=None,
@@ -182,7 +188,34 @@ class TestSubmissionValidationErrors:
                 session_maker=mock_session_maker,
                 user_id=123,
                 requirement_slug="nonexistent",
-                submitted_value="https://github.com/user/repo",
+                submitted_value=GitHubUrlValue("https://github.com/user/repo"),
+                github_username="user",
+            )
+
+    @pytest.mark.asyncio
+    async def test_value_variant_must_match_requirement(self):
+        mock_session_maker = _mock_session_maker()
+        mock_requirement = _make_mock_requirement()
+
+        with (
+            patch(
+                "learn_to_cloud.services.submissions_service.load_requirement_index",
+                return_value=_build_index(mock_requirement),
+            ),
+            patch(
+                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
+                new=_gating_mock(mock_requirement.uuid),
+            ),
+            pytest.raises(
+                InvalidSubmittedValueError,
+                match="Submitted value type does not match this requirement",
+            ),
+        ):
+            await create_verification_attempt(
+                session_maker=mock_session_maker,
+                user_id=123,
+                requirement_slug=mock_requirement.slug,
+                submitted_value=TokenValue("token-123"),
                 github_username="user",
             )
 
@@ -214,7 +247,10 @@ class TestAlreadyValidatedShortCircuit:
                     session_maker=mock_session_maker,
                     user_id=123,
                     requirement_slug="test-requirement",
-                    submitted_value="https://github.com/user/repo",
+                    submitted_value=submitted_value_from_raw(
+                        mock_requirement,
+                        "https://github.com/user/repo",
+                    ),
                     github_username="user",
                 )
 
@@ -254,7 +290,10 @@ class TestAlreadyValidatedShortCircuit:
                     session_maker=mock_session_maker,
                     user_id=123,
                     requirement_slug="test-requirement",
-                    submitted_value="https://github.com/user/repo",
+                    submitted_value=submitted_value_from_raw(
+                        mock_requirement,
+                        "https://github.com/user/repo",
+                    ),
                     github_username="user",
                 )
 
@@ -289,7 +328,10 @@ class TestAlreadyValidatedShortCircuit:
                 session_maker=mock_session_maker,
                 user_id=123,
                 requirement_slug="test-requirement",
-                submitted_value="https://github.com/user/repo",
+                submitted_value=submitted_value_from_raw(
+                    mock_requirement,
+                    "https://github.com/user/repo",
+                ),
                 github_username="user",
             )
 
@@ -331,7 +373,10 @@ class TestSequentialPhaseGating:
                     session_maker=mock_session_maker,
                     user_id=123,
                     requirement_slug="test-requirement",
-                    submitted_value="https://api.example.com",
+                    submitted_value=submitted_value_from_raw(
+                        mock_requirement,
+                        "https://api.example.com",
+                    ),
                     github_username="user",
                 )
 
@@ -380,7 +425,10 @@ class TestSequentialPhaseGating:
                 session_maker=mock_session_maker,
                 user_id=123,
                 requirement_slug="test-requirement",
-                submitted_value="https://api.example.com",
+                submitted_value=submitted_value_from_raw(
+                    mock_requirement,
+                    "https://api.example.com",
+                ),
                 github_username="user",
             )
 
@@ -426,7 +474,10 @@ class TestCreateVerificationAttempt:
                 session_maker=mock_session_maker,
                 user_id=123,
                 requirement_slug="test-requirement",
-                submitted_value="https://github.com/user",
+                submitted_value=submitted_value_from_raw(
+                    mock_requirement,
+                    "https://github.com/user",
+                ),
                 github_username="user",
             )
 
@@ -471,7 +522,10 @@ class TestCreateVerificationAttempt:
                 session_maker=mock_session_maker,
                 user_id=123,
                 requirement_slug="test-requirement",
-                submitted_value="https://github.com/user/repo",
+                submitted_value=submitted_value_from_raw(
+                    mock_requirement,
+                    "https://github.com/user/repo",
+                ),
                 github_username="user",
             )
 
@@ -513,7 +567,10 @@ class TestCreateVerificationAttempt:
                 session_maker=mock_session_maker,
                 user_id=123,
                 requirement_slug="test-requirement",
-                submitted_value="https://github.com/user/repo",
+                submitted_value=submitted_value_from_raw(
+                    mock_requirement,
+                    "https://github.com/user/repo",
+                ),
                 github_username="user",
             )
 
@@ -547,7 +604,10 @@ class TestCreateVerificationAttempt:
                     session_maker=mock_session_maker,
                     user_id=123,
                     requirement_slug="test-requirement",
-                    submitted_value="some-token",
+                    submitted_value=submitted_value_from_raw(
+                        mock_requirement,
+                        "some-token",
+                    ),
                     github_username="user",
                 )
 

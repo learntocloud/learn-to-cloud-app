@@ -35,7 +35,7 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
 from learn_to_cloud_shared.submission_values import (
-    SubmittedValue,
+    submitted_value_from_kind_and_value,
     value_kind_for_submission_type,
 )
 from learn_to_cloud_shared.verification.execution import (
@@ -142,7 +142,7 @@ async def prepare_verification_attempt(
             f"kind {expected_kind.value!r}"
         )
 
-    submitted_value = SubmittedValue.from_kind_and_value(
+    submitted_value = submitted_value_from_kind_and_value(
         state.submission_value_kind,
         state.submitted_value,
     )

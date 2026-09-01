@@ -7,7 +7,7 @@ appropriate.
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Literal, get_args
+from typing import Annotated, Literal, Self, get_args
 from uuid import UUID
 
 from pydantic import (
@@ -17,6 +17,7 @@ from pydantic import (
     TypeAdapter,
     computed_field,
     field_validator,
+    model_validator,
 )
 
 from learn_to_cloud_shared.models import SubmissionType
@@ -213,6 +214,24 @@ class PlaceholderConfig(StrictFrozenModel):
         default=None,
         description="Input hint shown in the form field.",
     )
+    min_length: int = Field(
+        default=1,
+        ge=1,
+        le=2048,
+        description="Minimum characters required before submission.",
+    )
+    max_length: int = Field(
+        default=2048,
+        ge=1,
+        le=2048,
+        description="Maximum accepted input length.",
+    )
+
+    @model_validator(mode="after")
+    def validate_length_range(self) -> Self:
+        if self.min_length > self.max_length:
+            raise ValueError("min_length cannot exceed max_length")
+        return self
 
 
 # Per-type config classes inherit from the shared shape. Even when

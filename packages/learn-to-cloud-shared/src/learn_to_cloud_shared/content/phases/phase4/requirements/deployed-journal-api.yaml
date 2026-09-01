@@ -6,3 +6,5 @@ name: Deploy a Public Journal API
 description: Submit your HTTPS API base URL so the verifier can create and retrieve a challenge entry, validate one live AI analysis response, and delete the entry.
 type_config:
   placeholder: https://your-api.example.com
+  min_length: 8
+  max_length: 2048

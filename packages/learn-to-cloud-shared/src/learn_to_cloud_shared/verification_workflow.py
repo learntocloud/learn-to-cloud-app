@@ -14,7 +14,10 @@ from learn_to_cloud_shared.schemas import (
     ValidationResult,
 )
 from learn_to_cloud_shared.submission_derivation import build_target
-from learn_to_cloud_shared.submission_values import SubmittedValue
+from learn_to_cloud_shared.submission_values import (
+    SubmittedValue,
+    submitted_value_from_payload,
+)
 from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle
 
@@ -86,7 +89,7 @@ class PreparedVerificationAttempt:
                 else None
             ),
             requirement=requirement,
-            submitted_value=SubmittedValue.from_payload(payload["submission_value"]),
+            submitted_value=submitted_value_from_payload(payload["submission_value"]),
         )
 
 

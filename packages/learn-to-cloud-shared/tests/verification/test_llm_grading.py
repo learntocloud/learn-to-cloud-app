@@ -8,7 +8,7 @@ from learn_to_cloud_shared.schemas import (
     TaskResult,
     ValidationResult,
 )
-from learn_to_cloud_shared.submission_values import SubmittedValue
+from learn_to_cloud_shared.submission_values import submitted_value_from_raw
 from learn_to_cloud_shared.verification.llm_grading import (
     LLMGradingDecisionPayload,
     apply_llm_grading_decisions,
@@ -45,7 +45,7 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
             user_id=1,
             github_username="learner",
             requirement=requirement,
-            submitted_value=SubmittedValue.from_raw(
+            submitted_value=submitted_value_from_raw(
                 requirement, "https://github.com/learner/journal"
             ),
         ),
@@ -80,7 +80,7 @@ def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
             user_id=1,
             github_username="learner",
             requirement=requirement,
-            submitted_value=SubmittedValue.from_raw(
+            submitted_value=submitted_value_from_raw(
                 requirement, "https://github.com/learner/journal-starter"
             ),
         ),
@@ -245,7 +245,7 @@ def _phase7_run_result(
             user_id=1,
             github_username="learner",
             requirement=requirement,
-            submitted_value=SubmittedValue.from_raw(requirement, submitted_text),
+            submitted_value=submitted_value_from_raw(requirement, submitted_text),
         ),
         validation_result=ValidationResult(
             is_valid=is_valid,
