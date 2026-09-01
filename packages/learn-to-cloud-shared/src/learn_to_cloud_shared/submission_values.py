@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Literal
 from urllib.parse import urlparse
 
 from learn_to_cloud_shared.models import SubmissionType, SubmissionValueKind
@@ -32,124 +33,185 @@ MAX_TEXT_LENGTH = 20_000
 
 
 @dataclass(frozen=True, slots=True)
-class SubmittedValue:
-    """A submitted value normalized into its typed representation."""
+class GitHubUrlValue:
+    """A validated GitHub URL submission."""
 
-    kind: SubmissionValueKind
-    github_url: str | None = None
-    token_value: str | None = None
-    deployed_url: str | None = None
-    text_value: str | None = None
+    github_url: str
+    kind: Literal[SubmissionValueKind.GITHUB_URL] = field(
+        init=False,
+        default=SubmissionValueKind.GITHUB_URL,
+    )
+
+    def __post_init__(self) -> None:
+        _validate_canonical_value(self.github_url)
+        _validate_github_url(self.github_url)
 
     @property
     def as_text(self) -> str:
-        match self.kind:
-            case SubmissionValueKind.GITHUB_URL:
-                value = self.github_url
-            case SubmissionValueKind.TOKEN:
-                value = self.token_value
-            case SubmissionValueKind.DEPLOYED_URL:
-                value = self.deployed_url
-            case SubmissionValueKind.TEXT:
-                value = self.text_value
-        if value is None:
-            raise ValueError(f"Missing value for {self.kind.value}")
-        return value
+        return self.github_url
 
-    def to_payload(self) -> dict[str, str | None]:
-        """Serialize the typed value for Durable workflow transport."""
-        return {
-            "submission_value_kind": self.kind.value,
-            "github_url": self.github_url,
-            "token_value": self.token_value,
-            "deployed_url": self.deployed_url,
-            "text_value": self.text_value,
-        }
+    def to_payload(self) -> dict[str, str]:
+        return {"submission_value_kind": self.kind.value, "value": self.github_url}
 
-    @classmethod
-    def from_payload(cls, payload: object) -> SubmittedValue:
-        """Deserialize a typed Durable workflow value."""
-        if not isinstance(payload, Mapping):
-            raise TypeError("Expected submission_value payload object")
-        payload_map: dict[str, object] = {}
-        for key, value in payload.items():
-            if not isinstance(key, str):
-                raise TypeError("Expected string submission_value payload keys")
-            payload_map[key] = value
-        kind = payload_map.get("submission_value_kind")
-        if not isinstance(kind, str):
-            raise TypeError("Expected submission_value_kind payload field")
-        normalized_kind = SubmissionValueKind(kind)
-        github_url = _optional_str(payload_map.get("github_url"), "github_url")
-        token_value = _optional_str(payload_map.get("token_value"), "token_value")
-        deployed_url = _optional_str(
-            payload_map.get("deployed_url"),
+
+@dataclass(frozen=True, slots=True)
+class TokenValue:
+    """A completion-token submission."""
+
+    token: str
+    kind: Literal[SubmissionValueKind.TOKEN] = field(
+        init=False,
+        default=SubmissionValueKind.TOKEN,
+    )
+
+    def __post_init__(self) -> None:
+        _validate_canonical_value(self.token)
+
+    @property
+    def as_text(self) -> str:
+        return self.token
+
+    def to_payload(self) -> dict[str, str]:
+        return {"submission_value_kind": self.kind.value, "value": self.token}
+
+
+@dataclass(frozen=True, slots=True)
+class DeployedUrlValue:
+    """A deployed HTTP endpoint submission."""
+
+    url: str
+    kind: Literal[SubmissionValueKind.DEPLOYED_URL] = field(
+        init=False,
+        default=SubmissionValueKind.DEPLOYED_URL,
+    )
+
+    def __post_init__(self) -> None:
+        _validate_canonical_value(self.url)
+        _validate_http_url(self.url, field_name="deployed API URL")
+
+    @property
+    def as_text(self) -> str:
+        return self.url
+
+    def to_payload(self) -> dict[str, str]:
+        return {"submission_value_kind": self.kind.value, "value": self.url}
+
+
+@dataclass(frozen=True, slots=True)
+class TextValue:
+    """A free-text verification submission."""
+
+    text: str
+    kind: Literal[SubmissionValueKind.TEXT] = field(
+        init=False,
+        default=SubmissionValueKind.TEXT,
+    )
+
+    def __post_init__(self) -> None:
+        _validate_canonical_value(self.text)
+        _validate_text(self.text)
+
+    @property
+    def as_text(self) -> str:
+        return self.text
+
+    def to_payload(self) -> dict[str, str]:
+        return {"submission_value_kind": self.kind.value, "value": self.text}
+
+
+type SubmittedValue = GitHubUrlValue | TokenValue | DeployedUrlValue | TextValue
+
+
+def submitted_value_from_raw(
+    requirement: HandsOnRequirement,
+    raw_value: str,
+) -> SubmittedValue:
+    """Validate learner input into the requirement's exact value variant."""
+    kind = value_kind_for_submission_type(requirement.submission_type)
+    value = raw_value.strip()
+    if not value:
+        raise ValueError("Submitted value cannot be empty.")
+
+    match kind:
+        case SubmissionValueKind.GITHUB_URL:
+            _validate_github_url(value)
+            return GitHubUrlValue(value)
+        case SubmissionValueKind.TOKEN:
+            return TokenValue(value)
+        case SubmissionValueKind.DEPLOYED_URL:
+            _validate_http_url(value, field_name="deployed API URL")
+            return DeployedUrlValue(value)
+        case SubmissionValueKind.TEXT:
+            _validate_text(value)
+            return TextValue(value)
+
+
+def submitted_value_from_kind_and_value(
+    kind: str | SubmissionValueKind,
+    value: str,
+) -> SubmittedValue:
+    """Restore a typed value from the database's canonical pair."""
+    normalized_kind = (
+        kind if isinstance(kind, SubmissionValueKind) else SubmissionValueKind(kind)
+    )
+    match normalized_kind:
+        case SubmissionValueKind.GITHUB_URL:
+            return GitHubUrlValue(value)
+        case SubmissionValueKind.TOKEN:
+            return TokenValue(value)
+        case SubmissionValueKind.DEPLOYED_URL:
+            return DeployedUrlValue(value)
+        case SubmissionValueKind.TEXT:
+            return TextValue(value)
+
+
+def submitted_value_from_payload(payload: object) -> SubmittedValue:
+    """Deserialize current and legacy Durable workflow value payloads."""
+    payload_map = _payload_mapping(payload)
+    kind = payload_map.get("submission_value_kind")
+    if not isinstance(kind, str):
+        raise TypeError("Expected submission_value_kind payload field")
+    normalized_kind = SubmissionValueKind(kind)
+
+    if "value" in payload_map:
+        _require_payload_keys(payload_map, {"submission_value_kind", "value"})
+        value = payload_map["value"]
+        if not isinstance(value, str):
+            raise TypeError("Expected string payload field: value")
+        return submitted_value_from_kind_and_value(normalized_kind, value)
+
+    _require_payload_keys(
+        payload_map,
+        {
+            "submission_value_kind",
+            "github_url",
+            "token_value",
             "deployed_url",
-        )
-        text_value = _optional_str(payload_map.get("text_value"), "text_value")
-        _single_value_for_kind(
-            normalized_kind,
-            github_url=github_url,
-            token_value=token_value,
-            deployed_url=deployed_url,
-            text_value=text_value,
-        )
-        return cls(
-            kind=normalized_kind,
-            github_url=github_url,
-            token_value=token_value,
-            deployed_url=deployed_url,
-            text_value=text_value,
-        )
+            "text_value",
+        },
+    )
+    github_url = _optional_str(payload_map.get("github_url"), "github_url")
+    token_value = _optional_str(payload_map.get("token_value"), "token_value")
+    deployed_url = _optional_str(payload_map.get("deployed_url"), "deployed_url")
+    text_value = _optional_str(payload_map.get("text_value"), "text_value")
+    value = _single_value_for_kind(
+        normalized_kind,
+        github_url=github_url,
+        token_value=token_value,
+        deployed_url=deployed_url,
+        text_value=text_value,
+    )
+    return submitted_value_from_kind_and_value(normalized_kind, value)
 
-    @classmethod
-    def from_raw(
-        cls,
-        requirement: HandsOnRequirement,
-        raw_value: str,
-    ) -> SubmittedValue:
-        kind = value_kind_for_submission_type(requirement.submission_type)
-        value = raw_value.strip()
-        if not value:
-            raise ValueError("Submitted value cannot be empty.")
 
-        match kind:
-            case SubmissionValueKind.GITHUB_URL:
-                _validate_github_url(value)
-                return cls(kind=kind, github_url=value)
-            case SubmissionValueKind.TOKEN:
-                return cls(kind=kind, token_value=value)
-            case SubmissionValueKind.DEPLOYED_URL:
-                _validate_http_url(value, field_name="deployed API URL")
-                return cls(kind=kind, deployed_url=value)
-            case SubmissionValueKind.TEXT:
-                _validate_text(value)
-                return cls(kind=kind, text_value=value)
-
-    @classmethod
-    def from_kind_and_value(
-        cls,
-        kind: str | SubmissionValueKind,
-        value: str,
-    ) -> SubmittedValue:
-        """Build a typed value from a stored ``(kind, submitted_value)`` pair.
-
-        The ``verification_attempts`` table keeps only the kind and the single
-        canonical ``submitted_value`` text, so this routes that text into the
-        column the kind implies without re-parsing/validating it.
-        """
-        normalized_kind = (
-            kind if isinstance(kind, SubmissionValueKind) else SubmissionValueKind(kind)
-        )
-        match normalized_kind:
-            case SubmissionValueKind.GITHUB_URL:
-                return cls(kind=normalized_kind, github_url=value)
-            case SubmissionValueKind.TOKEN:
-                return cls(kind=normalized_kind, token_value=value)
-            case SubmissionValueKind.DEPLOYED_URL:
-                return cls(kind=normalized_kind, deployed_url=value)
-            case SubmissionValueKind.TEXT:
-                return cls(kind=normalized_kind, text_value=value)
+def submitted_value_matches_requirement(
+    requirement: HandsOnRequirement,
+    submitted_value: SubmittedValue,
+) -> bool:
+    """Return whether a value variant belongs to the requirement type."""
+    return submitted_value.kind is value_kind_for_submission_type(
+        requirement.submission_type
+    )
 
 
 def value_kind_for_submission_type(
@@ -179,6 +241,28 @@ def _optional_str(value: object, field_name: str) -> str | None:
     return value
 
 
+def _payload_mapping(payload: object) -> dict[str, object]:
+    if not isinstance(payload, Mapping):
+        raise TypeError("Expected submission_value payload object")
+    payload_map: dict[str, object] = {}
+    for key, value in payload.items():
+        if not isinstance(key, str):
+            raise TypeError("Expected string submission_value payload keys")
+        payload_map[key] = value
+    return payload_map
+
+
+def _require_payload_keys(
+    payload: Mapping[str, object],
+    expected: set[str],
+) -> None:
+    actual = set(payload)
+    if actual != expected:
+        raise ValueError(
+            f"Invalid submission value payload fields: {sorted(actual - expected)}"
+        )
+
+
 def _single_value_for_kind(
     kind: SubmissionValueKind,
     *,
@@ -205,6 +289,11 @@ def _validate_text(value: str) -> None:
         raise ValueError(
             f"Submitted text must be at most {MAX_TEXT_LENGTH} characters.",
         )
+
+
+def _validate_canonical_value(value: str) -> None:
+    if not value or value != value.strip():
+        raise ValueError("Submitted value must be non-empty canonical text.")
 
 
 def _validate_github_url(value: str) -> None:

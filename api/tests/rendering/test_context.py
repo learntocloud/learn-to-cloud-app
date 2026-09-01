@@ -24,10 +24,17 @@ from learn_to_cloud_shared.schemas import (
 )
 
 from learn_to_cloud.rendering.context import (
+    CheckingCardContext,
+    FailedCardContext,
+    NotStartedCardContext,
+    PassedCardContext,
+    UnavailableCardContext,
+    build_checking_requirement_card_context,
     build_phase_topics,
     build_progress_dict,
     build_requirement_card_context,
     build_topic_nav,
+    build_unavailable_requirement_card_context,
 )
 from learn_to_cloud.verification_forms import (
     DerivedFormContext,
@@ -224,7 +231,8 @@ class TestBuildRequirementCardContext:
             requirement=req,
             github_username="alice",
         )
-        form = ctx["verification_form"]
+        assert isinstance(ctx, NotStartedCardContext)
+        form = ctx.verification_form
         assert isinstance(form, DerivedFormContext)
         assert form.url == "https://github.com/alice/alice"
         assert form.action == "/htmx/verifications/req-1/submit/derived"
@@ -238,7 +246,8 @@ class TestBuildRequirementCardContext:
             requirement=req,
             github_username="bob",
         )
-        form = ctx["verification_form"]
+        assert isinstance(ctx, NotStartedCardContext)
+        form = ctx.verification_form
         assert isinstance(form, DerivedFormContext)
         assert form.url == "https://github.com/bob/journal-starter"
 
@@ -248,7 +257,8 @@ class TestBuildRequirementCardContext:
             requirement=req,
             github_username="alice",
         )
-        form = ctx["verification_form"]
+        assert isinstance(ctx, NotStartedCardContext)
+        form = ctx.verification_form
         assert isinstance(form, TokenFormContext)
         assert form.action == "/htmx/verifications/req-1/submit/value"
         assert form.min_length == 1
@@ -273,7 +283,8 @@ class TestBuildRequirementCardContext:
             github_username="alice",
             submission=_make_submission(is_validated=True, verification_completed=True),
         )
-        assert ctx["graded_url"] == "https://github.com/alice/repo"
+        assert isinstance(ctx, PassedCardContext)
+        assert ctx.graded_url == "https://github.com/alice/repo"
 
     def test_graded_url_omits_non_url_submissions(self):
         """Tokens and free text are not echoed back into the verified card."""
@@ -287,12 +298,14 @@ class TestBuildRequirementCardContext:
                 submitted_value="ctf-token-abc123",
             ),
         )
-        assert ctx["graded_url"] is None
+        assert isinstance(ctx, PassedCardContext)
+        assert ctx.graded_url is None
 
     def test_graded_url_is_none_without_a_submission(self):
         req = _make_requirement(SubmissionType.CTF_TOKEN)
         ctx = build_requirement_card_context(requirement=req, github_username="alice")
-        assert ctx["graded_url"] is None
+        assert isinstance(ctx, NotStartedCardContext)
+        assert not hasattr(ctx, "graded_url")
 
     def test_misconfigured_required_repo_falls_back_to_none(self):
         """JOURNAL_API_VERIFIER without required_repo is now impossible (#470).
@@ -351,16 +364,19 @@ def _make_submission(
 class TestBuildRequirementCardContextCardState:
     def test_processing_is_checking_regardless_of_submission(self):
         req = _make_requirement(SubmissionType.CTF_TOKEN)
-        ctx = build_requirement_card_context(
-            requirement=req, github_username="alice", processing=True
+        ctx = build_checking_requirement_card_context(
+            requirement=req,
+            verification_status_token="status-token",
         )
-        assert ctx["card_state"] == "checking"
+        assert isinstance(ctx, CheckingCardContext)
+        assert ctx.kind == "checking"
 
     def test_no_submission_is_not_started(self):
         req = _make_requirement(SubmissionType.CTF_TOKEN)
         ctx = build_requirement_card_context(requirement=req, github_username="alice")
-        assert ctx["card_state"] == "not_started"
-        assert ctx["error_banner"] is None
+        assert isinstance(ctx, NotStartedCardContext)
+        assert ctx.kind == "not_started"
+        assert ctx.error_message is None
 
     def test_validated_submission_is_passed(self):
         req = _make_requirement(SubmissionType.CTF_TOKEN)
@@ -368,7 +384,8 @@ class TestBuildRequirementCardContextCardState:
         ctx = build_requirement_card_context(
             requirement=req, github_username="alice", submission=submission
         )
-        assert ctx["card_state"] == "passed"
+        assert isinstance(ctx, PassedCardContext)
+        assert ctx.kind == "passed"
 
     def test_learner_failure_is_failed_with_validation_message(self):
         req = _make_requirement(SubmissionType.CTF_TOKEN)
@@ -380,9 +397,9 @@ class TestBuildRequirementCardContextCardState:
         ctx = build_requirement_card_context(
             requirement=req, github_username="alice", submission=submission
         )
-        assert ctx["card_state"] == "failed"
-        assert ctx["error_banner"] == "Token did not match."
-        assert ctx["server_error"] is False
+        assert isinstance(ctx, FailedCardContext)
+        assert ctx.kind == "failed"
+        assert ctx.error_message == "Token did not match."
 
     def test_persisted_system_fault_is_unavailable_not_failed(self):
         """A terminal server_error/cancelled outcome, read back from storage.
@@ -396,22 +413,19 @@ class TestBuildRequirementCardContextCardState:
         ctx = build_requirement_card_context(
             requirement=req, github_username="alice", submission=submission
         )
-        assert ctx["card_state"] == "unavailable"
-        assert ctx["server_error"] is True
-        assert ctx["server_error_message"]
-        # No red inline banner text -- the amber service banner covers it.
-        assert ctx["error_banner"] is None
+        assert isinstance(ctx, UnavailableCardContext)
+        assert ctx.kind == "unavailable"
+        assert ctx.message
 
     def test_explicit_server_error_overrides_missing_submission(self):
         """The live submit/poll flow can force 'unavailable' with no row yet."""
         req = _make_requirement(SubmissionType.CTF_TOKEN)
-        ctx = build_requirement_card_context(
+        ctx = build_unavailable_requirement_card_context(
             requirement=req,
             github_username="alice",
-            server_error=True,
-            server_error_message="Verification could not be started.",
-            server_error_retryable=False,
+            message="Verification could not be started.",
+            retryable=False,
         )
-        assert ctx["card_state"] == "unavailable"
-        assert ctx["server_error_message"] == "Verification could not be started."
-        assert ctx["server_error_retryable"] is False
+        assert ctx.kind == "unavailable"
+        assert ctx.message == "Verification could not be started."
+        assert ctx.retryable is False

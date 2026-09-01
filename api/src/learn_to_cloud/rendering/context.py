@@ -7,7 +7,8 @@ avoids duplicated dict-building logic.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from learn_to_cloud_shared.schemas import (
     CareerReflectionRequirement,
@@ -15,6 +16,7 @@ from learn_to_cloud_shared.schemas import (
     DeployedApiRequirement,
     HandsOnRequirement,
     NetworkingTokenRequirement,
+    SubmissionData,
 )
 from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
@@ -311,35 +313,68 @@ _PERSISTED_SERVICE_ERROR_MESSAGE = (
 )
 
 
-def _derive_card_state(
-    submission: Any,
-    *,
-    processing: bool,
-    server_error: bool,
-) -> str:
-    """Derive the one verification-card state that drives the whole card.
+@dataclass(frozen=True, slots=True)
+class _RequirementCardBase:
+    """Fields shared by every requirement-card state."""
 
-    Replaces the old combination of ``submission.is_validated`` /
-    ``verification_completed`` / ``processing`` / ``server_error`` flags
-    with a single state: ``checking``, ``passed``, ``failed`` (a real
-    learner attempt that didn't pass), ``unavailable`` (a system/retryable
-    fault -- covers both ``server_error`` and ``cancelled`` outcomes, since
-    neither counts against the learner), or ``not_started``.
-    """
-    if processing:
-        return "checking"
-    if server_error:
-        return "unavailable"
-    if submission is None:
-        return "not_started"
-    if submission.is_validated:
-        return "passed"
-    if submission.verification_completed:
-        return "failed"
-    # Not validated and verification never completed -- a terminal
-    # server_error/cancelled outcome read back from storage, not an
-    # explicit override from the live submit/poll flow.
-    return "unavailable"
+    requirement: HandsOnRequirement
+    feedback_tasks: list[dict[str, Any]]
+    feedback_passed: int
+
+
+@dataclass(frozen=True, slots=True)
+class NotStartedCardContext(_RequirementCardBase):
+    """A submittable requirement with no completed attempt."""
+
+    verification_form: VerificationFormContext
+    error_message: str | None = None
+    kind: Literal["not_started"] = field(init=False, default="not_started")
+
+
+@dataclass(frozen=True, slots=True)
+class CheckingCardContext(_RequirementCardBase):
+    """An active verification attempt."""
+
+    verification_status_token: str | None
+    verification_status_delay_seconds: int
+    kind: Literal["checking"] = field(init=False, default="checking")
+
+
+@dataclass(frozen=True, slots=True)
+class FailedCardContext(_RequirementCardBase):
+    """A completed learner attempt that did not pass."""
+
+    verification_form: VerificationFormContext
+    error_message: str
+    kind: Literal["failed"] = field(init=False, default="failed")
+
+
+@dataclass(frozen=True, slots=True)
+class UnavailableCardContext(_RequirementCardBase):
+    """A retryable or terminal verification-service failure."""
+
+    verification_form: VerificationFormContext
+    message: str
+    retryable: bool
+    kind: Literal["unavailable"] = field(init=False, default="unavailable")
+
+
+@dataclass(frozen=True, slots=True)
+class PassedCardContext(_RequirementCardBase):
+    """A successfully verified requirement."""
+
+    submission: SubmissionData
+    graded_url: str | None
+    kind: Literal["passed"] = field(init=False, default="passed")
+
+
+type RequirementCardContext = (
+    NotStartedCardContext
+    | CheckingCardContext
+    | FailedCardContext
+    | UnavailableCardContext
+    | PassedCardContext
+)
 
 
 def feedback_tasks_and_passed(
@@ -361,23 +396,21 @@ def feedback_tasks_and_passed(
 _URL_SCHEMES = ("https://", "http://")
 
 
-def _graded_url(submission: Any) -> str | None:
+def _graded_url(submission: SubmissionData) -> str | None:
     """Return the graded value when it is a URL worth showing back.
 
     Token and free-text submissions are deliberately excluded: a career
     reflection can run to 20,000 characters and a completion token is noise,
     so neither belongs in the verified summary.
     """
-    if submission is None:
-        return None
-    value = getattr(submission, "submitted_value", "") or ""
+    value = submission.submitted_value or ""
     return value if value.startswith(_URL_SCHEMES) else None
 
 
 def _build_verification_form_context(
     requirement: HandsOnRequirement,
     github_username: str,
-    submission: Any,
+    submission: SubmissionData | None,
 ) -> VerificationFormContext:
     """Build exactly one valid rendering model for a requirement form."""
     action = verification_submit_action(
@@ -395,8 +428,7 @@ def _build_verification_form_context(
             url=derive_submission_value(
                 requirement=requirement,
                 github_username=github_username,
-                user_input=None,
-            ),
+            ).github_url,
         )
 
     if isinstance(requirement, CtfTokenRequirement | NetworkingTokenRequirement):
@@ -435,87 +467,122 @@ def _build_verification_form_context(
     )
 
 
+def _card_feedback(
+    feedback_tasks: list[dict[str, Any]] | None,
+    feedback_passed: int,
+) -> tuple[list[dict[str, Any]], int]:
+    return feedback_tasks or [], feedback_passed
+
+
 def build_requirement_card_context(
     *,
     requirement: HandsOnRequirement,
     github_username: str,
-    submission: Any = None,
+    submission: SubmissionData | None = None,
     feedback_tasks: list[dict[str, Any]] | None = None,
     feedback_passed: int = 0,
-    server_error: bool = False,
-    server_error_message: str | None = None,
-    server_error_retryable: bool = True,
-    error_banner: str | None = None,
-    processing: bool = False,
-    verification_status_token: str | None = None,
-    verification_status_delay_seconds: int = 2,
-) -> dict[str, Any]:
-    """Build the template context for ``partials/requirement_card.html``.
-
-    Centralises context-building so the phase page and the HTMX submit/poll
-    routes all produce identically-shaped dicts, and so a single
-    ``card_state`` (see :func:`_derive_card_state`) -- not a scattered
-    combination of flags -- drives which part of the card renders.
-    Builds one typed form-context variant so template-specific values cannot
-    appear in invalid combinations.
-
-    Args:
-        requirement: The :class:`HandsOnRequirement` being rendered.
-            Must not be ``None`` — callers should handle missing
-            requirements before calling this function.
-        github_username: The authenticated learner's GitHub username.
-        submission: The latest :class:`SubmissionData` for this requirement
-            (or ``None``).
-        feedback_tasks: Pre-built task-feedback entries.
-        feedback_passed: Count of passing tasks (for the summary line).
-        server_error: Whether to force the "service unavailable" state --
-            used by the live submit/poll flow for a failure that has no
-            ``submission`` row to derive from (e.g. Durable never started).
-        server_error_message: Optional server-error text; defaults to a
-            generic message when the state is derived from a persisted
-            ``unavailable`` submission rather than passed explicitly.
-        server_error_retryable: Whether to invite the user to retry. False for
-            server-side problems (e.g. misconfiguration) where retrying cannot
-            succeed, so the banner omits the "try again immediately" guidance.
-        error_banner: Optional inline error banner text (e.g. a pre-submit
-            validation message). Defaults to ``submission.validation_message``
-            when the card state is ``failed`` and no override is given.
-        processing: Whether the card is in the "analysing..." state.
-        verification_status_token: Signed token used by the HTMX polling card.
-        verification_status_delay_seconds: Delay before the next status poll.
-    """
-    card_state = _derive_card_state(
-        submission, processing=processing, server_error=server_error
-    )
-    if card_state == "unavailable":
-        server_error = True
-        if server_error_message is None:
-            server_error_message = _PERSISTED_SERVICE_ERROR_MESSAGE
-    elif card_state == "failed" and error_banner is None and submission is not None:
-        error_banner = submission.validation_message
-
+) -> RequirementCardContext:
+    """Build a card state from the latest persisted submission."""
+    tasks, passed = _card_feedback(feedback_tasks, feedback_passed)
+    if submission is not None and submission.is_validated:
+        return PassedCardContext(
+            requirement=requirement,
+            feedback_tasks=tasks,
+            feedback_passed=passed,
+            submission=submission,
+            graded_url=_graded_url(submission),
+        )
     verification_form = _build_verification_form_context(
         requirement,
         github_username,
         submission,
     )
+    if submission is None:
+        return NotStartedCardContext(
+            requirement=requirement,
+            feedback_tasks=tasks,
+            feedback_passed=passed,
+            verification_form=verification_form,
+        )
+    if submission.verification_completed:
+        return FailedCardContext(
+            requirement=requirement,
+            feedback_tasks=tasks,
+            feedback_passed=passed,
+            verification_form=verification_form,
+            error_message=(
+                submission.validation_message or "Verification did not pass."
+            ),
+        )
+    return UnavailableCardContext(
+        requirement=requirement,
+        feedback_tasks=tasks,
+        feedback_passed=passed,
+        verification_form=verification_form,
+        message=_PERSISTED_SERVICE_ERROR_MESSAGE,
+        retryable=True,
+    )
 
-    return {
-        "requirement": requirement,
-        "submission": submission,
-        "feedback_tasks": feedback_tasks or [],
-        "feedback_passed": feedback_passed,
-        "card_state": card_state,
-        "server_error": server_error,
-        "server_error_message": server_error_message,
-        "server_error_retryable": server_error_retryable,
-        "error_banner": error_banner,
-        "processing": processing,
-        "verification_status_token": verification_status_token,
-        "verification_status_delay_seconds": verification_status_delay_seconds,
-        "verification_form": verification_form,
-        "graded_url": _graded_url(submission),
-    }
+
+def build_checking_requirement_card_context(
+    *,
+    requirement: HandsOnRequirement,
+    verification_status_token: str | None,
+    verification_status_delay_seconds: int = 2,
+    feedback_tasks: list[dict[str, Any]] | None = None,
+    feedback_passed: int = 0,
+) -> CheckingCardContext:
+    """Build the active-attempt card variant."""
+    tasks, passed = _card_feedback(feedback_tasks, feedback_passed)
+    return CheckingCardContext(
+        requirement=requirement,
+        feedback_tasks=tasks,
+        feedback_passed=passed,
+        verification_status_token=verification_status_token,
+        verification_status_delay_seconds=verification_status_delay_seconds,
+    )
+
+
+def build_input_error_requirement_card_context(
+    *,
+    requirement: HandsOnRequirement,
+    github_username: str,
+    message: str,
+) -> NotStartedCardContext:
+    """Build a submittable card with a learner input error."""
+    return NotStartedCardContext(
+        requirement=requirement,
+        feedback_tasks=[],
+        feedback_passed=0,
+        verification_form=_build_verification_form_context(
+            requirement,
+            github_username,
+            None,
+        ),
+        error_message=message,
+    )
+
+
+def build_unavailable_requirement_card_context(
+    *,
+    requirement: HandsOnRequirement,
+    github_username: str,
+    message: str,
+    retryable: bool,
+) -> UnavailableCardContext:
+    """Build an explicit verification-service failure card."""
+    return UnavailableCardContext(
+        requirement=requirement,
+        feedback_tasks=[],
+        feedback_passed=0,
+        verification_form=_build_verification_form_context(
+            requirement,
+            github_username,
+            None,
+        ),
+        message=message,
+        retryable=retryable,
+    )
 
 
 def build_topic_nav(

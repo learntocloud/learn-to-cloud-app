@@ -1,10 +1,12 @@
 """Rendered-HTML tests for phase and dashboard progress states."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
+from uuid import uuid4
 
 import pytest
+from learn_to_cloud_shared.schemas import SubmissionData
 
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.context import (
@@ -53,20 +55,22 @@ def _submission(
     validation_message: str | None = None,
     submitted_value: str = "",
     validated_at: datetime | None = None,
-) -> SimpleNamespace:
-    return SimpleNamespace(
+) -> SubmissionData:
+    return SubmissionData(
+        id=uuid4(),
         is_validated=is_validated,
         verification_completed=verification_completed,
         validation_message=validation_message,
         submitted_value=submitted_value,
         validated_at=validated_at,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
 
 def _card_contexts(
     requirements: list[Any],
-    submissions_by_req: dict[str, object],
-) -> dict[str, dict]:
+    submissions_by_req: dict[str, SubmissionData],
+) -> dict[str, object]:
     """Build the same card_contexts_by_req shape pages_routes.py builds."""
     return {
         req.slug: build_requirement_card_context(
@@ -188,7 +192,7 @@ class TestPhaseVerificationLocked:
     def _render_phase(
         self,
         requirements: list[Any],
-        submissions_by_req: dict[str, object],
+        submissions_by_req: dict[str, SubmissionData],
     ) -> str:
         return _render(
             "pages/verification_phase.html",
@@ -255,7 +259,7 @@ class TestPhaseVerificationCardStates:
     def _render_phase(
         self,
         requirements: list[Any],
-        submissions_by_req: dict[str, object],
+        submissions_by_req: dict[str, SubmissionData],
     ) -> str:
         return _render(
             "pages/verification_phase.html",

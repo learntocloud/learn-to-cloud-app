@@ -24,6 +24,7 @@ from learn_to_cloud_shared.testing.requirement_factories import (
     repo_fork_requirement,
 )
 
+from learn_to_cloud.rendering.context import CheckingCardContext
 from learn_to_cloud.services.verification_page_service import (
     get_phase_verification_workspace,
     get_verifications_overview,
@@ -178,8 +179,9 @@ async def test_phase_workspace_preserves_active_attempt_polling_state():
     assert result.phase_progress is progress
     assert result.verification_locked is True
     assert result.prerequisite_phase_id == 3
-    assert card["card_state"] == "checking"
-    assert card["verification_status_token"] == "status-token"
+    assert isinstance(card, CheckingCardContext)
+    assert card.kind == "checking"
+    assert card.verification_status_token == "status-token"
     repository.get_active_for_requirements.assert_awaited_once_with(
         42, {requirement.uuid: requirement}
     )

@@ -1,38 +1,28 @@
-{# Requirement verification card. One ``card_state`` (from
-   build_requirement_card_context) drives the whole card instead of a
-   scattered combination of submission/processing/server_error flags:
-   'checking' | 'passed' | 'failed' | 'unavailable' | 'not_started'.
-
-   Required context (all provided by build_requirement_card_context):
-     requirement, submission, feedback_tasks, feedback_passed, card_state,
-     server_error, server_error_message, server_error_retryable,
-     error_banner, processing, verification_status_token,
-     verification_status_delay_seconds, verification_form
-#}
+{# Required context: ``card`` is one RequirementCardContext variant. #}
 {% from "macros/badges.html" import status_pill %}
 {% from "macros/callouts.html" import banner %}
-<div id="requirement-{{ requirement.slug }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+<div id="requirement-{{ card.requirement.slug }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
     <div class="flex items-center justify-between mb-2">
-        <h3 class="font-medium text-gray-900 dark:text-gray-100">{{ requirement.name }}</h3>
-        {% if card_state == 'passed' %}
+        <h3 class="font-medium text-gray-900 dark:text-gray-100">{{ card.requirement.name }}</h3>
+        {% if card.kind == 'passed' %}
         {{ status_pill("Verified", "success") }}
-        {% elif card_state == 'unavailable' %}
+        {% elif card.kind == 'unavailable' %}
         {{ status_pill("Service unavailable", "warning") }}
-        {% elif card_state == 'failed' %}
+        {% elif card.kind == 'failed' %}
         {{ status_pill("Needs work", "error") }}
         {% endif %}
     </div>
 
-    {% if requirement.description %}
-    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ requirement.description }}</p>
+    {% if card.requirement.description %}
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ card.requirement.description }}</p>
     {% endif %}
 
-    {% if card_state == 'checking' and verification_status_token %}
+    {% if card.kind == 'checking' and card.verification_status_token %}
     {# Verification in progress — poll the Durable status proxy until terminal. #}
     <div
-        hx-get="/htmx/verification/attempts/status?token={{ verification_status_token | urlencode }}"
-        hx-trigger="load delay:{{ verification_status_delay_seconds | default(2) }}s"
-        hx-target="#requirement-{{ requirement.slug }}"
+        hx-get="/htmx/verification/attempts/status?token={{ card.verification_status_token | urlencode }}"
+        hx-trigger="load delay:{{ card.verification_status_delay_seconds }}s"
+        hx-target="#requirement-{{ card.requirement.slug }}"
         hx-swap="outerHTML"
         class="flex items-center gap-3 py-3"
         role="status"
@@ -43,25 +33,27 @@
             Analyzing your code... this usually takes 30–60 seconds.
         </span>
     </div>
-    {% elif card_state == 'checking' %}
+    {% elif card.kind == 'checking' %}
     <div class="text-amber-600 dark:text-amber-400 text-sm p-2" role="status">
         Verification is running. Refresh the page to check for results.
     </div>
-    {% elif card_state != 'passed' %}
-    {% if verification_form.kind != 'unsupported' %}
+    {% elif card.kind != 'passed' %}
+    {% if card.verification_form.kind != 'unsupported' %}
     <form
-        hx-post="{{ verification_form.action }}"
-        hx-target="#requirement-{{ requirement.slug }}"
+        hx-post="{{ card.verification_form.action }}"
+        hx-target="#requirement-{{ card.requirement.slug }}"
         hx-swap="outerHTML"
-        hx-indicator="#spinner-{{ requirement.slug }}"
+        hx-indicator="#spinner-{{ card.requirement.slug }}"
         hx-disabled-elt="find button[type='submit']"
         x-data="{ valid: false }"
         x-init="valid = $el.checkValidity()"
         @input="valid = $el.checkValidity()"
         @change="valid = $el.checkValidity()"
-        class="flex flex-col gap-3 {% if verification_form.kind == 'reflection' %}gap-4{% else %}sm:flex-row sm:items-start{% endif %}"
+        class="flex flex-col gap-3 {% if card.verification_form.kind == 'reflection' %}gap-4{% else %}sm:flex-row sm:items-start{% endif %}"
     >
-        {% include verification_form.template %}
+        {% with verification_form=card.verification_form, requirement=card.requirement %}
+        {% include card.verification_form.template %}
+        {% endwith %}
 
         <button
             type="submit"
@@ -70,16 +62,16 @@
         >
             Verify
         </button>
-        <span id="spinner-{{ requirement.slug }}" class="htmx-indicator inline-flex items-center text-sm text-gray-500">
+        <span id="spinner-{{ card.requirement.slug }}" class="htmx-indicator inline-flex items-center text-sm text-gray-500">
             Checking...
         </span>
     </form>
     {% else %}
     <div class="text-amber-600 dark:text-amber-400 text-sm p-2" role="status">
-        {{ verification_form.message }}
+        {{ card.verification_form.message }}
     </div>
     {% endif %}
-    {% if verification_form.kind == 'derived' %}
+    {% if card.verification_form.kind == 'derived' %}
     {# The read-only field above is derived server-side, which is invisible to a
        learner whose fork is named differently or lives under an org (#701). #}
     <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
@@ -91,32 +83,32 @@
     {% endif %}
     {% endif %}
 
-    {% if card_state == 'unavailable' %}
+    {% if card.kind == 'unavailable' %}
     {# System/retryable fault -- not the learner's doing, so always worth
        reporting and never blamed on them (covers both server_error and
        cancelled outcomes). #}
     {{ banner(
-        (server_error_message or 'The verification service encountered an error.')
+        card.message
         + (' This attempt was not counted against your rate limit, so you can try again immediately.'
-           if server_error_retryable
+           if card.retryable
            else ' This attempt was not counted against your rate limit.'),
         'warning',
         report=true,
-        report_title='Verification error: ' ~ requirement.name,
-        report_context='requirement=' ~ requirement.slug
+        report_title='Verification error: ' ~ card.requirement.name,
+        report_context='requirement=' ~ card.requirement.slug
     ) }}
-    {% elif error_banner %}
+    {% elif card.kind in ('not_started', 'failed') and card.error_message %}
     {# A real learner-facing outcome: either a pre-submit validation issue,
        or the rubric's reason a completed attempt didn't pass. #}
     {{ banner(
-        error_banner,
+        card.error_message,
         'error',
         report=false
     ) }}
     {% endif %}
 
-    {% if feedback_tasks %}
-    {% with feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, requirement_slug=requirement.slug %}
+    {% if card.feedback_tasks %}
+    {% with feedback_tasks=card.feedback_tasks, feedback_passed=card.feedback_passed, requirement_slug=card.requirement.slug %}
     {% include "partials/verification_feedback.html" %}
     {% endwith %}
     {% endif %}

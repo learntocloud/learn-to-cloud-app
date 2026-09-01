@@ -19,10 +19,16 @@ from uuid import uuid4
 
 import pytest
 from fastapi.responses import HTMLResponse
+from learn_to_cloud_shared.submission_values import (
+    GitHubUrlValue,
+    TextValue,
+    TokenValue,
+)
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.datastructures import FormData, UploadFile
 
 from learn_to_cloud.core.auth import AuthenticatedUser
+from learn_to_cloud.rendering.context import UnavailableCardContext
 from learn_to_cloud.routes.htmx_routes import (
     _combine_reflection_answers,
     _submit_canonical_verification,
@@ -238,7 +244,7 @@ class TestHtmxSubmitVerification:
             request,
             current_user,
             requirement,
-            "https://github.com/user/user",
+            GitHubUrlValue("https://github.com/user/user"),
         )
 
     async def test_derived_route_rejects_spoofed_value(self):
@@ -306,7 +312,7 @@ class TestHtmxSubmitVerification:
             request,
             current_user,
             requirement,
-            token,
+            TokenValue(token),
         )
 
     @pytest.mark.parametrize(
@@ -385,10 +391,11 @@ class TestHtmxSubmitVerification:
         assert result.status_code == 200
         mock_submit.assert_awaited_once()
         submitted_value = mock_submit.await_args_list[0].args[3]
-        assert "## Question 0?" in submitted_value
-        assert "first answer" in submitted_value
-        assert "## Question 1?" in submitted_value
-        assert "second answer" in submitted_value
+        assert isinstance(submitted_value, TextValue)
+        assert "## Question 0?" in submitted_value.text
+        assert "first answer" in submitted_value.text
+        assert "## Question 1?" in submitted_value.text
+        assert "second answer" in submitted_value.text
 
     async def test_unknown_requirement_refreshes_stale_page(self):
         request = _mock_request()
@@ -453,7 +460,7 @@ class TestHtmxSubmitVerification:
                 request,
                 current_user,
                 MagicMock(slug="req-1"),
-                "https://github.com/user/repo",
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         # Should return a processing card, not a final result
@@ -496,7 +503,7 @@ class TestHtmxSubmitVerification:
                 request,
                 current_user,
                 MagicMock(slug="req-1"),
-                "https://github.com/user/repo",
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         record = next(
@@ -532,7 +539,7 @@ class TestHtmxSubmitVerification:
                 request,
                 current_user,
                 MagicMock(slug="req-1"),
-                "test",
+                GitHubUrlValue("https://github.com/user/user"),
             )
 
         # Should render a server error card, not crash
@@ -574,7 +581,7 @@ class TestHtmxSubmitVerification:
                 request,
                 current_user,
                 MagicMock(slug="req-1"),
-                "https://github.com/user/repo",
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         assert isinstance(result, HTMLResponse)
@@ -625,21 +632,19 @@ class TestHtmxSubmitVerification:
                 request,
                 current_user,
                 MagicMock(slug="req-1"),
-                "https://github.com/user/repo",
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         assert isinstance(result, HTMLResponse)
         terminalize.assert_awaited_once()
         _, _, context = _patch_templates.TemplateResponse.call_args.args
-        assert context["server_error"] is True
-        assert context["server_error_retryable"] is False
-        assert "open" in context["server_error_message"].lower()
-        assert (
-            "github.com/learntocloud/learn-to-cloud-app/issues"
-            in context["server_error_message"]
-        )
-        assert "immediately" not in context["server_error_message"]
-        assert "team has been notified" not in context["server_error_message"]
+        card = context["card"]
+        assert isinstance(card, UnavailableCardContext)
+        assert card.retryable is False
+        assert "open" in card.message.lower()
+        assert "github.com/learntocloud/learn-to-cloud-app/issues" in card.message
+        assert "immediately" not in card.message
+        assert "team has been notified" not in card.message
 
     async def test_durable_start_error_invites_retry(self, _patch_templates):
         """A transient start error should still mark the banner retryable."""
@@ -677,12 +682,13 @@ class TestHtmxSubmitVerification:
                 request,
                 current_user,
                 MagicMock(slug="req-1"),
-                "https://github.com/user/repo",
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         _, _, context = _patch_templates.TemplateResponse.call_args.args
-        assert context["server_error"] is True
-        assert context["server_error_retryable"] is True
+        card = context["card"]
+        assert isinstance(card, UnavailableCardContext)
+        assert card.retryable is True
         terminalize.assert_awaited_once()
 
     async def test_async_submit_still_returns_processing_card(self):
@@ -723,7 +729,7 @@ class TestHtmxSubmitVerification:
                 request,
                 current_user,
                 MagicMock(slug="req-1"),
-                "https://github.com/user/repo",
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         assert isinstance(result, HTMLResponse)
@@ -826,7 +832,7 @@ class TestHtmxSubmitVerification:
                 request,
                 current_user,
                 MagicMock(slug="req-1"),
-                "https://github.com/user/repo",
+                GitHubUrlValue("https://github.com/user/repo"),
             )
 
         assert isinstance(result, HTMLResponse)
@@ -1072,10 +1078,11 @@ class TestHtmxVerificationAttemptStatus:
             session_maker=request.app.state.session_maker,
         )
         _, _, context = _patch_templates.TemplateResponse.call_args.args
-        assert context["server_error"] is True
-        assert context["server_error_retryable"] is False
+        card = context["card"]
+        assert isinstance(card, UnavailableCardContext)
+        assert card.retryable is False
         assert (
-            context["server_error_message"]
+            card.message
             == "Verification failed because the verification service hit an internal "
             "error. Please try again in a few minutes. If it keeps failing, open an "
             "issue at https://github.com/learntocloud/learn-to-cloud-app/issues."

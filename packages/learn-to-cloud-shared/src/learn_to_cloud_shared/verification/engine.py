@@ -30,6 +30,12 @@ from pydantic import Field, model_validator
 from learn_to_cloud_shared.github_target import GitHubTarget
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import FrozenModel, TaskResult, ValidationResult
+from learn_to_cloud_shared.submission_values import (
+    DeployedUrlValue,
+    SubmittedValue,
+    TextValue,
+    TokenValue,
+)
 from learn_to_cloud_shared.verification.career_reflection import (
     collect_career_reflection_evidence,
     validate_career_reflection,
@@ -298,7 +304,7 @@ class StepContext:
 
     job: PreparedVerificationAttempt
     repository: GitHubTarget | None
-    submitted_value: str
+    submitted_value: SubmittedValue
     evidence_so_far: tuple[EvidenceBundle, ...] = ()
     repo_files: RepoFiles | None = None
 
@@ -445,7 +451,10 @@ async def _check_deployed_api(
     params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 4 gate: probe the submitted API base URL."""
-    result = await validate_deployed_api(context.submitted_value)
+    submitted_value = context.submitted_value
+    if not isinstance(submitted_value, DeployedUrlValue):
+        raise TypeError("Deployed API check requires a deployed URL value")
+    result = await validate_deployed_api(submitted_value.url)
     return StepResult(
         passed=result.is_valid,
         stop_on_fail=True,
@@ -566,7 +575,10 @@ async def _check_career_reflection_gate(
     params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 7 gate: reject empty reflection submissions."""
-    result = validate_career_reflection(context.submitted_value)
+    submitted_value = context.submitted_value
+    if not isinstance(submitted_value, TextValue):
+        raise TypeError("Career reflection check requires a text value")
+    result = validate_career_reflection(submitted_value.text)
     return StepResult(
         passed=result.is_valid,
         stop_on_fail=True,
@@ -581,7 +593,10 @@ async def _check_career_reflection_review(
 ) -> StepResult:
     """Bundle the learner's free-text reflection for text rubric grading."""
     assert isinstance(params, CareerReflectionReviewParams)
-    bundle = collect_career_reflection_evidence(context.submitted_value, params.task)
+    submitted_value = context.submitted_value
+    if not isinstance(submitted_value, TextValue):
+        raise TypeError("Career reflection review requires a text value")
+    bundle = collect_career_reflection_evidence(submitted_value.text, params.task)
     return StepResult(
         passed=True,
         stop_on_fail=False,
@@ -652,9 +667,10 @@ async def _check_ctf_token(
     params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 1 gate: verify the submitted CTF token."""
-    result = verify_ctf_token(
-        context.submitted_value, context.job.github_username or ""
-    )
+    submitted_value = context.submitted_value
+    if not isinstance(submitted_value, TokenValue):
+        raise TypeError("CTF check requires a token value")
+    result = verify_ctf_token(submitted_value.token, context.job.github_username or "")
     return StepResult(
         passed=result.is_valid,
         stop_on_fail=True,
@@ -668,8 +684,11 @@ async def _check_networking_token(
     params: CheckParams,
 ) -> StepResult:
     """Deterministic Phase 2 gate: verify the submitted networking token."""
+    submitted_value = context.submitted_value
+    if not isinstance(submitted_value, TokenValue):
+        raise TypeError("Networking check requires a token value")
     result = verify_networking_token(
-        context.submitted_value, context.job.github_username or ""
+        submitted_value.token, context.job.github_username or ""
     )
     return StepResult(
         passed=result.is_valid,
@@ -684,9 +703,12 @@ async def _check_deployment_architecture_gate(
     params: CheckParams,
 ) -> StepResult:
     """Phase 4 gate: description meets min length and ``deploy.sh`` exists."""
+    submitted_value = context.submitted_value
+    if not isinstance(submitted_value, TextValue):
+        raise TypeError("Deployment architecture check requires a text value")
     result = await validate_deployment_architecture(
         context.job.requirement,
-        context.submitted_value,
+        submitted_value.text,
         context.repository,
         context.repo_files,
     )
@@ -714,10 +736,13 @@ async def _check_deployment_architecture_review(
     deploy_script_path = getattr(
         context.job.requirement.type_config, "deploy_script_path", "deploy.sh"
     )
+    submitted_value = context.submitted_value
+    if not isinstance(submitted_value, TextValue):
+        raise TypeError("Deployment architecture review requires a text value")
     bundle = await collect_deployment_architecture_evidence(
         target.owner,
         target.repo,
-        context.submitted_value,
+        submitted_value.text,
         params.task,
         deploy_script_path=deploy_script_path,
         repo_files=context.repo_files or default_repo_files(),
@@ -1157,7 +1182,7 @@ async def run_profile(
     context = StepContext(
         job=job,
         repository=job.target,
-        submitted_value=job.submitted_value.as_text,
+        submitted_value=job.submitted_value,
         repo_files=repo_files,
     )
 

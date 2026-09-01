@@ -27,10 +27,13 @@ from learn_to_cloud_shared.schemas import (
     CareerReflectionRequirement,
     HandsOnRequirement,
     PlaceholderConfig,
-    SubmissionData,
 )
 from learn_to_cloud_shared.submission_derivation import derive_submission_value
-from learn_to_cloud_shared.submission_values import MAX_TEXT_LENGTH
+from learn_to_cloud_shared.submission_values import (
+    MAX_TEXT_LENGTH,
+    SubmittedValue,
+    submitted_value_from_raw,
+)
 from learn_to_cloud_shared.verification_attempt_executor import (
     terminalize_unstarted_verification_attempt,
     terminalize_verification_attempt,
@@ -46,8 +49,11 @@ from learn_to_cloud.core.auth import AuthenticatedUser, CurrentUser, UserId
 from learn_to_cloud.core.ratelimit import limiter
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.context import (
+    RequirementCardContext,
+    build_checking_requirement_card_context,
+    build_input_error_requirement_card_context,
     build_progress_dict,
-    build_requirement_card_context,
+    build_unavailable_requirement_card_context,
 )
 from learn_to_cloud.services.durable_verification_client import (
     DurableVerificationAuthError,
@@ -200,13 +206,25 @@ async def _render_processing_card(
     return templates.TemplateResponse(
         request,
         "partials/requirement_card.html",
-        build_requirement_card_context(
-            requirement=requirement,
-            github_username=current_user.github_username,
-            processing=True,
-            verification_status_token=token,
-            verification_status_delay_seconds=delay_seconds,
-        ),
+        {
+            "card": build_checking_requirement_card_context(
+                requirement=requirement,
+                verification_status_token=token,
+                verification_status_delay_seconds=delay_seconds,
+            )
+        },
+    )
+
+
+def _render_verification_card(
+    request: Request,
+    card: RequirementCardContext,
+) -> HTMLResponse:
+    """Render one explicit requirement-card variant."""
+    return templates.TemplateResponse(
+        request,
+        "partials/requirement_card.html",
+        {"card": card},
     )
 
 
@@ -371,43 +389,6 @@ async def htmx_uncomplete_step(
     return await _render_step_toggle(request, user_id, topic, step, completed, db)
 
 
-def _render_verification_card(
-    request: Request,
-    current_user: AuthenticatedUser,
-    requirement: HandsOnRequirement,
-    submission: SubmissionData | None = None,
-    *,
-    feedback_tasks: list | None = None,
-    feedback_passed: int = 0,
-    server_error: bool = False,
-    server_error_message: str | None = None,
-    server_error_retryable: bool = True,
-    error_banner: str | None = None,
-    processing: bool = False,
-    verification_status_token: str | None = None,
-    verification_status_delay_seconds: int = _INITIAL_STATUS_DELAY_SECONDS,
-) -> HTMLResponse:
-    """Render a verification card with consistent context."""
-    return templates.TemplateResponse(
-        request,
-        "partials/requirement_card.html",
-        build_requirement_card_context(
-            requirement=requirement,
-            github_username=current_user.github_username,
-            submission=submission,
-            feedback_tasks=feedback_tasks or [],
-            feedback_passed=feedback_passed,
-            server_error=server_error,
-            server_error_message=server_error_message,
-            server_error_retryable=server_error_retryable,
-            error_banner=error_banner,
-            processing=processing,
-            verification_status_token=verification_status_token,
-            verification_status_delay_seconds=verification_status_delay_seconds,
-        ),
-    )
-
-
 async def _parse_verification_form[FormModel: BaseModel](
     request: Request,
     model_type: type[FormModel],
@@ -449,7 +430,7 @@ async def _submit_canonical_verification(
     request: Request,
     current_user: AuthenticatedUser,
     requirement: HandsOnRequirement,
-    submitted_value: str,
+    submitted_value: SubmittedValue,
 ) -> HTMLResponse:
     """Create and start an attempt from a canonical submission value."""
     user_id = current_user.user_id
@@ -457,33 +438,35 @@ async def _submit_canonical_verification(
     requirement_slug = requirement.slug
     session_maker = request.app.state.session_maker
 
-    def _render_card(
-        submission: SubmissionData | None = None,
-        *,
-        feedback_tasks: list | None = None,
-        feedback_passed: int = 0,
-        server_error: bool = False,
-        server_error_message: str | None = None,
-        server_error_retryable: bool = True,
-        error_banner: str | None = None,
-        processing: bool = False,
-        verification_status_token: str | None = None,
-        verification_status_delay_seconds: int = _INITIAL_STATUS_DELAY_SECONDS,
-    ) -> HTMLResponse:
+    def _render_input_error(message: str) -> HTMLResponse:
         return _render_verification_card(
             request,
-            current_user,
-            requirement,
-            submission,
-            feedback_tasks=feedback_tasks,
-            feedback_passed=feedback_passed,
-            server_error=server_error,
-            server_error_message=server_error_message,
-            server_error_retryable=server_error_retryable,
-            error_banner=error_banner,
-            processing=processing,
-            verification_status_token=verification_status_token,
-            verification_status_delay_seconds=verification_status_delay_seconds,
+            build_input_error_requirement_card_context(
+                requirement=requirement,
+                github_username=github_username,
+                message=message,
+            ),
+        )
+
+    def _render_checking(status_token: str) -> HTMLResponse:
+        return _render_verification_card(
+            request,
+            build_checking_requirement_card_context(
+                requirement=requirement,
+                verification_status_token=status_token,
+                verification_status_delay_seconds=_INITIAL_STATUS_DELAY_SECONDS,
+            ),
+        )
+
+    def _render_unavailable(message: str, retryable: bool) -> HTMLResponse:
+        return _render_verification_card(
+            request,
+            build_unavailable_requirement_card_context(
+                requirement=requirement,
+                github_username=github_username,
+                message=message,
+                retryable=retryable,
+            ),
         )
 
     try:
@@ -495,7 +478,7 @@ async def _submit_canonical_verification(
             github_username=github_username,
         )
     except _USER_FACING_ERRORS as exc:
-        return _render_card(error_banner=str(exc))
+        return _render_input_error(str(exc))
     except Exception as exc:
         logger.exception(
             "htmx.submit.unexpected_error",
@@ -504,12 +487,12 @@ async def _submit_canonical_verification(
                 "error_type": type(exc).__name__,
             },
         )
-        return _render_card(
-            server_error=True,
-            server_error_message=(
+        return _render_unavailable(
+            (
                 "An unexpected error occurred during verification. "
                 "This attempt was not counted, please try again."
             ),
+            True,
         )
 
     logger.info(
@@ -527,7 +510,8 @@ async def _submit_canonical_verification(
         user_id=user_id,
         requirement_slug=requirement_slug,
         attempt_submission=attempt_submission,
-        render_card=_render_card,
+        render_checking=_render_checking,
+        render_unavailable=_render_unavailable,
     )
 
 
@@ -539,9 +523,11 @@ def _invalid_form_response(
 ) -> HTMLResponse:
     return _render_verification_card(
         request,
-        current_user,
-        requirement,
-        error_banner=message,
+        build_input_error_requirement_card_context(
+            requirement=requirement,
+            github_username=current_user.github_username,
+            message=message,
+        ),
     )
 
 
@@ -571,7 +557,6 @@ async def htmx_submit_derived_verification(
         submitted_value = derive_submission_value(
             requirement=requirement,
             github_username=current_user.github_username,
-            user_input=None,
         )
     except ValueError as exc:
         return _invalid_form_response(request, current_user, requirement, str(exc))
@@ -630,18 +615,14 @@ async def htmx_submit_value_verification(
             f"Please enter no more than {max_length} characters.",
         )
     try:
-        submitted_value = derive_submission_value(
-            requirement=requirement,
-            github_username=current_user.github_username,
-            user_input=submitted_value,
-        )
+        typed_value = submitted_value_from_raw(requirement, submitted_value)
     except ValueError as exc:
         return _invalid_form_response(request, current_user, requirement, str(exc))
     return await _submit_canonical_verification(
         request,
         current_user,
         requirement,
-        submitted_value,
+        typed_value,
     )
 
 
@@ -672,7 +653,8 @@ async def htmx_submit_reflection_verification(
     if form is None:
         return _invalid_form_response(request, current_user, requirement)
     try:
-        submitted_value = _combine_reflection_answers(requirement, form.answers)
+        combined_answers = _combine_reflection_answers(requirement, form.answers)
+        submitted_value = submitted_value_from_raw(requirement, combined_answers)
     except ValueError as exc:
         return _invalid_form_response(request, current_user, requirement, str(exc))
     return await _submit_canonical_verification(
@@ -701,7 +683,8 @@ async def _start_async_attempt_and_render(
     user_id: int,
     requirement_slug: str,
     attempt_submission: VerificationAttemptSubmission,
-    render_card: Callable[..., HTMLResponse],
+    render_checking: Callable[[str], HTMLResponse],
+    render_unavailable: Callable[[str, bool], HTMLResponse],
 ) -> HTMLResponse:
     """Start the Durable attempt orchestration and render the spinner.
 
@@ -731,10 +714,7 @@ async def _start_async_attempt_and_render(
             requirement_slug=requirement_slug,
         )
 
-        return render_card(
-            processing=True,
-            verification_status_token=status_token,
-        )
+        return render_checking(status_token)
 
     except (
         DurableVerificationConfigError,
@@ -760,14 +740,10 @@ async def _start_async_attempt_and_render(
             session_maker=session_maker,
         )
         if not exc.retryable:
-            return render_card(
-                server_error=True,
-                server_error_message=_DURABLE_UNAVAILABLE_ERROR_MESSAGE,
-                server_error_retryable=False,
-            )
-        return render_card(
-            server_error=True,
-            server_error_message=_DURABLE_START_ERROR_MESSAGE,
+            return render_unavailable(_DURABLE_UNAVAILABLE_ERROR_MESSAGE, False)
+        return render_unavailable(
+            _DURABLE_START_ERROR_MESSAGE,
+            True,
         )
 
 
@@ -835,13 +811,14 @@ async def htmx_verification_attempt_status(
         return templates.TemplateResponse(
             request,
             "partials/requirement_card.html",
-            build_requirement_card_context(
-                requirement=requirement,
-                github_username=current_user.github_username,
-                server_error=True,
-                server_error_message=_DURABLE_TERMINAL_ERROR_MESSAGE,
-                server_error_retryable=False,
-            ),
+            {
+                "card": build_unavailable_requirement_card_context(
+                    requirement=requirement,
+                    github_username=current_user.github_username,
+                    message=_DURABLE_TERMINAL_ERROR_MESSAGE,
+                    retryable=False,
+                )
+            },
         )
 
     if status in _TERMINAL_DURABLE_STATUSES:

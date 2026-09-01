@@ -30,7 +30,11 @@ from learn_to_cloud_shared.schemas import (
     PhaseSubmissionContext,
     SubmissionData,
 )
-from learn_to_cloud_shared.submission_values import SubmittedValue
+from learn_to_cloud_shared.submission_values import (
+    SubmittedValue,
+    submitted_value_from_raw,
+    submitted_value_matches_requirement,
+)
 from learn_to_cloud_shared.verification.execution import (
     attempt_to_submission_data,
 )
@@ -154,7 +158,6 @@ async def _check_submission_preconditions(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_slug: str,
-    submitted_value: str | None = None,
 ) -> _PreValidationContext:
     """Shared pre-validation checks for submission paths.
 
@@ -211,7 +214,7 @@ async def create_verification_attempt(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_slug: str,
-    submitted_value: str,
+    submitted_value: SubmittedValue,
     github_username: str | None,
 ) -> VerificationAttemptSubmission:
     """Validate request preconditions and create the unified verification attempt.
@@ -229,12 +232,11 @@ async def create_verification_attempt(
         session_maker,
         user_id,
         requirement_slug,
-        submitted_value,
     )
-    try:
-        typed_value = SubmittedValue.from_raw(ctx.requirement, submitted_value)
-    except ValueError as exc:
-        raise InvalidSubmittedValueError(str(exc)) from exc
+    if not submitted_value_matches_requirement(ctx.requirement, submitted_value):
+        raise InvalidSubmittedValueError(
+            "Submitted value type does not match this requirement."
+        )
 
     catalog = get_curriculum_catalog()
     requirement_snapshot = build_requirement_snapshot(ctx.requirement)
@@ -255,7 +257,7 @@ async def create_verification_attempt(
                 requirement_snapshot_hash=requirement_snapshot_hash,
                 payload_version=ATTEMPT_PAYLOAD_VERSION,
                 github_username_snapshot=github_username,
-                submitted_value=typed_value,
+                submitted_value=submitted_value,
                 cloud_provider=None,
             )
         except AttemptAlreadyValidatedError as exc:
@@ -309,7 +311,7 @@ async def run_submit_smoke_check(
     # error here means the code ran fine, so it is not a health signal;
     # any other error (e.g. an unmapped submission type) propagates.
     try:
-        SubmittedValue.from_raw(ctx.requirement, "smoke-test")
+        submitted_value_from_raw(ctx.requirement, "smoke-test")
     except ValueError:
         # A value-format validation error means the parsing code ran fine,
         # so it is not a schema/code-health signal and is safe to ignore
