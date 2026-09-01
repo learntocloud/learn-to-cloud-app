@@ -166,41 +166,16 @@ def submitted_value_from_kind_and_value(
 
 
 def submitted_value_from_payload(payload: object) -> SubmittedValue:
-    """Deserialize current and legacy Durable workflow value payloads."""
+    """Deserialize the submitted-value Durable workflow payload."""
     payload_map = _payload_mapping(payload)
+    _require_payload_keys(payload_map, {"submission_value_kind", "value"})
     kind = payload_map.get("submission_value_kind")
     if not isinstance(kind, str):
         raise TypeError("Expected submission_value_kind payload field")
     normalized_kind = SubmissionValueKind(kind)
-
-    if "value" in payload_map:
-        _require_payload_keys(payload_map, {"submission_value_kind", "value"})
-        value = payload_map["value"]
-        if not isinstance(value, str):
-            raise TypeError("Expected string payload field: value")
-        return submitted_value_from_kind_and_value(normalized_kind, value)
-
-    _require_payload_keys(
-        payload_map,
-        {
-            "submission_value_kind",
-            "github_url",
-            "token_value",
-            "deployed_url",
-            "text_value",
-        },
-    )
-    github_url = _optional_str(payload_map.get("github_url"), "github_url")
-    token_value = _optional_str(payload_map.get("token_value"), "token_value")
-    deployed_url = _optional_str(payload_map.get("deployed_url"), "deployed_url")
-    text_value = _optional_str(payload_map.get("text_value"), "text_value")
-    value = _single_value_for_kind(
-        normalized_kind,
-        github_url=github_url,
-        token_value=token_value,
-        deployed_url=deployed_url,
-        text_value=text_value,
-    )
+    value = payload_map["value"]
+    if not isinstance(value, str):
+        raise TypeError("Expected string payload field: value")
     return submitted_value_from_kind_and_value(normalized_kind, value)
 
 
@@ -233,14 +208,6 @@ def value_kind_for_submission_type(
     raise ValueError(f"Unknown submission_type for submitted value: {raw_type!r}")
 
 
-def _optional_str(value: object, field_name: str) -> str | None:
-    if value is None:
-        return None
-    if not isinstance(value, str):
-        raise TypeError(f"Expected string payload field: {field_name}")
-    return value
-
-
 def _payload_mapping(payload: object) -> dict[str, object]:
     if not isinstance(payload, Mapping):
         raise TypeError("Expected submission_value payload object")
@@ -261,27 +228,6 @@ def _require_payload_keys(
         raise ValueError(
             f"Invalid submission value payload fields: {sorted(actual - expected)}"
         )
-
-
-def _single_value_for_kind(
-    kind: SubmissionValueKind,
-    *,
-    github_url: str | None,
-    token_value: str | None,
-    deployed_url: str | None,
-    text_value: str | None = None,
-) -> str:
-    values = {
-        SubmissionValueKind.GITHUB_URL: github_url,
-        SubmissionValueKind.TOKEN: token_value,
-        SubmissionValueKind.DEPLOYED_URL: deployed_url,
-        SubmissionValueKind.TEXT: text_value,
-    }
-    value = values[kind]
-    other_values = [item for item_kind, item in values.items() if item_kind != kind]
-    if value is None or any(item is not None for item in other_values):
-        raise ValueError(f"Invalid typed value columns for {kind.value}")
-    return value
 
 
 def _validate_text(value: str) -> None:

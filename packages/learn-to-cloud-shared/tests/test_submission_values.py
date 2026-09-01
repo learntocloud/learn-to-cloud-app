@@ -128,7 +128,7 @@ def test_deployed_url_rejects_whitespace() -> None:
 
 
 @pytest.mark.unit
-def test_payload_rejects_multiple_typed_values() -> None:
+def test_payload_rejects_legacy_typed_value_fields() -> None:
     payload = {
         "submission_value_kind": "github_url",
         "github_url": "https://github.com/user",
@@ -137,7 +137,7 @@ def test_payload_rejects_multiple_typed_values() -> None:
         "text_value": None,
     }
 
-    with pytest.raises(ValueError, match="Invalid typed value"):
+    with pytest.raises(ValueError, match="Invalid submission value payload fields"):
         submitted_value_from_payload(payload)
 
 
@@ -157,18 +157,3 @@ def test_current_payload_rejects_extra_variant_fields() -> None:
 def test_variant_constructors_reject_noncanonical_values() -> None:
     with pytest.raises(ValueError, match="canonical text"):
         TokenValue(" token-123 ")
-
-
-@pytest.mark.unit
-def test_legacy_payload_still_round_trips_for_in_flight_workflows() -> None:
-    restored = submitted_value_from_payload(
-        {
-            "submission_value_kind": "text",
-            "github_url": None,
-            "token_value": None,
-            "deployed_url": None,
-            "text_value": "Existing workflow value.",
-        }
-    )
-
-    assert restored == TextValue("Existing workflow value.")
