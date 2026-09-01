@@ -28,7 +28,7 @@ _TEXT_TYPES = {
 
 # Upper bound on stored free-text answers, guarding against abuse. The
 # three reflection answers are combined into one blob before storage.
-_MAX_TEXT_LENGTH = 20_000
+MAX_TEXT_LENGTH = 20_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,9 +201,9 @@ def _single_value_for_kind(
 
 
 def _validate_text(value: str) -> None:
-    if len(value) > _MAX_TEXT_LENGTH:
+    if len(value) > MAX_TEXT_LENGTH:
         raise ValueError(
-            f"Submitted text must be at most {_MAX_TEXT_LENGTH} characters.",
+            f"Submitted text must be at most {MAX_TEXT_LENGTH} characters.",
         )
 
 

@@ -285,7 +285,8 @@ class TestPhaseVerificationCardStates:
         html = self._render_phase([req], {})
         assert "Needs work" not in html
         assert "Verified" not in html
-        assert 'hx-post="/htmx/github/submit"' in html
+        assert 'hx-post="/htmx/verifications/ci-status/submit/value"' in html
+        assert 'name="requirement_slug"' not in html
 
     def test_failed_shows_needs_work_pill_and_learner_message(self):
         req = _requirement("ci-status", "CI Status")
@@ -365,6 +366,8 @@ class TestPhaseVerificationCardStates:
         html = self._render_phase([req], {})
 
         assert "readonly" in html
+        assert 'hx-post="/htmx/verifications/journal-api/submit/derived"' in html
+        assert 'name="submitted_value"' not in html
         assert "can't be edited" in html
         assert "under an organization" in html
 

@@ -14,6 +14,8 @@ from learn_to_cloud_shared.submission_derivation import (
     is_derivable,
 )
 
+from learn_to_cloud.verification_forms import verification_submit_action
+
 if TYPE_CHECKING:
     from learn_to_cloud_shared.schemas import (
         Phase,
@@ -445,6 +447,12 @@ def build_requirement_card_context(
         "verification_status_token": verification_status_token,
         "verification_status_delay_seconds": verification_status_delay_seconds,
         "derived_url": derived_url,
+        "submission_action": verification_submit_action(
+            requirement.slug,
+            requirement.submission_type,
+        )
+        if requirement is not None
+        else None,
         "graded_url": _graded_url(submission),
     }
 

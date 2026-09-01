@@ -110,7 +110,8 @@
             processing=card.processing,
             verification_status_token=card.verification_status_token,
             verification_status_delay_seconds=card.verification_status_delay_seconds,
-            derived_url=card.derived_url
+            derived_url=card.derived_url,
+            submission_action=card.submission_action
         %}
         {% include "partials/requirement_card.html" %}
         {% endwith %}
