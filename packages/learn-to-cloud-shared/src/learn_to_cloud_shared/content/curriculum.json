@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "2cec2bed713d1e7487594c4afb43ba8f0932a6d588a3bbb8b393286039867dc4",
-  "curriculum_version": 9,
+  "content_hash": "ca2a68fda0ab2cfc2a3239f4f646b932af69a54f18bca2080de48092c055c83e",
+  "curriculum_version": 10,
   "phases": [
     {
       "capstone": null,
