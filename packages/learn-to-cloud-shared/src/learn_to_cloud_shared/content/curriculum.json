@@ -1,6 +1,6 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "7cd461ccaff18a8127796f97458fc97ceee033a333844efd4487e0bb128e5517",
+  "content_hash": "3f7e3b77581e988d11da22ffc86a1d2c1875e360c43f9a0de25eacea17b573ea",
   "curriculum_version": 11,
   "phases": [
     {
@@ -1990,7 +1990,7 @@
             "description": "Submit your Journal API fork URL after your implementation is on main. The verifier checks that CI passes, then runs an LLM rubric review of the final code for API completeness, Python quality, validation, logging, AI analysis, cloud CLI setup, and secret safety.",
             "instruction_step_slug": "phase3-topic5-practice-journal-starter-repository",
             "name": "Verify Journal API Implementation",
-            "pre_submit_note": "Merge your completed implementation into `main` before verifying.",
+            "pre_submit_note": null,
             "slug": "journal-api-implementation",
             "submission_prompt": "We'll review the latest code on your fork's `main` branch.",
             "submission_type": "journal_api_verifier",
@@ -5928,7 +5928,7 @@
             "description": "Answer three reflection questions about your interview story, your target role and skill gaps, and a project you're excited about. Write them as if you're preparing for a real interview, thoughtful, specific, and in your own words.",
             "instruction_step_slug": "phase7-capstone-practice-complete-the-reflection",
             "name": "Reflect on Your Job-Search Readiness",
-            "pre_submit_note": "Each answer must contain at least 200 characters.",
+            "pre_submit_note": null,
             "slug": "career-reflection",
             "submission_prompt": "Answer all three questions thoughtfully and in your own words.",
             "submission_type": "career_reflection",
