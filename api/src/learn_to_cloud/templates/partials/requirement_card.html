@@ -57,15 +57,9 @@
     {% endwith %}
     {% endif %}
 
-    {% if card.kind in ('not_started', 'failed') and card.requirement.submission_prompt %}
+    {% if card.kind in ('not_started', 'failed') and card.requirement.description %}
     <div class="mb-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
-        {{ card.requirement.submission_prompt | md | safe }}
-    </div>
-    {% endif %}
-
-    {% if card.kind in ('not_started', 'failed') and card.requirement.pre_submit_note %}
-    <div class="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
-        {{ card.requirement.pre_submit_note | md | safe }}
+        {{ card.requirement.description | md | safe }}
     </div>
     {% endif %}
 

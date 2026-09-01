@@ -435,17 +435,16 @@ class TestPhaseVerificationCardStates:
         assert "Why can't I edit this URL?" in html
         assert "organization" in html
 
-    def test_active_card_uses_submission_prompt_not_description(self):
+    def test_active_card_uses_concise_requirement_description(self):
         req = _requirement(
             "linux-token",
             "Linux token",
-            description="Long setup instructions that belong in the curriculum.",
-        ).model_copy(update={"submission_prompt": "Paste the completion token."})
+            description="Paste the completion token.",
+        )
 
         html = self._render_phase([req], {})
 
         assert "Paste the completion token." in html
-        assert "Long setup instructions" not in html
 
     def test_failed_feedback_precedes_resubmission_form(self):
         req = _requirement("journal-api", "Journal API")

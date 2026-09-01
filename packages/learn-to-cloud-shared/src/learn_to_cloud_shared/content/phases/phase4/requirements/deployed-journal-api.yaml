@@ -3,9 +3,7 @@ uuid: cd4dfc97-5081-4361-a345-a3690c86f1e6
 slug: deployed-journal-api
 submission_type: deployed_api
 name: Deploy a Public Journal API
-description: Submit your HTTPS API base URL so the verifier can create and retrieve a challenge entry, validate one live AI analysis response, and delete the entry.
-submission_prompt: Enter your public HTTPS API base URL.
-pre_submit_note: The API must return direct JSON responses without redirects.
+description: Enter your public HTTPS API base URL.
 instruction_step_slug: phase4-topic9-practice-verify-submit-deployment
 type_config:
   placeholder: https://your-api.example.com

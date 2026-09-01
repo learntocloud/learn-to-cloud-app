@@ -3,8 +3,7 @@ uuid: c359bc2e-3215-4841-ab9b-e51be59ed3ff
 slug: networking-lab-token
 submission_type: networking_token
 name: Submit the Networking Lab Completion Token
-description: Finish all four networking challenges and submit the completion token shown at the end.
-submission_prompt: Paste the token shown after completing all four challenges.
+description: Paste the token shown after completing all four challenges.
 instruction_step_slug: phase2-topic4-practice-networking-lab-repository
 type_config:
   placeholder: Paste your Networking Lab completion token here

@@ -22,8 +22,6 @@ class TestPreparedVerificationAttemptRoundTrip:
             slug="my-fork", required_repo="owner/repo"
         ).model_copy(
             update={
-                "submission_prompt": "We'll check your fork.",
-                "pre_submit_note": "Use your own account.",
                 "instruction_step_slug": "step-1",
             }
         )
@@ -39,8 +37,6 @@ class TestPreparedVerificationAttemptRoundTrip:
         payload = attempt.to_payload()
         assert "submitted_value" not in payload
         assert "submitted_value" not in payload["submission_value"]
-        assert "submission_prompt" not in payload["requirement"]
-        assert "pre_submit_note" not in payload["requirement"]
         assert "instruction_step_slug" not in payload["requirement"]
         restored = PreparedVerificationAttempt.from_payload(payload)
         assert restored.requirement.slug == attempt.requirement.slug

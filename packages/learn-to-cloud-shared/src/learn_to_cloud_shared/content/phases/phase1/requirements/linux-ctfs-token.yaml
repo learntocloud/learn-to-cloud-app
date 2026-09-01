@@ -3,8 +3,7 @@ uuid: ec20af63-2ea2-418f-ac14-2c2ae3d06ca7
 slug: linux-ctfs-token
 submission_type: ctf_token
 name: Submit the Linux CTF Completion Token
-description: Finish all 18 Linux CTF challenges and submit the final completion token to verify completion.
-submission_prompt: Paste the token shown after completing all 18 challenges.
+description: Paste the token shown after completing all 18 challenges.
 instruction_step_slug: phase1-topic6-practice-linux-ctfs-repository
 type_config:
   placeholder: Paste your CTF completion token here

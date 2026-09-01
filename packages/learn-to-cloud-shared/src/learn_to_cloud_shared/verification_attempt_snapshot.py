@@ -26,11 +26,7 @@ from learn_to_cloud_shared.schemas import (
 
 # Bump only alongside a breaking change to the snapshot/hash contract.
 ATTEMPT_PAYLOAD_VERSION = 1
-_PRESENTATION_FIELDS = {
-    "submission_prompt",
-    "pre_submit_note",
-    "instruction_step_slug",
-}
+_PRESENTATION_FIELDS = {"instruction_step_slug"}
 
 # Snapshot payload versions this code version can execute. Kept as a set so a
 # future PR can widen support during a rolling deploy without a code branch.

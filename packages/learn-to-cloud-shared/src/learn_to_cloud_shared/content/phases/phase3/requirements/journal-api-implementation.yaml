@@ -3,8 +3,7 @@ uuid: d6201101-8873-447a-957a-0e5773627618
 slug: journal-api-implementation
 submission_type: journal_api_verifier
 name: Verify Journal API Implementation
-description: Submit your Journal API fork URL after your implementation is on main. The verifier checks that CI passes, then runs an LLM rubric review of the final code for API completeness, Python quality, validation, logging, AI analysis, cloud CLI setup, and secret safety.
-submission_prompt: We'll review the latest code on your fork's `main` branch.
+description: We'll review the latest code on your fork's `main` branch.
 instruction_step_slug: phase3-topic5-practice-journal-starter-repository
 type_config:
   required_repo: learntocloud/journal-starter

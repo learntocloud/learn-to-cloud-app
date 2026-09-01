@@ -3,8 +3,7 @@ uuid: 1e8d79f3-9936-4fd4-ab46-ddd1a7eea65f
 slug: networking-lab-fork
 submission_type: repo_fork
 name: Fork the Networking Lab Repository
-description: Fork learntocloud/networking-lab so you can complete and track the lab in your own account.
-submission_prompt: We'll check that the Networking Lab repository is forked to your account.
+description: We'll check that the Networking Lab repository is forked to your account.
 instruction_step_slug: phase2-topic4-practice-networking-lab-repository
 type_config:
   required_repo: learntocloud/networking-lab
