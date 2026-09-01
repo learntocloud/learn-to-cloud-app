@@ -18,7 +18,15 @@ from learn_to_cloud_shared.verification_workflow import PreparedVerificationAtte
 @pytest.mark.unit
 class TestPreparedVerificationAttemptRoundTrip:
     def test_repo_fork_requirement_round_trip(self) -> None:
-        requirement = repo_fork_requirement(slug="my-fork", required_repo="owner/repo")
+        requirement = repo_fork_requirement(
+            slug="my-fork", required_repo="owner/repo"
+        ).model_copy(
+            update={
+                "submission_prompt": "We'll check your fork.",
+                "pre_submit_note": "Use your own account.",
+                "instruction_step_slug": "step-1",
+            }
+        )
         attempt = PreparedVerificationAttempt(
             id=uuid4(),
             user_id=42,
@@ -31,6 +39,9 @@ class TestPreparedVerificationAttemptRoundTrip:
         payload = attempt.to_payload()
         assert "submitted_value" not in payload
         assert "submitted_value" not in payload["submission_value"]
+        assert "submission_prompt" not in payload["requirement"]
+        assert "pre_submit_note" not in payload["requirement"]
+        assert "instruction_step_slug" not in payload["requirement"]
         restored = PreparedVerificationAttempt.from_payload(payload)
         assert restored.requirement.slug == attempt.requirement.slug
         assert restored.requirement.type_config.required_repo == "owner/repo"

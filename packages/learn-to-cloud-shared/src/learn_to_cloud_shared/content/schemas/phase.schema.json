@@ -56,13 +56,49 @@
           "title": "Description",
           "type": "string"
         },
+        "instruction_step_slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instruction Step Slug"
+        },
         "name": {
           "title": "Name",
           "type": "string"
         },
+        "pre_submit_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Submit Note"
+        },
         "slug": {
           "title": "Slug",
           "type": "string"
+        },
+        "submission_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Submission Prompt"
         },
         "submission_type": {
           "const": "career_reflection",
@@ -133,13 +169,49 @@
           "title": "Description",
           "type": "string"
         },
+        "instruction_step_slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instruction Step Slug"
+        },
         "name": {
           "title": "Name",
           "type": "string"
         },
+        "pre_submit_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Submit Note"
+        },
         "slug": {
           "title": "Slug",
           "type": "string"
+        },
+        "submission_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Submission Prompt"
         },
         "submission_type": {
           "const": "ctf_token",
@@ -209,13 +281,49 @@
           "title": "Description",
           "type": "string"
         },
+        "instruction_step_slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instruction Step Slug"
+        },
         "name": {
           "title": "Name",
           "type": "string"
         },
+        "pre_submit_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Submit Note"
+        },
         "slug": {
           "title": "Slug",
           "type": "string"
+        },
+        "submission_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Submission Prompt"
         },
         "submission_type": {
           "const": "deployed_api",
@@ -283,13 +391,49 @@
           "title": "Description",
           "type": "string"
         },
+        "instruction_step_slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instruction Step Slug"
+        },
         "name": {
           "title": "Name",
           "type": "string"
         },
+        "pre_submit_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Submit Note"
+        },
         "slug": {
           "title": "Slug",
           "type": "string"
+        },
+        "submission_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Submission Prompt"
         },
         "submission_type": {
           "const": "deployment_architecture",
@@ -339,13 +483,49 @@
           "title": "Description",
           "type": "string"
         },
+        "instruction_step_slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instruction Step Slug"
+        },
         "name": {
           "title": "Name",
           "type": "string"
         },
+        "pre_submit_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Submit Note"
+        },
         "slug": {
           "title": "Slug",
           "type": "string"
+        },
+        "submission_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Submission Prompt"
         },
         "submission_type": {
           "const": "devops_analysis",
@@ -402,13 +582,49 @@
           "title": "Description",
           "type": "string"
         },
+        "instruction_step_slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instruction Step Slug"
+        },
         "name": {
           "title": "Name",
           "type": "string"
         },
+        "pre_submit_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Submit Note"
+        },
         "slug": {
           "title": "Slug",
           "type": "string"
+        },
+        "submission_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Submission Prompt"
         },
         "submission_type": {
           "const": "journal_api_verifier",
@@ -621,13 +837,49 @@
           "title": "Description",
           "type": "string"
         },
+        "instruction_step_slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instruction Step Slug"
+        },
         "name": {
           "title": "Name",
           "type": "string"
         },
+        "pre_submit_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Submit Note"
+        },
         "slug": {
           "title": "Slug",
           "type": "string"
+        },
+        "submission_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Submission Prompt"
         },
         "submission_type": {
           "const": "networking_token",
@@ -765,13 +1017,49 @@
           "title": "Description",
           "type": "string"
         },
+        "instruction_step_slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instruction Step Slug"
+        },
         "name": {
           "title": "Name",
           "type": "string"
         },
+        "pre_submit_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Submit Note"
+        },
         "slug": {
           "title": "Slug",
           "type": "string"
+        },
+        "submission_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Submission Prompt"
         },
         "submission_type": {
           "const": "profile_readme",
@@ -856,13 +1144,49 @@
           "title": "Description",
           "type": "string"
         },
+        "instruction_step_slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instruction Step Slug"
+        },
         "name": {
           "title": "Name",
           "type": "string"
         },
+        "pre_submit_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Submit Note"
+        },
         "slug": {
           "title": "Slug",
           "type": "string"
+        },
+        "submission_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Submission Prompt"
         },
         "submission_type": {
           "const": "repo_fork",
@@ -912,13 +1236,49 @@
           "title": "Description",
           "type": "string"
         },
+        "instruction_step_slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instruction Step Slug"
+        },
         "name": {
           "title": "Name",
           "type": "string"
         },
+        "pre_submit_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Submit Note"
+        },
         "slug": {
           "title": "Slug",
           "type": "string"
+        },
+        "submission_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Submission Prompt"
         },
         "submission_type": {
           "const": "security_scanning",

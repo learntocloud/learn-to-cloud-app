@@ -30,6 +30,26 @@ def test_snapshot_round_trips_to_typed_requirement() -> None:
     assert restored == requirement
 
 
+def test_snapshot_excludes_presentation_fields() -> None:
+    requirement = repo_fork_requirement(
+        slug="fork", required_repo="owner/repo"
+    ).model_copy(
+        update={
+            "submission_prompt": "We'll check your fork.",
+            "pre_submit_note": "Use your own account.",
+            "instruction_step_slug": "step-1",
+        }
+    )
+
+    snapshot = build_requirement_snapshot(requirement)
+
+    assert "submission_prompt" not in snapshot
+    assert "pre_submit_note" not in snapshot
+    assert "instruction_step_slug" not in snapshot
+    restored = deserialize_requirement_snapshot(snapshot)
+    assert restored.submission_prompt is None
+
+
 def test_hash_is_order_independent() -> None:
     requirement = journal_api_verifier_requirement(slug="journal")
     snapshot = build_requirement_snapshot(requirement)

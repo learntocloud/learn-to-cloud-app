@@ -461,3 +461,40 @@ class TestValidateContent:
         ):
             errors = validate_content()
         assert any("order=1" in e for e in errors)
+
+    def test_requires_instruction_step_for_authored_requirement(self):
+        from learn_to_cloud_shared.content_yaml_loader import validate_content
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            profile_readme_requirement,
+        )
+
+        phase = self._build_phase(
+            topics=[self._build_topic()],
+            topic_slugs=["topic1"],
+            requirements=[profile_readme_requirement()],
+        )
+
+        errors = validate_content((phase,))
+
+        assert any("must define instruction_step_slug" in error for error in errors)
+
+    def test_instruction_step_must_resolve_in_same_phase(self):
+        from learn_to_cloud_shared.content_yaml_loader import validate_content
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            profile_readme_requirement,
+        )
+
+        requirement = profile_readme_requirement().model_copy(
+            update={"instruction_step_slug": "other-phase-step"}
+        )
+        phase = self._build_phase(
+            topics=[self._build_topic()],
+            topic_slugs=["topic1"],
+            requirements=[requirement],
+        )
+
+        errors = validate_content((phase,))
+
+        assert any(
+            "does not resolve within the same phase" in error for error in errors
+        )

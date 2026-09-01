@@ -18,6 +18,7 @@ from learn_to_cloud_shared.content_service import (
     get_phase_by_slug,
     get_required_step_counts_by_phase,
     get_requirement_counts_by_phase,
+    get_requirement_instruction_target,
     get_requirements_by_phase_order,
     get_topic_containing_step,
 )
@@ -85,6 +86,24 @@ class TestGetRequirementsByPhaseOrder:
                 assert by_order[phase.order] == list(expected)
             else:
                 assert phase.order not in by_order
+
+
+class TestGetRequirementInstructionTarget:
+    def test_all_authored_requirements_resolve_within_their_phase(self):
+        catalog = get_curriculum_catalog()
+        requirements_checked = 0
+
+        for phase in catalog.phases:
+            for requirement in catalog.requirements_by_phase_slug.get(phase.slug, ()):
+                target = get_requirement_instruction_target(requirement)
+                assert target is not None
+                target_phase, topic, step = target
+                assert target_phase.uuid == phase.uuid
+                assert topic.uuid == catalog.topic_by_step_uuid[step.uuid].uuid
+                assert step.slug == requirement.instruction_step_slug
+                requirements_checked += 1
+
+        assert requirements_checked == 10
 
 
 class TestGetRequiredStepCountsByPhase:

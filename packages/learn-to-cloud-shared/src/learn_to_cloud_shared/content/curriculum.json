@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "ca2a68fda0ab2cfc2a3239f4f646b932af69a54f18bca2080de48092c055c83e",
-  "curriculum_version": 10,
+  "content_hash": "7cd461ccaff18a8127796f97458fc97ceee033a333844efd4487e0bb128e5517",
+  "curriculum_version": 11,
   "phases": [
     {
       "capstone": null,
@@ -13,8 +13,11 @@
         "requirements": [
           {
             "description": "On github.com, create a new repository named exactly after your username. GitHub turns it into your profile README automatically, and you will use this same account to submit verification work in every phase.",
+            "instruction_step_slug": "phase0-topic6-practice-create-profile-readme",
             "name": "Create Your GitHub Profile README",
+            "pre_submit_note": null,
             "slug": "profile-readme",
+            "submission_prompt": "We'll check your GitHub profile README repository.",
             "submission_type": "profile_readme",
             "type_config": {},
             "uuid": "96327def-780b-4209-8ef1-b0d85b34357f"
@@ -613,10 +616,24 @@
               "action": "practice",
               "checklist": [],
               "code": null,
+              "description": "Create a public repository whose name exactly matches your GitHub username, initialize it with a README, and add a short introduction to the profile README that GitHub displays on your account. Use the same account for your Learn to Cloud verification work.",
+              "done_when": "Your GitHub profile displays the README from the repository named after your username.",
+              "options": [],
+              "order": 3,
+              "slug": "phase0-topic6-practice-create-profile-readme",
+              "tips": [],
+              "title": "Create your GitHub profile README",
+              "url": "https://docs.github.com/account-and-profile/how-tos/profile-customization/managing-your-profile-readme",
+              "uuid": "489661ee-07a6-483d-90a1-607656eef9aa"
+            },
+            {
+              "action": "practice",
+              "checklist": [],
+              "code": null,
               "description": "Follow the creator of Learn to Cloud on GitHub to stay connected with the community.",
               "done_when": null,
               "options": [],
-              "order": 3,
+              "order": 4,
               "slug": "phase0-topic6-practice-follow-made-by-gps",
               "tips": [],
               "title": "Follow Made by GPS on GitHub",
@@ -630,7 +647,7 @@
               "description": "Keep up to date with video tutorials and updates on the guide.",
               "done_when": null,
               "options": [],
-              "order": 4,
+              "order": 5,
               "slug": "phase0-topic6-practice-subscribe-youtube",
               "tips": [],
               "title": "Subscribe to youtube.com/@madebygps",
@@ -657,8 +674,11 @@
         "requirements": [
           {
             "description": "Fork learntocloud/linux-ctfs to your account so your challenge work is tied to your profile.",
+            "instruction_step_slug": "phase1-topic6-practice-linux-ctfs-repository",
             "name": "Fork the Linux CTFs Repository",
+            "pre_submit_note": null,
             "slug": "linux-ctfs-fork",
+            "submission_prompt": "We'll check that the Linux CTF repository is forked to your account.",
             "submission_type": "repo_fork",
             "type_config": {
               "required_repo": "learntocloud/linux-ctfs"
@@ -667,8 +687,11 @@
           },
           {
             "description": "Finish all 18 Linux CTF challenges and submit the final completion token to verify completion.",
+            "instruction_step_slug": "phase1-topic6-practice-linux-ctfs-repository",
             "name": "Submit the Linux CTF Completion Token",
+            "pre_submit_note": null,
             "slug": "linux-ctfs-token",
+            "submission_prompt": "Paste the token shown after completing all 18 challenges.",
             "submission_type": "ctf_token",
             "type_config": {
               "max_length": 2048,
@@ -1420,8 +1443,11 @@
         "requirements": [
           {
             "description": "Fork learntocloud/networking-lab so you can complete and track the lab in your own account.",
+            "instruction_step_slug": "phase2-topic4-practice-networking-lab-repository",
             "name": "Fork the Networking Lab Repository",
+            "pre_submit_note": null,
             "slug": "networking-lab-fork",
+            "submission_prompt": "We'll check that the Networking Lab repository is forked to your account.",
             "submission_type": "repo_fork",
             "type_config": {
               "required_repo": "learntocloud/networking-lab"
@@ -1430,8 +1456,11 @@
           },
           {
             "description": "Finish all four networking challenges and submit the completion token shown at the end.",
+            "instruction_step_slug": "phase2-topic4-practice-networking-lab-repository",
             "name": "Submit the Networking Lab Completion Token",
+            "pre_submit_note": null,
             "slug": "networking-lab-token",
+            "submission_prompt": "Paste the token shown after completing all four challenges.",
             "submission_type": "networking_token",
             "type_config": {
               "max_length": 2048,
@@ -1959,8 +1988,11 @@
         "requirements": [
           {
             "description": "Submit your Journal API fork URL after your implementation is on main. The verifier checks that CI passes, then runs an LLM rubric review of the final code for API completeness, Python quality, validation, logging, AI analysis, cloud CLI setup, and secret safety.",
+            "instruction_step_slug": "phase3-topic5-practice-journal-starter-repository",
             "name": "Verify Journal API Implementation",
+            "pre_submit_note": "Merge your completed implementation into `main` before verifying.",
             "slug": "journal-api-implementation",
+            "submission_prompt": "We'll review the latest code on your fork's `main` branch.",
             "submission_type": "journal_api_verifier",
             "type_config": {
               "required_repo": "learntocloud/journal-starter"
@@ -2550,8 +2582,11 @@
         "requirements": [
           {
             "description": "Submit your HTTPS API base URL so the verifier can create and retrieve a challenge entry, validate one live AI analysis response, and delete the entry.",
+            "instruction_step_slug": "phase4-topic9-practice-verify-submit-deployment",
             "name": "Deploy a Public Journal API",
+            "pre_submit_note": "The API must return direct JSON responses without redirects.",
             "slug": "deployed-journal-api",
+            "submission_prompt": "Enter your public HTTPS API base URL.",
             "submission_type": "deployed_api",
             "type_config": {
               "max_length": 2048,
@@ -3631,8 +3666,11 @@
         "requirements": [
           {
             "description": "Submit your journal-starter fork after finishing the DevOps capstone. Before submitting, publish a public verification image at `ghcr.io/<your-github-username>/journal-api:latest`; keep your cloud registry and IAM-based Kubernetes image pull as the real deployment path.",
+            "instruction_step_slug": "phase5-topic6-practice-submit-verification",
             "name": "Complete the DevOps Capstone",
+            "pre_submit_note": "Publish `ghcr.io/<your-github-username>/journal-api:latest` as a public package before verifying.",
             "slug": "devops-implementation",
+            "submission_prompt": "We'll review the DevOps implementation on your fork's `main` branch.",
             "submission_type": "devops_analysis",
             "type_config": {
               "required_repo": "learntocloud/journal-starter"
@@ -4967,13 +5005,32 @@
               "uuid": "e080abdc-bf94-4e6b-a78e-33294ef28595"
             },
             {
+              "action": "practice",
+              "checklist": [],
+              "code": null,
+              "description": "Push the completed implementation to your fork's `main` branch. Automated verification reviews the container build, Terraform, CI/CD workflow, Kubernetes manifests, and secret handling. It also confirms that the workflow published `ghcr.io/<your-github-username>/journal-api:latest` and that the GHCR package is public.",
+              "done_when": "Your completed work is on `main`, the latest CI/CD run passes, and the public GHCR verification image is available.",
+              "options": [],
+              "order": 8,
+              "slug": "phase5-topic6-practice-submit-verification",
+              "tips": [
+                {
+                  "text": "Keep your cloud registry and IAM-based Kubernetes image pull as the real deployment path. The public GHCR image is an additional copy used only for automated verification.",
+                  "type": "note"
+                }
+              ],
+              "title": "Submit the DevOps capstone for verification",
+              "url": null,
+              "uuid": "1a7cde59-eecf-4078-ab74-d9a2a54f4351"
+            },
+            {
               "action": "reflect",
               "checklist": [],
               "code": null,
               "description": "When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.",
               "done_when": null,
               "options": [],
-              "order": 8,
+              "order": 9,
               "slug": "phase5-topic6-reflect-share-your-progress",
               "tips": [],
               "title": "Share Your Progress",
@@ -4992,7 +5049,7 @@
               "description": "After you have submitted your repo for hands-on verification and received a passing result, delete all cloud resources.",
               "done_when": null,
               "options": [],
-              "order": 9,
+              "order": 10,
               "slug": "phase5-topic6-practice-clean-up-your-cloud",
               "tips": [
                 {
@@ -5023,8 +5080,11 @@
         "requirements": [
           {
             "description": "Enable GitHub CodeQL code scanning (advanced setup) for Python on your fork, commit the workflow as .github/workflows/codeql.yml, and make sure it runs green on your main branch. Automated checks confirm the latest CodeQL run passed on your current code. Dependabot is recommended as an extra layer.",
+            "instruction_step_slug": "phase6-capstone-practice-enable-security-scanning-on",
             "name": "Enable Security Scanning",
+            "pre_submit_note": "The workflow must use CodeQL advanced setup for Python and pass on the current `main` commit.",
             "slug": "security-scanning",
+            "submission_prompt": "We'll check the latest CodeQL run for your fork's `main` branch.",
             "submission_type": "security_scanning",
             "type_config": {
               "required_repo": "learntocloud/journal-starter"
@@ -5866,8 +5926,11 @@
         "requirements": [
           {
             "description": "Answer three reflection questions about your interview story, your target role and skill gaps, and a project you're excited about. Write them as if you're preparing for a real interview, thoughtful, specific, and in your own words.",
+            "instruction_step_slug": "phase7-capstone-practice-complete-the-reflection",
             "name": "Reflect on Your Job-Search Readiness",
+            "pre_submit_note": "Each answer must contain at least 200 characters.",
             "slug": "career-reflection",
+            "submission_prompt": "Answer all three questions thoughtfully and in your own words.",
             "submission_type": "career_reflection",
             "type_config": {
               "min_answer_length": 200,

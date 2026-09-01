@@ -29,12 +29,6 @@
     <p class="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
         Submit proof of your hands-on work. Requirements unlock in sequence, and completed attempts remain available below.
     </p>
-    <div class="mt-5 flex flex-wrap gap-4">
-        <a href="/phase/{{ phase.order }}" class="inline-flex min-h-11 items-center font-bold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:decoration-blue-800 dark:hover:decoration-blue-300">
-            Review Phase {{ phase.order }} learning
-        </a>
-    </div>
-
     {% if phase_progress.verification.requirements_required > 0 %}
     <div class="mt-7 max-w-2xl">
         {% with

@@ -25,10 +25,6 @@
             {% endif %}
         </div>
 
-        {% if card.requirement.description %}
-        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ card.requirement.description }}</p>
-        {% endif %}
-
         {% if card.graded_url %}
         <p class="mt-2 text-xs text-gray-600 dark:text-gray-400 break-all">
             Graded:
@@ -41,19 +37,16 @@
         </p>
         {% endif %}
 
-        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            A verified requirement can't be resubmitted. If this result looks wrong,
-            <a
-                href="https://github.com/learntocloud/learn-to-cloud-app/issues/new"
-                data-report-issue
-                data-issue-title="Verification result looks wrong: {{ card.requirement.name }}"
-                data-issue-labels="bug"
-                data-issue-context="requirement={{ card.requirement.slug }}"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="underline hover:no-underline"
-            >report it</a>.
-        </p>
+        <a
+            href="https://github.com/learntocloud/learn-to-cloud-app/issues/new"
+            data-report-issue
+            data-issue-title="Verification result looks wrong: {{ card.requirement.name }}"
+            data-issue-labels="bug"
+            data-issue-context="requirement={{ card.requirement.slug }}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mt-2 inline-flex min-h-11 items-center text-xs text-gray-500 underline hover:no-underline dark:text-gray-400"
+        >Report a problem</a>
     </div>
     {% if card.feedback_tasks %}
     {% with feedback_tasks=card.feedback_tasks, feedback_passed=card.feedback_passed, requirement_slug=card.requirement.slug %}

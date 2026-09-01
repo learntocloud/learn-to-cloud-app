@@ -13,6 +13,18 @@
     data-step
     class="rounded-lg border {% if is_completed %}border-green-200 bg-green-50/40 dark:border-green-800/50 dark:bg-green-950/20{% else %}border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50{% endif %}"
     x-data="{ expanded: {{ 'true' if initially_open else 'false' }} }"
+    x-init="
+        if (location.hash === '#step-{{ step.uuid }}') {
+            expanded = true;
+            $nextTick(() => requestAnimationFrame(() => $el.scrollIntoView({ block: 'start' })));
+        }
+    "
+    @hashchange.window="
+        if (location.hash === '#step-{{ step.uuid }}') {
+            expanded = true;
+            $nextTick(() => requestAnimationFrame(() => $el.scrollIntoView({ block: 'start' })));
+        }
+    "
 >
     <div class="flex items-start gap-2 p-3 sm:items-center">
         {% if user %}

@@ -4,3 +4,5 @@ slug: profile-readme
 submission_type: profile_readme
 name: Create Your GitHub Profile README
 description: On github.com, create a new repository named exactly after your username. GitHub turns it into your profile README automatically, and you will use this same account to submit verification work in every phase.
+submission_prompt: We'll check your GitHub profile README repository.
+instruction_step_slug: phase0-topic6-practice-create-profile-readme

@@ -20,6 +20,9 @@ from learn_to_cloud_shared.submission_values import (
 )
 from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle
+from learn_to_cloud_shared.verification_attempt_snapshot import (
+    dump_verification_requirement,
+)
 
 VALIDATION_FAILED_ERROR_CODE = "validation_failed"
 VERIFICATION_INCOMPLETE_ERROR_CODE = "verification_incomplete"
@@ -68,7 +71,7 @@ class PreparedVerificationAttempt:
             "id": str(self.id),
             "user_id": self.user_id,
             "github_username": self.github_username,
-            "requirement": self.requirement.model_dump(mode="json"),
+            "requirement": dump_verification_requirement(self.requirement),
             "submission_value": self.submitted_value.to_payload(),
         }
 

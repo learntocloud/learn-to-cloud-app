@@ -396,10 +396,10 @@ class TestPhaseVerificationCardStates:
         )
         html = self._render_phase([req], {"ci-status": submission})
 
-        assert "Submit your Journal API fork URL" in html
+        assert "Submit your Journal API fork URL" not in html
         assert "https://github.com/tester/journal-api" in html
         assert "Verified Jul 29, 2026" in html
-        assert "report it" in html
+        assert "Report a problem" in html
 
     def test_passed_does_not_echo_non_url_submissions(self):
         """Tokens and long free text are not dumped back into the summary."""
@@ -432,8 +432,63 @@ class TestPhaseVerificationCardStates:
         assert "readonly" in html
         assert 'hx-post="/htmx/verifications/journal-api/submit/derived"' in html
         assert 'name="submitted_value"' not in html
-        assert "can't be edited" in html
-        assert "under an organization" in html
+        assert "Why can't I edit this URL?" in html
+        assert "organization" in html
+
+    def test_active_card_uses_submission_prompt_not_description(self):
+        req = _requirement(
+            "linux-token",
+            "Linux token",
+            description="Long setup instructions that belong in the curriculum.",
+        ).model_copy(update={"submission_prompt": "Paste the completion token."})
+
+        html = self._render_phase([req], {})
+
+        assert "Paste the completion token." in html
+        assert "Long setup instructions" not in html
+
+    def test_failed_feedback_precedes_resubmission_form(self):
+        req = _requirement("journal-api", "Journal API")
+        submission = _submission(
+            is_validated=False,
+            verification_completed=True,
+            validation_message="The implementation needs work.",
+        )
+        card = build_requirement_card_context(
+            requirement=req,
+            github_username="tester",
+            submission=submission,
+            feedback_tasks=[
+                {
+                    "name": "Logging",
+                    "passed": False,
+                    "message": "Structured logging is missing.",
+                }
+            ],
+            feedback_passed=0,
+        )
+
+        html = _render("partials/requirement_card.html", card=card)
+
+        assert html.index("Structured logging is missing.") < html.index("<form")
+
+
+@pytest.mark.unit
+def test_authored_requirement_card_links_to_exact_instruction_step():
+    from learn_to_cloud_shared.content_service import get_all_phases
+
+    phase = next(item for item in get_all_phases() if item.order == 4)
+    assert phase.hands_on_verification is not None
+    requirement = phase.hands_on_verification.requirements[0]
+    card = build_requirement_card_context(
+        requirement=requirement,
+        github_username="tester",
+    )
+
+    html = _render("partials/requirement_card.html", card=card)
+
+    assert 'href="/phase/4/capstone#step-a6ab032c-fe77-4d31-987f-564f6248ede6"' in html
+    assert "Review full instructions" in html
 
 
 @pytest.mark.unit
@@ -578,6 +633,8 @@ def test_step_checkbox_keeps_keyboard_events_from_toggling_accordion():
     assert 'role="button"' not in source
     assert 'aria-label="Mark {{ step_label }} complete"' in source
     assert "x-collapse x-cloak" in source
+    assert "location.hash === '#step-{{ step.uuid }}'" in source
+    assert "@hashchange.window" in source
 
 
 @pytest.mark.unit

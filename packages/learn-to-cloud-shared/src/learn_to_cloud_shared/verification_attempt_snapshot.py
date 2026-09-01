@@ -26,6 +26,11 @@ from learn_to_cloud_shared.schemas import (
 
 # Bump only alongside a breaking change to the snapshot/hash contract.
 ATTEMPT_PAYLOAD_VERSION = 1
+_PRESENTATION_FIELDS = {
+    "submission_prompt",
+    "pre_submit_note",
+    "instruction_step_slug",
+}
 
 # Snapshot payload versions this code version can execute. Kept as a set so a
 # future PR can widen support during a rolling deploy without a code branch.
@@ -38,7 +43,12 @@ class AttemptSnapshotError(ValueError):
 
 def build_requirement_snapshot(requirement: HandsOnRequirement) -> dict:
     """Serialize a typed requirement into its stored snapshot form."""
-    return requirement.model_dump(mode="json")
+    return dump_verification_requirement(requirement)
+
+
+def dump_verification_requirement(requirement: HandsOnRequirement) -> dict:
+    """Serialize only fields needed to execute verification."""
+    return requirement.model_dump(mode="json", exclude=_PRESENTATION_FIELDS)
 
 
 def compute_snapshot_hash(snapshot: Mapping[str, object]) -> str:

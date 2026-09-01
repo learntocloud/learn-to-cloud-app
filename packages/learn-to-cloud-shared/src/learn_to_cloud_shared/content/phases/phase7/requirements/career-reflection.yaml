@@ -4,6 +4,9 @@ slug: career-reflection
 submission_type: career_reflection
 name: Reflect on Your Job-Search Readiness
 description: Answer three reflection questions about your interview story, your target role and skill gaps, and a project you're excited about. Write them as if you're preparing for a real interview, thoughtful, specific, and in your own words.
+submission_prompt: Answer all three questions thoughtfully and in your own words.
+pre_submit_note: Each answer must contain at least 200 characters.
+instruction_step_slug: phase7-capstone-practice-complete-the-reflection
 type_config:
   min_answer_length: 200
   questions:
