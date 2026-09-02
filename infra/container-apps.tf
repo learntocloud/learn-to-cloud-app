@@ -25,11 +25,12 @@ resource "azurerm_container_app_environment" "main" {
   name                       = "cae-ltc-${var.environment}"
   location                   = azurerm_resource_group.main.location
   resource_group_name        = azurerm_resource_group.main.name
+  logs_destination           = "log-analytics"
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
   tags                       = local.tags
 }
 
-resource "azurerm_container_app" "api" {
+resource "azurerm_container_app" "api_v5" {
   name                         = "ca-ltc-api-${var.environment}"
   container_app_environment_id = azurerm_container_app_environment.main.id
   resource_group_name          = azurerm_resource_group.main.name
@@ -242,7 +243,7 @@ resource "azurerm_container_app" "api" {
 resource "azapi_resource" "api_auth" {
   type      = "Microsoft.App/containerApps/authConfigs@2025-01-01"
   name      = "current"
-  parent_id = azurerm_container_app.api.id
+  parent_id = azurerm_container_app.api_v5.id
 
   body = {
     properties = {

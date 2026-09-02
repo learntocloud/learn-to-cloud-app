@@ -5,7 +5,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.0"
+      version = "~> 5.3"
     }
     azapi = {
       source  = "Azure/azapi"
@@ -27,11 +27,17 @@ terraform {
 
 provider "azurerm" {
   features {
+    enhanced_validation {
+      locations          = true
+      resource_providers = true
+    }
+
     key_vault {
       purge_soft_delete_on_destroy = true
     }
   }
-  subscription_id = var.subscription_id
+  subscription_id                 = var.subscription_id
+  resource_provider_registrations = "legacy"
 
   # The Functions storage account has Shared Key disabled, so data-plane reads
   # (queue properties) must use Entra ID.
