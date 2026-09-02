@@ -21,6 +21,8 @@ dependencies = [
     "openai>=2.54.0,<3",
     "opentelemetry-api>=1.43.0,<1.44.0",
     "pydantic>=2.13.5,<3",
+    # Core Tools 4.14 bundles protobuf 5.x and cannot load protobuf 7 modules.
+    "protobuf>=5,<7",
     "sqlalchemy>=2.0.52,<3",
 ]
 
