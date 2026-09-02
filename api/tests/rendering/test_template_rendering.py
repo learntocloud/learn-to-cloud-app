@@ -371,6 +371,8 @@ class TestPhaseVerificationCardStates:
         assert "Service unavailable" in html
         assert "Needs work" not in html
         assert "a problem on our side, not something you did" in html
+        assert "You can try again" in html
+        assert "report the issue" in html
         assert "not counted against your rate limit" not in html
 
     def test_passed_shows_verified_pill(self):

@@ -1013,11 +1013,8 @@ class TestHtmxVerificationAttemptStatus:
         assert isinstance(result, HTMLResponse)
         assert "location.reload()" in bytes(result.body).decode()
 
-    async def test_failed_status_terminalizes_attempt_and_renders_error(
-        self,
-        _patch_templates,
-    ):
-        """Durable terminal failure records a server error and renders it."""
+    async def test_failed_status_terminalizes_attempt_and_reloads(self):
+        """Durable terminal failure records a server error before reloading."""
         request = _mock_request()
         mock_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
@@ -1054,10 +1051,6 @@ class TestHtmxVerificationAttemptStatus:
                     state=MagicMock(outcome="server_error"),
                 ),
             ) as terminalize,
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=MagicMock(),
-            ),
         ):
             mock_repository = mock_repository_class.return_value
             mock_repository.get_status = AsyncMock(return_value=MagicMock())
@@ -1076,15 +1069,7 @@ class TestHtmxVerificationAttemptStatus:
             terminal_source="poller",
             session_maker=request.app.state.session_maker,
         )
-        _, _, context = _patch_templates.TemplateResponse.call_args.args
-        card = context["card"]
-        assert isinstance(card, UnavailableCardContext)
-        assert (
-            card.message
-            == "Verification failed because the verification service hit an internal "
-            "error. Please try again in a few minutes. If it keeps failing, open an "
-            "issue at https://github.com/learntocloud/learn-to-cloud-app/issues."
-        )
+        assert "location.reload()" in bytes(result.body).decode()
 
     async def test_canceled_status_terminalizes_attempt_as_cancelled(self):
         request = _mock_request()
@@ -1123,10 +1108,6 @@ class TestHtmxVerificationAttemptStatus:
                     state=MagicMock(outcome="cancelled"),
                 ),
             ) as terminalize,
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=MagicMock(),
-            ),
         ):
             mock_repository = mock_repository_class.return_value
             mock_repository.get_status = AsyncMock(return_value=MagicMock())
@@ -1145,6 +1126,7 @@ class TestHtmxVerificationAttemptStatus:
             terminal_source="poller",
             session_maker=request.app.state.session_maker,
         )
+        assert "location.reload()" in bytes(result.body).decode()
 
     async def test_failed_status_reloads_when_attempt_was_already_finalized(self):
         request = _mock_request()

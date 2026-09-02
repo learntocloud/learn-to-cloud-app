@@ -309,7 +309,8 @@ def build_phase_topics(phase: Phase, detail: PhaseProgress) -> list[dict[str, An
 
 _PERSISTED_SERVICE_ERROR_MESSAGE = (
     "The verification service couldn't finish checking this attempt because of "
-    "a problem on our side, not something you did."
+    "a problem on our side, not something you did. You can try again. If it keeps "
+    "failing, report the issue."
 )
 
 

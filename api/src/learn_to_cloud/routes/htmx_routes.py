@@ -89,12 +89,6 @@ _USER_FACING_ERRORS = (
     RequirementNotFoundError,
 )
 
-_DURABLE_TERMINAL_ERROR_MESSAGE = (
-    "Verification failed because the verification service hit an internal error. "
-    "Please try again in a few minutes. If it keeps failing, open an issue at "
-    "https://github.com/learntocloud/learn-to-cloud-app/issues."
-)
-
 _INITIAL_STATUS_DELAY_SECONDS = 2
 _RUNNING_STATUS_DELAY_SECONDS = 5
 _VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE = "verification-submit"
@@ -442,17 +436,6 @@ async def htmx_verification_attempt_status(
             requirement,
             token,
             delay_seconds=_RUNNING_STATUS_DELAY_SECONDS,
-        )
-
-    if result.kind is VerificationPollKind.FAILED:
-        requirement = get_requirement_by_slug(token_data.requirement_slug)
-        if requirement is None:
-            return reload_page_response()
-        return render_unavailable(
-            request,
-            current_user,
-            requirement,
-            _DURABLE_TERMINAL_ERROR_MESSAGE,
         )
 
     if result.kind is VerificationPollKind.RELOAD:

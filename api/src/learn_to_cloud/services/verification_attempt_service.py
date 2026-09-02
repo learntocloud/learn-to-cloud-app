@@ -57,7 +57,6 @@ class VerificationStartResult:
 class VerificationPollKind(StrEnum):
     PROCESSING = "processing"
     RELOAD = "reload"
-    FAILED = "failed"
     UNEXPECTED = "unexpected"
 
 
@@ -170,17 +169,13 @@ async def poll_verification_attempt(
         )
 
     if status in _DURABLE_FAILURE_STATUSES:
-        terminalized = await _terminalize_failed_attempt(
+        await _terminalize_failed_attempt(
             session_maker,
             token_data,
             status,
         )
         return VerificationPollResult(
-            (
-                VerificationPollKind.FAILED
-                if terminalized
-                else VerificationPollKind.RELOAD
-            ),
+            VerificationPollKind.RELOAD,
             token_data,
             status,
         )
@@ -211,11 +206,11 @@ async def _terminalize_failed_attempt(
     session_maker: async_sessionmaker[AsyncSession],
     token_data: VerificationStatusToken,
     status: str,
-) -> bool:
+) -> None:
     attempt_id = UUID(token_data.job_id)
     async with session_maker() as session:
         if await VerificationAttemptRepository(session).get_status(attempt_id) is None:
-            return False
+            return
 
     cancelled = status in {"terminated", "canceled"}
     result = await terminalize_verification_attempt(
@@ -239,7 +234,7 @@ async def _terminalize_failed_attempt(
                 "outcome": result.state.outcome,
             },
         )
-        return False
+        return
 
     logger.info(
         "verification.poller.attempt_terminalized",
@@ -250,7 +245,6 @@ async def _terminalize_failed_attempt(
             "cas_won": result.won,
         },
     )
-    return True
 
 
 async def _log_attempt_completion(
