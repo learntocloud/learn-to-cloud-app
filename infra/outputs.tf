@@ -67,12 +67,12 @@ output "AZURE_CONTAINER_REGISTRY_ENDPOINT" {
 
 output "api_url" {
   description = "API URL (for CI/CD)"
-  value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
+  value       = "https://${azurerm_container_app.api_v5.ingress[0].fqdn}"
 }
 
 output "api_container_app_name" {
   description = "API Container App name (for CI/CD)"
-  value       = azurerm_container_app.api.name
+  value       = azurerm_container_app.api_v5.name
 }
 
 output "smoke_auth_scope" {
