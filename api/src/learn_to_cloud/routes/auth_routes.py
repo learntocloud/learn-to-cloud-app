@@ -8,7 +8,7 @@ Handles:
 
 import logging
 
-import httpx
+import httpx2
 from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
@@ -75,7 +75,7 @@ async def callback(request: Request) -> RedirectResponse:
 
     try:
         token = await github.authorize_access_token(request)
-    except (OAuthError, httpx.HTTPError) as exc:
+    except (OAuthError, httpx2.HTTPError) as exc:
         logger.warning(
             "auth.callback.token_exchange_failed",
             extra={"error.type": type(exc).__name__},
@@ -85,7 +85,7 @@ async def callback(request: Request) -> RedirectResponse:
     try:
         resp = await github.get("user", token=token)
         github_user = resp.json()
-    except httpx.HTTPError as exc:
+    except httpx2.HTTPError as exc:
         logger.warning(
             "auth.callback.profile_fetch_failed",
             extra={"error.type": type(exc).__name__},

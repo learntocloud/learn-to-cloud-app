@@ -7,7 +7,7 @@ Tests session-based authentication utilities:
 - init_oauth registers GitHub OAuth provider
 """
 
-import importlib
+from importlib import import_module, util
 from unittest.mock import MagicMock
 
 import pytest
@@ -31,10 +31,10 @@ from learn_to_cloud.core.auth import (
 def test_authlib_uses_supported_http_client() -> None:
     """Require Authlib's supported transport when its compatibility shim exists."""
     module_name = "authlib.integrations.httpx_client._compat"
-    if importlib.util.find_spec(module_name) is None:
+    if util.find_spec(module_name) is None:
         return
 
-    compat = importlib.import_module(module_name)
+    compat = import_module(module_name)
     assert compat.httpx2.__name__ == "httpx2", (
         "Authlib is using its deprecated httpx fallback. Add httpx2 and update "
         "OAuth transport exception handling before upgrading Authlib."

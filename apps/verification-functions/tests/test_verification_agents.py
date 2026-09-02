@@ -8,10 +8,10 @@ import inspect
 import httpx
 import openai
 import pytest
-
-import verification_agents
 from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
+
+import verification_agents
 from verification_agents import (
     ContentFilteredError,
     LLMGradingError,
