@@ -106,6 +106,19 @@ def feedback_context_from_json(
             "passed": task.get("passed", False),
             "message": task.get("feedback", ""),
             "next_steps": task.get("next_steps", ""),
+            "criteria": [
+                {
+                    "id": criterion.get("criterion_id", ""),
+                    "label": criterion.get("label", ""),
+                    "kind": criterion.get("kind", "required"),
+                    "status": criterion.get("status", "not_met"),
+                    "explanation": criterion.get("explanation", ""),
+                    "next_steps": criterion.get("next_steps", ""),
+                    "evidence_refs": criterion.get("evidence_refs", []),
+                }
+                for criterion in task.get("criterion_results", [])
+                if isinstance(criterion, dict)
+            ],
         }
         for task in feedback_json
     ]

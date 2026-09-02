@@ -416,7 +416,10 @@ class TestAuthPageSmoke:
         )
         from learn_to_cloud_shared.schemas import SubmissionData
 
-        from learn_to_cloud.rendering.context import build_requirement_card_context
+        from learn_to_cloud.rendering.context import (
+            build_requirement_card_context,
+            feedback_tasks_and_passed,
+        )
 
         phase = next(
             (p for p in get_all_phases_from_yaml() if p.slug == "phase1"), None
@@ -434,14 +437,19 @@ class TestAuthPageSmoke:
             created_at=datetime(2024, 1, 2, tzinfo=UTC),
         )
         requirement = phase.hands_on_verification.requirements[0]
-        feedback_tasks = [
+        feedback_tasks, feedback_passed = feedback_tasks_and_passed(
             {
-                "name": "Reflection depth",
-                "passed": True,
-                "message": "You clearly explained what you explored.",
-                "next_steps": "",
+                "tasks": [
+                    {
+                        "name": "Reflection depth",
+                        "passed": True,
+                        "message": "You clearly explained what you explored.",
+                        "next_steps": "",
+                    }
+                ],
+                "passed": 1,
             }
-        ]
+        )
 
         detail = PhaseProgress(
             phase_id=1,
@@ -461,7 +469,7 @@ class TestAuthPageSmoke:
                     github_username="testuser",
                     submission=verified_submission,
                     feedback_tasks=feedback_tasks,
-                    feedback_passed=1,
+                    feedback_passed=feedback_passed,
                 )
             },
             verification_locked=False,
@@ -487,7 +495,7 @@ class TestAuthPageSmoke:
             response = await auth_client.get("/verifications/phase/1")
 
         assert response.status_code == 200
-        assert "All checks passed" in response.text
+        assert "Review summary" in response.text
         assert "You clearly explained what you explored." in response.text
 
     async def test_topic_page_renders(self, auth_client: AsyncClient):

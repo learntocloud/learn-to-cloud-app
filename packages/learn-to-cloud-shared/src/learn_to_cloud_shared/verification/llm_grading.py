@@ -18,6 +18,7 @@ from learn_to_cloud_shared.verification.grading_requests import (
 from learn_to_cloud_shared.verification.tasks import (
     GradingResult,
     LLMGradingDecision,
+    RubricCriterion,
     VerificationTask,
     require_llm_rubric_grader,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "apply_llm_grading_decisions",
     "llm_grading_content_filtered_result",
     "llm_grading_unavailable_result",
+    "validate_llm_grading_decision",
 ]
 
 
@@ -67,6 +69,46 @@ def apply_llm_grading_decisions(
         validation_result=validation_result,
         grading_disposition=run_result.grading_disposition,
     )
+
+
+def validate_llm_grading_decision(
+    task: VerificationTask,
+    decision: LLMGradingDecision,
+    allowed_evidence_refs: list[str],
+) -> None:
+    """Validate a model decision against its task-specific rubric."""
+    criteria_by_id = {
+        criterion.id: criterion
+        for criterion in task.criteria
+        if isinstance(criterion, RubricCriterion)
+    }
+    result_ids = [result.criterion_id for result in decision.criterion_results]
+    if len(result_ids) != len(set(result_ids)):
+        raise ValueError("Criterion results contain duplicate IDs")
+    if set(result_ids) != set(criteria_by_id):
+        raise ValueError("Criterion results do not match the configured rubric")
+
+    allowed_refs = set(allowed_evidence_refs)
+    all_refs = list(decision.evidence_refs)
+    required_unmet = False
+    for result in decision.criterion_results:
+        criterion = criteria_by_id[result.criterion_id]
+        if criterion.kind == "required" and result.status == "not_applicable":
+            raise ValueError("Required criteria cannot be not applicable")
+        if criterion.kind == "required" and result.status != "met":
+            required_unmet = True
+        if (
+            criterion.kind == "required"
+            and result.status == "not_met"
+            and not result.next_steps.strip()
+        ):
+            raise ValueError("Unmet required criteria need remediation")
+        all_refs.extend(result.evidence_refs)
+
+    if decision.passed and required_unmet:
+        raise ValueError("A passing decision cannot have unmet required criteria")
+    if any(reference not in allowed_refs for reference in all_refs):
+        raise ValueError("Decision contains an unknown evidence reference")
 
 
 def llm_grading_unavailable_result(
@@ -136,6 +178,20 @@ def _decision_to_grading_result(
     failure_reason = decision.failure_reason
     if decision.passed and not passed:
         failure_reason = "score_below_passing_threshold"
+    criteria_by_id = {
+        criterion.id: criterion
+        for criterion in task.criteria
+        if isinstance(criterion, RubricCriterion)
+    }
+    criterion_results = [
+        result.model_copy(
+            update={
+                "label": criteria_by_id[result.criterion_id].label,
+                "kind": criteria_by_id[result.criterion_id].kind,
+            }
+        )
+        for result in decision.criterion_results
+    ]
 
     return GradingResult(
         task_id=task.id,
@@ -149,4 +205,5 @@ def _decision_to_grading_result(
         confidence=decision.confidence,
         rubric_version=grader.rubric_id,
         evidence_refs=decision.evidence_refs,
+        criterion_results=criterion_results,
     )

@@ -12,6 +12,7 @@ from __future__ import annotations
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidencePolicy,
     LLMRubricGraderConfig,
+    RubricCriterion,
     VerificationTask,
 )
 
@@ -23,33 +24,49 @@ DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK = VerificationTask(
     requirement_slug=PHASE4_REQUIREMENT_SLUG,
     name="Deployment Architecture Alignment Review",
     criteria=[
-        (
-            "The architecture description MUST align with what deploy.sh "
-            "actually provisions and configures, not with an idealized or "
-            "generic setup"
+        RubricCriterion(
+            id="implementation-alignment",
+            label="Architecture matches the deployment",
+            instruction=(
+                "The architecture description matches what deploy.sh actually "
+                "provisions and does not claim unsupported resources or controls."
+            ),
         ),
-        (
-            "Reject descriptions that claim resources, networking, or security "
-            "controls that deploy.sh does not create or configure"
+        RubricCriterion(
+            id="two-tier-architecture",
+            label="Two-tier architecture",
+            instruction=(
+                "deploy.sh provisions a public API tier and a separate private "
+                "database tier."
+            ),
         ),
-        (
-            "deploy.sh MUST provision a two-tier architecture: a public tier "
-            "for the API and a separate private tier for the database"
+        RubricCriterion(
+            id="security-controls",
+            label="Deployment security",
+            instruction=(
+                "The deployment includes meaningful controls such as a private "
+                "database, restricted inbound access, or API TLS termination."
+            ),
         ),
-        (
-            "The deployment MUST show meaningful security controls, for example "
-            "the database not being publicly reachable, restricted inbound "
-            "rules, or TLS termination for the API"
+        RubricCriterion(
+            id="design-specificity",
+            label="Specific architecture explanation",
+            instruction=(
+                "The description explains the learner's networking, compute, "
+                "database, and traffic flow rather than restating the task."
+            ),
         ),
-        (
-            "The description MUST be specific about the learner's own design "
-            "(networking, compute, database, and how traffic flows), not a "
-            "generic restatement of the task"
+        RubricCriterion(
+            id="substantive-submission",
+            label="Substantive submission",
+            instruction=(
+                "The script and description are complete and are not empty, "
+                "placeholder, copied, or obviously low effort."
+            ),
         ),
-        (
-            "Reject empty, placeholder, copy-pasted, or obviously low-effort "
-            "descriptions; grade only the supplied deploy.sh and description"
-        ),
+    ],
+    grading_instructions=[
+        "Grade only the supplied deploy.sh and architecture description.",
     ],
     evidence=EvidencePolicy(
         source="repo_files",
@@ -58,8 +75,8 @@ DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK = VerificationTask(
         max_total_bytes=60 * 1024,
     ),
     grader=LLMRubricGraderConfig(
-        rubric_id="phase4-deployment-architecture-v1",
-        prompt_version="2026-07-05",
+        rubric_id="phase4-deployment-architecture-v2",
+        prompt_version="2026-09-02",
         passing_score=0.7,
         model="gpt-5-mini",
     ),

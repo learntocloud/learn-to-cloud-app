@@ -11,9 +11,12 @@ from __future__ import annotations
 
 import json
 
+from pydantic import Field
+
 from learn_to_cloud_shared.schemas import FrozenModel, ValidationResult
 from learn_to_cloud_shared.verification.tasks import (
     LLMGradingDecision,
+    RubricCriterion,
     VerificationTask,
     require_llm_rubric_grader,
 )
@@ -25,6 +28,7 @@ class LLMGradingRequest(FrozenModel):
     task: VerificationTask
     message: str
     thread_id: str
+    allowed_evidence_refs: list[str] = Field(default_factory=list)
 
 
 class LLMGradingDecisionPayload(FrozenModel):
@@ -39,7 +43,13 @@ def _task_payload(task: VerificationTask) -> dict[str, object]:
     return {
         "id": task.id,
         "name": task.name,
-        "criteria": task.criteria,
+        "criteria": [
+            criterion.model_dump(mode="json")
+            if isinstance(criterion, RubricCriterion)
+            else criterion
+            for criterion in task.criteria
+        ],
+        "grading_instructions": task.grading_instructions,
         "rubric_id": grader.rubric_id,
         "prompt_version": grader.prompt_version,
         "passing_score": grader.passing_score,

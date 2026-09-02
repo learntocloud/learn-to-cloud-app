@@ -794,6 +794,55 @@ class TestGetPhaseSubmissionContext:
                 "passed": True,
                 "message": "ok",
                 "next_steps": "review the rubric",
+                "criteria": [],
+            }
+        ]
+
+    @pytest.mark.asyncio
+    async def test_attempt_feedback_preserves_structured_criteria(self):
+        req = _make_mock_requirement()
+        phase = _phase_with_requirement(req)
+        attempt = _make_attempt_projection(
+            req,
+            outcome="succeeded",
+            feedback_json=[
+                {
+                    "task_name": "Journal API review",
+                    "passed": True,
+                    "feedback": "The implementation passed.",
+                    "criterion_results": [
+                        {
+                            "criterion_id": "application-logging",
+                            "label": "Application logging",
+                            "kind": "required",
+                            "status": "met",
+                            "explanation": "Logging is configured.",
+                            "next_steps": "",
+                            "evidence_refs": ["api/main.py"],
+                        }
+                    ],
+                }
+            ],
+        )
+
+        with _patch_attempt_repo(latest_terminal=[attempt]):
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase=phase
+            )
+
+        tasks = result.feedback_by_req[req.slug]["tasks"]
+        assert isinstance(tasks, list)
+        assert isinstance(tasks[0], dict)
+        criteria = tasks[0]["criteria"]
+        assert criteria == [
+            {
+                "id": "application-logging",
+                "label": "Application logging",
+                "kind": "required",
+                "status": "met",
+                "explanation": "Logging is configured.",
+                "next_steps": "",
+                "evidence_refs": ["api/main.py"],
             }
         ]
 

@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 
 from learn_to_cloud_shared.schemas import (
+    CriterionResult,
     TaskResult,
     ValidationResult,
 )
@@ -14,6 +15,7 @@ from learn_to_cloud_shared.verification.llm_grading import (
     apply_llm_grading_decisions,
     llm_grading_content_filtered_result,
     llm_grading_unavailable_result,
+    validate_llm_grading_decision,
 )
 from learn_to_cloud_shared.verification.tasks import (
     PHASE3_LLM_TASKS,
@@ -91,6 +93,23 @@ def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
     )
 
 
+def _criterion_results(
+    task,
+    *,
+    evidence_ref: str,
+) -> list[CriterionResult]:
+    return [
+        CriterionResult(
+            criterion_id=criterion.id,
+            status="met",
+            explanation=f"{criterion.label} is satisfied.",
+            evidence_refs=[evidence_ref],
+        )
+        for criterion in task.criteria
+        if not isinstance(criterion, str)
+    ]
+
+
 @pytest.mark.unit
 def test_apply_llm_grading_decisions_appends_feedback_when_passed():
     run_result = _run_result()
@@ -120,18 +139,23 @@ def test_apply_llm_grading_decisions_appends_feedback_when_passed():
 @pytest.mark.unit
 def test_apply_phase3_llm_decision_appends_feedback_when_passed():
     run_result = _phase3_run_result()
+    task = PHASE3_LLM_TASKS[0]
 
     updated = apply_llm_grading_decisions(
         run_result,
         [
             LLMGradingDecisionPayload(
-                task=PHASE3_LLM_TASKS[0],
+                task=task,
                 decision=LLMGradingDecision(
                     passed=True,
                     score=0.91,
                     confidence=0.86,
                     feedback="The final Journal API implementation is maintainable.",
                     evidence_refs=["api/routers/journal_router.py"],
+                    criterion_results=_criterion_results(
+                        task,
+                        evidence_ref="api/routers/journal_router.py",
+                    ),
                 ),
             )
         ],
@@ -142,6 +166,94 @@ def test_apply_phase3_llm_decision_appends_feedback_when_passed():
     assert updated.validation_result.task_results[-1].task_name == (
         "Journal API Final Rubric Review"
     )
+    assert updated.validation_result.task_results[-1].criterion_results[0].label
+    assert (
+        updated.validation_result.task_results[-1].criterion_results[0].kind
+        == "required"
+    )
+
+
+@pytest.mark.unit
+def test_validate_llm_decision_requires_exact_criteria_and_known_evidence():
+    task = PHASE3_LLM_TASKS[0]
+    decision = LLMGradingDecision(
+        passed=True,
+        score=0.95,
+        confidence=0.9,
+        feedback="The rubric is satisfied.",
+        evidence_refs=["api/main.py"],
+        criterion_results=_criterion_results(task, evidence_ref="api/main.py"),
+    )
+
+    validate_llm_grading_decision(task, decision, ["api/main.py"])
+
+    invalid = decision.model_copy(
+        update={
+            "criterion_results": [
+                *decision.criterion_results[:-1],
+                decision.criterion_results[-1].model_copy(
+                    update={"evidence_refs": ["missing.py"]}
+                ),
+            ]
+        }
+    )
+    with pytest.raises(ValueError, match="unknown evidence"):
+        validate_llm_grading_decision(task, invalid, ["api/main.py"])
+
+
+@pytest.mark.unit
+def test_validate_llm_decision_rejects_missing_criteria():
+    task = PHASE3_LLM_TASKS[0]
+    decision = LLMGradingDecision(
+        passed=False,
+        score=0.2,
+        confidence=0.9,
+        feedback="The rubric is incomplete.",
+        next_steps="Complete the missing work.",
+        criterion_results=_criterion_results(task, evidence_ref="api/main.py")[:-1],
+    )
+
+    with pytest.raises(ValueError, match="configured rubric"):
+        validate_llm_grading_decision(task, decision, ["api/main.py"])
+
+
+@pytest.mark.unit
+def test_validate_llm_decision_requires_required_remediation():
+    task = PHASE3_LLM_TASKS[0]
+    results = _criterion_results(task, evidence_ref="api/main.py")
+    results[0] = results[0].model_copy(update={"status": "not_met", "next_steps": ""})
+    decision = LLMGradingDecision(
+        passed=False,
+        score=0.7,
+        confidence=0.9,
+        feedback="Logging is missing.",
+        criterion_results=results,
+    )
+
+    with pytest.raises(ValueError, match="need remediation"):
+        validate_llm_grading_decision(task, decision, ["api/main.py"])
+
+
+@pytest.mark.unit
+def test_validate_llm_decision_rejects_passing_with_unmet_required_criterion():
+    task = PHASE3_LLM_TASKS[0]
+    results = _criterion_results(task, evidence_ref="api/main.py")
+    results[0] = results[0].model_copy(
+        update={
+            "status": "not_met",
+            "next_steps": "Configure application logging.",
+        }
+    )
+    decision = LLMGradingDecision(
+        passed=True,
+        score=0.95,
+        confidence=0.9,
+        feedback="The implementation passed.",
+        criterion_results=results,
+    )
+
+    with pytest.raises(ValueError, match="passing decision"):
+        validate_llm_grading_decision(task, decision, ["api/main.py"])
 
 
 @pytest.mark.unit

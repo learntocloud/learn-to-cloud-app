@@ -11,7 +11,7 @@ from learn_to_cloud_shared.models import SubmissionValueKind, User, Verification
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
-from learn_to_cloud_shared.schemas import ValidationResult
+from learn_to_cloud_shared.schemas import CriterionResult, TaskResult, ValidationResult
 from learn_to_cloud_shared.submission_values import value_kind_for_submission_type
 from learn_to_cloud_shared.verification_attempt_executor import (
     AttemptNotRunnableError,
@@ -148,6 +148,48 @@ async def test_finalize_is_compare_and_set_idempotent(
     assert len(records) == 1
     assert records[0].__dict__["verification.attempt.id"] == str(attempt.id)
     assert records[0].__dict__["verification.outcome"] == "succeeded"
+
+
+async def test_finalize_persists_structured_criterion_feedback(
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    attempt = await _create_attempt(session_maker)
+    preparation = await prepare_verification_attempt(
+        attempt.id, session_maker=session_maker
+    )
+    run_result = VerificationRunResult(
+        attempt=preparation.attempt,
+        validation_result=ValidationResult(
+            is_valid=True,
+            message="Verified.",
+            task_results=[
+                TaskResult(
+                    task_name="Journal API review",
+                    passed=True,
+                    feedback="The implementation passed.",
+                    criterion_results=[
+                        CriterionResult(
+                            criterion_id="application-logging",
+                            label="Application logging",
+                            status="met",
+                            explanation="Logging is configured.",
+                            evidence_refs=["api/main.py"],
+                        )
+                    ],
+                )
+            ],
+        ),
+    )
+
+    await finalize_verification_attempt(run_result, session_maker=session_maker)
+
+    async with session_maker() as db:
+        stored = await db.get(VerificationAttempt, attempt.id)
+    assert stored is not None
+    assert stored.feedback_json is not None
+    criterion = stored.feedback_json[0]["criterion_results"][0]
+    assert criterion["criterion_id"] == "application-logging"
+    assert criterion["evidence_refs"] == ["api/main.py"]
 
 
 async def test_terminalize_records_cancelled_outcome(

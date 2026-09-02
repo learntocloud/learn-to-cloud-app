@@ -948,6 +948,19 @@ class TaskResult(FrozenModel):
     passed: bool
     feedback: str
     next_steps: str = ""
+    criterion_results: list["CriterionResult"] = Field(default_factory=list)
+
+
+class CriterionResult(FrozenModel):
+    """Learner-facing result for one rubric criterion."""
+
+    criterion_id: str
+    label: str = ""
+    kind: Literal["required", "quality", "bonus"] = "required"
+    status: Literal["met", "not_met", "not_applicable"]
+    explanation: str
+    next_steps: str = ""
+    evidence_refs: list[str] = Field(default_factory=list)
 
 
 class PhaseSubmissionContext(FrozenModel):
