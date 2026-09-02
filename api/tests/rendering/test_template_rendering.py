@@ -277,6 +277,7 @@ def test_verified_feedback_links_only_safe_repository_evidence():
     html = _render("partials/verified_requirement_row.html", card=card)
 
     assert "tester/journal-starter" in html
+    assert "Repository:" not in html
     assert "https://github.com/tester/journal-starter/blob/HEAD/api/main.py" in html
     assert "blob/HEAD/../secret" not in html
     assert "blob/HEAD/CI%20status" not in html
