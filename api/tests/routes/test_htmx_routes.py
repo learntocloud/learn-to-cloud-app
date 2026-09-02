@@ -409,7 +409,7 @@ class TestHtmxSubmitVerification:
             )
 
         assert result.status_code == 200
-        assert "location.reload()" in result.body.decode()
+        assert "location.reload()" in bytes(result.body).decode()
 
     async def test_legacy_route_refreshes_open_pages(self):
         result = await htmx_submit_verification(

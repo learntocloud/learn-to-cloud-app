@@ -5,7 +5,6 @@ from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.schemas import UserResponse
 
 from learn_to_cloud.core.auth import UserId
-from learn_to_cloud.core.ratelimit import limiter
 from learn_to_cloud.services.users_service import (
     UserNotFoundError,
     delete_user_account,
@@ -42,7 +41,6 @@ async def get_current_user(
         404: {"description": "User not found"},
     },
 )
-@limiter.limit("3/hour")
 async def delete_current_user(request: Request, user_id: UserId, db: DbSession) -> None:
     """Permanently delete the authenticated user's account and all associated data."""
     try:

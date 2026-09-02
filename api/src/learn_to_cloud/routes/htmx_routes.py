@@ -32,7 +32,6 @@ from learn_to_cloud_shared.submission_values import (
 from pydantic import BaseModel, ValidationError
 
 from learn_to_cloud.core.auth import AuthenticatedUser, CurrentUser, UserId
-from learn_to_cloud.core.ratelimit import limiter
 from learn_to_cloud.rendering.htmx_responses import (
     reload_page_response,
     render_input_error,
@@ -91,7 +90,6 @@ _USER_FACING_ERRORS = (
     RequirementNotFoundError,
 )
 
-_VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE = "verification-submit"
 _INVALID_FORM_MESSAGE = (
     "We couldn't read this verification form. Refresh the page and try again."
 )
@@ -240,7 +238,6 @@ def _invalid_form_response(
     "/verifications/{requirement_slug}/submit/derived",
     response_class=HTMLResponse,
 )
-@limiter.shared_limit("10/minute", scope=_VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE)
 async def htmx_submit_derived_verification(
     request: Request,
     current_user: CurrentUser,
@@ -277,7 +274,6 @@ async def htmx_submit_derived_verification(
     "/verifications/{requirement_slug}/submit/value",
     response_class=HTMLResponse,
 )
-@limiter.shared_limit("10/minute", scope=_VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE)
 async def htmx_submit_value_verification(
     request: Request,
     current_user: CurrentUser,
@@ -335,7 +331,6 @@ async def htmx_submit_value_verification(
     "/verifications/{requirement_slug}/submit/reflection",
     response_class=HTMLResponse,
 )
-@limiter.shared_limit("10/minute", scope=_VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE)
 async def htmx_submit_reflection_verification(
     request: Request,
     current_user: CurrentUser,
@@ -371,7 +366,6 @@ async def htmx_submit_reflection_verification(
 
 
 @router.post("/github/submit", response_class=HTMLResponse)
-@limiter.shared_limit("10/minute", scope=_VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE)
 async def htmx_submit_verification(
     request: Request,
     current_user: CurrentUser,
@@ -449,7 +443,6 @@ async def htmx_verification_attempt_status(
 
 
 @router.delete("/account", response_class=HTMLResponse)
-@limiter.limit("3/hour")
 async def htmx_delete_account(
     request: Request,
     db: DbSession,

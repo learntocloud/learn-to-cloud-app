@@ -197,13 +197,6 @@ class VerificationFunctionsConfig(FrozenConfig):
     token_scope: str = ""
 
 
-class RateLimitConfig(FrozenConfig):
-    """Rate-limit storage config."""
-
-    # memory:// only works for single-instance deployments.
-    storage_uri: str = "memory://"
-
-
 class WebSecurityConfig(FrozenConfig):
     """Web security and documentation toggles."""
 
@@ -250,7 +243,6 @@ class WebSettings(BaseSettings):
     cors: CorsConfig = CorsConfig()
     frontend_telemetry: FrontendTelemetryConfig = FrontendTelemetryConfig()
     verification_functions: VerificationFunctionsConfig = VerificationFunctionsConfig()
-    rate_limit: RateLimitConfig = RateLimitConfig()
     web_security: WebSecurityConfig = WebSecurityConfig()
     startup_timeout: int = 60
     verification_wait_timeout: int = 180
