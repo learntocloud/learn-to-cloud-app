@@ -12,16 +12,12 @@ Async verifications use Durable Functions + HTMX polling:
 """
 
 import logging
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Form, Path, Query, Request
 from fastapi.responses import HTMLResponse
 from learn_to_cloud_shared.core.database import DbSession
-from learn_to_cloud_shared.repositories.verification_attempt_repository import (
-    VerificationAttemptRepository,
-)
 from learn_to_cloud_shared.requirements import get_requirement_by_slug
 from learn_to_cloud_shared.schemas import (
     CareerReflectionRequirement,
@@ -30,38 +26,25 @@ from learn_to_cloud_shared.schemas import (
 )
 from learn_to_cloud_shared.submission_derivation import derive_submission_value
 from learn_to_cloud_shared.submission_values import (
-    MAX_TEXT_LENGTH,
     SubmittedValue,
     submitted_value_from_raw,
 )
-from learn_to_cloud_shared.verification_attempt_executor import (
-    terminalize_unstarted_verification_attempt,
-    terminalize_verification_attempt,
-)
 from pydantic import BaseModel, ValidationError
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
-if TYPE_CHECKING:
-    from learn_to_cloud_shared.schemas import Topic
 
 from learn_to_cloud.core.auth import AuthenticatedUser, CurrentUser, UserId
 from learn_to_cloud.core.ratelimit import limiter
-from learn_to_cloud.core.templates import templates
-from learn_to_cloud.rendering.context import (
-    RequirementCardContext,
-    build_checking_requirement_card_context,
-    build_input_error_requirement_card_context,
-    build_progress_dict,
-    build_unavailable_requirement_card_context,
+from learn_to_cloud.rendering.htmx_responses import (
+    reload_page_response,
+    render_input_error,
+    render_processing,
+    render_step_toggle,
+    render_unavailable,
+    status_error_response,
 )
 from learn_to_cloud.services.durable_verification_client import (
     DurableVerificationAuthError,
     DurableVerificationConfigError,
-    DurableVerificationStartError,
     DurableVerificationStatusError,
-    get_verification_attempt_status,
-    start_verification_attempt_orchestration,
 )
 from learn_to_cloud.services.steps_service import (
     StepValidationError,
@@ -73,26 +56,28 @@ from learn_to_cloud.services.submissions_service import (
     InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
-    VerificationAttemptSubmission,
-    create_verification_attempt,
 )
 from learn_to_cloud.services.users_service import (
     UserNotFoundError,
     delete_user_account,
-    get_user_by_id,
+)
+from learn_to_cloud.services.verification_attempt_service import (
+    INITIAL_VERIFICATION_STATUS_DELAY_SECONDS,
+    RUNNING_VERIFICATION_STATUS_DELAY_SECONDS,
+    VerificationPollKind,
+    poll_verification_attempt,
+    submit_verification_attempt,
 )
 from learn_to_cloud.services.verification_status_tokens import (
-    VerificationStatusToken,
     VerificationStatusTokenError,
-    create_verification_status_token,
     load_verification_status_token,
 )
 from learn_to_cloud.verification_forms import (
-    MAX_REFLECTION_ANSWER_LENGTH,
     DerivedVerificationForm,
     ReflectionVerificationForm,
     ValueVerificationForm,
     VerificationInputShape,
+    combine_reflection_answers,
     input_shape_for_submission_type,
 )
 
@@ -106,248 +91,12 @@ _USER_FACING_ERRORS = (
     RequirementNotFoundError,
 )
 
-_DURABLE_START_ERROR_MESSAGE = (
-    "Verification could not be started. This attempt was not counted, please try again."
-)
-_DURABLE_UNAVAILABLE_ERROR_MESSAGE = (
-    "Verification is temporarily unavailable because of a problem on our side, "
-    "not something you did. Retrying won't fix it. Please report it by opening "
-    "an issue at https://github.com/learntocloud/learn-to-cloud-app/issues."
-)
-_DURABLE_TERMINAL_ERROR_MESSAGE = (
-    "Verification failed because the verification service hit an internal error. "
-    "Please try again in a few minutes. If it keeps failing, open an issue at "
-    "https://github.com/learntocloud/learn-to-cloud-app/issues."
-)
-
-_ACTIVE_DURABLE_STATUSES = {"pending", "running", "continuedasnew"}
-_TERMINAL_DURABLE_STATUSES = {"completed", "failed", "terminated", "canceled"}
-_DURABLE_FAILURE_STATUSES = {"failed", "terminated", "canceled"}
-_INITIAL_STATUS_DELAY_SECONDS = 2
-_RUNNING_STATUS_DELAY_SECONDS = 5
 _VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE = "verification-submit"
 _INVALID_FORM_MESSAGE = (
-    "This verification form is out of date or invalid. Refresh the page and try again."
+    "We couldn't read this verification form. Refresh the page and try again."
 )
 
-
-def _combine_reflection_answers(
-    requirement: CareerReflectionRequirement,
-    answers: list[str],
-) -> str:
-    """Validate the per-question reflection answers and combine them into text.
-
-    Each answer is matched to its question, checked against the configured
-    minimum and maximum length, and joined under a Markdown header so the LLM
-    grader can tell which answer belongs to which prompt.
-
-    Raises:
-        ValueError: With a learner-facing message if the answers are missing,
-            too short, or too long.
-    """
-    questions = list(requirement.type_config.questions)
-    min_length = requirement.type_config.min_answer_length
-
-    cleaned = [answer.strip() for answer in answers]
-    if len(cleaned) != len(questions):
-        raise ValueError("Please answer all of the reflection questions.")
-
-    sections: list[str] = []
-    for question, answer in zip(questions, cleaned, strict=True):
-        if len(answer) < min_length:
-            raise ValueError(
-                f"Each answer needs at least {min_length} characters. "
-                "Add more detail and try again."
-            )
-        if len(answer) > MAX_REFLECTION_ANSWER_LENGTH:
-            raise ValueError(
-                "One of your answers is too long. Please keep each answer "
-                f"under {MAX_REFLECTION_ANSWER_LENGTH} characters."
-            )
-        sections.append(f"## {question.prompt}\n\n{answer}")
-
-    combined = "\n\n".join(sections)
-    if len(combined) > MAX_TEXT_LENGTH:
-        raise ValueError(
-            f"Your combined answers must be at most {MAX_TEXT_LENGTH} characters."
-        )
-    return combined
-
-
 router = APIRouter(prefix="/htmx", tags=["htmx"], include_in_schema=False)
-
-
-def _reload_verification_html() -> str:
-    return (
-        "<div hx-trigger='load' "
-        "hx-on::load='setTimeout(()=>location.reload(),100)'></div>"
-    )
-
-
-def _status_error_response(message: str, *, status_code: int = 400) -> HTMLResponse:
-    return HTMLResponse(
-        f"<div class='text-red-600 text-sm p-2'>{message}</div>",
-        status_code=status_code,
-    )
-
-
-async def _render_processing_card(
-    request: Request,
-    current_user: AuthenticatedUser,
-    token_data: VerificationStatusToken,
-    token: str,
-    *,
-    delay_seconds: int,
-) -> HTMLResponse:
-    requirement = get_requirement_by_slug(token_data.requirement_slug)
-    if requirement is None:
-        return HTMLResponse(_reload_verification_html())
-
-    return templates.TemplateResponse(
-        request,
-        "partials/requirement_card.html",
-        {
-            "card": build_checking_requirement_card_context(
-                requirement=requirement,
-                verification_status_token=token,
-                verification_status_delay_seconds=delay_seconds,
-            )
-        },
-    )
-
-
-def _render_verification_card(
-    request: Request,
-    card: RequirementCardContext,
-) -> HTMLResponse:
-    """Render one explicit requirement-card variant."""
-    return templates.TemplateResponse(
-        request,
-        "partials/requirement_card.html",
-        {"card": card},
-    )
-
-
-async def _terminalize_failed_attempt(
-    request: Request,
-    token_data: VerificationStatusToken,
-    status: str,
-) -> bool:
-    """Persist a terminal Durable failure."""
-    session_maker = request.app.state.session_maker
-    attempt_id = UUID(token_data.job_id)
-    async with session_maker() as session:
-        if await VerificationAttemptRepository(session).get_status(attempt_id) is None:
-            return False
-
-    cancelled = status in {"terminated", "canceled"}
-    result = await terminalize_verification_attempt(
-        attempt_id,
-        outcome="cancelled" if cancelled else "server_error",
-        error_code="cancelled" if cancelled else "server_error",
-        validation_message=(
-            "Verification was cancelled."
-            if cancelled
-            else "Verification failed before recording a result."
-        ),
-        terminal_source="poller",
-        session_maker=session_maker,
-    )
-    if not result.won:
-        logger.info(
-            "verification.poller.finalize_skipped",
-            extra={
-                "attempt_id": str(attempt_id),
-                "runtime_status": status,
-                "outcome": result.state.outcome,
-            },
-        )
-        return False
-    logger.info(
-        "verification.poller.attempt_terminalized",
-        extra={
-            "attempt_id": str(attempt_id),
-            "runtime_status": status,
-            "outcome": result.state.outcome,
-            "cas_won": result.won,
-        },
-    )
-    return True
-
-
-async def _log_attempt_completion(
-    request: Request,
-    token_data: VerificationStatusToken,
-    user_id: int,
-    status: str,
-) -> None:
-    """Log the terminal state of an attempt the orchestration finalized.
-
-    The poller is the API's only view of an attempt that Functions finished on
-    its own, so without this a whole submission — success or ``server_error`` —
-    leaves no server-side trace on the API (#700).
-    """
-    attempt_id = UUID(token_data.job_id)
-    session_maker = request.app.state.session_maker
-    try:
-        async with session_maker() as session:
-            state = await VerificationAttemptRepository(session).get_terminal_state(
-                attempt_id
-            )
-    except SQLAlchemyError as exc:
-        # The learner's result is already persisted and the page is about to
-        # reload; a logging read must never turn that into a visible failure.
-        logger.warning(
-            "verification.attempt.completed_read_failed",
-            extra={
-                "user_id": user_id,
-                "requirement_slug": token_data.requirement_slug,
-                "attempt_id": str(attempt_id),
-                "error_type": type(exc).__name__,
-            },
-        )
-        return
-
-    extra = {
-        "user_id": user_id,
-        "requirement_slug": token_data.requirement_slug,
-        "attempt_id": str(attempt_id),
-        "runtime_status": status,
-        "outcome": state.outcome if state else None,
-        "error_code": state.error_code if state else None,
-        "terminal_source": state.terminal_source if state else None,
-    }
-    if state is None or state.outcome == "server_error":
-        logger.warning("verification.attempt.observed", extra=extra)
-    else:
-        logger.info("verification.attempt.observed", extra=extra)
-
-
-async def _render_step_toggle(
-    request: Request,
-    user_id: int,
-    topic: "Topic",
-    step,
-    completed_step_uuids: set[UUID],
-    db: DbSession,
-) -> HTMLResponse:
-    """Shared rendering for step complete/uncomplete HTMX responses."""
-    user = await get_user_by_id(db, user_id)
-
-    total_steps = len(topic.learning_steps)
-    progress = build_progress_dict(len(completed_step_uuids), total_steps)
-
-    step_html = templates.get_template("partials/topic_step.html").render(
-        request=request,
-        step=step,
-        completed_steps=completed_step_uuids,
-        user=user,
-    )
-    progress_html = templates.get_template("partials/topic_progress.html").render(
-        progress=progress
-    )
-
-    return HTMLResponse(step_html + progress_html)
 
 
 @router.post("/steps/complete", response_class=HTMLResponse)
@@ -368,7 +117,7 @@ async def htmx_complete_step(
         return response
 
     step = next(s for s in topic.learning_steps if s.uuid == step_uuid)
-    return await _render_step_toggle(request, user_id, topic, step, completed, db)
+    return await render_step_toggle(request, user_id, topic, step, completed, db)
 
 
 @router.delete("/steps/{step_uuid}", response_class=HTMLResponse)
@@ -386,7 +135,7 @@ async def htmx_uncomplete_step(
         response.headers["HX-Refresh"] = "true"
         return response
 
-    return await _render_step_toggle(request, user_id, topic, step, completed, db)
+    return await render_step_toggle(request, user_id, topic, step, completed, db)
 
 
 async def _parse_verification_form[FormModel: BaseModel](
@@ -433,52 +182,17 @@ async def _submit_canonical_verification(
     submitted_value: SubmittedValue,
 ) -> HTMLResponse:
     """Create and start an attempt from a canonical submission value."""
-    user_id = current_user.user_id
-    github_username = current_user.github_username
     requirement_slug = requirement.slug
-    session_maker = request.app.state.session_maker
-
-    def _render_input_error(message: str) -> HTMLResponse:
-        return _render_verification_card(
-            request,
-            build_input_error_requirement_card_context(
-                requirement=requirement,
-                github_username=github_username,
-                message=message,
-            ),
-        )
-
-    def _render_checking(status_token: str) -> HTMLResponse:
-        return _render_verification_card(
-            request,
-            build_checking_requirement_card_context(
-                requirement=requirement,
-                verification_status_token=status_token,
-                verification_status_delay_seconds=_INITIAL_STATUS_DELAY_SECONDS,
-            ),
-        )
-
-    def _render_unavailable(message: str, retryable: bool) -> HTMLResponse:
-        return _render_verification_card(
-            request,
-            build_unavailable_requirement_card_context(
-                requirement=requirement,
-                github_username=github_username,
-                message=message,
-                retryable=retryable,
-            ),
-        )
-
     try:
-        attempt_submission = await create_verification_attempt(
-            session_maker=session_maker,
-            user_id=user_id,
+        result = await submit_verification_attempt(
+            session_maker=request.app.state.session_maker,
+            user_id=current_user.user_id,
+            github_username=current_user.github_username,
             requirement_slug=requirement_slug,
             submitted_value=submitted_value,
-            github_username=github_username,
         )
     except _USER_FACING_ERRORS as exc:
-        return _render_input_error(str(exc))
+        return render_input_error(request, current_user, requirement, str(exc))
     except Exception as exc:
         logger.exception(
             "htmx.submit.unexpected_error",
@@ -487,31 +201,29 @@ async def _submit_canonical_verification(
                 "error_type": type(exc).__name__,
             },
         )
-        return _render_unavailable(
+        return render_unavailable(
+            request,
+            current_user,
+            requirement,
             (
                 "An unexpected error occurred during verification. "
                 "This attempt was not counted, please try again."
             ),
-            True,
         )
 
-    logger.info(
-        "verification.attempt.created",
-        extra={
-            "user_id": user_id,
-            "requirement_slug": requirement_slug,
-            "attempt_id": str(attempt_submission.attempt_id),
-            "attempt_created": attempt_submission.created,
-        },
-    )
-
-    return await _start_async_attempt_and_render(
-        session_maker=session_maker,
-        user_id=user_id,
-        requirement_slug=requirement_slug,
-        attempt_submission=attempt_submission,
-        render_checking=_render_checking,
-        render_unavailable=_render_unavailable,
+    if result.status_token is not None:
+        return render_processing(
+            request,
+            requirement,
+            result.status_token,
+            delay_seconds=INITIAL_VERIFICATION_STATUS_DELAY_SECONDS,
+        )
+    return render_unavailable(
+        request,
+        current_user,
+        requirement,
+        result.unavailable_message
+        or "Verification could not be started. Please try again.",
     )
 
 
@@ -521,14 +233,7 @@ def _invalid_form_response(
     requirement: HandsOnRequirement,
     message: str = _INVALID_FORM_MESSAGE,
 ) -> HTMLResponse:
-    return _render_verification_card(
-        request,
-        build_input_error_requirement_card_context(
-            requirement=requirement,
-            github_username=current_user.github_username,
-            message=message,
-        ),
-    )
+    return render_input_error(request, current_user, requirement, message)
 
 
 @router.post(
@@ -547,7 +252,7 @@ async def htmx_submit_derived_verification(
         VerificationInputShape.DERIVED,
     )
     if requirement is None:
-        return HTMLResponse(_reload_verification_html())
+        return reload_page_response()
     if not matches:
         return _invalid_form_response(request, current_user, requirement)
     form = await _parse_verification_form(request, DerivedVerificationForm)
@@ -584,7 +289,7 @@ async def htmx_submit_value_verification(
         VerificationInputShape.VALUE,
     )
     if requirement is None:
-        return HTMLResponse(_reload_verification_html())
+        return reload_page_response()
     if not matches or not isinstance(requirement.type_config, PlaceholderConfig):
         return _invalid_form_response(request, current_user, requirement)
     form = await _parse_verification_form(request, ValueVerificationForm)
@@ -642,7 +347,7 @@ async def htmx_submit_reflection_verification(
         VerificationInputShape.REFLECTION,
     )
     if requirement is None:
-        return HTMLResponse(_reload_verification_html())
+        return reload_page_response()
     if not matches or not isinstance(requirement, CareerReflectionRequirement):
         return _invalid_form_response(request, current_user, requirement)
     form = await _parse_verification_form(
@@ -653,7 +358,7 @@ async def htmx_submit_reflection_verification(
     if form is None:
         return _invalid_form_response(request, current_user, requirement)
     try:
-        combined_answers = _combine_reflection_answers(requirement, form.answers)
+        combined_answers = combine_reflection_answers(requirement, form.answers)
         submitted_value = submitted_value_from_raw(requirement, combined_answers)
     except ValueError as exc:
         return _invalid_form_response(request, current_user, requirement, str(exc))
@@ -677,76 +382,6 @@ async def htmx_submit_verification(
     return response
 
 
-async def _start_async_attempt_and_render(
-    *,
-    session_maker: async_sessionmaker[AsyncSession],
-    user_id: int,
-    requirement_slug: str,
-    attempt_submission: VerificationAttemptSubmission,
-    render_checking: Callable[[str], HTMLResponse],
-    render_unavailable: Callable[[str, bool], HTMLResponse],
-) -> HTMLResponse:
-    """Start the Durable attempt orchestration and render the spinner.
-
-    Posts no body -- the attempt starter loads identity, the requirement
-    snapshot, and the submitted value straight from ``verification_attempts``.
-
-    On the rare concurrent-submit case (``created=False``) the original
-    submit already kicked off Durable; we skip the start call and let
-    the poller discover the existing instance via the shared id. If that
-    original start never actually succeeded, the poller will see a 404
-    from Durable and surface the error so the user can retry.
-
-    On a Durable start-call failure that never reached Functions, terminalizes
-    the just-created attempt so it remains in the outcome ledger without
-    blocking the learner's retry.
-    """
-    try:
-        if attempt_submission.created:
-            await start_verification_attempt_orchestration(
-                attempt_submission.attempt_id
-            )
-
-        status_token = create_verification_status_token(
-            user_id=user_id,
-            job_id=attempt_submission.attempt_id,
-            instance_id=str(attempt_submission.attempt_id),
-            requirement_slug=requirement_slug,
-        )
-
-        return render_checking(status_token)
-
-    except (
-        DurableVerificationConfigError,
-        DurableVerificationAuthError,
-        DurableVerificationStartError,
-    ) as exc:
-        logger.exception(
-            "htmx.submit.durable_start_failed",
-            extra={
-                "requirement_slug": requirement_slug,
-                "attempt_id": str(attempt_submission.attempt_id),
-                "error_type": type(exc).__name__,
-                "failure_kind": exc.failure_kind.value,
-                "retryable": exc.retryable,
-                "status_code": exc.status_code,
-            },
-        )
-        await terminalize_unstarted_verification_attempt(
-            attempt_submission.attempt_id,
-            error_code=exc.error_code,
-            validation_message="Verification could not be started.",
-            terminal_source="api_start_failure",
-            session_maker=session_maker,
-        )
-        if not exc.retryable:
-            return render_unavailable(_DURABLE_UNAVAILABLE_ERROR_MESSAGE, False)
-        return render_unavailable(
-            _DURABLE_START_ERROR_MESSAGE,
-            True,
-        )
-
-
 @router.get("/verification/attempts/status", response_class=HTMLResponse)
 async def htmx_verification_attempt_status(
     request: Request,
@@ -761,13 +396,17 @@ async def htmx_verification_attempt_status(
             expected_user_id=user_id,
         )
     except VerificationStatusTokenError:
-        return _status_error_response(
+        return status_error_response(
             "Verification status expired. Refresh the page to check for results.",
             status_code=400,
         )
 
     try:
-        durable_status = await get_verification_attempt_status(token_data.instance_id)
+        result = await poll_verification_attempt(
+            session_maker=request.app.state.session_maker,
+            user_id=user_id,
+            token_data=token_data,
+        )
     except (
         DurableVerificationAuthError,
         DurableVerificationConfigError,
@@ -779,60 +418,30 @@ async def htmx_verification_attempt_status(
                 "attempt_id": token_data.job_id,
                 "error_type": type(exc).__name__,
                 "failure_kind": exc.failure_kind.value,
-                "retryable": exc.retryable,
                 "status_code": exc.status_code,
             },
         )
-        return _status_error_response(
+        return status_error_response(
             "Unable to load verification status. "
             "Refresh the page to check for results.",
             status_code=502,
         )
 
-    status = durable_status.runtime_status.lower()
-    if status in _ACTIVE_DURABLE_STATUSES:
-        return await _render_processing_card(
-            request,
-            current_user,
-            token_data,
-            token,
-            delay_seconds=_RUNNING_STATUS_DELAY_SECONDS,
-        )
-
-    if status in _DURABLE_FAILURE_STATUSES:
-        terminalized = await _terminalize_failed_attempt(request, token_data, status)
-        if not terminalized:
-            return HTMLResponse(_reload_verification_html())
-
+    if result.kind is VerificationPollKind.PROCESSING:
         requirement = get_requirement_by_slug(token_data.requirement_slug)
         if requirement is None:
-            return HTMLResponse(_reload_verification_html())
-
-        return templates.TemplateResponse(
+            return reload_page_response()
+        return render_processing(
             request,
-            "partials/requirement_card.html",
-            {
-                "card": build_unavailable_requirement_card_context(
-                    requirement=requirement,
-                    github_username=current_user.github_username,
-                    message=_DURABLE_TERMINAL_ERROR_MESSAGE,
-                    retryable=False,
-                )
-            },
+            requirement,
+            token,
+            delay_seconds=RUNNING_VERIFICATION_STATUS_DELAY_SECONDS,
         )
 
-    if status in _TERMINAL_DURABLE_STATUSES:
-        await _log_attempt_completion(request, token_data, user_id, status)
-        return HTMLResponse(_reload_verification_html())
+    if result.kind is VerificationPollKind.RELOAD:
+        return reload_page_response()
 
-    logger.warning(
-        "verification.status.unexpected_durable_status",
-        extra={
-            "attempt_id": token_data.job_id,
-            "runtime_status": durable_status.runtime_status,
-        },
-    )
-    return _status_error_response(
+    return status_error_response(
         "Verification is in an unexpected state. "
         "Refresh the page to check for results.",
         status_code=409,

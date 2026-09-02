@@ -309,7 +309,8 @@ def build_phase_topics(phase: Phase, detail: PhaseProgress) -> list[dict[str, An
 
 _PERSISTED_SERVICE_ERROR_MESSAGE = (
     "The verification service couldn't finish checking this attempt because of "
-    "a problem on our side, not something you did."
+    "a problem on our side, not something you did. You can try again. If it keeps "
+    "failing, report the issue."
 )
 
 
@@ -351,11 +352,10 @@ class FailedCardContext(_RequirementCardBase):
 
 @dataclass(frozen=True, slots=True)
 class UnavailableCardContext(_RequirementCardBase):
-    """A retryable or terminal verification-service failure."""
+    """A verification-service failure."""
 
     verification_form: VerificationFormContext
     message: str
-    retryable: bool
     kind: Literal["unavailable"] = field(init=False, default="unavailable")
 
 
@@ -520,7 +520,6 @@ def build_requirement_card_context(
         feedback_passed=passed,
         verification_form=verification_form,
         message=_PERSISTED_SERVICE_ERROR_MESSAGE,
-        retryable=True,
     )
 
 
@@ -528,7 +527,7 @@ def build_checking_requirement_card_context(
     *,
     requirement: HandsOnRequirement,
     verification_status_token: str | None,
-    verification_status_delay_seconds: int = 2,
+    verification_status_delay_seconds: int,
     feedback_tasks: list[dict[str, Any]] | None = None,
     feedback_passed: int = 0,
 ) -> CheckingCardContext:
@@ -568,7 +567,6 @@ def build_unavailable_requirement_card_context(
     requirement: HandsOnRequirement,
     github_username: str,
     message: str,
-    retryable: bool,
 ) -> UnavailableCardContext:
     """Build an explicit verification-service failure card."""
     return UnavailableCardContext(
@@ -581,7 +579,6 @@ def build_unavailable_requirement_card_context(
             None,
         ),
         message=message,
-        retryable=retryable,
     )
 
 

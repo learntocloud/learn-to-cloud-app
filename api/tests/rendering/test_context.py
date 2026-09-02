@@ -367,6 +367,7 @@ class TestBuildRequirementCardContextCardState:
         ctx = build_checking_requirement_card_context(
             requirement=req,
             verification_status_token="status-token",
+            verification_status_delay_seconds=2,
         )
         assert isinstance(ctx, CheckingCardContext)
         assert ctx.kind == "checking"
@@ -415,7 +416,9 @@ class TestBuildRequirementCardContextCardState:
         )
         assert isinstance(ctx, UnavailableCardContext)
         assert ctx.kind == "unavailable"
-        assert ctx.message
+        assert "problem on our side, not something you did" in ctx.message
+        assert "You can try again" in ctx.message
+        assert "report the issue" in ctx.message
 
     def test_explicit_server_error_overrides_missing_submission(self):
         """The live submit/poll flow can force 'unavailable' with no row yet."""
@@ -424,8 +427,6 @@ class TestBuildRequirementCardContextCardState:
             requirement=req,
             github_username="alice",
             message="Verification could not be started.",
-            retryable=False,
         )
         assert ctx.kind == "unavailable"
         assert ctx.message == "Verification could not be started."
-        assert ctx.retryable is False
