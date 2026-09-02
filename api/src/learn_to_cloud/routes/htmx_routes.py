@@ -62,6 +62,8 @@ from learn_to_cloud.services.users_service import (
     delete_user_account,
 )
 from learn_to_cloud.services.verification_attempt_service import (
+    INITIAL_VERIFICATION_STATUS_DELAY_SECONDS,
+    RUNNING_VERIFICATION_STATUS_DELAY_SECONDS,
     VerificationPollKind,
     poll_verification_attempt,
     submit_verification_attempt,
@@ -89,11 +91,9 @@ _USER_FACING_ERRORS = (
     RequirementNotFoundError,
 )
 
-_INITIAL_STATUS_DELAY_SECONDS = 2
-_RUNNING_STATUS_DELAY_SECONDS = 5
 _VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE = "verification-submit"
 _INVALID_FORM_MESSAGE = (
-    "This verification form is out of date or invalid. Refresh the page and try again."
+    "We couldn't read this verification form. Refresh the page and try again."
 )
 
 router = APIRouter(prefix="/htmx", tags=["htmx"], include_in_schema=False)
@@ -216,7 +216,7 @@ async def _submit_canonical_verification(
             request,
             requirement,
             result.status_token,
-            delay_seconds=_INITIAL_STATUS_DELAY_SECONDS,
+            delay_seconds=INITIAL_VERIFICATION_STATUS_DELAY_SECONDS,
         )
     return render_unavailable(
         request,
@@ -435,7 +435,7 @@ async def htmx_verification_attempt_status(
             request,
             requirement,
             token,
-            delay_seconds=_RUNNING_STATUS_DELAY_SECONDS,
+            delay_seconds=RUNNING_VERIFICATION_STATUS_DELAY_SECONDS,
         )
 
     if result.kind is VerificationPollKind.RELOAD:

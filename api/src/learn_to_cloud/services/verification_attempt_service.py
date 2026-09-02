@@ -36,6 +36,9 @@ from learn_to_cloud.services.verification_status_tokens import (
 
 logger = logging.getLogger(__name__)
 
+INITIAL_VERIFICATION_STATUS_DELAY_SECONDS = 2
+RUNNING_VERIFICATION_STATUS_DELAY_SECONDS = 5
+
 _DURABLE_START_ERROR_MESSAGE = (
     "Verification could not be started because of a problem with the verification "
     "service. This attempt was not counted. Please try again later or report the "

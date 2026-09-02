@@ -527,7 +527,7 @@ def build_checking_requirement_card_context(
     *,
     requirement: HandsOnRequirement,
     verification_status_token: str | None,
-    verification_status_delay_seconds: int = 2,
+    verification_status_delay_seconds: int,
     feedback_tasks: list[dict[str, Any]] | None = None,
     feedback_passed: int = 0,
 ) -> CheckingCardContext:

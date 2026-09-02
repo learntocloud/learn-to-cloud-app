@@ -367,6 +367,7 @@ class TestBuildRequirementCardContextCardState:
         ctx = build_checking_requirement_card_context(
             requirement=req,
             verification_status_token="status-token",
+            verification_status_delay_seconds=2,
         )
         assert isinstance(ctx, CheckingCardContext)
         assert ctx.kind == "checking"
