@@ -17,10 +17,8 @@ import pytest
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from learn_to_cloud_shared.content_catalog import CurriculumCatalogError
-from slowapi.errors import RateLimitExceeded
 
 from learn_to_cloud import main as main_module
-from learn_to_cloud.core.ratelimit import rate_limit_exceeded_handler
 from learn_to_cloud.main import (
     app,
     global_exception_handler,
@@ -103,7 +101,6 @@ def test_observability_is_configured_before_fastapi_construction():
 
 
 def test_exception_handlers_are_registered_for_their_dispatch_types():
-    assert app.exception_handlers[RateLimitExceeded] is rate_limit_exceeded_handler
     assert (
         app.exception_handlers[RequestValidationError] is validation_exception_handler
     )

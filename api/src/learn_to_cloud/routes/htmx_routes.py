@@ -46,7 +46,6 @@ if TYPE_CHECKING:
     from learn_to_cloud_shared.schemas import Topic
 
 from learn_to_cloud.core.auth import AuthenticatedUser, CurrentUser, UserId
-from learn_to_cloud.core.ratelimit import limiter
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.context import (
     RequirementCardContext,
@@ -125,7 +124,6 @@ _TERMINAL_DURABLE_STATUSES = {"completed", "failed", "terminated", "canceled"}
 _DURABLE_FAILURE_STATUSES = {"failed", "terminated", "canceled"}
 _INITIAL_STATUS_DELAY_SECONDS = 2
 _RUNNING_STATUS_DELAY_SECONDS = 5
-_VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE = "verification-submit"
 _INVALID_FORM_MESSAGE = (
     "This verification form is out of date or invalid. Refresh the page and try again."
 )
@@ -535,7 +533,6 @@ def _invalid_form_response(
     "/verifications/{requirement_slug}/submit/derived",
     response_class=HTMLResponse,
 )
-@limiter.shared_limit("10/minute", scope=_VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE)
 async def htmx_submit_derived_verification(
     request: Request,
     current_user: CurrentUser,
@@ -572,7 +569,6 @@ async def htmx_submit_derived_verification(
     "/verifications/{requirement_slug}/submit/value",
     response_class=HTMLResponse,
 )
-@limiter.shared_limit("10/minute", scope=_VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE)
 async def htmx_submit_value_verification(
     request: Request,
     current_user: CurrentUser,
@@ -630,7 +626,6 @@ async def htmx_submit_value_verification(
     "/verifications/{requirement_slug}/submit/reflection",
     response_class=HTMLResponse,
 )
-@limiter.shared_limit("10/minute", scope=_VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE)
 async def htmx_submit_reflection_verification(
     request: Request,
     current_user: CurrentUser,
@@ -666,7 +661,6 @@ async def htmx_submit_reflection_verification(
 
 
 @router.post("/github/submit", response_class=HTMLResponse)
-@limiter.shared_limit("10/minute", scope=_VERIFICATION_SUBMIT_RATE_LIMIT_SCOPE)
 async def htmx_submit_verification(
     request: Request,
     current_user: CurrentUser,
@@ -840,7 +834,6 @@ async def htmx_verification_attempt_status(
 
 
 @router.delete("/account", response_class=HTMLResponse)
-@limiter.limit("3/hour")
 async def htmx_delete_account(
     request: Request,
     db: DbSession,

@@ -335,52 +335,6 @@ class TestAuthPageSmoke:
         assert reflection.status_code == 200
         assert mock_submit.await_count == 3
 
-    async def test_verification_routes_share_one_rate_limit(
-        self, auth_client: AsyncClient
-    ):
-        from learn_to_cloud_shared.testing.requirement_factories import (
-            ctf_token_requirement,
-            profile_readme_requirement,
-        )
-
-        from learn_to_cloud.core.ratelimit import limiter
-
-        requirements = {
-            "profile-readme": profile_readme_requirement(slug="profile-readme"),
-            "linux-token": ctf_token_requirement(slug="linux-token"),
-        }
-        paths = [
-            ("/htmx/verifications/profile-readme/submit/derived", None),
-            (
-                "/htmx/verifications/linux-token/submit/value",
-                {"submitted_value": "token-123"},
-            ),
-        ]
-
-        limiter.reset()
-        try:
-            with (
-                patch.object(limiter, "enabled", True),
-                patch(
-                    "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                    side_effect=requirements.get,
-                ),
-                patch(
-                    "learn_to_cloud.routes.htmx_routes._submit_canonical_verification",
-                    new_callable=AsyncMock,
-                    return_value=HTMLResponse("processing"),
-                ),
-            ):
-                responses = [
-                    await auth_client.post(path, data=data)
-                    for path, data in (paths * 6)[:11]
-                ]
-        finally:
-            limiter.reset()
-
-        assert all(response.status_code == 200 for response in responses[:10])
-        assert responses[10].status_code == 429
-
     async def test_phase_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1 renders the phase detail template."""
         from learn_to_cloud_shared.content_yaml_loader import (

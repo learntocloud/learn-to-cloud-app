@@ -25,7 +25,6 @@ from learn_to_cloud_shared.core.database import (
 from learn_to_cloud_shared.core.github_client import close_github_client
 from learn_to_cloud_shared.core.logger import configure_logging
 from learn_to_cloud_shared.core.observability import configure_observability
-from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 
 from learn_to_cloud.core.auth import init_oauth
@@ -33,7 +32,6 @@ from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
     TelemetrySanitizationMiddleware,
 )
-from learn_to_cloud.core.ratelimit import limiter, rate_limit_exceeded_handler
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.routes import (
     auth_router,
@@ -136,9 +134,6 @@ app = fastapi.FastAPI(
         else None
     ),
 )
-
-app.state.limiter = limiter
-app.exception_handler(RateLimitExceeded)(rate_limit_exceeded_handler)
 
 
 @app.exception_handler(RequestValidationError)

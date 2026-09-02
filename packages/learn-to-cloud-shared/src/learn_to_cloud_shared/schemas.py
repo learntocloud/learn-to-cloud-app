@@ -932,8 +932,7 @@ class SubmissionResult(FrozenModel):
         """Whether this failure was caused by a server-side error.
 
         True when validation failed but verification never completed
-        (e.g. external service timeout). These attempts are
-        not counted against the user's daily quota.
+        (e.g. external service timeout).
         """
         return not self.is_valid and not self.submission.verification_completed
 
