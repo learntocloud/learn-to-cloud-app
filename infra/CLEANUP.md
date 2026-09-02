@@ -110,6 +110,13 @@ about credentials in state, exposure defaults, and structure.
       `Microsoft.App/jobs/listSecrets/action`. The state migration uses
       `removed` + `import` and preserves the live job, managed identity,
       registry identity, image rollout boundary, and runtime configuration.
+- [x] **API Container App refresh reads secrets.** AzureRM also calls
+      `Microsoft.App/containerApps/listSecrets/action` during every refresh.
+      Replaced `azurerm_container_app.api_v5` with `azapi_resource.api`, while
+      preserving the user-assigned identity, Key Vault references, registry,
+      ingress, custom-domain bindings, scaling, probes, and deployment-managed
+      image. The migration uses `removed` + `import` and must land before the
+      read-only PR plan workflow is enabled.
 
 ## Tier 3 — Consistency
 
@@ -142,10 +149,9 @@ about credentials in state, exposure defaults, and structure.
 
 ## Related work
 
-- Issue #743 covers the secretless planning identity and the Container Apps Job
-  `ListSecrets` refresh problem. The first live read-only plan failed on the job
-  and Functions storage account, but did not report a corresponding denial for
-  `azurerm_container_app.api`; keep the API resource under observation when the
-  read-only plan is re-run.
+- Issue #741 owns the final read-only plan proof. Remove
+  `migrate-container-app-job.tf` and `migrate-container-app-azapi.tf` only after
+  the state migrations have been applied to every environment and a
+  refresh-enabled plan succeeds without `listKeys` or `listSecrets`.
 - PR #714 bumps AzureRM 4.81 to 5.0.1. Land the cleanup on 4.x first, then
   upgrade, so a provider major and a state migration never mix in one change.

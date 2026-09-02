@@ -30,16 +30,225 @@ resource "azurerm_container_app_environment" "main" {
   tags                       = local.tags
 }
 
-resource "azurerm_container_app" "api_v5" {
-  name                         = "ca-ltc-api-${var.environment}"
-  container_app_environment_id = azurerm_container_app_environment.main.id
-  resource_group_name          = azurerm_resource_group.main.name
-  revision_mode                = "Single"
-  tags                         = local.tags
+locals {
+  api_container_app_api_version   = "2025-01-01"
+  api_container_app_resource_type = "Microsoft.App/containerApps@${local.api_container_app_api_version}"
+  api_container_app_secrets = [
+    {
+      name        = "github-client-secret"
+      identity    = azurerm_user_assigned_identity.api.id
+      keyVaultUrl = "${azurerm_key_vault.main.vault_uri}secrets/github-client-secret"
+    },
+    {
+      name        = "github-token"
+      identity    = azurerm_user_assigned_identity.api.id
+      keyVaultUrl = "${azurerm_key_vault.main.vault_uri}secrets/github-token"
+    },
+    {
+      name        = "session-secret-key"
+      identity    = azurerm_user_assigned_identity.api.id
+      keyVaultUrl = "${azurerm_key_vault.main.vault_uri}secrets/session-secret-key"
+    },
+    {
+      name        = "ctf-master-secret"
+      identity    = azurerm_user_assigned_identity.api.id
+      keyVaultUrl = "${azurerm_key_vault.main.vault_uri}secrets/labs-verification-secret"
+    },
+  ]
+}
+
+# Preserve custom-domain bindings that are currently managed outside Terraform.
+# The normal ARM GET used here does not require the secret-reading action that
+# AzureRM invokes during every Container App refresh.
+data "azapi_resource" "api_current" {
+  type             = local.api_container_app_resource_type
+  name             = "ca-ltc-api-${var.environment}"
+  parent_id        = azurerm_resource_group.main.id
+  ignore_not_found = true
+
+  response_export_values = ["properties.configuration.ingress.customDomains"]
+}
+
+resource "azapi_resource" "api" {
+  type      = local.api_container_app_resource_type
+  name      = "ca-ltc-api-${var.environment}"
+  parent_id = azurerm_resource_group.main.id
+  location  = azurerm_resource_group.main.location
+  tags      = local.tags
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.api.id]
+  }
+
+  body = {
+    properties = {
+      managedEnvironmentId = azurerm_container_app_environment.main.id
+
+      configuration = {
+        activeRevisionsMode = "Single"
+        registries = [
+          {
+            server   = azurerm_container_registry.main.login_server
+            identity = azurerm_user_assigned_identity.api.id
+          },
+        ]
+        secrets = local.api_container_app_secrets
+        ingress = {
+          allowInsecure = false
+          external      = true
+          targetPort    = 8000
+          transport     = "Http"
+          customDomains = try(
+            data.azapi_resource.api_current.output.properties.configuration.ingress.customDomains,
+            [],
+          )
+          traffic = [
+            {
+              latestRevision = true
+              weight         = 100
+            },
+          ]
+        }
+      }
+
+      template = {
+        scale = {
+          minReplicas = local.api_min_replicas
+          # PostgreSQL max connections vary by SKU. Each replica uses up to 10
+          # connections, so the default two replicas remain well within limits.
+          maxReplicas = local.api_max_replicas
+        }
+        containers = [
+          {
+            name  = "api"
+            image = "${azurerm_container_registry.main.login_server}/api:latest"
+            env = [
+              {
+                name  = "DATABASE__HOST"
+                value = azurerm_postgresql_flexible_server.main.fqdn
+              },
+              {
+                name  = "DATABASE__USER"
+                value = local.api_postgres_role
+              },
+              {
+                name  = "DATABASE__NAME"
+                value = azurerm_postgresql_flexible_server_database.main.name
+              },
+              {
+                name  = "AZURE_CLIENT_ID"
+                value = azurerm_user_assigned_identity.api.client_id
+              },
+              {
+                name  = "OAUTH__CLIENT_ID"
+                value = var.github_client_id
+              },
+              {
+                name      = "OAUTH__CLIENT_SECRET"
+                secretRef = "github-client-secret"
+              },
+              {
+                name      = "GITHUB__TOKEN"
+                secretRef = "github-token"
+              },
+              {
+                name      = "SESSION__SECRET_KEY"
+                secretRef = "session-secret-key"
+              },
+              {
+                name      = "LABS__VERIFICATION_SECRET"
+                secretRef = "ctf-master-secret"
+              },
+              {
+                name  = "SMOKE_TEST__ALLOWED_CLIENT_ID"
+                value = local.smoke_auth_allowed_client_id
+              },
+              {
+                name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+                value = azurerm_application_insights.main.connection_string
+              },
+              {
+                name  = "FRONTEND_TELEMETRY__APPLICATIONINSIGHTS_CONNECTION_STRING"
+                value = azurerm_application_insights.frontend.connection_string
+              },
+              {
+                name  = "OTEL_SERVICE_NAME"
+                value = "learn-to-cloud-api"
+              },
+              {
+                name  = "OTEL_TRACES_SAMPLER"
+                value = "microsoft.rate_limited"
+              },
+              {
+                name  = "OTEL_TRACES_SAMPLER_ARG"
+                value = "1"
+              },
+              {
+                name  = "VERIFICATION_FUNCTIONS__BASE_URL"
+                value = "https://${azapi_resource.verification_functions.output.properties.defaultHostName}"
+              },
+              {
+                name  = "VERIFICATION_FUNCTIONS__TOKEN_SCOPE"
+                value = local.verification_functions_auth_scope
+              },
+              {
+                name  = "CORS__FRONTEND_URL"
+                value = "https://learntocloud.guide"
+              },
+            ]
+            probes = [
+              {
+                type                = "Liveness"
+                initialDelaySeconds = 30
+                periodSeconds       = 60
+                timeoutSeconds      = 5
+                failureThreshold    = 3
+                httpGet = {
+                  path   = "/health"
+                  port   = 8000
+                  scheme = "HTTP"
+                }
+              },
+              {
+                type             = "Readiness"
+                periodSeconds    = 30
+                timeoutSeconds   = 5
+                failureThreshold = 3
+                successThreshold = 3
+                httpGet = {
+                  path   = "/ready"
+                  port   = 8000
+                  scheme = "HTTP"
+                }
+              },
+              {
+                type             = "Startup"
+                periodSeconds    = 10
+                timeoutSeconds   = 5
+                failureThreshold = 30
+                httpGet = {
+                  path   = "/ready"
+                  port   = 8000
+                  scheme = "HTTP"
+                }
+              },
+            ]
+            resources = {
+              cpu    = 0.25
+              memory = "0.5Gi"
+            }
+          },
+        ]
+      }
+    }
+  }
+
+  response_export_values = ["properties.configuration.ingress.fqdn"]
 
   lifecycle {
     ignore_changes = [
-      template[0].container[0].image,
+      body.properties.template.containers[0].image,
     ]
 
     precondition {
@@ -47,193 +256,18 @@ resource "azurerm_container_app" "api_v5" {
       error_message = "api_min_replicas must be less than or equal to api_max_replicas."
     }
 
-  }
-
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.api.id]
-  }
-
-  registry {
-    server   = azurerm_container_registry.main.login_server
-    identity = azurerm_user_assigned_identity.api.id
-  }
-
-  secret {
-    name                = "github-client-secret"
-    identity            = azurerm_user_assigned_identity.api.id
-    key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/github-client-secret"
-  }
-
-  secret {
-    name                = "github-token"
-    identity            = azurerm_user_assigned_identity.api.id
-    key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/github-token"
-  }
-
-  secret {
-    name                = "session-secret-key"
-    identity            = azurerm_user_assigned_identity.api.id
-    key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/session-secret-key"
-  }
-
-  secret {
-    name                = "ctf-master-secret"
-    identity            = azurerm_user_assigned_identity.api.id
-    key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/labs-verification-secret"
-  }
-
-  ingress {
-    external_enabled = true
-    target_port      = 8000
-    transport        = "http"
-
-    traffic_weight {
-      percentage      = 100
-      latest_revision = true
-    }
-  }
-
-  template {
-    min_replicas = local.api_min_replicas
-    # PostgreSQL max connections vary by SKU.
-    # Each replica uses up to 10 (pool_size=5 + max_overflow=5).
-    # 2 replicas × 10 = 20 connections — well under typical SKU limits.
-    # Scaling uses the default HTTP rule (10 concurrent requests per replica).
-    max_replicas = local.api_max_replicas
-
-    container {
-      name   = "api"
-      image  = "${azurerm_container_registry.main.login_server}/api:latest"
-      cpu    = 0.25
-      memory = "0.5Gi"
-
-      env {
-        name  = "DATABASE__HOST"
-        value = azurerm_postgresql_flexible_server.main.fqdn
-      }
-
-      env {
-        name  = "DATABASE__USER"
-        value = local.api_postgres_role
-      }
-
-      env {
-        name  = "DATABASE__NAME"
-        value = azurerm_postgresql_flexible_server_database.main.name
-      }
-
-      env {
-        name  = "AZURE_CLIENT_ID"
-        value = azurerm_user_assigned_identity.api.client_id
-      }
-
-      env {
-        name  = "OAUTH__CLIENT_ID"
-        value = var.github_client_id
-      }
-
-      env {
-        name        = "OAUTH__CLIENT_SECRET"
-        secret_name = "github-client-secret"
-      }
-
-      env {
-        name        = "GITHUB__TOKEN"
-        secret_name = "github-token"
-      }
-
-      env {
-        name        = "SESSION__SECRET_KEY"
-        secret_name = "session-secret-key"
-      }
-
-      env {
-        name        = "LABS__VERIFICATION_SECRET"
-        secret_name = "ctf-master-secret"
-      }
-
-      env {
-        name  = "SMOKE_TEST__ALLOWED_CLIENT_ID"
-        value = local.smoke_auth_allowed_client_id
-      }
-
-      env {
-        name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
-        value = azurerm_application_insights.main.connection_string
-      }
-
-      env {
-        name  = "FRONTEND_TELEMETRY__APPLICATIONINSIGHTS_CONNECTION_STRING"
-        value = azurerm_application_insights.frontend.connection_string
-      }
-
-      env {
-        name  = "OTEL_SERVICE_NAME"
-        value = "learn-to-cloud-api"
-      }
-
-      # Azure Monitor Python 1.8.6+ defaults to rate-limited trace sampling.
-      # Pin the production policy so SDK default changes cannot raise ingestion.
-      env {
-        name  = "OTEL_TRACES_SAMPLER"
-        value = "microsoft.rate_limited"
-      }
-
-      env {
-        name  = "OTEL_TRACES_SAMPLER_ARG"
-        value = "1"
-      }
-
-      env {
-        name  = "VERIFICATION_FUNCTIONS__BASE_URL"
-        value = "https://${azapi_resource.verification_functions.output.properties.defaultHostName}"
-      }
-
-      env {
-        name  = "VERIFICATION_FUNCTIONS__TOKEN_SCOPE"
-        value = local.verification_functions_auth_scope
-      }
-
-      env {
-        name  = "CORS__FRONTEND_URL"
-        value = "https://learntocloud.guide"
-      }
-
-      liveness_probe {
-        transport               = "HTTP"
-        path                    = "/health"
-        port                    = 8000
-        initial_delay           = 30
-        interval_seconds        = 60
-        timeout                 = 5
-        failure_count_threshold = 3
-      }
-
-      readiness_probe {
-        transport               = "HTTP"
-        path                    = "/ready"
-        port                    = 8000
-        interval_seconds        = 30
-        timeout                 = 5
-        failure_count_threshold = 3
-      }
-
-      startup_probe {
-        transport               = "HTTP"
-        path                    = "/ready"
-        port                    = 8000
-        interval_seconds        = 10
-        timeout                 = 5
-        failure_count_threshold = 30
-      }
+    precondition {
+      condition = alltrue([
+        for secret in local.api_container_app_secrets :
+        can(secret.keyVaultUrl) && !can(secret.value)
+      ])
+      error_message = "API Container App secrets must use Key Vault references, not inline values."
     }
   }
 
   depends_on = [
     azurerm_role_assignment.api_acr_pull,
     azurerm_role_assignment.api_key_vault_secrets_user,
-    azurerm_postgresql_flexible_server_database.main,
   ]
 }
 
@@ -243,7 +277,7 @@ resource "azurerm_container_app" "api_v5" {
 resource "azapi_resource" "api_auth" {
   type      = "Microsoft.App/containerApps/authConfigs@2025-01-01"
   name      = "current"
-  parent_id = azurerm_container_app.api_v5.id
+  parent_id = azapi_resource.api.id
 
   body = {
     properties = {
