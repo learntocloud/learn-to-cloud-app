@@ -1,0 +1,240 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+    inputs:
+      force_all:
+        description: Run code and Terraform checks regardless of changed paths
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Detect relevant changes
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'api/**'
+              - 'apps/verification-functions/**'
+              - 'packages/learn-to-cloud-shared/**'
+              - 'scripts/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'docker-compose.yml'
+              - '.pre-commit-config.yaml'
+              - '.github/workflows/ci.yml'
+            infra:
+              - 'infra/**'
+              - '.github/workflows/infra-deploy.yml'
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+
+  terraform-ci:
+    needs: [changes]
+    if: inputs.force_all || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.16.1"
+          terraform_wrapper: false
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init without backend
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform tests
+        run: terraform test -no-color
+
+  code-ci:
+    needs: [changes]
+    if: inputs.force_all || needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: learntocloud
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE__URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud
+      POSTGRES_VERIFICATION_FUNCTIONS_ROLE: ltc_verification_functions_dev
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: "apps/verification-functions/pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.12.9"
+          enable-cache: true
+
+      - name: Install workspace dependencies
+        run: uv sync --all-packages --locked
+
+      - name: Static checks
+        run: uv run poe static
+
+      - name: Validate curriculum content integrity
+        working-directory: packages/learn-to-cloud-shared
+        run: uv run python scripts/validate_content.py
+
+      - name: Verify generated YAML JSON schemas are up to date
+        working-directory: packages/learn-to-cloud-shared
+        run: |
+          set -euo pipefail
+          uv run python scripts/generate_yaml_schemas.py
+          if ! git diff --exit-code src/learn_to_cloud_shared/content/schemas/; then
+            echo "::error::JSON Schemas drifted from Pydantic models." >&2
+            echo "Run 'cd packages/learn-to-cloud-shared && uv run python scripts/generate_yaml_schemas.py' and commit the result." >&2
+            exit 1
+          fi
+
+      - name: Verify generated curriculum.json artifact is up to date
+        working-directory: packages/learn-to-cloud-shared
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          artifact_path=src/learn_to_cloud_shared/content/curriculum.json
+          repo_artifact_path=packages/learn-to-cloud-shared/$artifact_path
+          prior_sha="${PR_BASE_SHA:-${PUSH_BEFORE_SHA:-}}"
+          previous_artifact_args=()
+
+          if [ -n "$prior_sha" ] && [ "$prior_sha" != "0000000000000000000000000000000000000000" ]; then
+            previous_artifact="$RUNNER_TEMP/previous-curriculum.json"
+            if git show "${prior_sha}:${repo_artifact_path}" > "$previous_artifact" 2>/dev/null; then
+              previous_artifact_args=(--previous-artifact "$previous_artifact")
+            fi
+          fi
+
+          uv run python scripts/compile_curriculum.py "${previous_artifact_args[@]}"
+          if ! git diff --exit-code "$artifact_path"; then
+            echo "::error::curriculum.json drifted from the authored YAML." >&2
+            echo "Run 'cd packages/learn-to-cloud-shared && uv run python scripts/compile_curriculum.py' and commit the result." >&2
+            exit 1
+          fi
+
+      - name: Validate installed shared runtime package
+        run: uv run poe package-smoke
+
+      - name: Verify single migration head
+        working-directory: api
+        run: |
+          set -euo pipefail
+          heads=$(uv run alembic heads)
+          count=$(echo "$heads" | grep -c '(head)' || echo 0)
+          if [ "$count" -ne 1 ]; then
+            echo "Expected exactly 1 alembic head; found $count:" >&2
+            echo "$heads" >&2
+            exit 1
+          fi
+
+      - name: Lint migration filenames and docstrings
+        working-directory: api
+        run: uv run python scripts/check_migration_naming.py
+
+      - name: Apply migrations to CI database
+        working-directory: api
+        run: uv run alembic upgrade head
+
+      - name: Verify model and migrations are in sync
+        working-directory: api
+        run: uv run alembic check
+
+      - name: Run test suites
+        run: uv run poe test
+
+  ci-status:
+    if: always()
+    needs: [changes, code-ci, terraform-ci]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CI results
+        env:
+          CODE_RESULT: ${{ needs.code-ci.result }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          TERRAFORM_RESULT: ${{ needs.terraform-ci.result }}
+        run: |
+          set -euo pipefail
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed: $CHANGES_RESULT"
+            exit 1
+          fi
+          for result in "$CODE_RESULT" "$TERRAFORM_RESULT"; do
+            if [[ ! "$result" =~ ^(success|skipped)$ ]]; then
+              echo "CI failed: code=$CODE_RESULT terraform=$TERRAFORM_RESULT"
+              exit 1
+            fi
+          done
+          echo "CI passed or was skipped for unchanged paths."
+
+  dependency-review-status:
+    if: always()
+    needs: [dependency-review]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check dependency review result
+        env:
+          REVIEW_RESULT: ${{ needs.dependency-review.result }}
+        run: |
+          if [[ "$REVIEW_RESULT" =~ ^(success|skipped)$ ]]; then
+            echo "Dependency review passed or was skipped."
+          else
+            echo "Dependency review failed: $REVIEW_RESULT"
+            exit 1
+          fi

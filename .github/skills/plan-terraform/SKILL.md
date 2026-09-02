@@ -14,9 +14,9 @@ Use the supplied PR. If omitted, select it only when exactly one open PR changes
    subscription matches repository variable `AZURE_SUBSCRIPTION_ID`.
 4. Create a detached worktree for that SHA under the current session's `files/`
    directory. Never plan in the primary worktree.
-5. Inspect `.github/workflows/deploy.yml` and mirror its current backend key and
-   `TF_VAR_*` inputs. Retrieve required repository variables and Azure values
-   without printing secrets.
+5. Inspect `.github/workflows/infra-deploy.yml` and mirror its current backend
+   key and `TF_VAR_*` inputs. Retrieve required repository variables and Azure
+   values without printing secrets.
 6. In the worktree's `infra/`, run:
 
    ```bash

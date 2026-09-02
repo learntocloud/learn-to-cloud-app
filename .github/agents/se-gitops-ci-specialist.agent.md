@@ -58,7 +58,7 @@ Build reliable CI/CD pipelines, debug deployment failures quickly, and ensure ev
 # .node-version (for CI and local)
 18.16.0
 
-# CI config (.github/workflows/deploy.yml)
+# CI config (.github/workflows/ci.yml)
 - uses: actions/setup-node@v3
   with:
     node-version-file: '.node-version'
@@ -198,7 +198,7 @@ deployment_frequency: daily
 
 ### **Pipeline Structure**
 ```yaml
-# .github/workflows/deploy.yml
+# .github/workflows/app-deploy.yml
 name: Deploy
 
 on:

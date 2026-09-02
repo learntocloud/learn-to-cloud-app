@@ -1,13 +1,14 @@
 ---
 name: debug-deploy
-description: Diagnose and resolve GitHub Actions deployment, Terraform, migration-job, and Azure authorization failures. Use when deploy.yml or a deployment fails.
+description: Diagnose and resolve GitHub Actions application deployment, Terraform, migration-job, and Azure authorization failures.
 ---
 
 # Debug Deploy
 
-Use `gh run list --workflow=deploy.yml` to select the relevant run, then inspect
-its metadata and `gh run view <id> --log-failed`. Diagnose evidence from the
-failed step before changing code or infrastructure.
+Use `gh run list --workflow=app-deploy.yml` for production orchestration failures
+or `gh run list --workflow=infra-deploy.yml` for standalone Terraform plans.
+Inspect the selected run with `gh run view <id> --log-failed`. Diagnose evidence
+from the failed step before changing code or infrastructure.
 
 Common paths:
 

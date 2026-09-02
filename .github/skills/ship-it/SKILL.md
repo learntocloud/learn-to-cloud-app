@@ -22,9 +22,11 @@ Merging is a separate action requiring explicit user intent. If authorized,
 prefer squash merge and respect branch protection.
 
 Deployment runs only after deploy-relevant changes merge to `main`. Find the
-`deploy.yml` push run by merge SHA, watch it with `gh run watch --exit-status`,
-and verify `/health` and `/ready` after success. A skills/docs-only merge may
-correctly trigger no deployment.
+`app-deploy.yml` push run by merge SHA and watch it with
+`gh run watch --exit-status`. Infrastructure changes run through the reusable
+`infra-deploy.yml` job before application deployment. Verify `/health` and
+`/ready` after success. A skills/docs-only merge may correctly trigger no
+deployment.
 
 Use `debug-deploy` for nontrivial failures. Never bypass a failed quality gate,
 force-push, or silently include unrelated files.
