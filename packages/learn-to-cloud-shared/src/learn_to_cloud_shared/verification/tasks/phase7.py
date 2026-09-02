@@ -10,6 +10,7 @@ from __future__ import annotations
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidencePolicy,
     LLMRubricGraderConfig,
+    RubricCriterion,
     VerificationTask,
 )
 
@@ -21,28 +22,53 @@ CAREER_REFLECTION_RUBRIC_TASK = VerificationTask(
     requirement_slug=PHASE7_REQUIREMENT_SLUG,
     name="Career Reflection Review",
     criteria=[
-        "MUST answer all three reflection questions, not just one or two",
-        (
-            "Each answer MUST be specific and personal, drawing on the learner's "
-            "own experience, projects, or target roles rather than generic advice"
+        RubricCriterion(
+            id="complete-responses",
+            label="All reflections completed",
+            instruction="All three reflection questions have substantive answers.",
         ),
-        (
-            "The behavioral answer MUST describe a concrete situation, what the "
-            "learner did, and the outcome"
+        RubricCriterion(
+            id="personal-specificity",
+            label="Specific and personal",
+            instruction=(
+                "Each answer draws on the learner's experience, projects, or "
+                "target roles instead of giving generic advice."
+            ),
         ),
-        (
-            "The target-role answer MUST reference a real role and name specific "
-            "skills the learner has or needs to build"
+        RubricCriterion(
+            id="behavioral-example",
+            label="Concrete behavioral example",
+            instruction=(
+                "The behavioral answer describes a situation, the learner's "
+                "actions, and the outcome."
+            ),
         ),
-        (
-            "The project answer MUST describe a specific project and why it "
-            "interests the learner"
+        RubricCriterion(
+            id="target-role",
+            label="Target role and skills",
+            instruction=(
+                "The target-role answer names a real role and specific skills "
+                "the learner has or needs to build."
+            ),
         ),
-        (
-            "Reject empty, copy-pasted, placeholder, or obviously low-effort "
-            "answers; grade only the submitted text provided"
+        RubricCriterion(
+            id="project-interest",
+            label="Specific project interest",
+            instruction=(
+                "The project answer describes a specific project and why it "
+                "interests the learner."
+            ),
+        ),
+        RubricCriterion(
+            id="original-submission",
+            label="Original and substantive",
+            instruction=(
+                "The answers are not empty, copied, placeholder, or obviously "
+                "low effort."
+            ),
         ),
     ],
+    grading_instructions=["Grade only the submitted reflection text provided."],
     evidence=EvidencePolicy(
         source="submitted_text",
         max_files=1,
@@ -50,8 +76,8 @@ CAREER_REFLECTION_RUBRIC_TASK = VerificationTask(
         max_total_bytes=20 * 1024,
     ),
     grader=LLMRubricGraderConfig(
-        rubric_id="phase7-career-reflection-v1",
-        prompt_version="2026-06-26",
+        rubric_id="phase7-career-reflection-v2",
+        prompt_version="2026-09-02",
         passing_score=0.6,
         model="gpt-5-mini",
     ),

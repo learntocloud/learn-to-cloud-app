@@ -146,6 +146,11 @@ Return only one JSON object with:
 - next_steps: concrete remediation when passed is false.
 - failure_reason: stable snake_case reason when passed is false.
 - evidence_refs: paths, URLs, task ids, or evidence ids used in the decision.
+- criterion_results: exactly one result for every rubric criterion, using its
+  criterion_id. Each result must include status (met, not_met, or
+  not_applicable), a concise explanation, concrete next_steps when an unmet
+  required criterion can be fixed, and only evidence_refs supplied in the
+  request. Required criteria cannot be not_applicable.
 Do not wrap the JSON in Markdown or include explanatory text outside the JSON.
 """.strip()
 

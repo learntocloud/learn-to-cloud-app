@@ -1049,6 +1049,16 @@ def _grading_requests_for(
         if task is None:
             continue
         evidence = result.evidence[0].model_dump(mode="json") if result.evidence else {}
+        allowed_evidence_refs = [
+            str(item["path"])
+            for item in evidence.get("items", [])
+            if isinstance(item, dict) and item.get("path")
+        ]
+        if deterministic_result.task_results:
+            allowed_evidence_refs.extend(
+                task_result.task_name
+                for task_result in deterministic_result.task_results
+            )
         if task.evidence.source == "submitted_text":
             message = build_text_rubric_message(
                 requirement_slug=job.requirement.slug,
@@ -1076,6 +1086,7 @@ def _grading_requests_for(
                 task=task,
                 message=message,
                 thread_id=f"{job.id}-{task.id}",
+                allowed_evidence_refs=allowed_evidence_refs,
             )
         )
     return requests

@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from learn_to_cloud_shared.schemas import FrozenModel, TaskResult
+from learn_to_cloud_shared.schemas import CriterionResult, FrozenModel, TaskResult
 
 EvidenceSource = Literal[
     "repo_files",
@@ -23,6 +23,16 @@ GraderKind = Literal[
     "llm_rubric",
     "composite",
 ]
+RubricCriterionKind = Literal["required", "quality", "bonus"]
+
+
+class RubricCriterion(FrozenModel):
+    """One stable learner-facing rubric criterion."""
+
+    id: str
+    label: str
+    instruction: str
+    kind: RubricCriterionKind = "required"
 
 
 class EvidencePolicy(FrozenModel):
@@ -99,6 +109,7 @@ class LLMGradingDecision(FrozenModel):
     next_steps: str = ""
     failure_reason: str | None = None
     evidence_refs: list[str] = Field(default_factory=list)
+    criterion_results: list[CriterionResult] = Field(default_factory=list)
 
 
 class CompositeGraderConfig(FrozenModel):
@@ -125,7 +136,8 @@ class VerificationTask(FrozenModel):
     phase_id: int
     requirement_slug: str | None = None
     name: str
-    criteria: list[str] = Field(default_factory=list)
+    criteria: list[RubricCriterion | str] = Field(default_factory=list)
+    grading_instructions: list[str] = Field(default_factory=list)
     evidence: EvidencePolicy
     grader: GraderConfig
 
@@ -144,6 +156,7 @@ class GradingResult(FrozenModel):
     confidence: float | None = None
     rubric_version: str | None = None
     evidence_refs: list[str] = Field(default_factory=list)
+    criterion_results: list[CriterionResult] = Field(default_factory=list)
 
     def to_task_result(self) -> TaskResult:
         """Convert to the current public task feedback schema."""
@@ -152,6 +165,7 @@ class GradingResult(FrozenModel):
             passed=self.passed,
             feedback=self.feedback,
             next_steps=self.next_steps,
+            criterion_results=self.criterion_results,
         )
 
 

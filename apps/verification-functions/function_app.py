@@ -38,6 +38,7 @@ from learn_to_cloud_shared.verification.llm_grading import (
     LLMGradingRequest,
     llm_grading_content_filtered_result,
     llm_grading_unavailable_result,
+    validate_llm_grading_decision,
 )
 from learn_to_cloud_shared.verification.llm_grading import (
     apply_llm_grading_decisions as apply_llm_decisions,
@@ -68,6 +69,7 @@ from verification_agents import (
     LLM_OUTCOME_CONTENT_FILTERED,
     LLM_OUTCOME_ERROR,
     LLM_OUTCOME_SUCCESS,
+    LLM_RESPONSE_VALIDATION,
     ContentFilteredError,
     LLMGradingError,
     grade_evidence,
@@ -348,6 +350,16 @@ async def run_llm_grading(
         request = LLMGradingRequest.model_validate(_activity_payload(data["request"]))
         try:
             decision = await grade_evidence(request.message)
+            validate_llm_grading_decision(
+                request.task,
+                decision,
+                request.allowed_evidence_refs,
+            )
+        except ValueError:
+            return {
+                "outcome": LLM_OUTCOME_ERROR,
+                "error_type": LLM_RESPONSE_VALIDATION,
+            }
         except LLMGradingError as exc:
             return {
                 "outcome": LLM_OUTCOME_ERROR,

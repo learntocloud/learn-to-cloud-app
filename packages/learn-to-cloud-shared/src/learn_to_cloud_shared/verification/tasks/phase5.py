@@ -5,6 +5,7 @@ from __future__ import annotations
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidencePolicy,
     LLMRubricGraderConfig,
+    RubricCriterion,
     VerificationTask,
 )
 
@@ -41,53 +42,70 @@ DEVOPS_IMPLEMENTATION_RUBRIC_TASK = VerificationTask(
     requirement_slug=PHASE5_REQUIREMENT_SLUG,
     name="DevOps Implementation Review",
     criteria=[
+        RubricCriterion(
+            id="container-image",
+            label="Application container",
+            instruction=(
+                "The Dockerfile uses an appropriate Python base image, installs "
+                "dependencies reproducibly with uv, copies the app, exposes port "
+                "8000, and starts the API with uvicorn."
+            ),
+        ),
+        RubricCriterion(
+            id="delivery-workflow",
+            label="CI/CD workflow",
+            instruction=(
+                "CI/CD runs tests, builds and pushes the image, and deploys the "
+                "Kubernetes manifests from main or an equivalent protected flow."
+            ),
+        ),
+        RubricCriterion(
+            id="cloud-infrastructure",
+            label="Cloud infrastructure",
+            instruction=(
+                "Terraform provisions a container registry, managed Kubernetes, "
+                "managed PostgreSQL, and the role needed to pull images."
+            ),
+        ),
+        RubricCriterion(
+            id="kubernetes-runtime",
+            label="Kubernetes runtime",
+            instruction=(
+                "Kubernetes defines a Deployment and Service, injects secrets "
+                "without real committed credentials, and configures health probes "
+                "and port 8000 routing."
+            ),
+        ),
+        RubricCriterion(
+            id="delivery-coherence",
+            label="End-to-end coherence",
+            instruction=(
+                "CI builds the image Kubernetes deploys, Terraform provisions "
+                "referenced services, and container, probe, and Service ports agree."
+            ),
+        ),
+        RubricCriterion(
+            id="deployable-configuration",
+            label="Deployable and safe configuration",
+            instruction=(
+                "The files contain no hardcoded credentials, placeholder-only "
+                "resources, contradictions, or configurations that cannot "
+                "plausibly deploy the Journal API."
+            ),
+        ),
+    ],
+    grading_instructions=[
         (
-            "Review the supplied Dockerfile, CI/CD workflows, Terraform, and "
-            "Kubernetes manifests together as one production delivery system"
+            "Review the Dockerfile, CI/CD workflows, Terraform, and Kubernetes "
+            "manifests together as one production delivery system."
         ),
         (
-            "Dockerfile MUST use an appropriate Python base image, install "
-            "dependencies reproducibly with uv, copy the application, expose "
-            "port 8000, and start the API with uvicorn"
+            "Treat the required-files and public-GHCR checks as trusted passing "
+            "gates; do not re-grade whether files or the image exist."
         ),
         (
-            "CI/CD MUST run tests, build and push the application image, and "
-            "deploy the Kubernetes manifests from the main branch or an "
-            "equivalent protected delivery flow"
-        ),
-        (
-            "Terraform MUST provision the core cloud dependencies: container "
-            "registry, managed Kubernetes cluster, managed PostgreSQL, and the "
-            "IAM or role binding needed for the cluster to pull images"
-        ),
-        (
-            "Kubernetes MUST define a Deployment and Service, inject secrets "
-            "without committed real credentials, and configure health probes "
-            "and port routing for the API on port 8000"
-        ),
-        (
-            "The files MUST be coherent across boundaries: CI builds the image "
-            "the manifests deploy, Terraform provisions the services the "
-            "workflow and manifests reference, and container, probe, and "
-            "Service ports agree"
-        ),
-        (
-            "MUST reject hardcoded credentials, placeholder-only resources, "
-            "internally contradictory files, or configurations that cannot "
-            "plausibly build and deploy the Journal API"
-        ),
-        (
-            "MUST treat the required-files and public-GHCR checks as trusted "
-            "passing gates; do not re-grade whether files or the image exist"
-        ),
-        (
-            "Feedback MUST concisely summarize Dockerfile, CI/CD, Terraform, "
-            "Kubernetes, and overall coherence findings"
-        ),
-        (
-            "SHOULD accept equivalent valid cloud-provider syntax and file "
-            "organization when the supplied evidence clearly satisfies the "
-            "same operational requirements"
+            "Accept equivalent valid cloud-provider syntax and file organization "
+            "when the evidence satisfies the same operational requirements."
         ),
     ],
     evidence=EvidencePolicy(
@@ -99,8 +117,8 @@ DEVOPS_IMPLEMENTATION_RUBRIC_TASK = VerificationTask(
         max_total_bytes=PHASE5_MAX_TOTAL_CONTENT_BYTES,
     ),
     grader=LLMRubricGraderConfig(
-        rubric_id="phase5-devops-implementation-v1",
-        prompt_version="2026-07-15",
+        rubric_id="phase5-devops-implementation-v2",
+        prompt_version="2026-09-02",
         passing_score=0.8,
         model="gpt-5-mini",
     ),

@@ -8,7 +8,9 @@ avoids duplicated dict-building logic.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, cast
+from pathlib import PurePosixPath
+from typing import TYPE_CHECKING, Any, Literal
+from urllib.parse import quote, urlparse
 
 from learn_to_cloud_shared.schemas import (
     CareerReflectionRequirement,
@@ -315,12 +317,76 @@ _PERSISTED_SERVICE_ERROR_MESSAGE = (
 
 
 @dataclass(frozen=True, slots=True)
+class FeedbackEvidenceContext:
+    """One safe evidence label with an optional repository link."""
+
+    label: str
+    url: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class FeedbackCriterionContext:
+    """Learner-facing rubric criterion feedback."""
+
+    id: str
+    label: str
+    kind: Literal["required", "quality", "bonus"]
+    status: Literal["met", "not_met", "not_applicable"]
+    explanation: str
+    next_steps: str
+    evidence: tuple[FeedbackEvidenceContext, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class FeedbackTaskContext:
+    """One deterministic task or structured rubric review."""
+
+    name: str
+    passed: bool
+    message: str
+    next_steps: str
+    criteria: tuple[FeedbackCriterionContext, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class _RequirementCardBase:
     """Fields shared by every requirement-card state."""
 
     requirement: HandsOnRequirement
-    feedback_tasks: list[dict[str, Any]]
+    feedback_tasks: list[FeedbackTaskContext]
     feedback_passed: int
+
+    @property
+    def feedback_has_structured_criteria(self) -> bool:
+        return any(task.criteria for task in self.feedback_tasks)
+
+    @property
+    def feedback_required_total(self) -> int:
+        return sum(
+            criterion.kind == "required"
+            for task in self.feedback_tasks
+            for criterion in task.criteria
+        )
+
+    @property
+    def feedback_required_passed(self) -> int:
+        return sum(
+            criterion.kind == "required" and criterion.status == "met"
+            for task in self.feedback_tasks
+            for criterion in task.criteria
+        )
+
+    @property
+    def feedback_required_unmet(self) -> int:
+        return self.feedback_required_total - self.feedback_required_passed
+
+    @property
+    def feedback_suggestions(self) -> int:
+        return sum(
+            criterion.kind != "required" and criterion.status != "met"
+            for task in self.feedback_tasks
+            for criterion in task.criteria
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -367,6 +433,15 @@ class PassedCardContext(_RequirementCardBase):
     graded_url: str | None
     kind: Literal["passed"] = field(init=False, default="passed")
 
+    @property
+    def graded_label(self) -> str | None:
+        if not self.graded_url:
+            return None
+        parsed = urlparse(self.graded_url)
+        if parsed.netloc == "github.com":
+            return parsed.path.strip("/")
+        return parsed.netloc or self.graded_url
+
 
 type RequirementCardContext = (
     NotStartedCardContext
@@ -379,7 +454,7 @@ type RequirementCardContext = (
 
 def feedback_tasks_and_passed(
     feedback: dict[str, object] | None,
-) -> tuple[list[dict[str, Any]], int]:
+) -> tuple[list[FeedbackTaskContext], int]:
     """Extract ``(tasks, passed)`` from one ``feedback_by_req`` entry.
 
     ``PhaseSubmissionContext.feedback_by_req`` values are loosely typed
@@ -388,9 +463,52 @@ def feedback_tasks_and_passed(
     """
     if not feedback:
         return [], 0
-    tasks = cast("list[dict[str, Any]]", feedback.get("tasks", []))
-    passed = cast(int, feedback.get("passed", 0))
+    raw_tasks = feedback.get("tasks", [])
+    if not isinstance(raw_tasks, list):
+        return [], 0
+    tasks = [
+        FeedbackTaskContext(
+            name=str(task.get("name", "")),
+            passed=bool(task.get("passed", False)),
+            message=str(task.get("message", "")),
+            next_steps=str(task.get("next_steps", "")),
+            criteria=tuple(
+                _feedback_criterion(criterion)
+                for criterion in criteria
+                if isinstance(criterion, dict)
+            ),
+        )
+        for task in raw_tasks
+        if isinstance(task, dict)
+        and isinstance((criteria := task.get("criteria", [])), list)
+    ]
+    passed_value = feedback.get("passed", 0)
+    passed = passed_value if isinstance(passed_value, int) else 0
     return tasks, passed
+
+
+def _feedback_criterion(raw: object) -> FeedbackCriterionContext:
+    if not isinstance(raw, dict):
+        raise TypeError("Feedback criterion must be an object")
+    kind = raw.get("kind", "required")
+    if kind not in {"required", "quality", "bonus"}:
+        kind = "required"
+    status = raw.get("status", "not_met")
+    if status not in {"met", "not_met", "not_applicable"}:
+        status = "not_met"
+    raw_refs = raw.get("evidence_refs", [])
+    refs = raw_refs if isinstance(raw_refs, list) else []
+    return FeedbackCriterionContext(
+        id=str(raw.get("id", "")),
+        label=str(raw.get("label", "")),
+        kind=kind,
+        status=status,
+        explanation=str(raw.get("explanation", "")),
+        next_steps=str(raw.get("next_steps", "")),
+        evidence=tuple(
+            FeedbackEvidenceContext(label=str(reference)) for reference in refs
+        ),
+    )
 
 
 _URL_SCHEMES = ("https://", "http://")
@@ -468,10 +586,64 @@ def _build_verification_form_context(
 
 
 def _card_feedback(
-    feedback_tasks: list[dict[str, Any]] | None,
+    feedback_tasks: list[FeedbackTaskContext] | None,
     feedback_passed: int,
-) -> tuple[list[dict[str, Any]], int]:
-    return feedback_tasks or [], feedback_passed
+    graded_url: str | None = None,
+) -> tuple[list[FeedbackTaskContext], int]:
+    tasks = feedback_tasks or []
+    if graded_url:
+        tasks = [_link_task_evidence(task, graded_url) for task in tasks]
+    return tasks, feedback_passed
+
+
+def _link_task_evidence(
+    task: FeedbackTaskContext,
+    repository_url: str,
+) -> FeedbackTaskContext:
+    return FeedbackTaskContext(
+        name=task.name,
+        passed=task.passed,
+        message=task.message,
+        next_steps=task.next_steps,
+        criteria=tuple(
+            FeedbackCriterionContext(
+                id=criterion.id,
+                label=criterion.label,
+                kind=criterion.kind,
+                status=criterion.status,
+                explanation=criterion.explanation,
+                next_steps=criterion.next_steps,
+                evidence=tuple(
+                    FeedbackEvidenceContext(
+                        label=evidence.label,
+                        url=_repository_evidence_url(
+                            repository_url,
+                            evidence.label,
+                        ),
+                    )
+                    for evidence in criterion.evidence
+                ),
+            )
+            for criterion in task.criteria
+        ),
+    )
+
+
+def _repository_evidence_url(repository_url: str, reference: str) -> str | None:
+    parsed = urlparse(repository_url)
+    path_parts = [part for part in parsed.path.split("/") if part]
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "github.com"
+        or len(path_parts) != 2
+        or not reference
+        or any(character.isspace() for character in reference)
+    ):
+        return None
+    evidence_path = PurePosixPath(reference)
+    if evidence_path.is_absolute() or ".." in evidence_path.parts:
+        return None
+    return f"{repository_url.rstrip('/')}/blob/HEAD/{quote(reference, safe='/')}"
 
 
 def build_requirement_card_context(
@@ -479,18 +651,19 @@ def build_requirement_card_context(
     requirement: HandsOnRequirement,
     github_username: str,
     submission: SubmissionData | None = None,
-    feedback_tasks: list[dict[str, Any]] | None = None,
+    feedback_tasks: list[FeedbackTaskContext] | None = None,
     feedback_passed: int = 0,
 ) -> RequirementCardContext:
     """Build a card state from the latest persisted submission."""
-    tasks, passed = _card_feedback(feedback_tasks, feedback_passed)
+    graded_url = _graded_url(submission) if submission is not None else None
+    tasks, passed = _card_feedback(feedback_tasks, feedback_passed, graded_url)
     if submission is not None and submission.is_validated:
         return PassedCardContext(
             requirement=requirement,
             feedback_tasks=tasks,
             feedback_passed=passed,
             submission=submission,
-            graded_url=_graded_url(submission),
+            graded_url=graded_url,
         )
     verification_form = _build_verification_form_context(
         requirement,
@@ -528,7 +701,7 @@ def build_checking_requirement_card_context(
     requirement: HandsOnRequirement,
     verification_status_token: str | None,
     verification_status_delay_seconds: int,
-    feedback_tasks: list[dict[str, Any]] | None = None,
+    feedback_tasks: list[FeedbackTaskContext] | None = None,
     feedback_passed: int = 0,
 ) -> CheckingCardContext:
     """Build the active-attempt card variant."""

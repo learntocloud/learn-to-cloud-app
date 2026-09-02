@@ -283,7 +283,7 @@ async def test_phase_workspace_maps_safe_history_and_suppresses_reflection_feedb
     first = result.history.items[0]
     assert first.status_label == "Needs work"
     assert first.status_variant == "error"
-    assert first.feedback_tasks[0]["message"] == "Add the required file."
+    assert first.feedback_tasks[0].message == "Add the required file."
     assert first.completed_at == completed_at
     reflection = result.history.items[1]
     assert reflection.feedback_tasks == []

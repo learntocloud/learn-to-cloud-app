@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
 from learn_to_cloud_shared.content_service import get_curriculum_overview
@@ -26,6 +25,7 @@ from learn_to_cloud_shared.schemas import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud.rendering.context import (
+    FeedbackTaskContext,
     RequirementCardContext,
     build_checking_requirement_card_context,
     build_requirement_card_context,
@@ -113,7 +113,7 @@ class VerificationAttemptHistoryItem:
     requirement: HandsOnRequirement
     outcome: str
     validation_message: str | None
-    feedback_tasks: list[dict[str, Any]]
+    feedback_tasks: list[FeedbackTaskContext]
     feedback_passed: int
     completed_at: datetime | None
 
@@ -287,7 +287,7 @@ async def get_phase_verification_workspace(
         if requirement is None:
             continue
 
-        feedback_tasks: list[dict[str, Any]] = []
+        feedback_tasks: list[FeedbackTaskContext] = []
         feedback_passed = 0
         if requirement.submission_type != SubmissionType.CAREER_REFLECTION:
             feedback_context = feedback_context_from_json(attempt.feedback_json)

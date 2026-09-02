@@ -1,30 +1,28 @@
-<!-- Reusable AI verification feedback panel.
-     Used by all submission types that return task-level feedback
-     (DEVOPS_ANALYSIS, SECURITY_SCANNING, etc.)
-
-     A failing grade opens expanded (#699): the per-dimension rationale is the
-     only thing that tells a learner which rubric dimension failed and why, and
-     hiding it behind a click pushes them toward guess-and-resubmit. A passing
-     grade stays collapsed, but its header advertises any next_steps the grader
-     returned so the advice isn't lost — a verified requirement can't be
-     resubmitted, so this is the learner's only copy.
-
-     Required context:
-       feedback_tasks   – list of dicts with keys: name, passed, message
-       feedback_passed  – int count of passed tasks
-     Optional:
-       requirement_slug – used to scope IDs (default: 'default')
--->
+{# Shared verification feedback for current cards and attempt history. #}
 {% set total = feedback_tasks | length %}
 {% set failed = total - feedback_passed %}
 {% set all_passed = (feedback_passed == total) %}
-{% set suggestions = feedback_tasks | selectattr('next_steps') | list | length %}
+{% set counts = namespace(structured=false, required=0, required_met=0, suggestions=0) %}
+{% for task in feedback_tasks %}
+    {% if task.criteria %}
+        {% set counts.structured = true %}
+    {% endif %}
+    {% for criterion in task.criteria %}
+        {% if criterion.kind == 'required' %}
+            {% set counts.required = counts.required + 1 %}
+            {% if criterion.status == 'met' %}
+                {% set counts.required_met = counts.required_met + 1 %}
+            {% endif %}
+        {% elif criterion.status != 'met' %}
+            {% set counts.suggestions = counts.suggestions + 1 %}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
+{% set required_unmet = counts.required - counts.required_met %}
 {% set _panel_id = 'feedback-panel-' ~ (requirement_slug | default('default')) %}
 
 <div
-    class="mt-3 rounded-lg border
-           {% if all_passed %}border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20
-           {% else %}border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20{% endif %}"
+    class="mt-4 border-t {% if all_passed %}border-green-200 dark:border-green-800{% else %}border-red-200 dark:border-red-800{% endif %}"
     x-data="{ expanded: {{ 'false' if all_passed else 'true' }} }"
 >
     <button
@@ -32,68 +30,143 @@
         @click="expanded = !expanded"
         :aria-expanded="expanded"
         aria-controls="{{ _panel_id }}"
-        class="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium
-               {% if all_passed %}text-green-800 dark:text-green-200
-               {% else %}text-red-800 dark:text-red-200{% endif %}"
+        class="flex min-h-11 w-full items-center justify-between gap-3 py-3 text-left text-sm font-bold
+               {% if all_passed %}text-green-900 dark:text-green-100{% else %}text-red-900 dark:text-red-100{% endif %}
+               focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2
+               {% if all_passed %}focus-visible:outline-green-700{% else %}focus-visible:outline-red-700{% endif %}"
     >
-        <span class="flex items-center gap-2">
+        <span class="flex min-w-0 items-center gap-2">
             {% if all_passed %}
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-            All checks passed{% if suggestions %} — {{ suggestions }} suggestion{{ '' if suggestions == 1 else 's' }} to review{% endif %}
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
             {% else %}
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            {{ feedback_passed }}/{{ total }} checks passed — what to fix
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             {% endif %}
+            <span>
+                {% if counts.structured and all_passed %}
+                    {{ counts.required_met }} of {{ counts.required }} required checks passed
+                {% elif counts.structured and required_unmet %}
+                    {{ required_unmet }} required check{{ '' if required_unmet == 1 else 's' }} need attention
+                {% elif counts.structured %}
+                    Review the grading feedback
+                {% elif all_passed %}
+                    Review summary
+                {% else %}
+                    {{ feedback_passed }}/{{ total }} automated checks passed — what to fix
+                {% endif %}
+                {% if counts.suggestions %}
+                    <span class="font-medium"> · {{ counts.suggestions }} suggestion{{ '' if counts.suggestions == 1 else 's' }}</span>
+                {% endif %}
+            </span>
         </span>
         <svg
-            class="w-4 h-4 transition-transform duration-200"
+            class="h-4 w-4 shrink-0 transition-transform duration-200"
             :class="{ 'rotate-180': expanded }"
             fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"
         ><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
     </button>
 
     <div id="{{ _panel_id }}" x-show="expanded" x-collapse>
-        <div class="border-t {% if all_passed %}border-green-200 dark:border-green-800{% else %}border-red-200 dark:border-red-800{% endif %}">
-            <div class="max-h-64 overflow-y-auto px-4 py-2 space-y-2 scrollbar-thin">
-                {# Show failed tasks first for visibility #}
-                {% for task in feedback_tasks if not task.passed %}
-                <div class="flex items-start gap-2 text-sm py-1">
-                    <span class="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
-                        <span class="text-red-600 dark:text-red-400 text-xs font-bold">✗</span>
-                    </span>
-                    <div class="min-w-0">
-                        <span class="font-medium text-red-700 dark:text-red-300">{{ task.name }}</span>
-                        {% if task.message %}
-                        <p class="text-red-600 dark:text-red-400 mt-0.5 break-words">{{ task.message }}</p>
-                        {% endif %}
-                        {% if task.next_steps %}
-                        <p class="text-amber-600 dark:text-amber-400 mt-1 text-xs italic break-words">➔ {{ task.next_steps }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
+        <div class="space-y-5 pb-2 pt-1">
+            {% for task in feedback_tasks if task.criteria and task.message %}
+            <p class="max-w-3xl text-sm leading-6 text-gray-700 dark:text-gray-300">{{ task.message }}</p>
+            {% endfor %}
 
-                {% if failed > 0 and feedback_passed > 0 %}
-                <hr class="border-gray-200 dark:border-gray-700 my-1">
+            {% if counts.structured %}
+            <section aria-label="Required checks">
+                <h4 class="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Required checks</h4>
+                <div class="mt-2 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for task in feedback_tasks %}
+                    {% for criterion in task.criteria if criterion.kind == 'required' %}
+                    <div class="flex items-start gap-3 py-3">
+                        <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full
+                                     {% if criterion.status == 'met' %}bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300
+                                     {% else %}bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300{% endif %}"
+                              aria-hidden="true">
+                            {{ '✓' if criterion.status == 'met' else '✕' }}
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ criterion.label or criterion.id }}</p>
+                            {% if criterion.explanation %}
+                            <p class="mt-1 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">{{ criterion.explanation }}</p>
+                            {% endif %}
+                            {% if criterion.next_steps %}
+                            <p class="mt-2 max-w-3xl text-sm font-medium leading-6 text-amber-800 dark:text-amber-300">
+                                Next step: {{ criterion.next_steps }}
+                            </p>
+                            {% endif %}
+                            {% if criterion.evidence %}
+                            <details class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                <summary class="cursor-pointer font-medium underline underline-offset-4">Evidence reviewed</summary>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    {% for evidence in criterion.evidence %}
+                                        {% if evidence.url %}
+                                        <a href="{{ evidence.url }}" target="_blank" rel="noopener noreferrer" class="rounded bg-gray-100 px-2 py-1 font-mono text-blue-700 hover:underline dark:bg-gray-800 dark:text-blue-300">{{ evidence.label }}</a>
+                                        {% else %}
+                                        <span class="rounded bg-gray-100 px-2 py-1 font-mono dark:bg-gray-800">{{ evidence.label }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </details>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endfor %}
+                </div>
+            </section>
+
+            {% if counts.suggestions %}
+            <section aria-label="Suggestions">
+                <h4 class="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Suggestions</h4>
+                <div class="mt-2 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for task in feedback_tasks %}
+                    {% for criterion in task.criteria if criterion.kind != 'required' and criterion.status != 'met' %}
+                    <div class="flex items-start gap-3 py-3">
+                        <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300" aria-hidden="true">→</span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ criterion.label or criterion.id }}</p>
+                            {% if criterion.explanation %}
+                            <p class="mt-1 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">{{ criterion.explanation }}</p>
+                            {% endif %}
+                            {% if criterion.next_steps %}
+                            <p class="mt-2 max-w-3xl text-sm font-medium leading-6 text-amber-800 dark:text-amber-300">{{ criterion.next_steps }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+            {% endif %}
+
+            {% set legacy = feedback_tasks | rejectattr('criteria') | list %}
+            {% if legacy %}
+            <section aria-label="Automated checks">
+                {% if counts.structured %}
+                <h4 class="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Automated checks</h4>
                 {% endif %}
-
-                {% for task in feedback_tasks if task.passed %}
-                <div class="flex items-start gap-2 text-sm py-1">
-                    <span class="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                        <span class="text-green-600 dark:text-green-400 text-xs font-bold">✓</span>
-                    </span>
-                    <div class="min-w-0">
-                        <span class="font-medium text-gray-700 dark:text-gray-300">{{ task.name }}</span>
-                        {% if task.message %}
-                        <p class="text-gray-500 dark:text-gray-400 mt-0.5 break-words">{{ task.message }}</p>
-                        {% endif %}
-                        {% if task.next_steps %}
-                        <p class="text-amber-600 dark:text-amber-400 mt-1 text-xs italic break-words">➔ {{ task.next_steps }}</p>
-                        {% endif %}
+                <div class="{% if counts.structured %}mt-2{% endif %} divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for task in legacy | sort(attribute='passed') %}
+                    <div class="flex items-start gap-3 py-3 text-sm">
+                        <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full
+                                     {% if task.passed %}bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300
+                                     {% else %}bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300{% endif %}"
+                              aria-hidden="true">{{ '✓' if task.passed else '✕' }}</span>
+                        <div class="min-w-0">
+                            <p class="font-bold text-gray-900 dark:text-gray-100">{{ task.name }}</p>
+                            {% if task.message %}
+                            <p class="mt-1 max-w-3xl leading-6 text-gray-600 dark:text-gray-300">{{ task.message }}</p>
+                            {% endif %}
+                            {% if task.next_steps %}
+                            <p class="mt-2 font-medium leading-6 text-amber-800 dark:text-amber-300">Next step: {{ task.next_steps }}</p>
+                            {% endif %}
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
-            </div>
+            </section>
+            {% endif %}
         </div>
     </div>
 </div>

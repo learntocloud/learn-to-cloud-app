@@ -13,6 +13,7 @@ from learn_to_cloud.rendering.context import (
     COMMUNITY_LINKS,
     HELP_LINKS,
     build_requirement_card_context,
+    feedback_tasks_and_passed,
 )
 
 _ENV = templates.env
@@ -126,7 +127,7 @@ def test_failing_feedback_panel_opens_by_default():
     )
 
     assert 'x-data="{ expanded: true }"' in html
-    assert "1/2 checks passed — what to fix" in html
+    assert "1/2 automated checks passed — what to fix" in html
     assert "No structured logging found." in html
     assert "Add a logger to the create endpoint." in html
 
@@ -142,7 +143,7 @@ def test_passing_feedback_panel_stays_collapsed():
     )
 
     assert 'x-data="{ expanded: false }"' in html
-    assert "All checks passed" in html
+    assert "Review summary" in html
     assert "suggestion" not in html
 
 
@@ -164,7 +165,7 @@ def test_passing_feedback_panel_keeps_next_steps():
         requirement_slug="journal-api-implementation",
     )
 
-    assert "All checks passed — 1 suggestion to review" in html
+    assert "Review summary" in html
     assert "Consider parsing the LLM JSON more defensively." in html
 
 
@@ -180,9 +181,105 @@ def test_passing_feedback_panel_pluralizes_suggestions():
         requirement_slug="journal-api-implementation",
     )
 
-    assert "All checks passed — 2 suggestions to review" in html
+    assert "Review summary" in html
     assert "do x" in html
     assert "do y" in html
+
+
+@pytest.mark.unit
+def test_structured_feedback_uses_required_counts_and_groups_suggestions():
+    html = _render(
+        "partials/verification_feedback.html",
+        feedback_tasks=[
+            {
+                "name": "Journal API review",
+                "passed": True,
+                "message": "The implementation meets the required rubric.",
+                "criteria": [
+                    {
+                        "id": "logging",
+                        "label": "Application logging",
+                        "kind": "required",
+                        "status": "met",
+                        "explanation": "Logging is configured in api/main.py.",
+                        "next_steps": "",
+                        "evidence": [{"label": "api/main.py", "url": None}],
+                    },
+                    {
+                        "id": "validation",
+                        "label": "Request validation",
+                        "kind": "required",
+                        "status": "met",
+                        "explanation": "Typed request models validate input.",
+                        "next_steps": "",
+                        "evidence": [],
+                    },
+                    {
+                        "id": "clarity",
+                        "label": "Pythonic clarity",
+                        "kind": "quality",
+                        "status": "not_met",
+                        "explanation": "One dependency is implicit.",
+                        "next_steps": "Inject the dependency explicitly.",
+                        "evidence": [],
+                    },
+                ],
+            }
+        ],
+        feedback_passed=1,
+        requirement_slug="journal-api-implementation",
+    )
+
+    assert "2 of 2 required checks passed" in html
+    assert "1 suggestion" in html
+    assert "Required checks" in html
+    assert "Suggestions" in html
+    assert "Application logging" in html
+    assert "Evidence reviewed" in html
+
+
+@pytest.mark.unit
+def test_verified_feedback_links_only_safe_repository_evidence():
+    tasks, passed = feedback_tasks_and_passed(
+        {
+            "tasks": [
+                {
+                    "name": "Journal API review",
+                    "passed": True,
+                    "message": "The implementation passed.",
+                    "criteria": [
+                        {
+                            "id": "logging",
+                            "label": "Application logging",
+                            "kind": "required",
+                            "status": "met",
+                            "explanation": "Logging is configured.",
+                            "evidence_refs": ["api/main.py", "../secret", "CI status"],
+                        }
+                    ],
+                }
+            ],
+            "passed": 1,
+        }
+    )
+    card = build_requirement_card_context(
+        requirement=_requirement("journal-api", "Journal API"),
+        github_username="tester",
+        submission=_submission(
+            is_validated=True,
+            verification_completed=True,
+            submitted_value="https://github.com/tester/journal-starter",
+        ),
+        feedback_tasks=tasks,
+        feedback_passed=passed,
+    )
+
+    html = _render("partials/verified_requirement_row.html", card=card)
+
+    assert "tester/journal-starter" in html
+    assert "https://github.com/tester/journal-starter/blob/HEAD/api/main.py" in html
+    assert "blob/HEAD/../secret" not in html
+    assert "blob/HEAD/CI%20status" not in html
 
 
 @pytest.mark.unit
@@ -226,7 +323,7 @@ class TestPhaseVerificationLocked:
 
         assert 'id="requirement-security-scanning"' in html
         assert "Enable Security Scanning" in html
-        assert "text-green-800 dark:text-green-200" in html
+        assert "text-green-900 dark:text-green-100" in html
         # The gating banner still appears for the phase overall.
         assert "Phase 5 verification required" in html
 
@@ -248,7 +345,7 @@ class TestPhaseVerificationLocked:
         html = self._render_phase([done, todo], {"security-scanning": submission})
 
         assert 'id="requirement-security-scanning"' in html
-        assert "text-green-800 dark:text-green-200" in html  # the validated one
+        assert "text-green-900 dark:text-green-100" in html
         assert "Locked" in html
 
 
@@ -382,7 +479,7 @@ class TestPhaseVerificationCardStates:
         # A passed requirement renders via the verified row, not the
         # full interactive card -- see partials/verified_requirement_row.html.
         assert 'id="requirement-ci-status"' in html
-        assert "text-green-800 dark:text-green-200" in html
+        assert "text-green-900 dark:text-green-100" in html
         assert "Verified" in html
 
     def test_passed_keeps_requirement_context_visible(self):
@@ -457,18 +554,24 @@ class TestPhaseVerificationCardStates:
             verification_completed=True,
             validation_message="The implementation needs work.",
         )
+        feedback_tasks, feedback_passed = feedback_tasks_and_passed(
+            {
+                "tasks": [
+                    {
+                        "name": "Logging",
+                        "passed": False,
+                        "message": "Structured logging is missing.",
+                    }
+                ],
+                "passed": 0,
+            }
+        )
         card = build_requirement_card_context(
             requirement=req,
             github_username="tester",
             submission=submission,
-            feedback_tasks=[
-                {
-                    "name": "Logging",
-                    "passed": False,
-                    "message": "Structured logging is missing.",
-                }
-            ],
-            feedback_passed=0,
+            feedback_tasks=feedback_tasks,
+            feedback_passed=feedback_passed,
         )
 
         html = _render("partials/requirement_card.html", card=card)
