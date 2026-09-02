@@ -424,7 +424,6 @@ async def htmx_verification_attempt_status(
                 "attempt_id": token_data.job_id,
                 "error_type": type(exc).__name__,
                 "failure_kind": exc.failure_kind.value,
-                "retryable": exc.retryable,
                 "status_code": exc.status_code,
             },
         )

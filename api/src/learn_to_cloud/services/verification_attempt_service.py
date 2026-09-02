@@ -37,12 +37,9 @@ from learn_to_cloud.services.verification_status_tokens import (
 logger = logging.getLogger(__name__)
 
 _DURABLE_START_ERROR_MESSAGE = (
-    "Verification could not be started. This attempt was not counted, please try again."
-)
-_DURABLE_UNAVAILABLE_ERROR_MESSAGE = (
-    "Verification is temporarily unavailable because of a problem on our side, "
-    "not something you did. Retrying won't fix it. Please report it by opening "
-    "an issue at https://github.com/learntocloud/learn-to-cloud-app/issues."
+    "Verification could not be started because of a problem with the verification "
+    "service. This attempt was not counted. Please try again later or report the "
+    "issue if it keeps failing."
 )
 _ACTIVE_DURABLE_STATUSES = {"pending", "running", "continuedasnew"}
 _TERMINAL_DURABLE_STATUSES = {"completed", "failed", "terminated", "canceled"}
@@ -139,7 +136,6 @@ async def _start_verification_attempt(
                 "attempt_id": str(attempt_submission.attempt_id),
                 "error_type": type(exc).__name__,
                 "failure_kind": exc.failure_kind.value,
-                "retryable": exc.retryable,
                 "status_code": exc.status_code,
             },
         )
@@ -152,11 +148,7 @@ async def _start_verification_attempt(
         )
         return VerificationStartResult(
             status_token=None,
-            unavailable_message=(
-                _DURABLE_START_ERROR_MESSAGE
-                if exc.retryable
-                else _DURABLE_UNAVAILABLE_ERROR_MESSAGE
-            ),
+            unavailable_message=_DURABLE_START_ERROR_MESSAGE,
         )
 
 

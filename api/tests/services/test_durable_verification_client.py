@@ -100,12 +100,11 @@ async def test_start_http_error_raises_start_error() -> None:
         pytest.raises(DurableVerificationStartError, match="HTTP 500") as caught,
     ):
         await start_verification_attempt_orchestration(uuid4())
-    assert caught.value.failure_kind is DurableFailureKind.HTTP_RETRYABLE
-    assert caught.value.retryable is True
+    assert caught.value.failure_kind is DurableFailureKind.HTTP
     assert caught.value.status_code == 500
 
 
-async def test_start_rejected_http_error_is_not_retryable() -> None:
+async def test_start_rejected_http_error_keeps_status_code() -> None:
     _, context_manager = _async_client(httpx.Response(400, json={"error": "boom"}))
 
     with (
@@ -124,8 +123,8 @@ async def test_start_rejected_http_error_is_not_retryable() -> None:
         pytest.raises(DurableVerificationStartError) as caught,
     ):
         await start_verification_attempt_orchestration(uuid4())
-    assert caught.value.failure_kind is DurableFailureKind.HTTP_REJECTED
-    assert caught.value.retryable is False
+    assert caught.value.failure_kind is DurableFailureKind.HTTP
+    assert caught.value.status_code == 400
 
 
 async def test_start_invalid_json_is_protocol_error() -> None:
@@ -148,7 +147,6 @@ async def test_start_invalid_json_is_protocol_error() -> None:
     ):
         await start_verification_attempt_orchestration(uuid4())
     assert caught.value.failure_kind is DurableFailureKind.PROTOCOL
-    assert caught.value.retryable is False
 
 
 async def test_gets_attempt_status() -> None:

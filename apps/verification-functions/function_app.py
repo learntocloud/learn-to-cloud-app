@@ -875,7 +875,6 @@ async def _emit_stuck_if_active(
             "attempt_id": str(attempt_id),
             "verification.attempt.id": str(attempt_id),
             "verification.failure.stage": "reconciliation",
-            "verification.retryable": True,
             "durable_status": durable_status,
             "stuck_reason": reason,
             "attempt_age_seconds": int((reference - age_anchor).total_seconds()),
