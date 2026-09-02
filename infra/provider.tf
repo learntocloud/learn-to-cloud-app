@@ -1,6 +1,6 @@
 terraform {
   # >= 1.12 is required for expressions in import block ids.
-  required_version = "~> 1.14"
+  required_version = "~> 1.16"
 
   required_providers {
     azurerm = {
