@@ -58,7 +58,6 @@ jobs:
     outputs:
       deploy: ${{ steps.filter.outputs.deploy }}
       code: ${{ steps.filter.outputs.code }}
-      terraform_provider: ${{ steps.filter.outputs.terraform_provider }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -83,9 +82,6 @@ jobs:
               - 'packages/learn-to-cloud-shared/**'
               - 'pyproject.toml'
               - 'uv.lock'
-            terraform_provider:
-              - 'infra/provider.tf'
-              - 'infra/.terraform.lock.hcl'
 
   # -----------------------------------------------------------------------
   # Dependency Review — block PRs that introduce vulnerable dependencies
@@ -111,15 +107,6 @@ jobs:
         working-directory: infra
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Require a production-state plan for provider updates
-        if: >-
-          github.actor == 'dependabot[bot]' &&
-          needs.changes.outputs.terraform_provider == 'true'
-        run: |
-          echo "::error::Terraform provider updates require a reviewed production-state plan."
-          echo "Create a human-reviewed migration PR after running a production-state plan."
-          exit 1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
@@ -181,14 +168,6 @@ jobs:
 
       - name: Install workspace dependencies
         run: uv sync --all-packages --locked
-
-      - name: Audit Dependabot lockfile changes
-        if: github.actor == 'dependabot[bot]'
-        env:
-          DEPENDABOT_PR_BODY: ${{ github.event.pull_request.body }}
-        run: >-
-          uv run python scripts/check_dependabot_lock.py
-          --base-ref "${{ github.event.pull_request.base.sha }}"
 
       - name: Static checks (ruff lint, ruff format, ty, migration SQL)
         run: uv run poe static

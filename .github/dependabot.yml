@@ -76,17 +76,4 @@ updates:
         patterns:
           - "*"
 
-  # Terraform providers
-  - package-ecosystem: "terraform"
-    directory: "/infra"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore(deps):"
-    labels:
-      - "dependencies"
-      - "terraform"
-    groups:
-      terraform-all:
-        patterns:
-          - "*"
+# Terraform provider upgrades are handled manually after a production-state plan.
