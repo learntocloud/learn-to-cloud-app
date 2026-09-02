@@ -88,8 +88,6 @@ def render_unavailable(
     current_user: AuthenticatedUser,
     requirement: HandsOnRequirement,
     message: str,
-    *,
-    retryable: bool,
 ) -> HTMLResponse:
     return render_requirement_card(
         request,
@@ -97,7 +95,6 @@ def render_unavailable(
             requirement=requirement,
             github_username=current_user.github_username,
             message=message,
-            retryable=retryable,
         ),
     )
 

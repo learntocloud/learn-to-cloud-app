@@ -215,7 +215,6 @@ async def _submit_canonical_verification(
                 "An unexpected error occurred during verification. "
                 "This attempt was not counted, please try again."
             ),
-            retryable=True,
         )
 
     if result.status_token is not None:
@@ -231,7 +230,6 @@ async def _submit_canonical_verification(
         requirement,
         result.unavailable_message
         or "Verification could not be started. Please try again.",
-        retryable=result.retryable,
     )
 
 
@@ -456,7 +454,6 @@ async def htmx_verification_attempt_status(
             current_user,
             requirement,
             _DURABLE_TERMINAL_ERROR_MESSAGE,
-            retryable=False,
         )
 
     if result.kind is VerificationPollKind.RELOAD:

@@ -55,7 +55,6 @@ class VerificationStartResult:
 
     status_token: str | None
     unavailable_message: str | None = None
-    retryable: bool = False
 
 
 class VerificationPollKind(StrEnum):
@@ -158,7 +157,6 @@ async def _start_verification_attempt(
                 if exc.retryable
                 else _DURABLE_UNAVAILABLE_ERROR_MESSAGE
             ),
-            retryable=exc.retryable,
         )
 
 

@@ -640,14 +640,13 @@ class TestHtmxSubmitVerification:
         _, _, context = _patch_templates.TemplateResponse.call_args.args
         card = context["card"]
         assert isinstance(card, UnavailableCardContext)
-        assert card.retryable is False
         assert "open" in card.message.lower()
         assert "github.com/learntocloud/learn-to-cloud-app/issues" in card.message
         assert "immediately" not in card.message
         assert "team has been notified" not in card.message
 
     async def test_durable_start_error_invites_retry(self, _patch_templates):
-        """A transient start error should still mark the banner retryable."""
+        """A transient start error should tell the learner to retry."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
         attempt_submission = _mock_attempt_submission(created=True)
@@ -688,7 +687,7 @@ class TestHtmxSubmitVerification:
         _, _, context = _patch_templates.TemplateResponse.call_args.args
         card = context["card"]
         assert isinstance(card, UnavailableCardContext)
-        assert card.retryable is True
+        assert "please try again" in card.message.lower()
         terminalize.assert_awaited_once()
 
     async def test_async_submit_still_returns_processing_card(self):
@@ -1080,7 +1079,6 @@ class TestHtmxVerificationAttemptStatus:
         _, _, context = _patch_templates.TemplateResponse.call_args.args
         card = context["card"]
         assert isinstance(card, UnavailableCardContext)
-        assert card.retryable is False
         assert (
             card.message
             == "Verification failed because the verification service hit an internal "

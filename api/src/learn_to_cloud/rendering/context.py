@@ -351,11 +351,10 @@ class FailedCardContext(_RequirementCardBase):
 
 @dataclass(frozen=True, slots=True)
 class UnavailableCardContext(_RequirementCardBase):
-    """A retryable or terminal verification-service failure."""
+    """A verification-service failure."""
 
     verification_form: VerificationFormContext
     message: str
-    retryable: bool
     kind: Literal["unavailable"] = field(init=False, default="unavailable")
 
 
@@ -520,7 +519,6 @@ def build_requirement_card_context(
         feedback_passed=passed,
         verification_form=verification_form,
         message=_PERSISTED_SERVICE_ERROR_MESSAGE,
-        retryable=True,
     )
 
 
@@ -568,7 +566,6 @@ def build_unavailable_requirement_card_context(
     requirement: HandsOnRequirement,
     github_username: str,
     message: str,
-    retryable: bool,
 ) -> UnavailableCardContext:
     """Build an explicit verification-service failure card."""
     return UnavailableCardContext(
@@ -581,7 +578,6 @@ def build_unavailable_requirement_card_context(
             None,
         ),
         message=message,
-        retryable=retryable,
     )
 
 

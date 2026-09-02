@@ -424,8 +424,6 @@ class TestBuildRequirementCardContextCardState:
             requirement=req,
             github_username="alice",
             message="Verification could not be started.",
-            retryable=False,
         )
         assert ctx.kind == "unavailable"
         assert ctx.message == "Verification could not be started."
-        assert ctx.retryable is False

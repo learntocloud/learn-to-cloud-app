@@ -370,8 +370,8 @@ class TestPhaseVerificationCardStates:
         html = self._render_phase([req], {"ci-status": submission})
         assert "Service unavailable" in html
         assert "Needs work" not in html
-        assert "not counted against your rate limit" in html
-        assert html.count("not counted against your rate limit") == 1
+        assert "a problem on our side, not something you did" in html
+        assert "not counted against your rate limit" not in html
 
     def test_passed_shows_verified_pill(self):
         req = _requirement("ci-status", "CI Status")
