@@ -39,6 +39,9 @@ from learn_to_cloud.services.submissions_service import (
     feedback_context_from_json,
     get_phase_submission_context,
 )
+from learn_to_cloud.services.verification_attempt_service import (
+    INITIAL_VERIFICATION_STATUS_DELAY_SECONDS,
+)
 from learn_to_cloud.services.verification_status_tokens import (
     create_verification_status_token,
 )
@@ -256,6 +259,9 @@ async def get_phase_verification_workspace(
                 build_checking_requirement_card_context(
                     requirement=requirement,
                     verification_status_token=status_token,
+                    verification_status_delay_seconds=(
+                        INITIAL_VERIFICATION_STATUS_DELAY_SECONDS
+                    ),
                     feedback_tasks=feedback_tasks,
                     feedback_passed=feedback_passed,
                 )

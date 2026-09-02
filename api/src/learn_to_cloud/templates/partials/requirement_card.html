@@ -38,10 +38,7 @@
     {% elif card.kind != 'passed' %}
     {% if card.kind == 'unavailable' %}
     {{ banner(
-        card.message
-        + (' This attempt was not counted against your rate limit, so you can try again immediately.'
-           if card.retryable
-           else ' This attempt was not counted against your rate limit.'),
+        card.message,
         'warning',
         report=true,
         report_title='Verification error: ' ~ card.requirement.name,

@@ -7,7 +7,11 @@ from enum import StrEnum
 from typing import Annotated, Literal
 
 from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.schemas import CareerReflectionQuestion
+from learn_to_cloud_shared.schemas import (
+    CareerReflectionQuestion,
+    CareerReflectionRequirement,
+)
+from learn_to_cloud_shared.submission_values import MAX_TEXT_LENGTH
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 MAX_SUBMITTED_VALUE_LENGTH = 2_048
@@ -166,3 +170,37 @@ class ReflectionVerificationForm(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     answers: list[ReflectionAnswer] = Field(min_length=1)
+
+
+def combine_reflection_answers(
+    requirement: CareerReflectionRequirement,
+    answers: list[str],
+) -> str:
+    """Validate and label reflection answers for grading."""
+    questions = list(requirement.type_config.questions)
+    min_length = requirement.type_config.min_answer_length
+    cleaned = [answer.strip() for answer in answers]
+
+    if len(cleaned) != len(questions):
+        raise ValueError("Please answer all of the reflection questions.")
+
+    sections: list[str] = []
+    for question, answer in zip(questions, cleaned, strict=True):
+        if len(answer) < min_length:
+            raise ValueError(
+                f"Each answer needs at least {min_length} characters. "
+                "Add more detail and try again."
+            )
+        if len(answer) > MAX_REFLECTION_ANSWER_LENGTH:
+            raise ValueError(
+                "One of your answers is too long. Please keep each answer "
+                f"under {MAX_REFLECTION_ANSWER_LENGTH} characters."
+            )
+        sections.append(f"## {question.prompt}\n\n{answer}")
+
+    combined = "\n\n".join(sections)
+    if len(combined) > MAX_TEXT_LENGTH:
+        raise ValueError(
+            f"Your combined answers must be at most {MAX_TEXT_LENGTH} characters."
+        )
+    return combined

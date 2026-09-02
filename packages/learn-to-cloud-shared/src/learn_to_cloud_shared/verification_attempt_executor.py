@@ -289,17 +289,6 @@ def _failure_stage(state: AttemptTerminalState) -> str | None:
     return None
 
 
-def _is_retryable(state: AttemptTerminalState) -> bool:
-    if state.outcome != VerificationAttemptOutcome.SERVER_ERROR.value:
-        return False
-    return state.error_code not in {
-        "durable_authentication_error",
-        "durable_configuration_error",
-        "durable_http_rejected_error",
-        "durable_protocol_error",
-    }
-
-
 def _log_canonical_completion(result: FinalizeResult) -> None:
     if not result.won:
         return
@@ -309,7 +298,6 @@ def _log_canonical_completion(result: FinalizeResult) -> None:
         "verification.outcome": state.outcome,
         "verification.error.code": state.error_code,
         "verification.terminal.source": state.terminal_source,
-        "verification.retryable": _is_retryable(state),
     }
     failure_stage = _failure_stage(state)
     if failure_stage is not None:

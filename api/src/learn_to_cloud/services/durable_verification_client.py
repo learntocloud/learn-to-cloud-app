@@ -19,8 +19,7 @@ class DurableFailureKind(StrEnum):
     CONFIGURATION = "configuration"
     AUTHENTICATION = "authentication"
     TRANSPORT = "transport"
-    HTTP_RETRYABLE = "http_retryable"
-    HTTP_REJECTED = "http_rejected"
+    HTTP = "http"
     PROTOCOL = "protocol"
 
 
@@ -32,12 +31,10 @@ class DurableVerificationError(Exception):
         message: str,
         *,
         failure_kind: DurableFailureKind,
-        retryable: bool,
         status_code: int | None = None,
     ) -> None:
         super().__init__(message)
         self.failure_kind = failure_kind
-        self.retryable = retryable
         self.status_code = status_code
 
     @property
@@ -52,7 +49,6 @@ class DurableVerificationConfigError(DurableVerificationError):
         super().__init__(
             message,
             failure_kind=DurableFailureKind.CONFIGURATION,
-            retryable=False,
         )
 
 
@@ -64,13 +60,11 @@ class DurableVerificationStartError(DurableVerificationError):
         message: str,
         *,
         failure_kind: DurableFailureKind = DurableFailureKind.TRANSPORT,
-        retryable: bool = True,
         status_code: int | None = None,
     ) -> None:
         super().__init__(
             message,
             failure_kind=failure_kind,
-            retryable=retryable,
             status_code=status_code,
         )
 
@@ -83,13 +77,11 @@ class DurableVerificationStatusError(DurableVerificationError):
         message: str,
         *,
         failure_kind: DurableFailureKind = DurableFailureKind.TRANSPORT,
-        retryable: bool = True,
         status_code: int | None = None,
     ) -> None:
         super().__init__(
             message,
             failure_kind=failure_kind,
-            retryable=retryable,
             status_code=status_code,
         )
 
@@ -101,14 +93,7 @@ class DurableVerificationAuthError(DurableVerificationError):
         super().__init__(
             message,
             failure_kind=DurableFailureKind.AUTHENTICATION,
-            retryable=False,
         )
-
-
-def _http_failure_kind(status_code: int) -> tuple[DurableFailureKind, bool]:
-    if status_code in {408, 425, 429} or status_code >= 500:
-        return DurableFailureKind.HTTP_RETRYABLE, True
-    return DurableFailureKind.HTTP_REJECTED, False
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,15 +122,12 @@ async def _post_start_request(
         raise DurableVerificationStartError(
             "Durable starter request failed.",
             failure_kind=DurableFailureKind.TRANSPORT,
-            retryable=True,
         ) from exc
 
     if response.status_code >= 400:
-        failure_kind, retryable = _http_failure_kind(response.status_code)
         raise DurableVerificationStartError(
             f"Durable starter returned HTTP {response.status_code}",
-            failure_kind=failure_kind,
-            retryable=retryable,
+            failure_kind=DurableFailureKind.HTTP,
             status_code=response.status_code,
         )
 
@@ -155,7 +137,6 @@ async def _post_start_request(
         raise DurableVerificationStartError(
             "Durable starter returned invalid JSON.",
             failure_kind=DurableFailureKind.PROTOCOL,
-            retryable=False,
         ) from exc
 
     instance_id = payload.get("id")
@@ -163,7 +144,6 @@ async def _post_start_request(
         raise DurableVerificationStartError(
             "Durable starter response did not include an instance ID.",
             failure_kind=DurableFailureKind.PROTOCOL,
-            retryable=False,
         )
 
     return DurableStartResult(instance_id=instance_id)
@@ -204,15 +184,12 @@ async def get_verification_attempt_status(
         raise DurableVerificationStatusError(
             "Durable status request failed.",
             failure_kind=DurableFailureKind.TRANSPORT,
-            retryable=True,
         ) from exc
 
     if response.status_code >= 400:
-        failure_kind, retryable = _http_failure_kind(response.status_code)
         raise DurableVerificationStatusError(
             f"Durable status returned HTTP {response.status_code}",
-            failure_kind=failure_kind,
-            retryable=retryable,
+            failure_kind=DurableFailureKind.HTTP,
             status_code=response.status_code,
         )
 
@@ -222,7 +199,6 @@ async def get_verification_attempt_status(
         raise DurableVerificationStatusError(
             "Durable status returned invalid JSON.",
             failure_kind=DurableFailureKind.PROTOCOL,
-            retryable=False,
         ) from exc
 
     runtime_status = payload.get("runtimeStatus")
@@ -230,7 +206,6 @@ async def get_verification_attempt_status(
         raise DurableVerificationStatusError(
             "Durable status response did not include runtimeStatus.",
             failure_kind=DurableFailureKind.PROTOCOL,
-            retryable=False,
         )
 
     return DurableStatusResult(
