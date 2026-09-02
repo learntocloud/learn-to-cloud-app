@@ -15,7 +15,7 @@ These are unit tests: no HTTP client, no real OAuth, no database.
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
+import httpx2
 import pytest
 from authlib.integrations.starlette_client import OAuthError
 from fastapi.responses import RedirectResponse
@@ -195,11 +195,11 @@ class TestCallbackRoute:
         assert "user_id" not in request.session
 
     async def test_callback_handles_connect_timeout_on_token_exchange(self):
-        """httpx.ConnectTimeout during token exchange redirects to / (not 500)."""
+        """httpx2.ConnectTimeout during token exchange redirects to / (not 500)."""
         request = _mock_request(session={})
         mock_github = MagicMock()
         mock_github.authorize_access_token = AsyncMock(
-            side_effect=httpx.ConnectTimeout("connect timed out")
+            side_effect=httpx2.ConnectTimeout("connect timed out")
         )
 
         with patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth:
@@ -213,14 +213,14 @@ class TestCallbackRoute:
         assert "user_id" not in request.session
 
     async def test_callback_handles_connect_timeout_on_profile_fetch(self):
-        """httpx.ConnectTimeout fetching the user profile redirects to / (not 500)."""
+        """httpx2.ConnectTimeout fetching the user profile redirects to / (not 500)."""
         request = _mock_request(session={})
         mock_github = MagicMock()
         mock_github.authorize_access_token = AsyncMock(
             return_value={"access_token": "gho_fake"}
         )
         mock_github.get = AsyncMock(
-            side_effect=httpx.ConnectTimeout("connect timed out")
+            side_effect=httpx2.ConnectTimeout("connect timed out")
         )
 
         with patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth:

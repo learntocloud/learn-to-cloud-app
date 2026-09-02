@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 
 import httpx
 import openai
 import pytest
+from agent_framework import Agent
+from agent_framework.foundry import FoundryChatClient
 
 import verification_agents
 from verification_agents import (
@@ -16,6 +19,20 @@ from verification_agents import (
     classify_llm_error,
     grade_evidence,
 )
+
+
+def test_agent_framework_api_contract() -> None:
+    """Pin the Agent Framework surface used by the production grader."""
+    agent_parameters = inspect.signature(Agent).parameters
+    run_parameters = inspect.signature(Agent.run).parameters
+    foundry_parameters = inspect.signature(FoundryChatClient).parameters
+
+    assert {"client", "instructions", "id", "name", "description"} <= set(
+        agent_parameters
+    )
+    assert "messages" in run_parameters
+    assert run_parameters["options"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert {"project_endpoint", "model", "credential"} <= set(foundry_parameters)
 
 
 def _content_filter_bad_request() -> openai.BadRequestError:
