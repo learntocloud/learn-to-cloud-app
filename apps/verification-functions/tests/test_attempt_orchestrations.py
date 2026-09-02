@@ -14,7 +14,6 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
-import function_app
 import pytest
 from learn_to_cloud_shared.models import VerificationAttemptOutcome
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
@@ -30,6 +29,7 @@ from learn_to_cloud_shared.verification_workflow import (
     PreparedVerificationAttempt,
 )
 
+import function_app
 
 # --------------------------------------------------------------------------- #
 # Orchestration driver

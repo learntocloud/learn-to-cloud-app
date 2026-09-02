@@ -6,9 +6,10 @@ import logging
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import function_app
 import pytest
 from learn_to_cloud_shared.core.logger import _APP_HANDLER_NAME
+
+import function_app
 
 
 @pytest.fixture(autouse=True)

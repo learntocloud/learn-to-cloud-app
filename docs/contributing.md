@@ -100,6 +100,18 @@ func --version
 Node.js is only required for Tailwind CSS changes and local Functions
 development. The API and Python test suites do not require it.
 
+Create the Functions-local environment before starting Core Tools:
+
+```bash
+UV_PROJECT_ENVIRONMENT="$PWD/apps/verification-functions/.venv" \
+  uv sync --project apps/verification-functions --locked
+```
+
+The Functions environment is intentionally separate from the workspace root
+environment. Python 3.13 uses this project-local environment to isolate
+application packages such as `protobuf` and `grpcio` from the worker's bundled
+dependencies. The VS Code Functions task creates and refreshes it automatically.
+
 #### Azure and Terraform
 
 Install the Azure CLI using Microsoft's

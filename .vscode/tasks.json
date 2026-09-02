@@ -10,7 +10,7 @@
     {
       "label": "Verification: prepare Functions host",
       "type": "shell",
-      "command": "test -f local.settings.json || cp local.settings.example.json local.settings.json; uv sync --all-packages --locked",
+      "command": "test -f local.settings.json || cp local.settings.example.json local.settings.json; UV_PROJECT_ENVIRONMENT=\"${workspaceFolder}/apps/verification-functions/.venv\" uv sync --project . --locked",
       "problemMatcher": [],
       "options": {
         "cwd": "${workspaceFolder}/apps/verification-functions"
@@ -26,9 +26,9 @@
       "options": {
         "cwd": "${workspaceFolder}/apps/verification-functions",
         "env": {
-          "VIRTUAL_ENV": "${workspaceFolder}/.venv",
-          "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
-          "languageWorkers__python__defaultExecutablePath": "${workspaceFolder}/.venv/bin/python",
+          "VIRTUAL_ENV": "${workspaceFolder}/apps/verification-functions/.venv",
+          "PATH": "${workspaceFolder}/apps/verification-functions/.venv/bin:${env:PATH}",
+          "languageWorkers__python__defaultExecutablePath": "${workspaceFolder}/apps/verification-functions/.venv/bin/python",
           "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
           "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317",
           "OTEL_SERVICE_NAME": "learn-to-cloud-verification-functions"
