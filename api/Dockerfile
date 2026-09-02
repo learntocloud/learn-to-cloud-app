@@ -7,7 +7,7 @@ FROM python:3.13-slim AS builder
 WORKDIR /workspace
 
 # Install uv for fast dependency management
-COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.9 /uv /usr/local/bin/uv
 
 # Disable uv Python downloads (use system Python) and enable bytecode compilation
 ENV UV_PYTHON_DOWNLOADS=never

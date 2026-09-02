@@ -146,7 +146,7 @@ async def _validate_url_target(url: str) -> str | None:
 
     for _family, _type, _proto, _canonname, sockaddr in addrinfo:
         addr = sockaddr[0]
-        if _is_private_ip(addr):
+        if not isinstance(addr, str) or _is_private_ip(addr):
             span = trace.get_current_span()
             span.add_event(
                 "ssrf_blocked",

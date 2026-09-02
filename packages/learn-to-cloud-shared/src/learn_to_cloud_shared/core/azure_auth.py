@@ -32,10 +32,7 @@ async def get_credential() -> ManagedIdentityCredential:
     async with _credential_lock:
         if _azure_credential is None:
             client_id = os.environ.get("AZURE_CLIENT_ID")
-            kwargs = {}
-            if client_id:
-                kwargs["client_id"] = client_id
-            _azure_credential = ManagedIdentityCredential(**kwargs)
+            _azure_credential = ManagedIdentityCredential(client_id=client_id)
         return _azure_credential
 
 
