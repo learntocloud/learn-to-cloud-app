@@ -74,7 +74,7 @@
             {% if counts.structured %}
             <section aria-label="Required checks">
                 <h4 class="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Required checks</h4>
-                <div class="mt-2 divide-y divide-gray-200 dark:divide-gray-700">
+                <div class="mt-2 space-y-2">
                     {% for task in feedback_tasks %}
                     {% for criterion in task.criteria if criterion.kind == 'required' %}
                     <div class="flex items-start gap-3 py-3">
@@ -118,7 +118,7 @@
             {% if counts.suggestions %}
             <section aria-label="Suggestions">
                 <h4 class="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Suggestions</h4>
-                <div class="mt-2 divide-y divide-gray-200 dark:divide-gray-700">
+                <div class="mt-2 space-y-2">
                     {% for task in feedback_tasks %}
                     {% for criterion in task.criteria if criterion.kind != 'required' and criterion.status != 'met' %}
                     <div class="flex items-start gap-3 py-3">
@@ -146,7 +146,7 @@
                 {% if counts.structured %}
                 <h4 class="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Automated checks</h4>
                 {% endif %}
-                <div class="{% if counts.structured %}mt-2{% endif %} divide-y divide-gray-200 dark:divide-gray-700">
+                <div class="{% if counts.structured %}mt-2{% endif %} space-y-2">
                     {% for task in legacy | sort(attribute='passed') %}
                     <div class="flex items-start gap-3 py-3 text-sm">
                         <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full
