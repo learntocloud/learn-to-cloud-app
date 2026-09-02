@@ -30,7 +30,6 @@ from starlette.datastructures import FormData, UploadFile
 from learn_to_cloud.core.auth import AuthenticatedUser
 from learn_to_cloud.rendering.context import UnavailableCardContext
 from learn_to_cloud.routes.htmx_routes import (
-    _combine_reflection_answers,
     _submit_canonical_verification,
     htmx_complete_step,
     htmx_delete_account,
@@ -52,6 +51,7 @@ from learn_to_cloud.services.submissions_service import (
 )
 from learn_to_cloud.services.users_service import UserNotFoundError
 from learn_to_cloud.services.verification_status_tokens import VerificationStatusToken
+from learn_to_cloud.verification_forms import combine_reflection_answers
 
 
 def _mock_attempt_submission(*, created: bool = True) -> VerificationAttemptSubmission:
@@ -80,7 +80,10 @@ def _patch_templates():
     mock_templates.TemplateResponse = MagicMock(
         return_value=HTMLResponse("<html>mock</html>")
     )
-    with patch("learn_to_cloud.routes.htmx_routes.templates", mock_templates):
+    with patch(
+        "learn_to_cloud.rendering.htmx_responses.templates",
+        mock_templates,
+    ):
         yield mock_templates
 
 
@@ -106,12 +109,9 @@ class TestHtmxCompleteStep:
                 return_value=(MagicMock(), mock_topic, {step_uuid}),
             ) as mock_complete,
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_user_by_id",
-                autospec=True,
-                return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.build_progress_dict", return_value={}
+                "learn_to_cloud.routes.htmx_routes.render_step_toggle",
+                new_callable=AsyncMock,
+                return_value=HTMLResponse("<html>mock</html>"),
             ),
         ):
             result = await htmx_complete_step(
@@ -167,12 +167,9 @@ class TestHtmxUncompleteStep:
                 return_value=(1, mock_topic, mock_step, set()),
             ) as mock_uncomplete,
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_user_by_id",
-                autospec=True,
-                return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.build_progress_dict", return_value={}
+                "learn_to_cloud.routes.htmx_routes.render_step_toggle",
+                new_callable=AsyncMock,
+                return_value=HTMLResponse("<html>mock</html>"),
             ),
         ):
             result = await htmx_uncomplete_step(
@@ -445,12 +442,12 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=attempt_submission,
             ) as mock_create_attempt,
             patch(
-                "learn_to_cloud.routes.htmx_routes."
+                "learn_to_cloud.services.verification_attempt_service."
                 "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 return_value=start_result,
@@ -485,19 +482,22 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes."
+                "learn_to_cloud.services.verification_attempt_service."
                 "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 return_value=SimpleNamespace(
                     instance_id=str(attempt_submission.attempt_id)
                 ),
             ),
-            caplog.at_level(logging.INFO, logger="learn_to_cloud.routes.htmx_routes"),
+            caplog.at_level(
+                logging.INFO,
+                logger="learn_to_cloud.services.verification_attempt_service",
+            ),
         ):
             await _submit_canonical_verification(
                 request,
@@ -530,7 +530,7 @@ class TestHtmxSubmitVerification:
                 return_value="test",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("boom"),
             ),
@@ -561,18 +561,18 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes."
+                "learn_to_cloud.services.verification_attempt_service."
                 "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 side_effect=DurableVerificationStartError("boom"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes."
+                "learn_to_cloud.services.verification_attempt_service."
                 "terminalize_unstarted_verification_attempt",
                 new_callable=AsyncMock,
             ) as terminalize,
@@ -612,18 +612,18 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes."
+                "learn_to_cloud.services.verification_attempt_service."
                 "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 side_effect=DurableVerificationConfigError("not configured"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes."
+                "learn_to_cloud.services.verification_attempt_service."
                 "terminalize_unstarted_verification_attempt",
                 new_callable=AsyncMock,
             ) as terminalize,
@@ -662,18 +662,18 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes."
+                "learn_to_cloud.services.verification_attempt_service."
                 "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 side_effect=DurableVerificationStartError("boom"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes."
+                "learn_to_cloud.services.verification_attempt_service."
                 "terminalize_unstarted_verification_attempt",
                 new_callable=AsyncMock,
             ) as terminalize,
@@ -714,12 +714,12 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes."
+                "learn_to_cloud.services.verification_attempt_service."
                 "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
                 return_value=start_result,
@@ -753,7 +753,7 @@ class TestHtmxSubmitVerification:
                 return_value=requirement,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
             ) as mock_create,
         ):
@@ -784,7 +784,7 @@ class TestHtmxSubmitVerification:
                 return_value=requirement,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
             ) as mock_create,
         ):
@@ -818,12 +818,12 @@ class TestHtmxSubmitVerification:
                 return_value="https://github.com/user/repo",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.create_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=attempt_submission,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes."
+                "learn_to_cloud.services.verification_attempt_service."
                 "start_verification_attempt_orchestration",
                 new_callable=AsyncMock,
             ) as mock_start,
@@ -859,7 +859,7 @@ class TestHtmxVerificationAttemptStatus:
                 return_value=token_data,
             ) as mock_load_token,
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_verification_attempt_status",
+                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
                 new_callable=AsyncMock,
                 return_value=DurableStatusResult(runtime_status="Running"),
             ) as mock_get_status,
@@ -897,12 +897,12 @@ class TestHtmxVerificationAttemptStatus:
                 return_value=token_data,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_verification_attempt_status",
+                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
                 new_callable=AsyncMock,
                 return_value=DurableStatusResult(runtime_status="Completed"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
                 autospec=True,
             ) as mock_repository_class,
         ):
@@ -939,12 +939,12 @@ class TestHtmxVerificationAttemptStatus:
                 return_value=token_data,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_verification_attempt_status",
+                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
                 new_callable=AsyncMock,
                 return_value=DurableStatusResult(runtime_status="Completed"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
                 autospec=True,
             ) as mock_repository_class,
             caplog.at_level(logging.INFO, logger="learn_to_cloud.routes.htmx_routes"),
@@ -993,12 +993,12 @@ class TestHtmxVerificationAttemptStatus:
                 return_value=token_data,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_verification_attempt_status",
+                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
                 new_callable=AsyncMock,
                 return_value=DurableStatusResult(runtime_status="Completed"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
                 autospec=True,
             ) as mock_repository_class,
         ):
@@ -1039,16 +1039,16 @@ class TestHtmxVerificationAttemptStatus:
                 return_value=token_data,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_verification_attempt_status",
+                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
                 new_callable=AsyncMock,
                 return_value=DurableStatusResult(runtime_status="Failed"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
                 autospec=True,
             ) as mock_repository_class,
             patch(
-                "learn_to_cloud.routes.htmx_routes.terminalize_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.terminalize_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=MagicMock(
                     won=True,
@@ -1109,16 +1109,16 @@ class TestHtmxVerificationAttemptStatus:
                 return_value=token_data,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_verification_attempt_status",
+                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
                 new_callable=AsyncMock,
                 return_value=DurableStatusResult(runtime_status="Canceled"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
                 autospec=True,
             ) as mock_repository_class,
             patch(
-                "learn_to_cloud.routes.htmx_routes.terminalize_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.terminalize_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=MagicMock(
                     won=True,
@@ -1169,16 +1169,16 @@ class TestHtmxVerificationAttemptStatus:
                 return_value=token_data,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_verification_attempt_status",
+                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
                 new_callable=AsyncMock,
                 return_value=DurableStatusResult(runtime_status="Failed"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
                 autospec=True,
             ) as mock_attempt_repository_class,
             patch(
-                "learn_to_cloud.routes.htmx_routes.terminalize_verification_attempt",
+                "learn_to_cloud.services.verification_attempt_service.terminalize_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=MagicMock(
                     won=False,
@@ -1218,12 +1218,12 @@ class TestHtmxVerificationAttemptStatus:
                 return_value=token_data,
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_verification_attempt_status",
+                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
                 new_callable=AsyncMock,
                 return_value=DurableStatusResult(runtime_status="Failed"),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.VerificationAttemptRepository",
+                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
                 autospec=True,
             ) as mock_attempt_repository_class,
         ):
@@ -1289,7 +1289,7 @@ class TestCombineReflectionAnswers:
 
     def test_combines_answers_with_question_headers(self):
         requirement = self._requirement(min_answer_length=5, question_count=2)
-        combined = _combine_reflection_answers(
+        combined = combine_reflection_answers(
             requirement,
             ["First answer body", "Second answer body"],
         )
@@ -1302,19 +1302,19 @@ class TestCombineReflectionAnswers:
     def test_rejects_wrong_number_of_answers(self):
         requirement = self._requirement(question_count=3)
         with pytest.raises(ValueError, match="all of the reflection questions"):
-            _combine_reflection_answers(requirement, ["only one answer"])
+            combine_reflection_answers(requirement, ["only one answer"])
 
     def test_rejects_answer_below_minimum_length(self):
         requirement = self._requirement(min_answer_length=50, question_count=1)
         with pytest.raises(ValueError, match="at least 50 characters"):
-            _combine_reflection_answers(requirement, ["too short"])
+            combine_reflection_answers(requirement, ["too short"])
 
     def test_rejects_answer_above_maximum_length(self):
         requirement = self._requirement(min_answer_length=1, question_count=1)
         with pytest.raises(ValueError, match="too long"):
-            _combine_reflection_answers(requirement, ["x" * 6001])
+            combine_reflection_answers(requirement, ["x" * 6001])
 
     def test_strips_whitespace_before_validating(self):
         requirement = self._requirement(min_answer_length=5, question_count=1)
         with pytest.raises(ValueError, match="at least 5 characters"):
-            _combine_reflection_answers(requirement, ["   a   "])
+            combine_reflection_answers(requirement, ["   a   "])
