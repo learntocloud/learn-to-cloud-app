@@ -245,40 +245,44 @@ jobs:
       - name: Log in to ACR
         run: az acr login --name ${{ needs.deployment_context.outputs.container_registry_name }}
 
-      - name: Build and Push Container Images
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v4.3.0
+
+      - name: Build API image for validation
+        uses: docker/build-push-action@37fe631027851001ddb9b187196cc803df7f5f0e # v7.3.0
+        with:
+          context: .
+          file: api/Dockerfile
+          target: api-runtime
+          load: true
+          push: false
+          tags: ${{ needs.deployment_context.outputs.container_registry_endpoint }}/api:${{ github.sha }}
+          labels: git-commit=${{ github.sha }}
+          cache-from: type=gha,scope=api-runtime
+          cache-to: type=gha,scope=api-runtime,mode=max
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild == 'true' }}
+          pull: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild == 'true' }}
+
+      - name: Build migrations image for validation
+        uses: docker/build-push-action@37fe631027851001ddb9b187196cc803df7f5f0e # v7.3.0
+        with:
+          context: .
+          file: api/Dockerfile
+          target: migrations-runtime
+          load: true
+          push: false
+          tags: ${{ needs.deployment_context.outputs.container_registry_endpoint }}/migrations:${{ github.sha }}
+          labels: git-commit=${{ github.sha }}
+          cache-from: type=gha,scope=migrations-runtime
+          cache-to: type=gha,scope=migrations-runtime,mode=max
+          no-cache: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild == 'true' }}
+          pull: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild == 'true' }}
+
+      - name: Validate runtime images
         env:
           REGISTRY: ${{ needs.deployment_context.outputs.container_registry_endpoint }}
-          FORCE_REBUILD: ${{ inputs.force_rebuild || 'false' }}
         run: |
           set -euo pipefail
-          API_CACHE_FLAGS=""
-          MIGRATIONS_CACHE_FLAGS=""
-          if [[ "$FORCE_REBUILD" == "true" ]]; then
-            API_CACHE_FLAGS="--no-cache --pull"
-            MIGRATIONS_CACHE_FLAGS="--no-cache --pull"
-          else
-            docker pull "$REGISTRY/api:latest" || true
-            docker pull "$REGISTRY/migrations:latest" || true
-            API_CACHE_FLAGS="--cache-from=$REGISTRY/api:latest"
-            MIGRATIONS_CACHE_FLAGS="--cache-from=$REGISTRY/migrations:latest"
-          fi
-
-          docker build -f api/Dockerfile \
-            --target api-runtime \
-            $API_CACHE_FLAGS \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --label git-commit="$GITHUB_SHA" \
-            -t "$REGISTRY/api:$GITHUB_SHA" \
-            -t "$REGISTRY/api:latest" .
-
-          docker build -f api/Dockerfile \
-            --target migrations-runtime \
-            $MIGRATIONS_CACHE_FLAGS \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --label git-commit="$GITHUB_SHA" \
-            -t "$REGISTRY/migrations:$GITHUB_SHA" \
-            -t "$REGISTRY/migrations:latest" .
-
           docker run --rm "$REGISTRY/api:$GITHUB_SHA" \
             python -m learn_to_cloud_shared.runtime_package_check
 
@@ -291,10 +295,39 @@ jobs:
           main()
           PY
 
-          docker push "$REGISTRY/api:$GITHUB_SHA"
-          docker push "$REGISTRY/api:latest"
-          docker push "$REGISTRY/migrations:$GITHUB_SHA"
-          docker push "$REGISTRY/migrations:latest"
+      - name: Publish API image
+        uses: docker/build-push-action@37fe631027851001ddb9b187196cc803df7f5f0e # v7.3.0
+        with:
+          context: .
+          file: api/Dockerfile
+          target: api-runtime
+          push: true
+          tags: |
+            ${{ needs.deployment_context.outputs.container_registry_endpoint }}/api:${{ github.sha }}
+            ${{ needs.deployment_context.outputs.container_registry_endpoint }}/api:latest
+          labels: git-commit=${{ github.sha }}
+          cache-from: type=gha,scope=api-runtime
+          # Reuse the smoke-tested build result instead of resolving new base images.
+          no-cache: false
+          pull: false
+          provenance: false
+
+      - name: Publish migrations image
+        uses: docker/build-push-action@37fe631027851001ddb9b187196cc803df7f5f0e # v7.3.0
+        with:
+          context: .
+          file: api/Dockerfile
+          target: migrations-runtime
+          push: true
+          tags: |
+            ${{ needs.deployment_context.outputs.container_registry_endpoint }}/migrations:${{ github.sha }}
+            ${{ needs.deployment_context.outputs.container_registry_endpoint }}/migrations:latest
+          labels: git-commit=${{ github.sha }}
+          cache-from: type=gha,scope=migrations-runtime
+          # Reuse the smoke-tested build result instead of resolving new base images.
+          no-cache: false
+          pull: false
+          provenance: false
 
       - name: Run database migrations
         env:
