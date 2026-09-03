@@ -315,8 +315,6 @@ or it could not reliably query/recheck Durable status. The detector reads the
 ### Detailed Kusto
 
 ```kusto
-// Remove historical field fallbacks after all producer revisions have emitted
-// canonical fields for one full workspace-retention window.
 traces
 | where timestamp > ago(4h)
 | where cloud_RoleName in (
@@ -328,18 +326,9 @@ traces
 | where message == "verification.attempt.stuck"
 | extend
     AttemptId = tostring(customDimensions["verification.attempt.id"]),
-    DurableStatus = tostring(coalesce(
-        customDimensions["verification.durable.status"],
-        customDimensions["durable_status"]
-    )),
-    AttemptAgeSeconds = toint(coalesce(
-        customDimensions["verification.attempt.age_seconds"],
-        customDimensions["attempt_age_seconds"]
-    )),
-    StuckReason = tostring(coalesce(
-        customDimensions["verification.stuck.reason"],
-        customDimensions["stuck_reason"]
-    ))
+    DurableStatus = tostring(customDimensions["verification.durable.status"]),
+    AttemptAgeSeconds = toint(customDimensions["verification.attempt.age_seconds"]),
+    StuckReason = tostring(customDimensions["verification.stuck.reason"])
 | where StuckReason in (
     "active_beyond_limit",
     "status_query_failed",
