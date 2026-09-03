@@ -41,7 +41,7 @@ def init_oauth(settings: OAuthConfig) -> None:
     if not settings.client_id:
         logger.warning(
             "auth.github_oauth_disabled",
-            extra={"reason": "github_client_id_not_configured"},
+            extra={"auth.configuration.reason": "github_client_id_not_configured"},
         )
         return
 

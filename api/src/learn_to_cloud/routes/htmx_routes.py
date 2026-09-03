@@ -192,11 +192,11 @@ async def _submit_canonical_verification(
     except _USER_FACING_ERRORS as exc:
         return render_input_error(request, current_user, requirement, str(exc))
     except Exception as exc:
-        logger.exception(
+        logger.error(
             "htmx.submit.unexpected_error",
             extra={
-                "requirement_slug": requirement_slug,
-                "error_type": type(exc).__name__,
+                "verification.requirement.slug": requirement_slug,
+                "error.type": type(exc).__name__,
             },
         )
         return render_unavailable(
@@ -409,10 +409,10 @@ async def htmx_verification_attempt_status(
         logger.warning(
             "verification.status.durable_read_failed",
             extra={
-                "attempt_id": token_data.job_id,
-                "error_type": type(exc).__name__,
-                "failure_kind": exc.failure_kind.value,
-                "status_code": exc.status_code,
+                "verification.attempt.id": token_data.job_id,
+                "error.type": type(exc).__name__,
+                "verification.failure.kind": exc.failure_kind.value,
+                "http.response.status_code": exc.status_code,
             },
         )
         return status_error_response(

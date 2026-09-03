@@ -361,6 +361,8 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
 
   criteria {
     query                   = <<-QUERY
+      // Remove historical field fallbacks after all producer revisions have
+      // emitted canonical fields for one full workspace-retention window.
       traces
       | where cloud_RoleName in (
           "learn-to-cloud-verification-functions",
@@ -371,9 +373,18 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
       | where message == "verification.attempt.stuck"
       | extend
           AttemptId = tostring(customDimensions["verification.attempt.id"]),
-          DurableStatus = tostring(customDimensions["durable_status"]),
-          AttemptAgeSeconds = toint(customDimensions["attempt_age_seconds"]),
-          StuckReason = tostring(customDimensions["stuck_reason"])
+          DurableStatus = tostring(coalesce(
+            customDimensions["verification.durable.status"],
+            customDimensions["durable_status"]
+          )),
+          AttemptAgeSeconds = toint(coalesce(
+            customDimensions["verification.attempt.age_seconds"],
+            customDimensions["attempt_age_seconds"]
+          )),
+          StuckReason = tostring(coalesce(
+            customDimensions["verification.stuck.reason"],
+            customDimensions["stuck_reason"]
+          ))
       | where isnotempty(AttemptId)
       | where StuckReason in (
           "active_beyond_limit",

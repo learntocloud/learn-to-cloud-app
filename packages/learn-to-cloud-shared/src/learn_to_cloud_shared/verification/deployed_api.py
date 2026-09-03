@@ -124,7 +124,7 @@ async def _validate_url_target(url: str) -> str | None:
         if _is_private_ip(str(ip)):
             span = trace.get_current_span()
             span.add_event(
-                "ssrf_blocked",
+                "deployed_api.ssrf_blocked",
                 {"verification.reason": "private_ip_literal"},
             )
             return "URL must point to a publicly accessible server."
@@ -149,7 +149,7 @@ async def _validate_url_target(url: str) -> str | None:
         if not isinstance(addr, str) or _is_private_ip(addr):
             span = trace.get_current_span()
             span.add_event(
-                "ssrf_blocked",
+                "deployed_api.ssrf_blocked",
                 {"verification.reason": "private_ip_resolved"},
             )
             return "URL must point to a publicly accessible server."
@@ -177,7 +177,7 @@ def _check_response_ip(response: httpx.Response) -> None:
     if _is_private_ip(addr):
         span = trace.get_current_span()
         span.add_event(
-            "ssrf_blocked",
+            "deployed_api.ssrf_blocked",
             {"verification.reason": "dns_rebinding"},
         )
         raise _SsrfError(addr)
@@ -437,7 +437,7 @@ async def _cleanup_challenge_entry(
     except _SsrfError:
         span = trace.get_current_span()
         span.add_event(
-            "ssrf_blocked",
+            "deployed_api.ssrf_blocked",
             {"verification.reason": "cleanup_dns_rebinding"},
         )
     except Exception:
@@ -587,7 +587,7 @@ async def _verify_challenge(
 
     if not nonce_found:
         span = trace.get_current_span()
-        span.add_event("challenge_failed")
+        span.add_event("deployed_api.challenge_failed")
         return (
             ValidationResult(
                 is_valid=False,
@@ -616,7 +616,7 @@ async def _verify_challenge(
             return validation, discovered_id
 
     span = trace.get_current_span()
-    span.set_attribute("deployed_api.challenge_verified", True)
+    span.set_attribute("verification.deployed_api.challenge_verified", True)
 
     count = len(real_entries)
     entry_word = "entry" if count == 1 else "entries"
@@ -759,8 +759,8 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
             return analysis_result
 
         span = trace.get_current_span()
-        span.set_attribute("deployed_api.verified", True)
-        span.set_attribute("deployed_api.ai_verified", True)
+        span.set_attribute("verification.deployed_api.verified", True)
+        span.set_attribute("verification.deployed_api.ai_verified", True)
         return ValidationResult(
             is_valid=True,
             message=f"{verify_result.message} Live AI analysis verified.",

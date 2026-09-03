@@ -116,7 +116,10 @@ async def smoke_verification(
     try:
         result = await run_submit_smoke_check(request.app.state.session_maker)
     except Exception as exc:
-        logger.exception("internal.smoke.verification.failed")
+        logger.error(
+            "internal.smoke.verification.failed",
+            extra={"error.type": type(exc).__name__},
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Verification smoke check failed.",
@@ -124,6 +127,6 @@ async def smoke_verification(
 
     logger.info(
         "internal.smoke.verification.ok",
-        extra={"requirement_slug": result["requirement_slug"]},
+        extra={"verification.requirement.slug": result["requirement_slug"]},
     )
     return {"status": "ok", **result}

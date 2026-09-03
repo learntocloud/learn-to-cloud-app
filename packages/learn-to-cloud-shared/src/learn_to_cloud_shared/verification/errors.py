@@ -24,6 +24,37 @@ _GITHUB_API_ERROR_COUNTER = _meter.create_counter(
     unit="{error}",
 )
 
+
+def _github_error_type(response: httpx.Response) -> str:
+    status = response.status_code
+    if status == 429 or (
+        status == 403
+        and (
+            response.headers.get("x-ratelimit-remaining") == "0"
+            or "retry-after" in response.headers
+        )
+    ):
+        return "rate_limit"
+    if status == 403:
+        try:
+            body = response.json()
+        except ValueError:
+            body = None
+        if isinstance(body, dict):
+            message = body.get("message")
+            if isinstance(message, str) and (
+                "rate limit" in message.lower() or "abuse detection" in message.lower()
+            ):
+                return "rate_limit"
+    if status == 401:
+        return "authentication"
+    if status == 403:
+        return "authorization"
+    if status >= 500:
+        return "provider_unavailable"
+    return "client_error"
+
+
 # ---------------------------------------------------------------------------
 # Base retriable exceptions (httpx network / timeout errors)
 # ---------------------------------------------------------------------------
@@ -108,7 +139,8 @@ def github_error_to_result(
         span.set_attribute("http.response.status_code", status)
         span.add_event(event, {"http.response.status_code": status})
         logger.warning(event, extra={"http.response.status_code": status})
-        _GITHUB_API_ERROR_COUNTER.add(1, {"status": status})
+        error_type = _github_error_type(e.response)
+        _GITHUB_API_ERROR_COUNTER.add(1, {"error.type": error_type})
         return ValidationResult(
             is_valid=False,
             message=f"GitHub API error ({status}). Try again later.",
@@ -121,7 +153,7 @@ def github_error_to_result(
     span.set_attribute("error.type", error_type)
     span.add_event(event, {"error.type": error_type})
     logger.warning(event, extra={"error.type": error_type})
-    _GITHUB_API_ERROR_COUNTER.add(1, {"status": "transient"})
+    _GITHUB_API_ERROR_COUNTER.add(1, {"error.type": "network"})
     return ValidationResult(
         is_valid=False,
         message="Could not reach GitHub. Please try again later.",
@@ -145,7 +177,7 @@ def deployed_api_error_to_result(
     if isinstance(exc, httpx.TimeoutException):
         span.set_attribute("error.type", "timeout")
         span.add_event(
-            "deployed_api_timeout",
+            "deployed_api.timeout",
             {"error.type": "timeout", "verification.operation": step or "request"},
         )
         return ValidationResult(
@@ -159,7 +191,7 @@ def deployed_api_error_to_result(
     if isinstance(exc, DeployedApiServerError):
         span.set_attribute("error.type", "server_error")
         span.add_event(
-            "deployed_api_server_error",
+            "deployed_api.server_error",
             {
                 "error.type": "server_error",
                 "verification.operation": step or "request",
@@ -176,7 +208,7 @@ def deployed_api_error_to_result(
     if isinstance(exc, httpx.RequestError):
         span.set_attribute("error.type", "request_error")
         span.add_event(
-            "deployed_api_request_error",
+            "deployed_api.request_error",
             {
                 "error.type": "request_error",
                 "verification.operation": step or "request",

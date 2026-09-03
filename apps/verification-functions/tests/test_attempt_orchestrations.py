@@ -659,7 +659,10 @@ class TestReconciler:
             if record.message == "verification.attempt.stuck"
         )
         assert stuck_record.__dict__["verification.attempt.id"] == str(running)
-        assert stuck_record.durable_status == "Running"
+        assert stuck_record.__dict__["verification.durable.status"] == "Running"
+        assert (
+            stuck_record.__dict__["verification.stuck.reason"] == "active_beyond_limit"
+        )
 
     async def test_rechecks_missing_status_before_terminalizing(self) -> None:
         attempt_id = uuid4()

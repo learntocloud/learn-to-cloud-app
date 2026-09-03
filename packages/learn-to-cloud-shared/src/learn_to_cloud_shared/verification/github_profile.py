@@ -60,7 +60,7 @@ async def check_github_url_exists(
     except RETRIABLE_EXCEPTIONS as e:
         span = trace.get_current_span()
         span.set_attribute("error.type", type(e).__name__)
-        span.add_event("url_check_failed", {"error.type": type(e).__name__})
+        span.add_event("github.url_check.failed", {"error.type": type(e).__name__})
         return ValidationResult(
             is_valid=False,
             message="Could not reach GitHub. Please try again later.",
@@ -70,7 +70,7 @@ async def check_github_url_exists(
         span = trace.get_current_span()
         span.set_attribute("error.type", "unexpected_exception")
         span.add_event(
-            "url_check_unexpected_error",
+            "github.url_check.unexpected_error",
             {"error.type": "unexpected_exception"},
         )
         return ValidationResult(
@@ -123,7 +123,7 @@ async def check_repo_is_fork_of(
     except RETRIABLE_EXCEPTIONS as e:
         span = trace.get_current_span()
         span.set_attribute("error.type", type(e).__name__)
-        span.add_event("fork_check_failed", {"error.type": type(e).__name__})
+        span.add_event("github.fork_check.failed", {"error.type": type(e).__name__})
         return ValidationResult(
             is_valid=False,
             message="Could not reach GitHub. Please try again later.",
@@ -138,7 +138,7 @@ async def check_repo_is_fork_of(
         span = trace.get_current_span()
         span.set_attribute("error.type", "unexpected_exception")
         span.add_event(
-            "fork_check_unexpected_error",
+            "github.fork_check.unexpected_error",
             {"error.type": "unexpected_exception"},
         )
         return ValidationResult(

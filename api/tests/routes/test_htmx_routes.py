@@ -509,10 +509,12 @@ class TestHtmxSubmitVerification:
         record = next(
             r for r in caplog.records if r.message == "verification.attempt.created"
         )
-        assert record.attempt_id == str(attempt_submission.attempt_id)
-        assert record.attempt_created is True
-        assert record.requirement_slug == "req-1"
-        assert record.user_id == 1
+        assert record.__dict__["verification.attempt.id"] == str(
+            attempt_submission.attempt_id
+        )
+        assert record.__dict__["verification.attempt.created"] is True
+        assert record.__dict__["verification.requirement.slug"] == "req-1"
+        assert "user_id" not in record.__dict__
 
     async def test_submit_unexpected_error_renders_server_error(self):
         """Unexpected exceptions render a server error card."""
@@ -970,10 +972,14 @@ class TestHtmxVerificationAttemptStatus:
         # A server_error is the case an operator most needs to find, so it must
         # not be buried at INFO.
         assert record.levelno == logging.WARNING
-        assert record.outcome == "server_error"
-        assert record.error_code == "verification_incomplete"
-        assert record.attempt_id == str(job_id)
-        assert record.requirement_slug == "journal-api-implementation"
+        assert record.__dict__["verification.outcome"] == "server_error"
+        assert record.__dict__["verification.error.code"] == "verification_incomplete"
+        assert record.__dict__["verification.attempt.id"] == str(job_id)
+        assert (
+            record.__dict__["verification.requirement.slug"]
+            == "journal-api-implementation"
+        )
+        assert "user_id" not in record.__dict__
 
     async def test_completed_status_survives_log_read_failure(self):
         """A logging read failure must not break the learner's page reload."""

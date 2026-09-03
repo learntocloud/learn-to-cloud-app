@@ -69,11 +69,13 @@ async def lifespan(app: fastapi.FastAPI):
     logger.info(
         "init.curriculum_loaded",
         extra={
-            "curriculum_version": app.state.curriculum_catalog.curriculum_version,
-            "artifact_schema_version": (
+            "content.curriculum.version": (
+                app.state.curriculum_catalog.curriculum_version
+            ),
+            "content.artifact_schema.version": (
                 app.state.curriculum_catalog.artifact_schema_version
             ),
-            "content_hash": app.state.curriculum_catalog.content_hash,
+            "content.artifact.hash": app.state.curriculum_catalog.content_hash,
         },
     )
 
@@ -92,10 +94,7 @@ async def lifespan(app: fastapi.FastAPI):
     except TimeoutError:
         logger.exception(
             "init.timeout",
-            extra={
-                "init_done": app.state.init_done,
-                "hint": "Startup hung — check DB connectivity and migration state",
-            },
+            extra={"startup.initialized": app.state.init_done},
         )
         raise RuntimeError("Application startup timed out") from None
     except Exception as e:

@@ -170,7 +170,7 @@ user IDs, OAuth tokens, claims, or session identifiers.
 
 | Metric | Attribute | Purpose | Cardinality | Class | Decision |
 | --- | --- | --- | --- | --- | --- |
-| `github.api_error` | `error.type` | Count transient, authentication, authorization, rate-limit, and provider failures | Fixed category set | Operational | Keep metric; replace mixed numeric/string `status` with bounded categories |
+| `github.api_error` | `error.type` | Count network, authentication, authorization, rate-limit, client, and provider failures | Fixed category set | Operational | Keep metric; replace mixed numeric/string `status` with bounded categories |
 
 Metrics must use low-cardinality dimensions. Attempt IDs, routes with concrete
 identifiers, repository names outside the approved curriculum set, exception
@@ -221,6 +221,8 @@ The following event families are retained:
 - `init.*` and `telemetry.*`: startup and instrumentation state.
 - `verification.*`, `ci.*`, `codeql.*`, `ghcr.*`, and `deployed_api.*`:
   bounded verification operations and outcomes.
+- `github.*` and `token.*`: bounded GitHub and signed-token verification
+  outcomes.
 - `community.*`: fixed curriculum repository integration failures.
 - `unhandled.exception`: the final API exception boundary.
 - `user.account_deleted`: aggregate account-deletion completion without user

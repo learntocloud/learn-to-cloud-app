@@ -110,7 +110,7 @@ def verify_lab_token(
                 )
         except RuntimeError:
             span = trace.get_current_span()
-            span.add_event("token_verification_misconfigured")
+            span.add_event("token.verification.misconfigured")
             return _fail(
                 f"{display_name} verification is not available right now.",
                 completed=False,
@@ -132,7 +132,7 @@ def verify_lab_token(
             return _fail("Invalid timestamp. The token appears to be from the future.")
 
         span = trace.get_current_span()
-        span.add_event("token_verification_succeeded")
+        span.add_event("token.verification.succeeded")
 
         return ValidationResult(
             is_valid=True,
@@ -147,7 +147,7 @@ def verify_lab_token(
         span = trace.get_current_span()
         span.set_attribute("error.type", "unexpected_exception")
         span.add_event(
-            "token_verification_failed",
+            "token.verification.failed",
             {"error.type": "unexpected_exception"},
         )
         return _fail(

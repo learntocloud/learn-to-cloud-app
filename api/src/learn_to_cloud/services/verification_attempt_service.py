@@ -91,10 +91,9 @@ async def submit_verification_attempt(
     logger.info(
         "verification.attempt.created",
         extra={
-            "user_id": user_id,
-            "requirement_slug": requirement_slug,
-            "attempt_id": str(attempt_submission.attempt_id),
-            "attempt_created": attempt_submission.created,
+            "verification.requirement.slug": requirement_slug,
+            "verification.attempt.id": str(attempt_submission.attempt_id),
+            "verification.attempt.created": attempt_submission.created,
         },
     )
     return await _start_verification_attempt(
@@ -131,14 +130,14 @@ async def _start_verification_attempt(
         DurableVerificationAuthError,
         DurableVerificationStartError,
     ) as exc:
-        logger.exception(
+        logger.error(
             "verification.attempt.durable_start_failed",
             extra={
-                "requirement_slug": requirement_slug,
-                "attempt_id": str(attempt_submission.attempt_id),
-                "error_type": type(exc).__name__,
-                "failure_kind": exc.failure_kind.value,
-                "status_code": exc.status_code,
+                "verification.requirement.slug": requirement_slug,
+                "verification.attempt.id": str(attempt_submission.attempt_id),
+                "error.type": type(exc).__name__,
+                "verification.failure.kind": exc.failure_kind.value,
+                "http.response.status_code": exc.status_code,
             },
         )
         await terminalize_unstarted_verification_attempt(
@@ -184,7 +183,7 @@ async def poll_verification_attempt(
         )
 
     if status in _TERMINAL_DURABLE_STATUSES:
-        await _log_attempt_completion(session_maker, token_data, user_id, status)
+        await _log_attempt_completion(session_maker, token_data, status)
         return VerificationPollResult(
             VerificationPollKind.RELOAD,
             token_data,
@@ -194,8 +193,8 @@ async def poll_verification_attempt(
     logger.warning(
         "verification.status.unexpected_durable_status",
         extra={
-            "attempt_id": token_data.job_id,
-            "runtime_status": durable_status.runtime_status,
+            "verification.attempt.id": token_data.job_id,
+            "verification.durable.status": durable_status.runtime_status,
         },
     )
     return VerificationPollResult(
@@ -232,9 +231,9 @@ async def _terminalize_failed_attempt(
         logger.info(
             "verification.poller.finalize_skipped",
             extra={
-                "attempt_id": str(attempt_id),
-                "runtime_status": status,
-                "outcome": result.state.outcome,
+                "verification.attempt.id": str(attempt_id),
+                "verification.durable.status": status,
+                "verification.outcome": result.state.outcome,
             },
         )
         return
@@ -242,10 +241,10 @@ async def _terminalize_failed_attempt(
     logger.info(
         "verification.poller.attempt_terminalized",
         extra={
-            "attempt_id": str(attempt_id),
-            "runtime_status": status,
-            "outcome": result.state.outcome,
-            "cas_won": result.won,
+            "verification.attempt.id": str(attempt_id),
+            "verification.durable.status": status,
+            "verification.outcome": result.state.outcome,
+            "verification.terminal.write_won": result.won,
         },
     )
 
@@ -253,7 +252,6 @@ async def _terminalize_failed_attempt(
 async def _log_attempt_completion(
     session_maker: async_sessionmaker[AsyncSession],
     token_data: VerificationStatusToken,
-    user_id: int,
     status: str,
 ) -> None:
     attempt_id = UUID(token_data.job_id)
@@ -266,22 +264,20 @@ async def _log_attempt_completion(
         logger.warning(
             "verification.attempt.completed_read_failed",
             extra={
-                "user_id": user_id,
-                "requirement_slug": token_data.requirement_slug,
-                "attempt_id": str(attempt_id),
-                "error_type": type(exc).__name__,
+                "verification.requirement.slug": token_data.requirement_slug,
+                "verification.attempt.id": str(attempt_id),
+                "error.type": type(exc).__name__,
             },
         )
         return
 
     extra = {
-        "user_id": user_id,
-        "requirement_slug": token_data.requirement_slug,
-        "attempt_id": str(attempt_id),
-        "runtime_status": status,
-        "outcome": state.outcome if state else None,
-        "error_code": state.error_code if state else None,
-        "terminal_source": state.terminal_source if state else None,
+        "verification.requirement.slug": token_data.requirement_slug,
+        "verification.attempt.id": str(attempt_id),
+        "verification.durable.status": status,
+        "verification.outcome": state.outcome if state else None,
+        "verification.error.code": state.error_code if state else None,
+        "verification.terminal.source": state.terminal_source if state else None,
     }
     if state is None or state.outcome == "server_error":
         logger.warning("verification.attempt.observed", extra=extra)

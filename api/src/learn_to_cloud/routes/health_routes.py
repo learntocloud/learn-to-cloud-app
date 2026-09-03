@@ -33,8 +33,11 @@ def get_code_alembic_head() -> str | None:
     try:
         script = ScriptDirectory.from_config(Config(str(_ALEMBIC_INI)))
         return script.get_current_head()
-    except Exception:
-        logger.exception("health.alembic_head.resolve_failed")
+    except Exception as exc:
+        logger.error(
+            "health.alembic_head.resolve_failed",
+            extra={"error.type": type(exc).__name__},
+        )
         return None
 
 
@@ -129,7 +132,10 @@ async def ready(request: Request) -> HealthResponse:
             if db_head != code_head:
                 logger.warning(
                     "health.ready.schema_drift",
-                    extra={"db_head": db_head, "code_head": code_head},
+                    extra={
+                        "database.schema.current_revision": db_head,
+                        "database.schema.expected_revision": code_head,
+                    },
                 )
 
     catalog = get_curriculum_catalog()

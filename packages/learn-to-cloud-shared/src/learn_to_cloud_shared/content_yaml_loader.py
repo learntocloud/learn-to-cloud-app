@@ -124,12 +124,12 @@ def _load_topic(
 
     try:
         return _build_topic(topic_file, order=order)
-    except (yaml.YAMLError, ContentValidationError, ValueError, KeyError):
-        logger.exception(
+    except (yaml.YAMLError, ContentValidationError, ValueError, KeyError) as exc:
+        logger.error(
             "content.topic.load_failed",
             extra={
-                "topic_slug": topic_slug,
-                "path": str(topic_file),
+                "content.topic.slug": topic_slug,
+                "error.type": type(exc).__name__,
             },
         )
         return None
@@ -180,12 +180,12 @@ def _load_requirement(
         ValidationError,
         ValueError,
         KeyError,
-    ):
-        logger.exception(
+    ) as exc:
+        logger.error(
             "content.requirement.load_failed",
             extra={
-                "requirement_slug": requirement_slug,
-                "path": str(req_file),
+                "content.requirement.slug": requirement_slug,
+                "error.type": type(exc).__name__,
             },
         )
         return None
@@ -252,12 +252,12 @@ def _load_phase(phase_slug: str, *, strict: bool = False) -> Phase | None:
 
     try:
         return _build_phase(phase_slug, phase_dir, meta_file, strict=strict)
-    except (yaml.YAMLError, ContentValidationError, ValueError, KeyError):
-        logger.exception(
+    except (yaml.YAMLError, ContentValidationError, ValueError, KeyError) as exc:
+        logger.error(
             "content.phase.load_failed",
             extra={
-                "phase_slug": phase_slug,
-                "path": str(meta_file),
+                "content.phase.slug": phase_slug,
+                "error.type": type(exc).__name__,
             },
         )
         return None
