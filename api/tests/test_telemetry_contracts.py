@@ -432,17 +432,19 @@ console.log(JSON.stringify({{ item, tracked }}));
     assert payload["tracked"][2]["uri"] == "https://learntocloud.guide/unmatched"
 
 
-def test_stuck_alert_accepts_canonical_and_historical_attributes():
+def test_stuck_alert_uses_only_canonical_attributes():
     monitoring = (_ROOT / "infra" / "monitoring.tf").read_text()
     runbook = (_ROOT / "docs" / "runbooks" / "alerts.md").read_text()
     block = _resource_block(monitoring, "verification_attempt_stuck")
 
-    for canonical, historical in (
-        ("verification.durable.status", "durable_status"),
-        ("verification.attempt.age_seconds", "attempt_age_seconds"),
-        ("verification.stuck.reason", "stuck_reason"),
+    for canonical in (
+        "verification.durable.status",
+        "verification.attempt.age_seconds",
+        "verification.stuck.reason",
     ):
         assert f'customDimensions["{canonical}"]' in block
-        assert f'customDimensions["{historical}"]' in block
         assert f'customDimensions["{canonical}"]' in runbook
-        assert f'customDimensions["{historical}"]' in runbook
+
+    for historical in ("durable_status", "attempt_age_seconds", "stuck_reason"):
+        assert f'customDimensions["{historical}"]' not in block
+        assert f'customDimensions["{historical}"]' not in runbook
