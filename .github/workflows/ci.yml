@@ -24,6 +24,7 @@ jobs:
     outputs:
       code: ${{ steps.filter.outputs.code }}
       infra: ${{ steps.filter.outputs.infra }}
+      workflows: ${{ steps.filter.outputs.workflows }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -47,6 +48,9 @@ jobs:
             infra:
               - 'infra/**'
               - '.github/workflows/infra-deploy.yml'
+            workflows:
+              - '.github/workflows/**'
+              - 'scripts/check-action-pins.sh'
 
   dependency-review:
     if: github.event_name == 'pull_request'
@@ -56,6 +60,16 @@ jobs:
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: moderate
+
+  workflow-ci:
+    needs: [changes]
+    if: inputs.force_all || needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate GitHub Actions pins
+        run: bash scripts/check-action-pins.sh
 
   terraform-ci:
     needs: [changes]
@@ -201,7 +215,7 @@ jobs:
 
   ci-status:
     if: always()
-    needs: [changes, code-ci, terraform-ci]
+    needs: [changes, code-ci, terraform-ci, workflow-ci]
     runs-on: ubuntu-latest
     steps:
       - name: Check CI results
@@ -209,15 +223,16 @@ jobs:
           CODE_RESULT: ${{ needs.code-ci.result }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           TERRAFORM_RESULT: ${{ needs.terraform-ci.result }}
+          WORKFLOW_RESULT: ${{ needs.workflow-ci.result }}
         run: |
           set -euo pipefail
           if [[ "$CHANGES_RESULT" != "success" ]]; then
             echo "Change detection failed: $CHANGES_RESULT"
             exit 1
           fi
-          for result in "$CODE_RESULT" "$TERRAFORM_RESULT"; do
+          for result in "$CODE_RESULT" "$TERRAFORM_RESULT" "$WORKFLOW_RESULT"; do
             if [[ ! "$result" =~ ^(success|skipped)$ ]]; then
-              echo "CI failed: code=$CODE_RESULT terraform=$TERRAFORM_RESULT"
+              echo "CI failed: code=$CODE_RESULT terraform=$TERRAFORM_RESULT workflows=$WORKFLOW_RESULT"
               exit 1
             fi
           done
