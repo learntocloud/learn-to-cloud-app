@@ -1,0 +1,507 @@
+name: Application Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'apps/verification-functions/**'
+      - 'infra/**'
+      - 'packages/learn-to-cloud-shared/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/infra-deploy.yml'
+      - '.github/workflows/app-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: Force rebuild without cache
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+concurrency:
+  group: production-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+  AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_environment: ${{ vars.AZURE_ENV_NAME }}
+  TF_VAR_location: ${{ vars.AZURE_LOCATION }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate production ref
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::Production deployment is allowed only from main." >&2
+            exit 1
+          fi
+
+  changes:
+    needs: [preflight]
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Detect deployment changes
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          filters: |
+            app:
+              - 'api/**'
+              - 'apps/verification-functions/**'
+              - 'packages/learn-to-cloud-shared/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - '.github/workflows/app-deploy.yml'
+            infra:
+              - 'infra/**'
+              - '.github/workflows/infra-deploy.yml'
+
+  quality:
+    needs: [changes]
+    uses: ./.github/workflows/ci.yml
+    with:
+      force_all: ${{ github.event_name == 'workflow_dispatch' }}
+
+  infrastructure:
+    needs: [changes, quality]
+    if: needs.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/infra-deploy.yml
+    with:
+      apply: true
+    secrets: inherit
+
+  deployment_context:
+    if: >-
+      always() &&
+      needs.quality.result == 'success' &&
+      (needs.infrastructure.result == 'success' || needs.infrastructure.result == 'skipped') &&
+      (needs.changes.outputs.app == 'true' ||
+       needs.changes.outputs.infra == 'true' ||
+       github.event_name == 'workflow_dispatch')
+    needs: [changes, quality, infrastructure]
+    runs-on: ubuntu-latest
+    outputs:
+      api_container_app_name: ${{ steps.outputs.outputs.api_container_app_name }}
+      resource_group_name: ${{ steps.outputs.outputs.resource_group_name }}
+      container_registry_name: ${{ steps.outputs.outputs.container_registry_name }}
+      container_registry_endpoint: ${{ steps.outputs.outputs.container_registry_endpoint }}
+      database_host: ${{ steps.outputs.outputs.database_host }}
+      database_name: ${{ steps.outputs.outputs.database_name }}
+      migration_job_name: ${{ steps.outputs.outputs.migration_job_name }}
+      migration_identity_client_id: ${{ steps.outputs.outputs.migration_identity_client_id }}
+      migration_identity_id: ${{ steps.outputs.outputs.migration_identity_id }}
+      migration_postgres_role: ${{ steps.outputs.outputs.migration_postgres_role }}
+      verification_functions_postgres_role: ${{ steps.outputs.outputs.verification_functions_postgres_role }}
+      api_url: ${{ steps.outputs.outputs.api_url }}
+      smoke_auth_scope: ${{ steps.outputs.outputs.smoke_auth_scope }}
+      verification_functions_name: ${{ steps.outputs.outputs.verification_functions_name }}
+    env:
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_USE_OIDC: true
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate deployment context
+        working-directory: .
+        run: |
+          set -euo pipefail
+          : "${AZURE_ENV_NAME:?AZURE_ENV_NAME repository variable is required}"
+          : "${AZURE_SUBSCRIPTION_ID:?AZURE_SUBSCRIPTION_ID repository variable is required}"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.16.1"
+          terraform_wrapper: false
+
+      - name: Azure CLI Login
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: terraform init -backend-config="key=learn-to-cloud-${AZURE_ENV_NAME}.tfstate"
+
+      - name: Read Terraform outputs
+        id: outputs
+        run: |
+          set -euo pipefail
+
+          publish_output() {
+            local output_name=$1
+            local terraform_name=$2
+            local value
+            value=$(terraform output -raw "$terraform_name")
+            if [[ -z "$value" ]]; then
+              echo "::error::Terraform output $terraform_name is empty." >&2
+              exit 1
+            fi
+            printf '%s=%s\n' "$output_name" "$value" >> "$GITHUB_OUTPUT"
+          }
+
+          publish_output api_container_app_name api_container_app_name
+          publish_output resource_group_name AZURE_RESOURCE_GROUP
+          publish_output container_registry_name AZURE_CONTAINER_REGISTRY_NAME
+          publish_output container_registry_endpoint AZURE_CONTAINER_REGISTRY_ENDPOINT
+          publish_output database_host database_host
+          publish_output database_name postgres_database_name
+          publish_output migration_job_name migration_job_name
+          publish_output migration_identity_client_id migration_identity_client_id
+          publish_output migration_identity_id migration_identity_id
+          publish_output migration_postgres_role migration_postgres_role
+          publish_output verification_functions_postgres_role verification_functions_postgres_role
+          publish_output api_url api_url
+          publish_output smoke_auth_scope smoke_auth_scope
+          publish_output verification_functions_name verification_functions_name
+
+  deploy_app:
+    needs: [changes, deployment_context]
+    if: >-
+      needs.changes.outputs.app == 'true' ||
+      needs.changes.outputs.infra == 'true' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: "apps/verification-functions/pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.12.9"
+          enable-cache: true
+
+      - name: Azure CLI Login
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build verification Functions package
+        run: |
+          set -euo pipefail
+          rm -rf apps/verification-functions/.python_packages
+          python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version"
+          uv export \
+            --package learn-to-cloud-verification-functions \
+            --locked \
+            --no-dev \
+            --no-emit-project \
+            --no-editable \
+            --format requirements.txt \
+            --no-hashes \
+            --output-file /tmp/verification-functions-requirements.txt
+          uv pip install \
+            --python "$(which python)" \
+            --target apps/verification-functions/.python_packages/lib/site-packages \
+            -r /tmp/verification-functions-requirements.txt
+          cd apps/verification-functions
+          DATABASE__URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" \
+            PYTHONPATH="$PWD/.python_packages/lib/site-packages" \
+            python - <<'PY'
+          import asyncpg
+          import function_app
+          PY
+
+      - name: Log in to ACR
+        run: az acr login --name ${{ needs.deployment_context.outputs.container_registry_name }}
+
+      - name: Build and Push Container Images
+        env:
+          REGISTRY: ${{ needs.deployment_context.outputs.container_registry_endpoint }}
+          FORCE_REBUILD: ${{ inputs.force_rebuild || 'false' }}
+        run: |
+          set -euo pipefail
+          API_CACHE_FLAGS=""
+          MIGRATIONS_CACHE_FLAGS=""
+          if [[ "$FORCE_REBUILD" == "true" ]]; then
+            API_CACHE_FLAGS="--no-cache --pull"
+            MIGRATIONS_CACHE_FLAGS="--no-cache --pull"
+          else
+            docker pull "$REGISTRY/api:latest" || true
+            docker pull "$REGISTRY/migrations:latest" || true
+            API_CACHE_FLAGS="--cache-from=$REGISTRY/api:latest"
+            MIGRATIONS_CACHE_FLAGS="--cache-from=$REGISTRY/migrations:latest"
+          fi
+
+          docker build -f api/Dockerfile \
+            --target api-runtime \
+            $API_CACHE_FLAGS \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --label git-commit="$GITHUB_SHA" \
+            -t "$REGISTRY/api:$GITHUB_SHA" \
+            -t "$REGISTRY/api:latest" .
+
+          docker build -f api/Dockerfile \
+            --target migrations-runtime \
+            $MIGRATIONS_CACHE_FLAGS \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --label git-commit="$GITHUB_SHA" \
+            -t "$REGISTRY/migrations:$GITHUB_SHA" \
+            -t "$REGISTRY/migrations:latest" .
+
+          docker run --rm "$REGISTRY/api:$GITHUB_SHA" \
+            python -m learn_to_cloud_shared.runtime_package_check
+
+          docker run --rm -i \
+            -e DATABASE__URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" \
+            "$REGISTRY/migrations:$GITHUB_SHA" \
+            python - <<'PY'
+          from learn_to_cloud_shared.runtime_package_check import main
+
+          main()
+          PY
+
+          docker push "$REGISTRY/api:$GITHUB_SHA"
+          docker push "$REGISTRY/api:latest"
+          docker push "$REGISTRY/migrations:$GITHUB_SHA"
+          docker push "$REGISTRY/migrations:latest"
+
+      - name: Run database migrations
+        env:
+          MIGRATION_JOB_NAME: ${{ needs.deployment_context.outputs.migration_job_name }}
+          MIGRATION_CLIENT_ID: ${{ needs.deployment_context.outputs.migration_identity_client_id }}
+          MIGRATION_IDENTITY_ID: ${{ needs.deployment_context.outputs.migration_identity_id }}
+          DATABASE_NAME: ${{ needs.deployment_context.outputs.database_name }}
+          DATABASE_HOST: ${{ needs.deployment_context.outputs.database_host }}
+          DATABASE_USER: ${{ needs.deployment_context.outputs.migration_postgres_role }}
+          POSTGRES_VERIFICATION_FUNCTIONS_ROLE: ${{ needs.deployment_context.outputs.verification_functions_postgres_role }}
+          RESOURCE_GROUP: ${{ needs.deployment_context.outputs.resource_group_name }}
+          IMAGE: ${{ needs.deployment_context.outputs.container_registry_endpoint }}/migrations:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          az config set extension.use_dynamic_install=yes_without_prompt
+
+          execution_name=$(
+            az containerapp job start \
+              --name "$MIGRATION_JOB_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --container-name migrations \
+              --image "$IMAGE" \
+              --command python \
+              --args scripts/run_migrations.py \
+              --env-vars \
+                DATABASE__HOST="$DATABASE_HOST" \
+                DATABASE__USER="$DATABASE_USER" \
+                DATABASE__NAME="$DATABASE_NAME" \
+                AZURE_CLIENT_ID="$MIGRATION_CLIENT_ID" \
+                POSTGRES_VERIFICATION_FUNCTIONS_ROLE="$POSTGRES_VERIFICATION_FUNCTIONS_ROLE" \
+              --registry-identity "$MIGRATION_IDENTITY_ID" \
+              --query name \
+              --output tsv
+          )
+          echo "Started migration job execution: $execution_name"
+
+          for i in {1..180}; do
+            status=$(
+              az containerapp job execution show \
+                --name "$MIGRATION_JOB_NAME" \
+                --resource-group "$RESOURCE_GROUP" \
+                --job-execution-name "$execution_name" \
+                --query "properties.status" \
+                --output tsv
+            )
+            echo "Migration job status: $status"
+
+            if [[ "$status" == "Succeeded" ]]; then
+              exit 0
+            fi
+            if [[ "$status" =~ ^(Failed|Canceled|Cancelled)$ ]]; then
+              az containerapp job logs show \
+                --name "$MIGRATION_JOB_NAME" \
+                --resource-group "$RESOURCE_GROUP" \
+                --container migrations \
+                --execution "$execution_name" \
+                --tail 100 \
+                --format text || true
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "Migration job did not complete before timeout."
+          az containerapp job logs show \
+            --name "$MIGRATION_JOB_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --container migrations \
+            --execution "$execution_name" \
+            --tail 100 \
+            --format text || true
+          exit 1
+
+      - name: Deploy verification Functions
+        uses: Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656 # v1.5.7
+        with:
+          app-name: ${{ needs.deployment_context.outputs.verification_functions_name }}
+          package: apps/verification-functions
+          remote-build: false
+
+      - name: Deploy to Container App
+        env:
+          APP_NAME: ${{ needs.deployment_context.outputs.api_container_app_name }}
+          RESOURCE_GROUP: ${{ needs.deployment_context.outputs.resource_group_name }}
+          IMAGE: ${{ needs.deployment_context.outputs.container_registry_endpoint }}/api:${{ github.sha }}
+        run: |
+          az containerapp update \
+            --name "$APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --container-name api \
+            --image "$IMAGE"
+
+  verify_production:
+    needs: [changes, deployment_context, deploy_app]
+    if: >-
+      always() &&
+      needs.deployment_context.result == 'success' &&
+      ((needs.deploy_app.result == 'success') ||
+       (needs.deploy_app.result == 'skipped' && needs.changes.outputs.infra == 'true'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Azure CLI Login
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify production readiness
+        env:
+          APP_NAME: ${{ needs.deployment_context.outputs.api_container_app_name }}
+          ARTIFACT_DEPLOYED: ${{ needs.deploy_app.result == 'success' }}
+          REGISTRY: ${{ needs.deployment_context.outputs.container_registry_endpoint }}
+          RESOURCE_GROUP: ${{ needs.deployment_context.outputs.resource_group_name }}
+          READY_URL: ${{ needs.deployment_context.outputs.api_url }}/ready
+        run: |
+          set -euo pipefail
+
+          EXPECTED_IMAGE=""
+          if [[ "$ARTIFACT_DEPLOYED" == "true" ]]; then
+            EXPECTED_IMAGE="$REGISTRY/api:$GITHUB_SHA"
+          fi
+
+          REVISION=""
+          if [[ -n "$EXPECTED_IMAGE" ]]; then
+            echo "Looking for revision running image: $EXPECTED_IMAGE"
+            for i in {1..12}; do
+              REVISION=$(az containerapp revision list \
+                --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" \
+                --query "[?properties.template.containers[0].image=='$EXPECTED_IMAGE'] | [0].name" \
+                -o tsv 2>/dev/null || true)
+              if [[ -n "$REVISION" && "$REVISION" != "None" ]]; then
+                break
+              fi
+              sleep 5
+            done
+          else
+            REVISION=$(az containerapp revision list \
+              --name "$APP_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --query "sort_by([?properties.active==\`true\`], &properties.createdTime)[-1].name" \
+              --output tsv)
+          fi
+
+          if [[ -z "$REVISION" || "$REVISION" == "None" ]]; then
+            echo "::error::No expected Container App revision was found." >&2
+            exit 1
+          fi
+
+          for i in {1..36}; do
+            STATE=$(az containerapp revision show \
+              --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --revision "$REVISION" \
+              --query "{health:properties.healthState, running:properties.runningState, traffic:properties.trafficWeight}" \
+              -o json 2>/dev/null || echo '{}')
+            HEALTH=$(echo "$STATE" | jq -r '.health // "Unknown"')
+            RUNNING=$(echo "$STATE" | jq -r '.running // "Unknown"')
+            TRAFFIC=$(echo "$STATE" | jq -r '.traffic // 0')
+            echo "Attempt $i: revision=$REVISION health=$HEALTH running=$RUNNING traffic=$TRAFFIC"
+
+            if [[ "$RUNNING" =~ ^(ActivationFailed|Failed)$ ]]; then
+              az containerapp logs show \
+                --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --revision "$REVISION" \
+                --tail 100 --format text 2>&1 || true
+              exit 1
+            fi
+            if [[ "$HEALTH" == "Healthy" && "$TRAFFIC" -gt 0 ]]; then
+              code=$(curl -s -o /dev/null -w "%{http_code}" "$READY_URL" || true)
+              if [[ "$code" == "200" ]]; then
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+          az containerapp logs show \
+            --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --revision "$REVISION" \
+            --tail 100 --format text 2>&1 || true
+          exit 1
+
+      - name: Smoke test verification submit path
+        env:
+          SMOKE_SCOPE: ${{ needs.deployment_context.outputs.smoke_auth_scope }}
+          SMOKE_URL: ${{ needs.deployment_context.outputs.api_url }}/internal/smoke/verification
+        run: |
+          set -euo pipefail
+          access_token=$(az account get-access-token \
+            --scope "$SMOKE_SCOPE" \
+            --query accessToken \
+            --output tsv)
+          echo "::add-mask::$access_token"
+
+          code=000
+          for i in {1..6}; do
+            if ! code=$(curl --silent --output /tmp/entra_smoke_body.txt \
+              --write-out "%{http_code}" \
+              --request POST "$SMOKE_URL" \
+              --header "Authorization: Bearer $access_token"); then
+              code=000
+            fi
+            echo "Attempt $i: HTTP $code"
+            if [[ "$code" == "200" ]]; then
+              cat /tmp/entra_smoke_body.txt || true
+              exit 0
+            fi
+            sleep 10
+          done
+
+          cat /tmp/entra_smoke_body.txt || true
+          exit 1

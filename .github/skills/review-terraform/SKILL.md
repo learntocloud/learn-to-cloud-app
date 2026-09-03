@@ -22,4 +22,6 @@ with `azapi_update_resource`. For risky identity changes, separate the platform
 gate from application deployment.
 
 Use the `plan-terraform` skill when planning an open pull request against remote
-state. Never infer safety from `terraform validate` alone.
+state. Production applies must run through `app-deploy.yml`, which calls the
+reusable `infra-deploy.yml` before application deployment. Never infer safety
+from `terraform validate` alone.
