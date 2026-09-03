@@ -84,7 +84,10 @@ async def _fetch_latest_commit(owner: str, repo: str) -> RepoUpdate:
     except (httpx.HTTPError, ValueError, KeyError, IndexError) as exc:
         logger.warning(
             "community.github_commit_failed",
-            extra={"repo": f"{owner}/{repo}", "error": str(exc)},
+            extra={
+                "github.repository": f"{owner}/{repo}",
+                "error.type": type(exc).__name__,
+            },
         )
         return _unavailable(owner, repo)
 

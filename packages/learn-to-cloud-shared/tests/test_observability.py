@@ -55,7 +55,10 @@ def test_configure_observability_logs_missing_destination(
         if record.message == "telemetry.configure.failed"
     ]
     assert len(records) == 1
-    assert records[0].__dict__["reason"] == "telemetry_destination_missing"
+    assert (
+        records[0].__dict__["telemetry.configuration.reason"]
+        == "telemetry_destination_missing"
+    )
     assert records[0].exc_info is None
 
 

@@ -703,11 +703,14 @@ async def _resolve_ambiguous_start(
             await asyncio.sleep(delay_seconds)
         try:
             status = await _get_instance_status(client, instance_id)
-        except Exception:
+        except Exception as exc:
             all_queries_succeeded = False
-            logger.exception(
+            logger.warning(
                 "verification.attempt.start.status_query_failed",
-                extra={"attempt_id": instance_id},
+                extra={
+                    "verification.attempt.id": instance_id,
+                    "error.type": type(exc).__name__,
+                },
             )
             continue
         if _durable_instance_exists(status):
@@ -767,14 +770,14 @@ async def _start_attempt_orchestration(
         if not _durable_instance_exists(existing):
             logger.info(
                 "verification.attempt.start.claimed_pending",
-                extra={"attempt_id": instance_id},
+                extra={"verification.attempt.id": instance_id},
             )
             return _StartOutcome.ALREADY_CLAIMED
         logger.info(
             "verification.attempt.start.already_exists",
             extra={
-                "attempt_id": instance_id,
-                "runtime_status": _runtime_status_name(existing),
+                "verification.attempt.id": instance_id,
+                "verification.durable.status": _runtime_status_name(existing),
             },
         )
         return _StartOutcome.ALREADY_EXISTS
@@ -794,15 +797,18 @@ async def _start_attempt_orchestration(
             logger.warning(
                 "verification.attempt.start.ambiguous_but_started",
                 extra={
-                    "attempt_id": instance_id,
-                    "runtime_status": _runtime_status_name(status),
+                    "verification.attempt.id": instance_id,
+                    "verification.durable.status": _runtime_status_name(status),
                 },
             )
             return _StartOutcome.AMBIGUOUS_STARTED
 
         logger.error(
             "verification.attempt.start.failed",
-            extra={"attempt_id": instance_id, "error_type": type(exc).__name__},
+            extra={
+                "verification.attempt.id": instance_id,
+                "error.type": type(exc).__name__,
+            },
         )
         await terminalize_attempt(
             attempt_uuid,
@@ -817,8 +823,7 @@ async def _start_attempt_orchestration(
     logger.info(
         "verification.attempt.orchestration.started",
         extra={
-            "attempt_id": instance_id,
-            "orchestrator_name": _ATTEMPT_ORCHESTRATOR_NAME,
+            "verification.attempt.id": instance_id,
         },
     )
     return _StartOutcome.STARTED
@@ -885,12 +890,13 @@ async def _emit_stuck_if_active(
     logger.warning(
         "verification.attempt.stuck",
         extra={
-            "attempt_id": str(attempt_id),
             "verification.attempt.id": str(attempt_id),
             "verification.failure.stage": "reconciliation",
-            "durable_status": durable_status,
-            "stuck_reason": reason,
-            "attempt_age_seconds": int((reference - age_anchor).total_seconds()),
+            "verification.durable.status": durable_status,
+            "verification.stuck.reason": reason,
+            "verification.attempt.age_seconds": int(
+                (reference - age_anchor).total_seconds()
+            ),
         },
     )
     return True
@@ -920,7 +926,7 @@ async def _reconcile_stale_attempts(
         )
     logger.info(
         "verification.reconciler.scan",
-        extra={"candidate_count": len(stale), "cutoff": cutoff.isoformat()},
+        extra={"verification.reconciler.candidate_count": len(stale)},
     )
 
     terminalized = 0
@@ -929,10 +935,13 @@ async def _reconcile_stale_attempts(
         instance_id = str(attempt.id)
         try:
             status = await _get_instance_status(client, instance_id)
-        except Exception:
-            logger.exception(
+        except Exception as exc:
+            logger.warning(
                 "verification.reconciler.status_query_failed",
-                extra={"attempt_id": instance_id},
+                extra={
+                    "verification.attempt.id": instance_id,
+                    "error.type": type(exc).__name__,
+                },
             )
             stuck += await _emit_stuck_if_active(
                 attempt.id,
@@ -958,10 +967,13 @@ async def _reconcile_stale_attempts(
         if status_name is None:
             try:
                 confirmed_status = await _get_instance_status(client, instance_id)
-            except Exception:
-                logger.exception(
+            except Exception as exc:
+                logger.warning(
                     "verification.reconciler.status_recheck_failed",
-                    extra={"attempt_id": instance_id},
+                    extra={
+                        "verification.attempt.id": instance_id,
+                        "error.type": type(exc).__name__,
+                    },
                 )
                 stuck += await _emit_stuck_if_active(
                     attempt.id,
@@ -999,18 +1011,18 @@ async def _reconcile_stale_attempts(
         logger.info(
             "verification.reconciler.terminalized",
             extra={
-                "attempt_id": str(attempt.id),
-                "durable_status": status_name,
-                "outcome": decision.outcome.value,
+                "verification.attempt.id": str(attempt.id),
+                "verification.durable.status": status_name,
+                "verification.outcome": decision.outcome.value,
             },
         )
 
     logger.info(
         "verification.reconciler.completed",
         extra={
-            "candidate_count": len(stale),
-            "terminalized_count": terminalized,
-            "stuck_count": stuck,
+            "verification.reconciler.candidate_count": len(stale),
+            "verification.reconciler.terminalized_count": terminalized,
+            "verification.reconciler.stuck_count": stuck,
         },
     )
     return _ReconcileSummary(

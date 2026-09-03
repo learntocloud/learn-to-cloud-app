@@ -63,8 +63,11 @@ async def _azure_asyncpg_creator(settings: DatabaseConfig):
                 "statement_timeout": str(settings.statement_timeout_ms),
             },
         )
-    except asyncpg.PostgresConnectionError:
-        logger.exception("db.connection.failed")
+    except asyncpg.PostgresConnectionError as exc:
+        logger.error(
+            "db.connection.failed",
+            extra={"error.type": type(exc).__name__},
+        )
         raise
 
 

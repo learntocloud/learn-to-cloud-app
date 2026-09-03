@@ -58,10 +58,16 @@ def _frontend_telemetry_context(request: Request) -> dict[str, object]:
     if not conn_str:
         return {"frontend_telemetry": None}
 
+    route = request.scope.get("route")
+    route_path = getattr(route, "path", None)
+    if not isinstance(route_path, str):
+        route_path = "/unmatched"
+
     return {
         "frontend_telemetry": {
             "connection_string": conn_str,
             "sampling_percentage": settings.frontend_telemetry.sampling_percentage,
+            "route_path": route_path,
         }
     }
 

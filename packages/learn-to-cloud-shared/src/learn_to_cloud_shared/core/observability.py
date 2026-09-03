@@ -215,7 +215,9 @@ def _configure_observability(*, allow_azure_monitor: bool) -> bool:
         else:
             logger.error(
                 "telemetry.configure.failed",
-                extra={"reason": "telemetry_destination_missing"},
+                extra={
+                    "telemetry.configuration.reason": "telemetry_destination_missing"
+                },
             )
             return False
     except Exception as exc:

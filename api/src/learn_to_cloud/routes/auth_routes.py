@@ -96,7 +96,7 @@ async def callback(request: Request) -> RedirectResponse:
     if github_id is None:
         logger.error(
             "auth.callback.missing_github_id",
-            extra={"status_code": getattr(resp, "status_code", None)},
+            extra={"http.response.status_code": getattr(resp, "status_code", None)},
         )
         return RedirectResponse(url="/", status_code=302)
 
@@ -104,7 +104,7 @@ async def callback(request: Request) -> RedirectResponse:
     if not github_username:
         logger.error(
             "auth.callback.missing_github_login",
-            extra={"status_code": getattr(resp, "status_code", None)},
+            extra={"http.response.status_code": getattr(resp, "status_code", None)},
         )
         return RedirectResponse(url="/", status_code=302)
 
