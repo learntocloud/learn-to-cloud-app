@@ -190,9 +190,12 @@ jobs:
   deploy_app:
     needs: [changes, deployment_context]
     if: >-
-      needs.changes.outputs.app == 'true' ||
-      needs.changes.outputs.infra == 'true' ||
-      github.event_name == 'workflow_dispatch'
+      always() &&
+      needs.changes.result == 'success' &&
+      needs.deployment_context.result == 'success' &&
+      (needs.changes.outputs.app == 'true' ||
+       needs.changes.outputs.infra == 'true' ||
+       github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
