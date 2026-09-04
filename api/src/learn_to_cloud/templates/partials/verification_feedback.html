@@ -22,7 +22,7 @@
 {% set _panel_id = 'feedback-panel-' ~ (requirement_slug | default('default')) %}
 
 <div
-    class="mt-4 border-t {% if all_passed %}border-green-200 dark:border-green-800{% else %}border-red-200 dark:border-red-800{% endif %}"
+    class="mt-4 border-t border-gray-200 dark:border-gray-700"
     x-data="{ expanded: {{ 'false' if all_passed else 'true' }} }"
 >
     <button
@@ -30,16 +30,15 @@
         @click="expanded = !expanded"
         :aria-expanded="expanded"
         aria-controls="{{ _panel_id }}"
-        class="flex min-h-11 w-full items-center justify-between gap-3 py-3 text-left text-sm font-bold
-               {% if all_passed %}text-green-900 dark:text-green-100{% else %}text-red-900 dark:text-red-100{% endif %}
+        class="flex min-h-11 w-full items-center justify-between gap-3 py-3 text-left text-sm font-medium text-gray-800 dark:text-gray-200
                focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2
-               {% if all_passed %}focus-visible:outline-green-700{% else %}focus-visible:outline-red-700{% endif %}"
+               focus-visible:outline-blue-700 dark:focus-visible:outline-blue-300"
     >
         <span class="flex min-w-0 items-center gap-2">
             {% if all_passed %}
-            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            <svg class="h-4 w-4 shrink-0 text-green-700 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
             {% else %}
-            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <svg class="h-4 w-4 shrink-0 text-red-700 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             {% endif %}
             <span>
                 {% if counts.structured and all_passed %}
@@ -73,10 +72,16 @@
 
             {% if counts.structured %}
             <section aria-label="Required checks">
-                <h4 class="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Required checks</h4>
+                <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">Required checks</h4>
                 <div class="mt-2 space-y-2">
                     {% for task in feedback_tasks %}
                     {% for criterion in task.criteria if criterion.kind == 'required' %}
+                    {% if criterion.status == 'met' and not all_passed %}
+                    <details>
+                        <summary class="min-h-11 cursor-pointer rounded-md py-3 text-sm text-gray-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-400 dark:focus-visible:outline-blue-300">
+                            Passed: {{ criterion.label or criterion.id }}
+                        </summary>
+                    {% endif %}
                     <div class="flex items-start gap-3 py-3">
                         <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full
                                      {% if criterion.status == 'met' %}bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300
@@ -85,24 +90,24 @@
                             {{ '✓' if criterion.status == 'met' else '✕' }}
                         </span>
                         <div class="min-w-0">
-                            <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ criterion.label or criterion.id }}</p>
+                            <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ criterion.label or criterion.id }}</p>
                             {% if criterion.explanation %}
                             <p class="mt-1 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">{{ criterion.explanation }}</p>
                             {% endif %}
                             {% if criterion.next_steps %}
-                            <p class="mt-2 max-w-3xl text-sm font-medium leading-6 text-amber-800 dark:text-amber-300">
+                            <p class="mt-2 max-w-3xl text-sm font-medium leading-6 text-gray-800 dark:text-gray-200">
                                 Next step: {{ criterion.next_steps }}
                             </p>
                             {% endif %}
                             {% if criterion.evidence %}
                             <details class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                <summary class="cursor-pointer font-medium underline underline-offset-4">Evidence reviewed</summary>
+                                <summary class="min-h-11 cursor-pointer rounded-md py-3 font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:focus-visible:outline-blue-300">Evidence reviewed</summary>
                                 <div class="mt-2 flex flex-wrap gap-2">
                                     {% for evidence in criterion.evidence %}
                                         {% if evidence.url %}
-                                        <a href="{{ evidence.url }}" target="_blank" rel="noopener noreferrer" class="rounded bg-gray-100 px-2 py-1 font-mono text-blue-700 hover:underline dark:bg-gray-800 dark:text-blue-300">{{ evidence.label }}</a>
+                                        <a href="{{ evidence.url }}" target="_blank" rel="noopener noreferrer" class="text-link min-w-0 break-all font-mono">{{ evidence.label }}</a>
                                         {% else %}
-                                        <span class="rounded bg-gray-100 px-2 py-1 font-mono dark:bg-gray-800">{{ evidence.label }}</span>
+                                        <span class="min-w-0 break-all py-1 font-mono">{{ evidence.label }}</span>
                                         {% endif %}
                                     {% endfor %}
                                 </div>
@@ -110,6 +115,9 @@
                             {% endif %}
                         </div>
                     </div>
+                    {% if criterion.status == 'met' and not all_passed %}
+                    </details>
+                    {% endif %}
                     {% endfor %}
                     {% endfor %}
                 </div>
@@ -117,19 +125,19 @@
 
             {% if counts.suggestions %}
             <section aria-label="Suggestions">
-                <h4 class="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Suggestions</h4>
+                <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">Suggestions</h4>
                 <div class="mt-2 space-y-2">
                     {% for task in feedback_tasks %}
                     {% for criterion in task.criteria if criterion.kind != 'required' and criterion.status != 'met' %}
                     <div class="flex items-start gap-3 py-3">
                         <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300" aria-hidden="true">→</span>
                         <div class="min-w-0">
-                            <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ criterion.label or criterion.id }}</p>
+                            <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ criterion.label or criterion.id }}</p>
                             {% if criterion.explanation %}
                             <p class="mt-1 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">{{ criterion.explanation }}</p>
                             {% endif %}
                             {% if criterion.next_steps %}
-                            <p class="mt-2 max-w-3xl text-sm font-medium leading-6 text-amber-800 dark:text-amber-300">{{ criterion.next_steps }}</p>
+                            <p class="mt-2 max-w-3xl text-sm font-medium leading-6 text-gray-800 dark:text-gray-200">{{ criterion.next_steps }}</p>
                             {% endif %}
                         </div>
                     </div>
@@ -144,25 +152,34 @@
             {% if legacy %}
             <section aria-label="Automated checks">
                 {% if counts.structured %}
-                <h4 class="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Automated checks</h4>
+                <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">Automated checks</h4>
                 {% endif %}
                 <div class="{% if counts.structured %}mt-2{% endif %} space-y-2">
                     {% for task in legacy | sort(attribute='passed') %}
+                    {% if task.passed and not all_passed %}
+                    <details>
+                        <summary class="min-h-11 cursor-pointer rounded-md py-3 text-sm text-gray-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-400 dark:focus-visible:outline-blue-300">
+                            Passed: {{ task.name }}
+                        </summary>
+                    {% endif %}
                     <div class="flex items-start gap-3 py-3 text-sm">
                         <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full
                                      {% if task.passed %}bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300
                                      {% else %}bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300{% endif %}"
                               aria-hidden="true">{{ '✓' if task.passed else '✕' }}</span>
                         <div class="min-w-0">
-                            <p class="font-bold text-gray-900 dark:text-gray-100">{{ task.name }}</p>
+                            <p class="font-medium text-gray-900 dark:text-gray-100">{{ task.name }}</p>
                             {% if task.message %}
                             <p class="mt-1 max-w-3xl leading-6 text-gray-600 dark:text-gray-300">{{ task.message }}</p>
                             {% endif %}
                             {% if task.next_steps %}
-                            <p class="mt-2 font-medium leading-6 text-amber-800 dark:text-amber-300">Next step: {{ task.next_steps }}</p>
+                            <p class="mt-2 font-medium leading-6 text-gray-800 dark:text-gray-200">Next step: {{ task.next_steps }}</p>
                             {% endif %}
                         </div>
                     </div>
+                    {% if task.passed and not all_passed %}
+                    </details>
+                    {% endif %}
                     {% endfor %}
                 </div>
             </section>

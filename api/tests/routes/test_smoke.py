@@ -229,7 +229,7 @@ class TestPublicPageSmoke:
         assert response.status_code == 200
         assert "Information is now abundant." in response.text
         assert "Access to education should be too." in response.text
-        assert "Free and open source cloud engineering." in response.text
+        assert "Free, open-source cloud engineering education." in response.text
         assert "high agency, self-sufficiency, and discipline." in response.text
         assert (
             "Cloud resources and some learning materials may cost extra."

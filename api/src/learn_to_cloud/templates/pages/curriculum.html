@@ -4,50 +4,49 @@
 {% block description %}Explore the complete Learn to Cloud curriculum, from technical foundations through cloud deployment, DevOps, security, and career preparation.{% endblock %}
 
 {% block content %}
-<header class="border-b border-gray-200 pb-12 pt-4 dark:border-gray-700 sm:pb-16 sm:pt-8">
+<header class="border-b border-gray-200 pb-10 dark:border-gray-700">
     <div class="grid gap-8 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <div class="max-w-3xl">
-            <h1 class="text-balance text-4xl font-bold tracking-[-0.035em] text-gray-950 dark:text-white sm:text-5xl">
+            <h1 class="page-title">
                 The complete cloud curriculum.
             </h1>
-            <p class="mt-5 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-300">
+            <p class="mt-3 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-400">
                 Build your foundation first, then use it to create, deploy, automate, secure, and explain real cloud work.
             </p>
         </div>
         {% if user %}
-        <a href="/dashboard" class="inline-flex min-h-11 items-center justify-center rounded-md border border-gray-300 px-4 py-2.5 text-sm font-bold text-gray-900 transition-colors hover:border-blue-500 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:border-gray-600 dark:text-white dark:hover:border-blue-400 dark:hover:text-blue-300">
+        <a href="/dashboard" class="text-link">
             View your progress
         </a>
         {% endif %}
     </div>
 
-    <div class="mt-8 grid gap-4 border-y border-blue-100 py-5 text-sm dark:border-blue-900 sm:grid-cols-2 sm:gap-8">
-        <p class="leading-6 text-blue-950 dark:text-blue-100">
-            <strong class="font-bold">Learn in sequence.</strong>
+    <div class="mt-6 grid gap-4 text-sm sm:grid-cols-2 sm:gap-8">
+        <p class="leading-6 text-gray-600 dark:text-gray-400">
+            <strong class="font-medium text-gray-950 dark:text-white">Learn in sequence.</strong>
             Each phase builds on skills introduced earlier in the path.
         </p>
-        <p class="leading-6 text-blue-950 dark:text-blue-100">
-            <strong class="font-bold">Prove the work.</strong>
+        <p class="leading-6 text-gray-600 dark:text-gray-400">
+            <strong class="font-medium text-gray-950 dark:text-white">Prove the work.</strong>
             A dedicated verification workspace keeps submissions and feedback separate from learning content.
         </p>
     </div>
 </header>
 
 {% if phases %}
-<section class="pb-0 pt-12 sm:pt-16" aria-label="Curriculum phases">
+<section class="pt-10" aria-label="Curriculum phases">
     {% for phase in phases %}
     {% if loop.index0 == 0 or loop.index0 == 3 or loop.index0 == 6 %}
-    <div class="{% if not loop.first %}mt-14{% endif %} mb-3 flex items-center gap-5">
-        <h2 class="text-xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">
+    <div class="{% if not loop.first %}mt-10{% endif %} mb-3">
+        <h2 class="section-title">
             {% if loop.index0 == 0 %}Learn the systems{% elif loop.index0 == 3 %}Build and deploy{% else %}Secure and advance{% endif %}
         </h2>
-        <div class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
     </div>
     {% endif %}
 
     <section x-data="{ open: false }" class="{% if not loop.last %}border-b border-gray-200 dark:border-gray-700{% endif %}">
-        <div class="grid grid-cols-[3rem_1fr] gap-4 py-6 sm:grid-cols-[4rem_1fr] sm:gap-6">
-            <span class="flex h-11 w-11 items-center justify-center rounded-full {% if loop.first %}bg-blue-700 text-white dark:bg-blue-400 dark:text-blue-950{% else %}bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-200{% endif %} text-sm font-bold">
+        <div class="grid grid-cols-[2rem_1fr] gap-4 py-5">
+            <span class="flex h-11 items-center font-mono text-sm text-gray-500 dark:text-gray-400">
                 {{ phase.order }}
             </span>
             <div class="min-w-0">
@@ -56,7 +55,7 @@
                         <button
                             type="button"
                             @click="open = !open"
-                            class="group inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md text-left text-lg font-bold text-gray-950 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-white dark:hover:text-blue-300"
+                            class="group inline-flex min-h-11 cursor-pointer items-center gap-3 rounded-md text-left text-base font-medium text-gray-950 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-white dark:hover:text-blue-300"
                             :aria-expanded="open"
                             aria-controls="phase-{{ phase.order }}-content"
                             aria-describedby="phase-{{ phase.order }}-description phase-{{ phase.order }}-topic-count"
@@ -76,20 +75,20 @@
                         </button>
                     </h3>
                     {% if loop.first %}
-                    <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-800 dark:bg-blue-950 dark:text-blue-200">Start here</span>
+                    <span class="text-xs text-blue-700 dark:text-blue-300">Start here</span>
                     {% endif %}
                 </div>
                 <span id="phase-{{ phase.order }}-description" class="mt-2 block max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
                     {{ phase.short_description | default(phase.description) }}
                 </span>
-                <span id="phase-{{ phase.order }}-topic-count" class="mt-3 block text-xs font-bold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                <span id="phase-{{ phase.order }}-topic-count" class="mt-3 block text-xs text-gray-500 dark:text-gray-400">
                     {{ phase.topics | length }} topic{% if phase.topics | length != 1 %}s{% endif %}
                 </span>
             </div>
         </div>
 
         <div x-show="open" x-collapse x-cloak id="phase-{{ phase.order }}-content">
-            <div class="pb-8 pl-16 sm:pl-[5.5rem]">
+            <div class="pb-8 pl-12">
                 {% if phase.topics %}
                 <p class="mb-3 text-sm font-bold text-gray-950 dark:text-white">Topics in this phase</p>
                 <ul class="grid gap-x-8 sm:grid-cols-2">
@@ -108,7 +107,7 @@
                 <p class="text-sm leading-6 text-gray-600 dark:text-gray-400">Topics for this phase are being prepared.</p>
                 {% endif %}
 
-                <a href="/phase/{{ phase.order }}" class="mt-5 inline-flex min-h-11 items-center font-bold text-blue-700 underline decoration-blue-200 underline-offset-4 transition-colors hover:decoration-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:decoration-blue-800 dark:hover:decoration-blue-300">
+                <a href="/phase/{{ phase.order }}" class="text-link mt-5">
                     Open Phase {{ phase.order }}
                 </a>
             </div>
@@ -118,16 +117,16 @@
 </section>
 {% else %}
 <section class="pb-0 pt-12 sm:pt-16" aria-labelledby="curriculum-unavailable">
-    <div class="rounded-lg border border-gray-200 bg-gray-50 p-8 dark:border-gray-700 dark:bg-gray-800/50">
-        <h2 id="curriculum-unavailable" class="text-2xl font-bold text-gray-950 dark:text-white">The curriculum is temporarily unavailable.</h2>
+    <div>
+        <h2 id="curriculum-unavailable" class="section-title">The curriculum is temporarily unavailable.</h2>
         <p class="mt-3 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-300">
             The curriculum did not load. Try again, or visit the FAQ for more information about Learn to Cloud.
         </p>
         <div class="mt-5 flex flex-wrap items-center gap-4">
-            <a href="/curriculum" hx-boost="false" class="inline-flex min-h-11 items-center justify-center rounded-md bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-500 dark:text-blue-950 dark:hover:bg-blue-400">
+            <a href="/curriculum" hx-boost="false" class="button-primary">
                 Try again
             </a>
-            <a href="/faq" class="inline-flex min-h-11 items-center font-semibold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">
+            <a href="/faq" class="text-link">
                 Visit the FAQ
             </a>
         </div>
@@ -136,12 +135,12 @@
 {% endif %}
 
 {% if not user and phases %}
-<section class="pb-0 pt-12 text-center sm:pt-16" aria-labelledby="save-progress-heading">
-    <h2 id="save-progress-heading" class="text-2xl font-bold text-gray-950 dark:text-white">Keep your place as you learn.</h2>
-    <p class="mx-auto mt-3 max-w-xl text-base leading-7 text-gray-600 dark:text-gray-300">
-        Browse the full curriculum without an account. Sign in when you want to track progress and submit verification work.
+<section class="mt-10 border-t border-gray-200 pt-10 dark:border-gray-700" aria-labelledby="save-progress-heading">
+    <h2 id="save-progress-heading" class="section-title">Keep your place as you learn.</h2>
+    <p class="mt-3 max-w-xl text-base leading-7 text-gray-600 dark:text-gray-400">
+        Browse the curriculum overview without an account. Sign in to learn, track progress, and submit verification work.
     </p>
-    <a href="/auth/login" hx-boost="false" class="mt-6 inline-flex min-h-11 items-center justify-center rounded-md bg-gray-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200">
+    <a href="/auth/login" hx-boost="false" class="button-primary mt-6">
         Sign in with GitHub
     </a>
 </section>

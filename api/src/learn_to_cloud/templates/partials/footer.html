@@ -1,13 +1,12 @@
 <footer class="border-t border-gray-200 dark:border-gray-700 {{ footer_margin | default('mt-16') }}">
     <div class="mx-auto max-w-content px-4 sm:px-6 lg:px-8 py-8">
-        <p class="text-sm text-gray-500 dark:text-gray-400 text-center">
-            &copy; {{ now.year }} Learn to Cloud
-            <span class="mx-1">&middot;</span>
-            <a href="/curriculum" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">Program overview</a>
-            <span class="mx-1">&middot;</span>
-            <a href="/privacy" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">Privacy</a>
-            <span class="mx-1">&middot;</span>
-            <a href="/terms" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">Terms</a>
-        </p>
+        <div class="flex flex-col items-center justify-between gap-3 text-sm text-gray-500 dark:text-gray-400 sm:flex-row">
+            <p>&copy; {{ now.year }} Learn to Cloud</p>
+            <nav class="flex flex-wrap justify-center gap-x-5" aria-label="Footer">
+                {% for url, label in [('/curriculum', 'Program overview'), ('/faq', 'FAQ'), ('/privacy', 'Privacy'), ('/terms', 'Terms')] %}
+                <a href="{{ url }}" class="inline-flex min-h-11 items-center transition-colors hover:text-blue-700 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:hover:text-blue-300 dark:focus-visible:outline-blue-300">{{ label }}</a>
+                {% endfor %}
+            </nav>
+        </div>
     </div>
 </footer>

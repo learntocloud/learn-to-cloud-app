@@ -6,7 +6,7 @@
 {% block content %}
 <section class="pb-20 pt-12 sm:pb-28 sm:pt-20" aria-labelledby="home-heading">
     <p class="text-xs font-medium uppercase tracking-[0.16em] text-gray-600 dark:text-gray-400">
-        Free and open source cloud engineering.
+        Free, open-source cloud engineering education.
     </p>
     <h1 id="home-heading" class="mt-8 max-w-3xl text-balance text-4xl font-medium leading-[1.08] tracking-[-0.045em] text-gray-950 dark:text-white sm:text-6xl">
         Information is now abundant.
@@ -22,14 +22,14 @@
 
     <div class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
         {% if user or phases %}
-        <a href="{% if user %}/dashboard{% else %}/phase/{{ phases[0].order }}{% endif %}" class="inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-gray-950 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200 dark:focus-visible:outline-blue-300">
+        <a href="{% if user %}/dashboard{% else %}/phase/{{ phases[0].order }}{% endif %}" class="button-primary min-h-12 gap-3">
             {% if user %}Continue learning{% else %}Start learning{% endif %}
             <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h12m-5-5 5 5-5 5"/>
             </svg>
         </a>
         {% endif %}
-        <a href="/curriculum" class="inline-flex min-h-12 items-center text-sm font-medium text-gray-600 underline decoration-gray-300 underline-offset-4 transition-colors hover:text-gray-950 hover:decoration-gray-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:text-gray-300 dark:decoration-gray-600 dark:hover:text-white dark:hover:decoration-white dark:focus-visible:outline-blue-300">
+        <a href="/curriculum" class="text-link min-h-12">
             Explore the curriculum
         </a>
     </div>
@@ -81,7 +81,7 @@
                 built it that way.
             </p>
         </div>
-        <a href="/curriculum" class="inline-flex min-h-12 shrink-0 items-center gap-3 text-sm font-semibold text-gray-950 underline decoration-gray-300 underline-offset-4 transition-colors hover:decoration-gray-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:text-white dark:decoration-gray-600 dark:hover:decoration-white dark:focus-visible:outline-blue-300">
+        <a href="/curriculum" class="text-link min-h-12 shrink-0 gap-3">
             See the full path
             <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h12m-5-5 5 5-5 5"/>

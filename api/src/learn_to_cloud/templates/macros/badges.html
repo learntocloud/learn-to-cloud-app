@@ -1,24 +1,24 @@
 {# Reusable badge components for the curriculum UI.
 
 Macros:
-- action_badge(action) — colored pill for a StepAction enum value
-- step_number_badge(order, completed) — circular step-number badge
+- action_badge(action) — quiet label for a StepAction enum value
+- step_number_badge(order, completed) — step-number indicator
 - status_pill(label, variant) — top-right status indicator
   (variant ∈ "success" | "warning" | "error" | "info")
 #}
 
 {% macro action_badge(action) %}
 {% if action %}
-<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase {{ action.badge_classes }}">
+<span class="inline-flex items-center text-xs font-medium tracking-wide text-gray-500 dark:text-gray-400 uppercase">
     {{ action.label }}
 </span>
 {% endif %}
 {% endmacro %}
 
 {% macro step_number_badge(order, completed) %}
-<span class="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full text-xs font-bold
-    {% if completed %}bg-green-100 text-green-700 dark:bg-green-800/40 dark:text-green-300
-    {% else %}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+<span class="flex-shrink-0 flex items-center justify-center h-6 w-6 font-mono text-xs
+    {% if completed %}text-green-700 dark:text-green-300
+    {% else %}text-gray-500 dark:text-gray-400{% endif %}">
     {{ order }}
 </span>
 {% endmacro %}

@@ -2,15 +2,15 @@
 {% block title %}FAQ - Learn to Cloud{% endblock %}
 
 {% block page_header %}
-<h1 class="text-3xl font-bold text-gray-900 dark:text-white text-center">Frequently Asked Questions</h1>
+<h1 class="page-title">Frequently Asked Questions</h1>
 {% endblock %}
 
 {% block page_body %}
-<div class="space-y-6">
+<div class="border-t border-gray-200 dark:border-gray-700">
     {% for question, answer in faqs %}
-    <div>
-        <h3 class="font-medium text-gray-900 dark:text-white">{{ question }}</h3>
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ answer|safe }}</p>
+    <div class="border-b border-gray-200 py-6 dark:border-gray-700">
+        <h2 class="text-base font-medium text-gray-950 dark:text-white">{{ question }}</h2>
+        <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-400">{{ answer|safe }}</p>
     </div>
     {% endfor %}
 </div>

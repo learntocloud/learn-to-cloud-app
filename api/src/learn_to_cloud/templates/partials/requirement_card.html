@@ -1,8 +1,8 @@
 {# Required context: ``card`` is one RequirementCardContext variant. #}
 {% from "macros/badges.html" import status_pill %}
 {% from "macros/callouts.html" import banner %}
-<div id="requirement-{{ card.requirement.slug }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-    <div class="flex items-center justify-between mb-2">
+<div id="requirement-{{ card.requirement.slug }}" class="border-y border-gray-200 py-6 dark:border-gray-700">
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h3 class="font-medium text-gray-900 dark:text-gray-100">{{ card.requirement.name }}</h3>
         {% if card.kind == 'passed' %}
         {{ status_pill("Verified", "success") }}
@@ -71,7 +71,7 @@
         x-init="valid = $el.checkValidity()"
         @input="valid = $el.checkValidity()"
         @change="valid = $el.checkValidity()"
-        class="flex flex-col gap-3 {% if card.verification_form.kind == 'reflection' %}gap-4{% else %}sm:flex-row sm:items-start{% endif %}"
+        class="mt-4 flex flex-col gap-3 {% if card.verification_form.kind == 'reflection' %}gap-4{% else %}sm:flex-row sm:items-start{% endif %}"
     >
         {% with verification_form=card.verification_form, requirement=card.requirement %}
         {% include card.verification_form.template %}
@@ -80,11 +80,11 @@
         <button
             type="submit"
             :disabled="!valid"
-            class="inline-flex min-h-11 items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:opacity-50"
+            class="button-primary self-start disabled:opacity-50"
         >
             Verify
         </button>
-        <span id="spinner-{{ card.requirement.slug }}" class="htmx-indicator inline-flex items-center text-sm text-gray-500">
+        <span id="spinner-{{ card.requirement.slug }}" class="htmx-indicator inline-flex min-h-11 items-center text-sm text-gray-500 dark:text-gray-400">
             Checking...
         </span>
     </form>
@@ -95,7 +95,7 @@
     {% endif %}
     {% if card.verification_form.kind == 'derived' %}
     <details class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-        <summary class="min-h-11 cursor-pointer py-3 font-medium text-blue-700 hover:underline dark:text-blue-300">
+        <summary class="min-h-11 cursor-pointer rounded-md py-3 font-medium text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:focus-visible:outline-blue-300">
             Why can't I edit this URL?
         </summary>
         <p class="pb-2 leading-5">
