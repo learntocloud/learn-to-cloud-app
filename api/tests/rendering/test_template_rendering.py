@@ -934,6 +934,9 @@ def test_primary_links_are_in_navbar_and_footer_is_minimal():
     navbar = _render("partials/navbar.html")
     footer = _render("partials/footer.html")
 
+    assert 'src="/static/favicon.svg" alt=""' in navbar
+    assert "Learn to Cloud" in navbar
+
     for path in ("/verifications", "/community", "/faq"):
         assert f'href="{path}"' in navbar
         assert f'href="{path}"' not in footer

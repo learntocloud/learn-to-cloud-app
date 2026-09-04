@@ -233,8 +233,10 @@ class TestPublicPageSmoke:
         assert "high agency, self-sufficiency, and discipline." in response.text
         assert (
             "Cloud resources and some learning materials may cost extra."
-            in response.text
+            not in response.text
         )
+        assert "Build an AI-powered API," in response.text
+        assert "AI-powered journal" not in response.text
         assert "Structure, practice, and feedback." in response.text
         assert "automated checks and AI-assisted reviews" in response.text
         assert "Build it. Then take it further." in response.text
