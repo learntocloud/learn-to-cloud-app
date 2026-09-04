@@ -237,7 +237,14 @@ class TestPublicPageSmoke:
         )
         assert "Build an AI-powered API," in response.text
         assert "AI-powered journal" not in response.text
-        assert "Structure, practice, and feedback." in response.text
+        assert "Structure, feedback, and real-world relevance." in response.text
+        assert (
+            response.text.index("Learn with direction.")
+            < response.text.index("Improve with feedback.")
+            < response.text.index("Learn what's current.")
+        )
+        assert "People working in the field continually update" in response.text
+        assert "Build with purpose." not in response.text
         assert "automated checks and AI-assisted reviews" in response.text
         assert "Build it. Then take it further." in response.text
 
