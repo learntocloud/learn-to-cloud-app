@@ -174,7 +174,10 @@ async def global_exception_handler(_request: Request, exc: Exception) -> JSONRes
     )
 
 
-app.add_middleware(TelemetrySanitizationMiddleware)
+app.add_middleware(
+    TelemetrySanitizationMiddleware,
+    actor_hmac_key=(_settings.request_telemetry.actor_hmac_key.get_secret_value()),
+)
 app.add_middleware(
     SessionMiddleware,
     secret_key=_settings.session.secret_key,

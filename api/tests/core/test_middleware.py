@@ -33,6 +33,15 @@ async def _make_app_that_sends_response(scope, receive, send):
     await send({"type": "http.response.body", "body": b"OK"})
 
 
+def _span_attribute_value(span: MagicMock, name: str) -> str:
+    for args, _kwargs in span.set_attribute.call_args_list:
+        if args[0] == name:
+            value = args[1]
+            assert isinstance(value, str)
+            return value
+    raise AssertionError(f"Span attribute {name!r} was not set")
+
+
 @pytest.mark.unit
 class TestSecurityHeadersMiddleware:
     """Test SecurityHeadersMiddleware adds expected headers."""
@@ -197,3 +206,95 @@ class TestTelemetrySanitizationMiddleware:
         await middleware(scope, _noop_receive, _noop_send)
 
         span.set_attribute.assert_any_call("url.full", "/unmatched")
+
+    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
+    async def test_adds_stable_pseudonymous_actor_for_authenticated_session(
+        self, mock_trace
+    ):
+        span = MagicMock()
+        span.is_recording.return_value = True
+        mock_trace.get_current_span.return_value = span
+        scope = {
+            "type": "http",
+            "path": "/dashboard",
+            "session": {"user_id": 42, "github_username": "sensitive-login"},
+        }
+
+        middleware = TelemetrySanitizationMiddleware(
+            _make_app_that_sends_response,
+            actor_hmac_key="first-key-that-is-at-least-32-bytes",
+        )
+        await middleware(scope, _noop_receive, _noop_send)
+        first_actor_id = _span_attribute_value(span, "request.actor.id")
+
+        span.reset_mock()
+        await middleware(scope, _noop_receive, _noop_send)
+        second_actor_id = _span_attribute_value(span, "request.actor.id")
+
+        assert first_actor_id == second_actor_id
+        assert len(first_actor_id) == 32
+        assert first_actor_id != "42"
+        assert "sensitive-login" not in first_actor_id
+
+    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
+    async def test_actor_id_changes_after_key_rotation(self, mock_trace):
+        span = MagicMock()
+        span.is_recording.return_value = True
+        mock_trace.get_current_span.return_value = span
+        scope = {"type": "http", "path": "/dashboard", "session": {"user_id": 42}}
+
+        first_middleware = TelemetrySanitizationMiddleware(
+            _make_app_that_sends_response,
+            actor_hmac_key="first-key-that-is-at-least-32-bytes",
+        )
+        await first_middleware(scope, _noop_receive, _noop_send)
+        first_actor_id = _span_attribute_value(span, "request.actor.id")
+
+        span.reset_mock()
+        rotated_middleware = TelemetrySanitizationMiddleware(
+            _make_app_that_sends_response,
+            actor_hmac_key="rotated-key-that-is-at-least-32-bytes",
+        )
+        await rotated_middleware(scope, _noop_receive, _noop_send)
+        rotated_actor_id = _span_attribute_value(span, "request.actor.id")
+
+        assert first_actor_id != rotated_actor_id
+
+    @pytest.mark.parametrize(
+        "session",
+        [None, {}, {"user_id": None}, {"user_id": True}, {"user_id": 0}],
+    )
+    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
+    async def test_omits_actor_for_anonymous_or_invalid_session(
+        self, mock_trace, session
+    ):
+        span = MagicMock()
+        span.is_recording.return_value = True
+        mock_trace.get_current_span.return_value = span
+        scope = {"type": "http", "path": "/", "session": session}
+        middleware = TelemetrySanitizationMiddleware(
+            _make_app_that_sends_response,
+            actor_hmac_key="first-key-that-is-at-least-32-bytes",
+        )
+
+        await middleware(scope, _noop_receive, _noop_send)
+
+        attribute_names = [
+            args[0] for args, _kwargs in span.set_attribute.call_args_list
+        ]
+        assert "request.actor.id" not in attribute_names
+
+    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
+    async def test_omits_actor_when_hmac_key_is_not_configured(self, mock_trace):
+        span = MagicMock()
+        span.is_recording.return_value = True
+        mock_trace.get_current_span.return_value = span
+        scope = {"type": "http", "path": "/", "session": {"user_id": 42}}
+
+        middleware = TelemetrySanitizationMiddleware(_make_app_that_sends_response)
+        await middleware(scope, _noop_receive, _noop_send)
+
+        attribute_names = [
+            args[0] for args, _kwargs in span.set_attribute.call_args_list
+        ]
+        assert "request.actor.id" not in attribute_names

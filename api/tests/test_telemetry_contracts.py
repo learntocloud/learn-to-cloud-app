@@ -32,6 +32,7 @@ _ALLOWED_APPLICATION_ATTRIBUTES = {
     "http.response.status_code",
     "http.target",
     "http.url",
+    "request.actor.id",
     "startup.initialized",
     "telemetry.configuration.reason",
     "url.full",

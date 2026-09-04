@@ -47,6 +47,7 @@ github_client_id = "Ov23xxx"
 # - github-token
 # - session-secret-key
 # - labs-verification-secret
+# - telemetry-actor-hmac-key (rotate every 30 days; see docs/runbooks/alerts.md)
 
 # Optional - Override defaults
 # location    = "centralus"

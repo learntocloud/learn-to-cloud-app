@@ -17,6 +17,61 @@ Analytics workspace. Replace `dev` if the alert came from another environment.
 | `verification_attempt_stuck` | `verification.attempt.stuck` structured business log | Unchanged; #780 owns the reconciler contract. |
 | `schema_drift` | `health.ready.schema_drift*` structured health logs | Unchanged; the query uses event names, not exception text or spans. |
 
+## Pseudonymous request actor telemetry
+
+Authenticated API requests carry `request.actor.id` in the Application Insights
+request `Properties`. It is the first 128 bits of an HMAC-SHA-256 digest over the
+internal user ID with a purpose-specific prefix. Anonymous requests omit the
+attribute. The raw internal user ID, GitHub username, and HMAC key must never be
+logged or exported as telemetry.
+
+Use this production `AppRequests` query to group traffic by actor:
+
+```kusto
+AppRequests
+| where TimeGenerated > ago(2h)
+| where AppRoleName == "learn-to-cloud-api"
+    or AppRoleName has "ca-ltc-api"
+| extend ActorId = tostring(Properties["request.actor.id"])
+| where isnotempty(ActorId)
+| summarize
+    RequestCount = sum(ItemCount),
+    OperationCount = dcount(OperationId),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
+    by ActorId
+| order by RequestCount desc
+```
+
+Always use `sum(ItemCount)` for request totals because Application Insights
+request sampling can make one stored record represent multiple requests. Treat
+the actor ID as an incident-correlation value only; it is not an authorization
+identity and must not be copied into learner-facing systems.
+
+### Key rotation
+
+Rotate the `telemetry-actor-hmac-key` Key Vault secret every 30 days and
+immediately after suspected disclosure. Generate it independently from all
+other application secrets and use at least 32 random bytes:
+
+```bash
+terraform -chdir=infra output -raw key_vault_name
+ACTOR_HMAC_KEY="$(openssl rand -hex 32)"
+az keyvault secret set \
+  --vault-name "<key-vault-name-from-output>" \
+  --name "telemetry-actor-hmac-key" \
+  --value "$ACTOR_HMAC_KEY" \
+  --output none
+unset ACTOR_HMAC_KEY
+```
+
+The Container App uses a versionless Key Vault reference. Azure checks for a
+new secret version within 30 minutes and restarts active revisions that consume
+it as an environment variable. Confirm the new revision is healthy, then run
+the grouping query above. Rotation intentionally changes every actor ID, so
+correlation does not cross a rotation boundary; investigations spanning that
+boundary must analyze the two windows separately.
+
 ## Unhandled API exception
 
 ### Meaning
