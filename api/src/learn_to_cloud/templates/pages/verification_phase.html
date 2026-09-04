@@ -5,7 +5,7 @@
 
 {% block content %}
 <nav class="mb-6 flex min-h-11 flex-wrap items-center gap-2 text-sm text-gray-500 dark:text-gray-400" aria-label="Breadcrumb">
-    <a href="/verifications" class="inline-flex min-h-11 items-center font-medium hover:text-blue-700 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:hover:text-blue-300">Verifications</a>
+    <a href="/verifications" class="text-link">Verifications</a>
     <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="m8 5 5 5-5 5"/>
     </svg>
@@ -14,7 +14,7 @@
 
 <header class="border-b border-gray-200 pb-10 dark:border-gray-700 sm:pb-12">
     <div class="flex flex-wrap items-center gap-3">
-        <h1 class="text-balance text-3xl font-bold tracking-[-0.03em] text-gray-950 dark:text-white sm:text-4xl">
+        <h1 class="page-title text-balance">
             Phase {{ phase.order }} verification
         </h1>
         {% if verification_locked %}
@@ -25,12 +25,12 @@
         {{ status_pill("In progress", "info") }}
         {% endif %}
     </div>
-    <p class="mt-3 text-lg font-medium text-gray-700 dark:text-gray-200">{{ phase.name }}</p>
+    <p class="mt-3 text-base text-gray-700 dark:text-gray-300">{{ phase.name }}</p>
     <p class="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
         Submit proof of your hands-on work. Requirements unlock in sequence, and completed attempts remain available below.
     </p>
     <div class="mt-5 flex flex-wrap gap-4">
-        <a href="/phase/{{ phase.order }}" class="inline-flex min-h-11 items-center font-bold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:decoration-blue-800 dark:hover:decoration-blue-300">
+        <a href="/phase/{{ phase.order }}" class="text-link">
             Review Phase {{ phase.order }} learning
         </a>
     </div>
@@ -51,46 +51,46 @@
 
 {% if requirements %}
 <section class="pt-12 sm:pt-14" aria-labelledby="requirements-heading">
-    <h2 id="requirements-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Requirements</h2>
+    <h2 id="requirements-heading" class="section-title">Requirements</h2>
     <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">Complete the current requirement to unlock the next one.</p>
 
     {% if verification_locked %}
-    <div class="mb-6 mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+    <div class="mb-6 mt-6 border-l-2 border-amber-500 pl-4">
         <div class="flex items-start gap-3">
             <svg class="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
                 <rect x="4.5" y="8.5" width="11" height="8" rx="1.5"/>
                 <path stroke-linecap="round" d="M7 8.5V6a3 3 0 0 1 6 0v2.5"/>
             </svg>
             <div>
-                <p class="text-sm font-bold text-amber-950 dark:text-amber-100">Phase {{ prerequisite_phase_id }} verification required</p>
-                <p class="mt-1 text-sm leading-6 text-amber-800 dark:text-amber-200">
+                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Phase {{ prerequisite_phase_id }} verification required</p>
+                <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-300">
                     Complete every hands-on verification in
-                    <a href="/verifications/phase/{{ prerequisite_phase_id }}" class="font-bold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700">Phase {{ prerequisite_phase_id }}</a>
+                    <a href="/verifications/phase/{{ prerequisite_phase_id }}" class="text-link">Phase {{ prerequisite_phase_id }}</a>
                     before submitting here.
                 </p>
             </div>
         </div>
     </div>
-    <div class="space-y-3">
+    <div>
         {% for req in requirements %}
         {% set card = card_contexts_by_req[req.slug] %}
         {% if card.kind == 'passed' %}
         {% include "partials/verified_requirement_row.html" %}
         {% else %}
-        <div class="flex min-h-11 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50">
+        <div class="flex min-h-11 items-center gap-3 border-b border-gray-200 py-4 dark:border-gray-700">
             <svg class="h-5 w-5 shrink-0 text-gray-500 dark:text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
                 <rect x="4.5" y="8.5" width="11" height="8" rx="1.5"/>
                 <path stroke-linecap="round" d="M7 8.5V6a3 3 0 0 1 6 0v2.5"/>
             </svg>
             <span class="min-w-0 flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">{{ req.name }}</span>
-            <span class="text-xs font-bold text-gray-500 dark:text-gray-400">Locked</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">Locked</span>
         </div>
         {% endif %}
         {% endfor %}
     </div>
     {% else %}
     {% set ns = namespace(found_active=false) %}
-    <div class="mt-6 space-y-3">
+    <div class="mt-6">
         {% for req in requirements %}
         {% set card = card_contexts_by_req[req.slug] %}
         {% if card.kind == 'passed' %}
@@ -99,10 +99,10 @@
         {% set ns.found_active = true %}
         {% include "partials/requirement_card.html" %}
         {% else %}
-        <div class="flex min-h-11 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50">
+        <div class="flex min-h-11 items-center gap-3 border-b border-gray-200 py-4 dark:border-gray-700">
             <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-400 text-xs text-gray-500 dark:border-gray-500 dark:text-gray-400" aria-hidden="true">{{ loop.index }}</span>
             <span class="min-w-0 flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">{{ req.name }}</span>
-            <span class="text-xs font-bold text-gray-500 dark:text-gray-400">Up next</span>
+            <span class="shrink-0 text-xs text-gray-500 dark:text-gray-400">Up next</span>
         </div>
         {% endif %}
         {% endfor %}
@@ -111,8 +111,8 @@
 </section>
 {% else %}
 <section class="pt-12 sm:pt-14" aria-labelledby="requirements-empty-heading">
-    <div class="rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-800/50">
-        <h2 id="requirements-empty-heading" class="text-xl font-bold text-gray-950 dark:text-white">No verification requirements are available.</h2>
+    <div>
+        <h2 id="requirements-empty-heading" class="section-title">No verification requirements are available.</h2>
         <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">Return to the phase curriculum while this workspace is prepared.</p>
     </div>
 </section>
@@ -120,19 +120,19 @@
 
 <section class="mt-14 border-t border-gray-200 pt-12 dark:border-gray-700 sm:mt-16 sm:pt-14" aria-labelledby="attempt-history-heading">
     <div>
-        <h2 id="attempt-history-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Attempt history</h2>
+        <h2 id="attempt-history-heading" class="section-title">Attempt history</h2>
         <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
             Completed attempts are kept as a private record. Sensitive submitted values and internal grading metadata are not shown.
         </p>
     </div>
 
     {% if history.items %}
-    <div class="mt-6 space-y-3">
+    <div class="mt-6 divide-y divide-gray-200 dark:divide-gray-700">
         {% for item in history.items %}
-        <article class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+        <article class="py-5">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h3 class="text-sm font-bold text-gray-950 dark:text-white">{{ item.requirement.name }}</h3>
+                    <h3 class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ item.requirement.name }}</h3>
                     {% if item.completed_at %}
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ item.completed_at.strftime('%b %d, %Y at %H:%M %Z') }}</p>
                     {% endif %}
@@ -160,22 +160,22 @@
     </div>
 
     {% if history.has_previous or history.has_next %}
-    <nav class="mt-6 flex items-center justify-between gap-4" aria-label="Attempt history pages">
+    <nav class="mt-6 flex flex-wrap items-center justify-between gap-4" aria-label="Attempt history pages">
         {% if history.has_previous %}
-        <a href="/verifications/phase/{{ phase.order }}?history_page={{ history.page - 1 }}" class="inline-flex min-h-11 items-center font-bold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">Newer attempts</a>
+        <a href="/verifications/phase/{{ phase.order }}?history_page={{ history.page - 1 }}" class="text-link">Newer attempts</a>
         {% else %}
         <span></span>
         {% endif %}
         {% if history.has_next %}
-        <a href="/verifications/phase/{{ phase.order }}?history_page={{ history.page + 1 }}" class="inline-flex min-h-11 items-center font-bold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">Older attempts</a>
+        <a href="/verifications/phase/{{ phase.order }}?history_page={{ history.page + 1 }}" class="text-link">Older attempts</a>
         {% endif %}
     </nav>
     {% endif %}
     {% else %}
-    <div class="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
+    <div class="mt-6">
         <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">No completed attempts yet. Your results and allowed feedback will appear here after verification finishes.</p>
         {% if history.has_previous %}
-        <a href="/verifications/phase/{{ phase.order }}?history_page={{ history.page - 1 }}" class="mt-3 inline-flex min-h-11 items-center font-bold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">View newer attempts</a>
+        <a href="/verifications/phase/{{ phase.order }}?history_page={{ history.page - 1 }}" class="text-link mt-3">View newer attempts</a>
         {% endif %}
     </div>
     {% endif %}

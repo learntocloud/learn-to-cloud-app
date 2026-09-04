@@ -37,6 +37,50 @@ def _render(template_name: str, **ctx: object) -> str:
     return _ENV.get_template(template_name).render(**_base_ctx(**ctx))
 
 
+@pytest.mark.unit
+class TestHomePage:
+    def test_anonymous_learner_starts_at_first_available_phase(self):
+        html = _render(
+            "pages/home.html",
+            user=None,
+            phases=[SimpleNamespace(order=0), SimpleNamespace(order=1)],
+        )
+        main = html.split("<main", 1)[1].split("</main>", 1)[0]
+
+        assert 'href="/phase/0"' in main
+        assert "Start learning" in main
+        assert main.count('href="/curriculum"') == 1
+        assert main.count("<a ") == 2
+        assert "Explore the curriculum" in main
+        assert "See the full path" not in main
+        assert 'href="/phase/1"' not in main
+        assert "Continue learning" not in main
+
+    def test_returning_learner_continues_from_dashboard(self):
+        html = _render("pages/home.html", phases=[SimpleNamespace(order=0)])
+        main = html.split("<main", 1)[1].split("</main>", 1)[0]
+
+        assert 'href="/dashboard"' in main
+        assert "Continue learning" in main
+        assert main.count('href="/curriculum"') == 1
+        assert main.count("<a ") == 2
+        assert "Explore the curriculum" in main
+        assert "See the full path" not in main
+        assert 'href="/phase/0"' not in main
+
+    @pytest.mark.parametrize("signed_in", [False, True])
+    def test_missing_curriculum_keeps_recovery_and_dashboard_access(self, signed_in):
+        ctx = {} if signed_in else {"user": None}
+        html = _render("pages/home.html", phases=[], **ctx)
+        main = html.split("<main", 1)[1].split("</main>", 1)[0]
+
+        assert "The learning path is temporarily unavailable." in main
+        assert 'href="/" hx-boost="false"' in main
+        assert 'href="/faq"' in main
+        assert 'href="/phase/' not in main
+        assert ('href="/dashboard"' in main) is signed_in
+
+
 def _requirement(slug: str, name: str, description: str = ""):
     from learn_to_cloud_shared.testing.requirement_factories import (
         ctf_token_requirement,
@@ -621,8 +665,8 @@ def test_phase_progress_uses_distinct_labels_without_explanatory_copy():
         has_verification=False,
     )
 
-    assert "Verification progress — 1/2 requirements" in html
-    assert "Learning progress — 2/5 steps" in html
+    assert "1/2 requirements verified" in html
+    assert "2/5 steps checked" in html
     assert "Verification is what counts" not in html
 
 
@@ -814,6 +858,7 @@ def test_dashboard_help_section_links_to_discord():
 
     assert 'href="https://discord.gg/st7g2Hp77r"' in html
     assert "Ask the Community" not in html
+    assert "Project updates" not in html
 
 
 @pytest.mark.unit
@@ -892,15 +937,23 @@ class TestDashboardPrimaryState:
 
 
 @pytest.mark.unit
-def test_primary_links_are_in_navbar_and_footer_is_minimal():
-    navbar = _render("partials/navbar.html")
+@pytest.mark.parametrize("signed_in", [False, True])
+def test_primary_links_are_in_navbar_and_footer_is_minimal(signed_in):
+    ctx = {} if signed_in else {"user": None}
+    navbar = _render("partials/navbar.html", **ctx)
     footer = _render("partials/footer.html")
 
-    for path in ("/verifications", "/community", "/faq"):
-        assert f'href="{path}"' in navbar
-        assert f'href="{path}"' not in footer
+    assert 'src="/static/favicon.svg" alt=""' in navbar
+    assert "Learn to Cloud" in navbar
+
+    assert ('href="/verifications"' in navbar) is signed_in
+    assert 'href="/verifications"' not in footer
+    assert 'href="/community"' in navbar
+    assert 'href="/community"' not in footer
 
     assert 'href="/curriculum"' not in navbar
+    assert 'href="/faq"' not in navbar
+    assert 'href="/faq"' in footer
     assert 'href="/curriculum"' in footer
     assert "Program overview" in footer
     assert 'href="/privacy"' in footer
@@ -909,6 +962,18 @@ def test_primary_links_are_in_navbar_and_footer_is_minimal():
     assert "GitHub" not in footer
     assert "YouTube" not in footer
     assert "Sponsor" not in footer
+
+
+@pytest.mark.unit
+def test_navbar_marks_the_current_verification_section_in_both_menus():
+    html = _render(
+        "partials/navbar.html",
+        request=SimpleNamespace(url=SimpleNamespace(path="/verifications/phase/3")),
+    )
+
+    assert html.count('href="/verifications" aria-current="page"') == 2
+    assert 'href="/dashboard" aria-current="page"' not in html
+    assert 'href="/community" aria-current="page"' not in html
 
 
 @pytest.mark.unit
@@ -973,9 +1038,12 @@ class TestDashboardPhaseRow:
             requirements_required=2,
         )
         html = self._render_dashboard(progress)
-        assert "Complete each phase's verification to progress." in html
-        assert "Verification progress — 3% of requirements" in html
-        assert "Learning progress — 3% of learning steps" in html
+        assert "Complete learning steps and verifications in each phase." in html
+        assert "Verification progress" in html
+        assert "Learning progress" in html
+        assert "Requirements verified" in html
+        assert "Learning steps checked" in html
+        assert html.count(">3%</dd>") == 2
         assert "Verification is the measure that counts" not in html
 
     def test_step_progress_phase_shows_both_counts(self):

@@ -227,10 +227,26 @@ class TestPublicPageSmoke:
         """GET / renders the home page template."""
         response = await anon_client.get("/")
         assert response.status_code == 200
-        assert "From first command to production cloud system." in response.text
-        assert "Progress tracking" in response.text
-        assert "Hands-on labs" in response.text
-        assert "The curriculum, phase by phase." in response.text
+        assert "Information is now abundant." in response.text
+        assert "Access to education should be too." in response.text
+        assert "Free, open-source cloud engineering education." in response.text
+        assert "high agency, self-sufficiency, and discipline." in response.text
+        assert (
+            "Cloud resources and some learning materials may cost extra."
+            not in response.text
+        )
+        assert "Build an AI-powered API," in response.text
+        assert "AI-powered journal" not in response.text
+        assert "Structure, feedback, and real-world relevance." in response.text
+        assert (
+            response.text.index("Learn with direction.")
+            < response.text.index("Improve with feedback.")
+            < response.text.index("Learn what's current.")
+        )
+        assert "People working in the field continually update" in response.text
+        assert "Build with purpose." not in response.text
+        assert "automated checks and AI-assisted reviews" in response.text
+        assert "Build it. Then take it further." in response.text
 
     async def test_curriculum_page_renders(self, anon_client: AsyncClient):
         """GET /curriculum renders the phase hierarchy and progress CTA."""

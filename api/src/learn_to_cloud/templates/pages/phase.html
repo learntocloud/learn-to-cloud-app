@@ -14,7 +14,7 @@
 
 <header class="border-b border-gray-200 pb-10 dark:border-gray-700 sm:pb-12">
     <div class="flex flex-wrap items-center gap-3">
-        <h1 class="text-balance text-3xl font-bold tracking-[-0.03em] text-gray-950 dark:text-white sm:text-4xl">
+        <h1 class="page-title">
             Phase {{ phase.order }}: {{ phase.name }}
         </h1>
         {% if phase_progress %}
@@ -37,38 +37,24 @@
     {% endfor %}
 
     {% if next_topic.item %}
-    <div class="mt-7 flex flex-col items-start justify-between gap-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/40 sm:flex-row sm:items-center">
+    <div class="mt-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div class="min-w-0">
-            <p class="text-sm font-bold text-blue-950 dark:text-blue-100">Continue learning</p>
-            <p class="mt-1 break-words text-sm text-blue-800 dark:text-blue-200">{{ next_topic.item.name }}</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Continue learning</p>
+            <p class="mt-2 break-words text-base font-medium text-gray-950 dark:text-white">{{ next_topic.item.name }}</p>
         </div>
-        <a href="/phase/{{ phase.order }}/{{ next_topic.item.slug }}" class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-400 dark:text-blue-950 dark:hover:bg-blue-300">
+        <a href="/phase/{{ phase.order }}/{{ next_topic.item.slug }}" class="button-primary shrink-0">
             Open topic
         </a>
     </div>
     {% endif %}
 
     {% if phase_progress %}
-    <div class="mt-6 grid gap-4 sm:grid-cols-2 sm:gap-8">
-        {% if phase_progress.verification.requirements_required > 0 %}
-        {% with
-            value=phase_progress.verification.percentage,
-            label='Verification progress — ' ~ phase_progress.verification.requirements_verified ~ '/' ~ phase_progress.verification.requirements_required ~ ' requirements',
-            complete=phase_progress.verification.is_complete,
-            aria_label='Requirements verified: ' ~ phase_progress.verification.requirements_verified ~ ' of ' ~ phase_progress.verification.requirements_required
-        %}
-        {% include "partials/progress_bar.html" %}
-        {% endwith %}
-        {% endif %}
+    <div class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500 dark:text-gray-400" aria-label="Phase progress">
         {% if phase_progress.learning.steps_required > 0 %}
-        {% with
-            value=phase_progress.learning.percentage,
-            label='Learning progress — ' ~ phase_progress.learning.steps_completed ~ '/' ~ phase_progress.learning.steps_required ~ ' steps',
-            complete=phase_progress.learning.is_complete,
-            aria_label='Learning steps checked: ' ~ phase_progress.learning.steps_completed ~ ' of ' ~ phase_progress.learning.steps_required
-        %}
-        {% include "partials/progress_bar.html" %}
-        {% endwith %}
+        <p>{{ phase_progress.learning.steps_completed }}/{{ phase_progress.learning.steps_required }} steps checked</p>
+        {% endif %}
+        {% if phase_progress.verification.requirements_required > 0 %}
+        <p>{{ phase_progress.verification.requirements_verified }}/{{ phase_progress.verification.requirements_required }} requirements verified</p>
         {% endif %}
     </div>
     {% endif %}
@@ -76,18 +62,17 @@
 
 <section class="pt-12 sm:pt-14" aria-labelledby="topics-heading">
     <div>
-        <h2 id="topics-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Topics</h2>
-        <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">Work through the learning steps in order, then open the verification workspace when you are ready.</p>
+        <h2 id="topics-heading" class="section-title">Topics</h2>
     </div>
 
     {% if topics %}
     <div class="mt-6 border-y border-gray-200 dark:border-gray-700">
         {% for topic in topics %}
         <a href="/phase/{{ phase.order }}/{{ topic.slug }}" class="group grid min-h-11 grid-cols-[2.75rem_1fr] gap-3 {% if not loop.last %}border-b border-gray-200 dark:border-gray-700{% endif %} py-4 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:grid-cols-[2.75rem_1fr_auto] sm:items-center sm:gap-4">
-            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-800 dark:bg-blue-950 dark:text-blue-200">{{ loop.index }}</span>
-            <span class="min-w-0 break-words text-sm font-bold text-gray-950 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">{{ topic.name }}</span>
+            <span class="flex h-9 w-9 items-center justify-center font-mono text-sm text-gray-500 dark:text-gray-400">{{ loop.index }}</span>
+            <span class="min-w-0 break-words text-base font-medium text-gray-950 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">{{ topic.name }}</span>
             {% if topic.progress %}
-            <span class="col-start-2 text-xs font-bold sm:col-start-auto {% if topic.progress.completed == topic.progress.total and topic.progress.total > 0 %}text-green-700 dark:text-green-300{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+            <span class="col-start-2 text-xs sm:col-start-auto {% if topic.progress.completed == topic.progress.total and topic.progress.total > 0 %}text-green-700 dark:text-green-300{% else %}text-gray-500 dark:text-gray-400{% endif %}">
                 {% if topic.progress.completed == topic.progress.total and topic.progress.total > 0 %}
                 Complete
                 {% else %}
@@ -99,7 +84,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-800/50">
+    <div class="mt-6 border-t border-gray-200 py-6 dark:border-gray-700">
         <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">Topics for this phase are being prepared.</p>
     </div>
     {% endif %}
@@ -109,17 +94,12 @@
 <section id="verification-section" class="mt-14 border-t border-gray-200 pt-12 dark:border-gray-700 sm:mt-16 sm:pt-14" aria-labelledby="verification-heading">
     <div class="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
         <div>
-            <h2 id="verification-heading" class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">Hands-on verification</h2>
+            <h2 id="verification-heading" class="section-title">Hands-on verification</h2>
             <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
                 Submit work, follow active checks, and review feedback in the dedicated workspace.
             </p>
-            {% if phase_progress.verification.requirements_required > 0 %}
-            <p class="mt-2 text-sm font-bold {% if phase_progress.verification.is_complete %}text-green-700 dark:text-green-300{% else %}text-blue-700 dark:text-blue-300{% endif %}">
-                {{ phase_progress.verification.requirements_verified }}/{{ phase_progress.verification.requirements_required }} requirements verified
-            </p>
-            {% endif %}
         </div>
-        <a href="/verifications/phase/{{ phase.order }}" class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-400 dark:text-blue-950 dark:hover:bg-blue-300">
+        <a href="/verifications/phase/{{ phase.order }}" class="{{ 'button-secondary' if next_topic.item else 'button-primary' }} shrink-0">
             {% if phase_progress.verification.is_complete %}Review verification{% elif phase_progress.verification.requirements_verified > 0 %}Continue verification{% else %}Start verification{% endif %}
         </a>
     </div>
@@ -128,9 +108,9 @@
 
 {% if phase_progress and phase_progress.status == 'completed' %}
 <section class="mt-14 border-t border-gray-200 pt-8 dark:border-gray-700" aria-labelledby="phase-complete-heading">
-    <h2 id="phase-complete-heading" class="text-xl font-bold text-gray-950 dark:text-white">Phase complete</h2>
+    <h2 id="phase-complete-heading" class="section-title">Phase complete</h2>
     <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">Your learning steps and verification work are complete.</p>
-    <a href="/dashboard" class="mt-4 inline-flex min-h-11 items-center font-bold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">Return to dashboard</a>
+    <a href="/dashboard" class="text-link mt-4">Return to dashboard</a>
 </section>
 {% endif %}
 {% endblock %}

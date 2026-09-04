@@ -155,7 +155,7 @@
     {% include "partials/navbar.html" %}
 
     <main
-        class="flex-1 w-full mx-auto max-w-content px-4 sm:px-6 lg:px-8 py-8"
+        class="flex-1 w-full mx-auto max-w-content px-4 sm:px-6 lg:px-8 py-10 sm:py-12"
         {% if frontend_telemetry %}data-telemetry-route="{{ frontend_telemetry.route_path }}"{% endif %}
     >
         {% block content %}{% endblock %}
