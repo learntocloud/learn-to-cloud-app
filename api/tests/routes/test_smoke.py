@@ -227,8 +227,14 @@ class TestPublicPageSmoke:
         """GET / renders the home page template."""
         response = await anon_client.get("/")
         assert response.status_code == 200
-        assert "Information is everywhere." in response.text
-        assert "Understanding is earned." in response.text
+        assert "Information is now abundant." in response.text
+        assert "Access to education should be too." in response.text
+        assert "Free and open source cloud engineering." in response.text
+        assert "high agency, self-sufficiency, and discipline." in response.text
+        assert (
+            "Cloud resources and some learning materials may cost extra."
+            in response.text
+        )
         assert "Structure, practice, and feedback." in response.text
         assert "automated checks and AI-assisted reviews" in response.text
         assert "Build it. Then take it further." in response.text
