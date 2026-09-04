@@ -1,157 +1,103 @@
 {% extends "base.html" %}
 {% set footer_margin = "mt-8" %}
-{% block title %}Learn to Cloud - Your Path to Cloud Computing{% endblock %}
-{% block description %}Learn cloud computing through a structured path of fundamentals, hands-on projects, and verified skills.{% endblock %}
+{% block title %}Learn to Cloud - Build real understanding{% endblock %}
+{% block description %}Learn cloud engineering through hands-on work, independent thinking, and AI. A self-paced program built on agency, discipline, and deep understanding.{% endblock %}
 
 {% block content %}
-<section class="relative overflow-hidden border-b border-gray-200 pb-16 pt-6 dark:border-gray-700 sm:pb-20 sm:pt-12">
-    <div class="absolute right-0 top-8 -z-10 h-56 w-56 rounded-full bg-blue-100/70 blur-3xl dark:bg-blue-950/50" aria-hidden="true"></div>
+<section class="pb-20 pt-12 sm:pb-28 sm:pt-20" aria-labelledby="home-heading">
+    <p class="text-xs font-medium uppercase tracking-[0.16em] text-gray-600 dark:text-gray-400">
+        Cloud engineering. Human understanding.
+    </p>
+    <h1 id="home-heading" class="mt-8 max-w-3xl text-balance text-4xl font-medium leading-[1.08] tracking-[-0.045em] text-gray-950 dark:text-white sm:text-6xl">
+        Information is everywhere.
+        <span class="block text-gray-500 dark:text-gray-400">Understanding is earned.</span>
+    </h1>
+    <p class="mt-8 max-w-xl text-lg leading-8 text-gray-600 dark:text-gray-300">
+        Learn to Cloud is a hands-on program for people who want to understand
+        what they build. Use AI, think for yourself, and develop the discipline
+        to solve real cloud engineering problems.
+    </p>
 
-    <div class="grid items-center gap-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(17rem,0.8fr)]">
-        <div>
-            <h1 class="max-w-3xl text-balance text-4xl font-bold tracking-[-0.035em] text-gray-950 dark:text-white sm:text-6xl sm:leading-[1.05]">
-                From first command to production cloud system.
-            </h1>
-            <p class="mt-6 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-300">
-                Build an API, deploy it to your cloud, automate it, harden it, and prove your skills along the way.
-            </p>
-
-            <div class="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-                {% if user %}
-                <a href="/dashboard" class="inline-flex min-h-11 items-center justify-center rounded-md bg-blue-700 px-5 py-2.5 text-base font-semibold text-white shadow-sm shadow-blue-950/20 transition-colors hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-500 dark:text-blue-950 dark:hover:bg-blue-400">
-                    Continue to your dashboard
-                    <svg class="ml-2 h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h12m-5-5 5 5-5 5"/>
-                    </svg>
-                </a>
-                {% else %}
-                <a href="#journey-heading" class="inline-flex min-h-11 items-center justify-center rounded-md bg-blue-700 px-5 py-2.5 text-base font-semibold text-white shadow-sm shadow-blue-950/20 transition-colors hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-500 dark:text-blue-950 dark:hover:bg-blue-400">
-                    See the curriculum
-                    <svg class="ml-2 h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h12m-5-5 5 5-5 5"/>
-                    </svg>
-                </a>
-                {% endif %}
-                {% if user %}
-                <a href="#journey-heading" class="inline-flex min-h-11 items-center px-2 text-base font-semibold text-gray-700 underline decoration-gray-300 underline-offset-4 transition-colors hover:text-blue-700 hover:decoration-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-200 dark:decoration-gray-600 dark:hover:text-blue-300">
-                    Review the curriculum
-                </a>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="mx-auto w-full max-w-sm">
-            <h2 class="text-2xl font-bold tracking-[-0.02em] text-gray-950 dark:text-white">A complete learning system.</h2>
-            <ul class="mt-5 divide-y divide-blue-100 border-y border-blue-100 dark:divide-blue-900 dark:border-blue-900">
-                {% set capabilities = [
-                    ("Curriculum", "Follow a phase-by-phase route from foundations to career."),
-                    ("Progress tracking", "Resume from your dashboard and see what is complete."),
-                    ("Hands-on labs", "Build with Linux, cloud CLIs, APIs, and infrastructure."),
-                    ("Verification", "Submit proof and get your work checked.")
-                ] %}
-                {% for title, detail in capabilities %}
-                <li class="grid grid-cols-[2.75rem_1fr] gap-4 py-4">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-200" aria-hidden="true">
-                        {% if loop.index == 1 %}
-                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4.5h4.25A2.75 2.75 0 0 1 11 7.25V16a2.75 2.75 0 0 0-2.75-2.75H4V4.5Zm12 0h-2.25A2.75 2.75 0 0 0 11 7.25V16a2.75 2.75 0 0 1 2.75-2.75H16V4.5Z"/>
-                        </svg>
-                        {% elif loop.index == 2 %}
-                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 15V9m4 6V5m4 10v-4m4 4V7"/>
-                        </svg>
-                        {% elif loop.index == 3 %}
-                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m7 5-4 5 4 5m6-10 4 5-4 5m-3.5 1.5 2-13"/>
-                        </svg>
-                        {% else %}
-                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 2.75 16 5v4.5c0 3.5-2.5 6.25-6 7.75-3.5-1.5-6-4.25-6-7.75V5l6-2.25Z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m7.25 10 1.75 1.75 3.75-4"/>
-                        </svg>
-                        {% endif %}
-                    </span>
-                    <span>
-                        <span class="block text-base font-bold text-gray-950 dark:text-white">{{ title }}</span>
-                        <span class="mt-1 block text-sm leading-5 text-gray-600 dark:text-gray-400">{{ detail }}</span>
-                    </span>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-</section>
-
-{% if phases %}
-<section class="pb-0 pt-16 sm:pt-20" aria-labelledby="journey-heading">
-    <div class="max-w-2xl">
-        <h2 id="journey-heading" class="text-balance text-3xl font-bold tracking-[-0.025em] text-gray-950 dark:text-white sm:text-4xl">
-            The curriculum, phase by phase.
-        </h2>
-        <p class="mt-4 text-lg leading-8 text-gray-600 dark:text-gray-300">
-            Begin with the fundamentals, then use them to build, deploy, secure, and explain real cloud work.
-        </p>
-    </div>
-
-    <div class="mt-12">
-        {% for phase in phases %}
-        {% if loop.index0 == 0 or loop.index0 == 3 or loop.index0 == 6 %}
-        <div class="{% if not loop.first %}mt-12{% endif %} mb-3 flex items-center gap-4" aria-hidden="true">
-            <p class="text-xs font-bold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">
-                {% if loop.index0 == 0 %}Learn the systems{% elif loop.index0 == 3 %}Build and deploy{% else %}Secure and advance{% endif %}
-            </p>
-            <div class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
-        </div>
+    <div class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
+        {% if user or phases %}
+        <a href="{% if user %}/dashboard{% else %}/phase/{{ phases[0].order }}{% endif %}" class="inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-gray-950 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200 dark:focus-visible:outline-blue-300">
+            {% if user %}Continue learning{% else %}Start learning{% endif %}
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h12m-5-5 5 5-5 5"/>
+            </svg>
+        </a>
         {% endif %}
-        <a href="/phase/{{ phase.order }}" class="group grid grid-cols-[3rem_1fr_auto] gap-4 {% if not loop.last %}border-b border-gray-200 dark:border-gray-700{% endif %} py-6 transition-colors hover:border-blue-300 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:hover:border-blue-700 sm:grid-cols-[4rem_1fr_auto] sm:gap-6">
-            <span class="flex h-11 w-11 items-center justify-center rounded-full {% if loop.first %}bg-blue-700 text-white dark:bg-blue-400 dark:text-blue-950{% else %}bg-blue-50 text-blue-800 group-hover:bg-blue-100 group-hover:text-blue-900 dark:bg-blue-950 dark:text-blue-200 dark:group-hover:bg-blue-900 dark:group-hover:text-blue-100{% endif %} text-sm font-bold transition-colors">
-                {{ phase.order }}
-            </span>
-            <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2">
-                    <h3 class="text-lg font-bold text-gray-950 dark:text-white">{{ phase.name }}</h3>
-                    {% if loop.first %}
-                    <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-800 dark:bg-blue-950 dark:text-blue-200">Start here</span>
-                    {% endif %}
-                </div>
-                <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
-                    {{ phase.short_description | default(phase.description[:160] + '...' if phase.description | length > 160 else phase.description) }}
-                </p>
-            </div>
-            <span class="mt-3 hidden text-blue-700 transition-transform group-hover:translate-x-1 dark:text-blue-300 sm:block" aria-hidden="true">
-                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h12m-5-5 5 5-5 5"/>
-                </svg>
-            </span>
-        </a>
-        {% endfor %}
-    </div>
-
-    <div class="mt-6 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
-        <p class="max-w-xl text-base leading-7 text-gray-600 dark:text-gray-300">
-            Ready to see every topic, project, and verification challenge?
-        </p>
-        <a href="/curriculum" class="inline-flex min-h-11 items-center justify-center rounded-md border border-gray-300 px-4 py-2.5 text-sm font-bold text-gray-900 transition-colors hover:border-blue-500 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:border-gray-600 dark:text-white dark:hover:border-blue-400 dark:hover:text-blue-300">
-            View the full curriculum
+        <a href="/curriculum" class="inline-flex min-h-12 items-center text-sm font-medium text-gray-600 underline decoration-gray-300 underline-offset-4 transition-colors hover:text-gray-950 hover:decoration-gray-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:text-gray-300 dark:decoration-gray-600 dark:hover:text-white dark:hover:decoration-white dark:focus-visible:outline-blue-300">
+            Explore the curriculum
         </a>
     </div>
 </section>
-{% else %}
-<section class="pb-0 pt-16 sm:pt-20" aria-labelledby="journey-heading">
-    <div class="rounded-lg border border-gray-200 bg-gray-50 p-8 dark:border-gray-700 dark:bg-gray-800/50">
-        <h2 id="journey-heading" class="text-2xl font-bold text-gray-950 dark:text-white">The learning path is temporarily unavailable.</h2>
-        <p class="mt-3 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-300">
-            The curriculum did not load. Try again, or visit the FAQ for more information about Learn to Cloud.
-        </p>
-        <div class="mt-5 flex flex-wrap items-center gap-4">
-            <a href="/" hx-boost="false" class="inline-flex min-h-11 items-center justify-center rounded-md bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:bg-blue-500 dark:text-blue-950 dark:hover:bg-blue-400">
-                Try again
-            </a>
-            <a href="/faq" class="inline-flex min-h-11 items-center font-semibold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300">
-                Visit the FAQ
-            </a>
+
+<section class="border-t border-gray-200 py-12 dark:border-gray-700 sm:py-16" aria-labelledby="approach-heading">
+    <h2 id="approach-heading" class="text-2xl font-medium tracking-tight text-gray-950 dark:text-white sm:text-3xl">
+        The tools have changed. The work is still yours.
+    </h2>
+    <div class="mt-9 grid gap-8 sm:grid-cols-3 sm:gap-7">
+        <div>
+            <h3 class="text-base font-semibold text-gray-950 dark:text-white">Own your learning.</h3>
+            <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-400">
+                We give you a path, not every answer. Read the docs, ask better
+                questions, and get comfortable figuring things out.
+            </p>
+        </div>
+        <div>
+            <h3 class="text-base font-semibold text-gray-950 dark:text-white">Practice with discipline.</h3>
+            <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-400">
+                Build real systems. Debug what breaks. Return to what you
+                don't understand. Progress comes from doing the work.
+            </p>
+        </div>
+        <div>
+            <h3 class="text-base font-semibold text-gray-950 dark:text-white">Think with AI. Not less.</h3>
+            <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-400">
+                Use AI to explore ideas and get feedback. Question its answers.
+                If you can't explain the result, keep learning.
+            </p>
         </div>
     </div>
 </section>
-{% endif %}
+
+<section class="border-t border-gray-200 pb-8 pt-12 dark:border-gray-700 sm:pt-16" aria-labelledby="journey-heading">
+    {% if phases %}
+    <div class="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center sm:gap-10">
+        <div class="max-w-lg">
+            <h2 id="journey-heading" class="text-2xl font-medium tracking-tight text-gray-950 dark:text-white sm:text-3xl">
+                Learn it. Build it. Prove it.
+            </h2>
+            <p class="mt-4 text-base leading-7 text-gray-600 dark:text-gray-400">
+                From Linux and networking to deploying and securing your own
+                cloud systems. One structured path, at your pace, with your
+                work verified along the way.
+            </p>
+        </div>
+        <a href="/curriculum" class="inline-flex min-h-12 shrink-0 items-center gap-3 text-sm font-semibold text-gray-950 underline decoration-gray-300 underline-offset-4 transition-colors hover:decoration-gray-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:text-white dark:decoration-gray-600 dark:hover:decoration-white dark:focus-visible:outline-blue-300">
+            See the full path
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h12m-5-5 5 5-5 5"/>
+            </svg>
+        </a>
+    </div>
+    {% else %}
+    <h2 id="journey-heading" class="text-2xl font-medium tracking-tight text-gray-950 dark:text-white">
+        The learning path is temporarily unavailable.
+    </h2>
+    <p class="mt-4 max-w-xl text-base leading-7 text-gray-600 dark:text-gray-400">
+        The curriculum did not load. Try again, or visit the FAQ for more
+        information about Learn to Cloud.
+    </p>
+    <div class="mt-5 flex flex-wrap items-center gap-6">
+        <a href="/" hx-boost="false" class="inline-flex min-h-12 items-center text-sm font-semibold text-gray-950 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:text-white dark:focus-visible:outline-blue-300">
+            Try again
+        </a>
+        <a href="/faq" class="inline-flex min-h-12 items-center text-sm font-medium text-gray-600 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:text-gray-300 dark:focus-visible:outline-blue-300">
+            Visit the FAQ
+        </a>
+    </div>
+    {% endif %}
+</section>
 {% endblock %}

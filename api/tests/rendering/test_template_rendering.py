@@ -37,6 +37,44 @@ def _render(template_name: str, **ctx: object) -> str:
     return _ENV.get_template(template_name).render(**_base_ctx(**ctx))
 
 
+@pytest.mark.unit
+class TestHomePage:
+    def test_anonymous_learner_starts_at_first_available_phase(self):
+        html = _render(
+            "pages/home.html",
+            user=None,
+            phases=[SimpleNamespace(order=0), SimpleNamespace(order=1)],
+        )
+        main = html.split("<main", 1)[1].split("</main>", 1)[0]
+
+        assert 'href="/phase/0"' in main
+        assert "Start learning" in main
+        assert 'href="/curriculum"' in main
+        assert 'href="/phase/1"' not in main
+        assert "Continue learning" not in main
+
+    def test_returning_learner_continues_from_dashboard(self):
+        html = _render("pages/home.html", phases=[SimpleNamespace(order=0)])
+        main = html.split("<main", 1)[1].split("</main>", 1)[0]
+
+        assert 'href="/dashboard"' in main
+        assert "Continue learning" in main
+        assert 'href="/curriculum"' in main
+        assert 'href="/phase/0"' not in main
+
+    @pytest.mark.parametrize("signed_in", [False, True])
+    def test_missing_curriculum_keeps_recovery_and_dashboard_access(self, signed_in):
+        ctx = {} if signed_in else {"user": None}
+        html = _render("pages/home.html", phases=[], **ctx)
+        main = html.split("<main", 1)[1].split("</main>", 1)[0]
+
+        assert "The learning path is temporarily unavailable." in main
+        assert 'href="/" hx-boost="false"' in main
+        assert 'href="/faq"' in main
+        assert 'href="/phase/' not in main
+        assert ('href="/dashboard"' in main) is signed_in
+
+
 def _requirement(slug: str, name: str, description: str = ""):
     from learn_to_cloud_shared.testing.requirement_factories import (
         ctf_token_requirement,
