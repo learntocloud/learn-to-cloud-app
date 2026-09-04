@@ -8,7 +8,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any, Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -190,6 +190,12 @@ class FrontendTelemetryConfig(FrozenConfig):
     sampling_percentage: float = Field(default=100.0, ge=0.0, le=100.0)
 
 
+class RequestTelemetryConfig(FrozenConfig):
+    """Privacy-preserving server request telemetry config."""
+
+    actor_hmac_key: SecretStr = SecretStr("")
+
+
 class VerificationFunctionsConfig(FrozenConfig):
     """Durable verification Functions starter config."""
 
@@ -242,6 +248,7 @@ class WebSettings(BaseSettings):
     smoke_test: SmokeTestConfig = SmokeTestConfig()
     cors: CorsConfig = CorsConfig()
     frontend_telemetry: FrontendTelemetryConfig = FrontendTelemetryConfig()
+    request_telemetry: RequestTelemetryConfig = RequestTelemetryConfig()
     verification_functions: VerificationFunctionsConfig = VerificationFunctionsConfig()
     web_security: WebSecurityConfig = WebSecurityConfig()
     startup_timeout: int = 60
@@ -272,6 +279,14 @@ class WebSettings(BaseSettings):
                 raise ValueError(
                     "VERIFICATION_FUNCTIONS__TOKEN_SCOPE must be set "
                     "when ENVIRONMENT=production."
+                )
+            actor_hmac_key = (
+                self.request_telemetry.actor_hmac_key.get_secret_value().encode()
+            )
+            if len(actor_hmac_key) < 32:
+                raise ValueError(
+                    "REQUEST_TELEMETRY__ACTOR_HMAC_KEY must be set to at least "
+                    "32 bytes when ENVIRONMENT=production."
                 )
         return self
 

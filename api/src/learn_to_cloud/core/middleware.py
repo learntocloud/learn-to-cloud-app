@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 from typing import ClassVar
 
 from opentelemetry import trace
@@ -58,10 +60,36 @@ class SecurityHeadersMiddleware:
 
 
 class TelemetrySanitizationMiddleware:
-    """Replace request URL attributes with a bounded route template."""
+    """Sanitize request telemetry and add a pseudonymous actor dimension."""
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, *, actor_hmac_key: str = "") -> None:
         self.app = app
+        self._actor_hmac_key = actor_hmac_key.encode()
+
+    def _actor_id(self, scope: Scope) -> str | None:
+        if not self._actor_hmac_key:
+            return None
+
+        session = scope.get("session")
+        if not isinstance(session, dict):
+            return None
+
+        raw_user_id = session.get("user_id")
+        if isinstance(raw_user_id, bool):
+            return None
+        try:
+            user_id = int(raw_user_id)
+        except (TypeError, ValueError):
+            return None
+        if user_id <= 0:
+            return None
+
+        digest = hmac.new(
+            self._actor_hmac_key,
+            f"request-actor:v1:{user_id}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        return digest[:32]
 
     @staticmethod
     def _route_template(scope: Scope) -> str:
@@ -92,5 +120,7 @@ class TelemetrySanitizationMiddleware:
             span.set_attribute("url.full", route_path)
             span.set_attribute("url.path", route_path)
             span.set_attribute("url.query", "")
+            if actor_id := self._actor_id(scope):
+                span.set_attribute("request.actor.id", actor_id)
 
         await self.app(scope, receive, send)

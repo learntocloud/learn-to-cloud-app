@@ -78,6 +78,12 @@ resource "azurerm_container_app" "api_v5" {
   }
 
   secret {
+    name                = "telemetry-actor-hmac-key"
+    identity            = azurerm_user_assigned_identity.api.id
+    key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/telemetry-actor-hmac-key"
+  }
+
+  secret {
     name                = "ctf-master-secret"
     identity            = azurerm_user_assigned_identity.api.id
     key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/labs-verification-secret"
@@ -146,6 +152,11 @@ resource "azurerm_container_app" "api_v5" {
       env {
         name        = "SESSION__SECRET_KEY"
         secret_name = "session-secret-key"
+      }
+
+      env {
+        name        = "REQUEST_TELEMETRY__ACTOR_HMAC_KEY"
+        secret_name = "telemetry-actor-hmac-key"
       }
 
       env {

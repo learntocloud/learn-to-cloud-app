@@ -12,6 +12,7 @@ from learn_to_cloud_shared.core.config import (
     GitHubConfig,
     LabsConfig,
     OAuthConfig,
+    RequestTelemetryConfig,
     SessionConfig,
     VerificationFunctionsConfig,
     WebSecurityConfig,
@@ -104,6 +105,7 @@ class TestWebSettingsValidation:
             environment="production",
             oauth=OAuthConfig(client_id="id", client_secret="secret"),
             session=SessionConfig(secret_key="a-real-secret-not-the-default"),
+            request_telemetry=RequestTelemetryConfig(actor_hmac_key="a" * 32),
             verification_functions=VerificationFunctionsConfig(
                 base_url="https://functions.example.test",
                 token_scope="api://verification/.default",
@@ -111,6 +113,20 @@ class TestWebSettingsValidation:
         )
         assert s.environment is Environment.PRODUCTION
         assert s.is_development is False
+
+    def test_production_requires_request_actor_hmac_key(self):
+        with pytest.raises(ValidationError, match="REQUEST_TELEMETRY__ACTOR_HMAC_KEY"):
+            WebSettings(
+                database=DatabaseConfig(url="postgresql+asyncpg://localhost/test"),
+                environment="production",
+                oauth=OAuthConfig(client_id="id", client_secret="secret"),
+                session=SessionConfig(secret_key="a-real-secret-not-the-default"),
+                verification_functions=VerificationFunctionsConfig(
+                    base_url="https://functions.example.test",
+                    token_scope="api://verification/.default",
+                ),
+                request_telemetry=RequestTelemetryConfig(actor_hmac_key="too-short"),
+            )
 
     def test_production_requires_verification_functions_base_url(self):
         with pytest.raises(ValidationError, match="VERIFICATION_FUNCTIONS__BASE_URL"):
@@ -169,6 +185,17 @@ class TestFrontendTelemetryConfig:
 
 
 @pytest.mark.unit
+class TestRequestTelemetryConfig:
+    def test_hmac_key_is_redacted_from_repr(self):
+        secret = "actor-hmac-key-that-must-not-be-rendered"
+
+        config = RequestTelemetryConfig(actor_hmac_key=secret)
+
+        assert secret not in repr(config)
+        assert "**********" in repr(config)
+
+
+@pytest.mark.unit
 class TestAllowedOrigins:
     def test_development_includes_localhost(self):
         s = WebSettings(
@@ -184,6 +211,7 @@ class TestAllowedOrigins:
             environment="production",
             oauth=OAuthConfig(client_id="id", client_secret="secret"),
             session=SessionConfig(secret_key="prod-secret"),
+            request_telemetry=RequestTelemetryConfig(actor_hmac_key="a" * 32),
             verification_functions=VerificationFunctionsConfig(
                 base_url="https://functions.example.test",
                 token_scope="api://verification/.default",
