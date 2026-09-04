@@ -229,8 +229,9 @@ class TestPublicPageSmoke:
         assert response.status_code == 200
         assert "Information is everywhere." in response.text
         assert "Understanding is earned." in response.text
-        assert "Think with AI. Not less." in response.text
-        assert "Learn it. Build it. Prove it." in response.text
+        assert "Structure, practice, and feedback." in response.text
+        assert "automated checks and AI-assisted reviews" in response.text
+        assert "Build it. Then take it further." in response.text
 
     async def test_curriculum_page_renders(self, anon_client: AsyncClient):
         """GET /curriculum renders the phase hierarchy and progress CTA."""
