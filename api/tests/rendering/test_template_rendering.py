@@ -49,7 +49,10 @@ class TestHomePage:
 
         assert 'href="/phase/0"' in main
         assert "Start learning" in main
-        assert 'href="/curriculum"' in main
+        assert main.count('href="/curriculum"') == 1
+        assert main.count("<a ") == 2
+        assert "Explore the curriculum" in main
+        assert "See the full path" not in main
         assert 'href="/phase/1"' not in main
         assert "Continue learning" not in main
 
@@ -59,7 +62,10 @@ class TestHomePage:
 
         assert 'href="/dashboard"' in main
         assert "Continue learning" in main
-        assert 'href="/curriculum"' in main
+        assert main.count('href="/curriculum"') == 1
+        assert main.count("<a ") == 2
+        assert "Explore the curriculum" in main
+        assert "See the full path" not in main
         assert 'href="/phase/0"' not in main
 
     @pytest.mark.parametrize("signed_in", [False, True])
