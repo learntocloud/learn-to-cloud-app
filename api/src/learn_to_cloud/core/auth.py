@@ -97,25 +97,12 @@ def init_oauth(settings: OAuthConfig) -> None:
     )
 
 
-@dataclass(frozen=True, repr=False)
-class RequestAuthentication:
-    identity: AuthenticatedUser
-    account: User
-
-
-def get_request_user(request: Request) -> User | None:
-    context = getattr(request.state, "authentication", None)
-    return context.account if isinstance(context, RequestAuthentication) else None
-
-
-async def get_authenticated_user_from_session(
-    request: Request,
-) -> AuthenticatedUser | None:
+async def optional_authenticated_account(request: Request) -> User | None:
     """Resolve and touch once, releasing the transaction before route work."""
     if getattr(request.state, "auth_resolved", False):
-        context = getattr(request.state, "authentication", None)
-        return context.identity if isinstance(context, RequestAuthentication) else None
-    request.state.authentication = None
+        account = request.state.auth_account
+        return account
+    request.state.auth_account = None
     session = request.session
     if "user_id" in session or "github_username" in session:
         session.pop("user_id", None)
@@ -149,26 +136,38 @@ async def get_authenticated_user_from_session(
             extra={"auth.session.reason": resolved.value},
         )
         return None
-    identity = AuthenticatedUser(resolved.user.id, resolved.user.github_username)
-    request.state.authentication = RequestAuthentication(identity, resolved.user)
-    return identity
+    account = resolved.user
+    request.state.auth_account = account
+    request.state.user_id = account.id
+    request.state.github_username = account.github_username
+    return account
 
 
-async def require_authenticated_user(request: Request) -> AuthenticatedUser:
-    """Return the session user or raise a 401 authentication error."""
-    authenticated_user = await optional_authenticated_user(request)
-    if authenticated_user is None:
+OptionalCurrentAccount = Annotated[User | None, Depends(optional_authenticated_account)]
+
+
+def require_authenticated_account(account: OptionalCurrentAccount) -> User:
+    """Return the loaded account or raise a 401 authentication error."""
+    if account is None:
         raise AuthenticationRequired()
-    return authenticated_user
+    return account
 
 
-async def optional_authenticated_user(request: Request) -> AuthenticatedUser | None:
-    """Return the session user and populate request state when authenticated."""
-    authenticated_user = await get_authenticated_user_from_session(request)
-    if authenticated_user is not None:
-        request.state.user_id = authenticated_user.user_id
-        request.state.github_username = authenticated_user.github_username
-    return authenticated_user
+CurrentAccount = Annotated[User, Depends(require_authenticated_account)]
+
+
+def require_authenticated_user(account: CurrentAccount) -> AuthenticatedUser:
+    """Return the identity of the required account."""
+    return AuthenticatedUser(account.id, account.github_username)
+
+
+def optional_authenticated_user(
+    account: OptionalCurrentAccount,
+) -> AuthenticatedUser | None:
+    """Return the identity of the optional account."""
+    if account is None:
+        return None
+    return AuthenticatedUser(account.id, account.github_username)
 
 
 CurrentUser = Annotated[AuthenticatedUser, Depends(require_authenticated_user)]

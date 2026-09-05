@@ -3,9 +3,13 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import PropertyMock, patch
 from uuid import uuid4
 
 import pytest
+from fastapi import Request
+from learn_to_cloud_shared.content_yaml_loader import get_all_phases_from_yaml
+from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.schemas import SubmissionData
 
 from learn_to_cloud.core.templates import templates
@@ -15,8 +19,41 @@ from learn_to_cloud.rendering.context import (
     build_requirement_card_context,
     feedback_tasks_and_passed,
 )
+from learn_to_cloud.rendering.htmx_responses import render_step_toggle
 
 _ENV = templates.env
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("completed", [False, True])
+def test_step_toggle_uses_explicit_account_without_request_state(completed):
+    topic = next(
+        topic
+        for phase in get_all_phases_from_yaml()
+        for topic in phase.topics
+        if topic.learning_steps
+    )
+    step = topic.learning_steps[0]
+    request = Request({"type": "http", "path": "/"})
+    account = User(id=42, github_username="current-user")
+    with patch.object(
+        Request,
+        "state",
+        new_callable=PropertyMock,
+        side_effect=AssertionError("Rendering must not read request state"),
+    ):
+        response = render_step_toggle(
+            request, account, topic, step, {step.uuid} if completed else set()
+        )
+    html = bytes(response.body).decode()
+    assert 'type="checkbox"' in html
+    if completed:
+        assert f'hx-delete="/htmx/steps/{step.uuid}"' in html
+        assert "checked" in html
+    else:
+        assert 'hx-post="/htmx/steps/complete"' in html
+    assert 'id="topic-progress" hx-swap-oob="true"' in html
+    assert f"{int(completed)}/{len(topic.learning_steps)} steps checked" in html
 
 
 def _base_ctx(**overrides: object) -> dict[str, object]:

@@ -13,7 +13,7 @@ when adding or changing protected routes.
 1. **Feature name** and a brief description of what it does.
 2. Whether it needs **database access** (new model/table, or existing model).
 3. Whether it's a **page route** (TemplateResponse), **HTMX route** (HTMLResponse fragment), or **API route** (JSON).
-4. Whether it requires **authentication** (`CurrentUser` or `OptionalCurrentUser`).
+4. Whether it requires **authentication**, and whether it needs only identity or the loaded account.
 
 ## What to generate
 
@@ -21,7 +21,8 @@ when adding or changing protected routes.
 - Add to an existing route file or create a new one with `APIRouter(prefix="...", tags=[...])`.
 - Use `async def` for all handlers.
 - Use `DbSession` or `DbSessionReadOnly` from `core.database` for database access.
-- Use `CurrentUser` or `OptionalCurrentUser` from `core.auth`; access `.user_id` or `.github_username` on the identity.
+- Use `CurrentUser` or `OptionalCurrentUser` from `core.auth` for identity-only consumers (`.user_id`, `.github_username`). Use `CurrentAccount` or `OptionalCurrentAccount` for account/profile consumers (`.id`, loaded fields), including account-aware pages.
+- These aliases share one cached account resolver. Treat its loaded account as read-only after the auth transaction closes: no lazy loading, writes, or duplicate account reads for rendering. Pass accounts explicitly to helpers and templates rather than reading `request.state`.
 - Page routers use `route_class=LoginRedirectRoute` from `core.routing` for login navigation. API and HTMX routers retain 401 responses.
 - Keep routes thin - delegate business logic to the service layer.
 - Add a module-level docstring explaining the routes.

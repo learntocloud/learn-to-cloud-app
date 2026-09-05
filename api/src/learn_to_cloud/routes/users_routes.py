@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Request
 from learn_to_cloud_shared.schemas import UserResponse
 
-from learn_to_cloud.core.auth import CurrentUser, get_request_user
+from learn_to_cloud.core.auth import CurrentAccount, CurrentUser
 from learn_to_cloud.services.sessions_service import mutate_account
 
 __all__ = ["router"]
@@ -16,10 +16,9 @@ router = APIRouter(prefix="/api/user", tags=["users"])
     summary="Get current user",
     responses={401: {"description": "Not authenticated"}},
 )
-async def get_current_user(request: Request, current_user: CurrentUser) -> UserResponse:
+async def get_current_user(account: CurrentAccount) -> UserResponse:
     """Get current user info."""
-    user = get_request_user(request)
-    return UserResponse.model_validate(user)
+    return UserResponse.model_validate(account)
 
 
 @router.delete(

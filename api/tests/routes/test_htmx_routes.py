@@ -19,6 +19,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.responses import HTMLResponse
+from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.submission_values import (
     GitHubUrlValue,
     TextValue,
@@ -100,6 +101,7 @@ class TestHtmxCompleteStep:
         mock_step.uuid = step_uuid
         mock_step.slug = "step-1"
         mock_topic.learning_steps = [mock_step]
+        account = User(id=1, github_username="user")
 
         with (
             patch(
@@ -116,12 +118,14 @@ class TestHtmxCompleteStep:
             result = await htmx_complete_step(
                 request,
                 mock_db,
-                current_user=AuthenticatedUser(user_id=1, github_username="user"),
+                account=account,
                 step_uuid=step_uuid,
             )
 
         mock_complete.assert_awaited_once_with(mock_db, 1, step_uuid)
-        mock_render.assert_called_once_with(request, mock_topic, mock_step, {step_uuid})
+        mock_render.assert_called_once_with(
+            request, account, mock_topic, mock_step, {step_uuid}
+        )
         assert isinstance(result, HTMLResponse)
 
     async def test_complete_step_returns_hx_refresh_on_validation_error(self):
@@ -138,7 +142,7 @@ class TestHtmxCompleteStep:
             result = await htmx_complete_step(
                 request,
                 mock_db,
-                current_user=AuthenticatedUser(user_id=1, github_username="user"),
+                account=User(id=1, github_username="user"),
                 step_uuid=step_uuid,
             )
 
@@ -159,6 +163,7 @@ class TestHtmxUncompleteStep:
         mock_step.uuid = step_uuid
         mock_step.slug = "step-1"
         mock_topic.learning_steps = [mock_step]
+        account = User(id=1, github_username="user")
 
         with (
             patch(
@@ -176,11 +181,13 @@ class TestHtmxUncompleteStep:
                 request,
                 step_uuid,
                 mock_db,
-                current_user=AuthenticatedUser(user_id=1, github_username="user"),
+                account=account,
             )
 
         mock_uncomplete.assert_awaited_once_with(mock_db, 1, step_uuid)
-        mock_render.assert_called_once_with(request, mock_topic, mock_step, set())
+        mock_render.assert_called_once_with(
+            request, account, mock_topic, mock_step, set()
+        )
         assert isinstance(result, HTMLResponse)
 
     async def test_uncomplete_step_returns_hx_refresh_on_validation_error(self):
@@ -198,7 +205,7 @@ class TestHtmxUncompleteStep:
                 request,
                 step_uuid,
                 mock_db,
-                current_user=AuthenticatedUser(user_id=1, github_username="user"),
+                account=User(id=1, github_username="user"),
             )
 
         assert result.headers.get("HX-Refresh") == "true"

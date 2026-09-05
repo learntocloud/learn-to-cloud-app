@@ -27,12 +27,18 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
 from learn_to_cloud_shared.submission_values import GitHubUrlValue
-from sqlalchemy import event, func, select, update
+from sqlalchemy import event, func, inspect, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.middleware.sessions import SessionMiddleware
 
-from learn_to_cloud.core.auth import CurrentUser, get_authenticated_user_from_session
+from learn_to_cloud.core.auth import (
+    CurrentAccount,
+    CurrentUser,
+    OptionalCurrentAccount,
+    OptionalCurrentUser,
+    optional_authenticated_account,
+)
 from learn_to_cloud.core.middleware import TelemetrySanitizationMiddleware
 from learn_to_cloud.core.session_cookies import (
     AUTH_COOKIE_NAME,
@@ -68,10 +74,62 @@ def build_app(engine, settings):
         return {"ok": True}
 
     @app.get("/reuse")
-    async def reuse(request: Request, current_user: CurrentUser):
-        again = await get_authenticated_user_from_session(request)
-        assert again is current_user
-        return {"id": again.user_id}
+    async def reuse(
+        request: Request,
+        optional_account: OptionalCurrentAccount,
+        current_user: CurrentUser,
+        account: CurrentAccount,
+        optional_user: OptionalCurrentUser,
+    ):
+        again = await optional_authenticated_account(request)
+        assert again is account is optional_account
+        assert inspect(account).detached
+        assert not inspect(account).expired_attributes
+        assert not inspect(account).unloaded
+        assert optional_user == current_user
+        assert account.id == current_user.user_id == request.state.user_id
+        assert (
+            account.github_username
+            == current_user.github_username
+            == request.state.github_username
+        )
+        return {"id": account.id}
+
+    @app.get("/required-first")
+    def required_first(
+        request: Request,
+        account: CurrentAccount,
+        current_user: CurrentUser,
+        optional_account: OptionalCurrentAccount,
+        optional_user: OptionalCurrentUser,
+    ):
+        assert account is optional_account
+        assert current_user == optional_user
+        assert account.id == current_user.user_id == request.state.user_id
+        assert account.github_username == request.state.github_username
+        return {"id": account.id}
+
+    @app.get("/account-only")
+    def account_only(request: Request, account: CurrentAccount):
+        assert account.id == request.state.user_id
+        assert account.github_username == request.state.github_username
+        assert inspect(account).detached
+        return {"id": account.id}
+
+    @app.get("/optional-reuse")
+    def optional_reuse(
+        request: Request,
+        current_user: OptionalCurrentUser,
+        account: OptionalCurrentAccount,
+    ):
+        if account is None:
+            assert current_user is None
+            assert not hasattr(request.state, "user_id")
+            return {"id": None}
+        assert current_user is not None
+        assert account.id == current_user.user_id == request.state.user_id
+        assert account.github_username == request.state.github_username
+        return {"id": account.id}
 
     return app
 
@@ -278,6 +336,9 @@ async def test_touch_once_reuses_account_and_skips_static_health(
                 "/api/user/me",
                 "/account",
                 "/reuse",
+                "/required-first",
+                "/account-only",
+                "/optional-reuse",
                 "/",
                 "/curriculum",
                 "/phase/1",
@@ -297,6 +358,7 @@ async def test_touch_once_reuses_account_and_skips_static_health(
                     400 if path.startswith("/htmx/verification/attempts/") else 200
                 )
                 assert sum("UPDATE auth_sessions" in q for q in queries) == 1
+                assert sum(q.startswith("SELECT auth_sessions.") for q in queries) == 1
                 assert not any(q.startswith("SELECT users.") for q in queries)
                 assert "Cookie" in response.headers["vary"]
             topic = next(topic for topic in phase.topics if topic.learning_steps)
@@ -309,6 +371,7 @@ async def test_touch_once_reuses_account_and_skips_static_health(
                 response = await client.request(method, path, data=data)
                 assert response.status_code == 200
                 assert sum("UPDATE auth_sessions" in q for q in queries) == 1
+                assert sum(q.startswith("SELECT auth_sessions.") for q in queries) == 1
                 assert not any(q.startswith("SELECT users.") for q in queries)
     finally:
         event.remove(test_engine.sync_engine, "before_cursor_execute", record)
@@ -317,6 +380,37 @@ async def test_touch_once_reuses_account_and_skips_static_health(
         assert after.last_seen_at > before.last_seen_at
         assert after.expires_at == before.expires_at
         assert after.created_at == before.created_at
+
+
+@pytest.mark.parametrize("path", ["/reuse", "/required-first", "/optional-reuse"])
+@pytest.mark.parametrize(
+    "state", ["valid", "missing", "revoked", "malformed", "unknown"]
+)
+async def test_account_identity_graph_resolves_consistently(
+    session_apps, test_settings, path, state
+):
+    first, second = session_apps
+    token = await mint(first, test_settings)
+    if state == "revoked":
+        async with browser(first, token) as client:
+            assert (await client.post("/auth/logout")).status_code == 303
+    elif state == "missing":
+        token = None
+    elif state == "malformed":
+        token = "malformed"
+    elif state == "unknown":
+        token = "A" * 43
+    async with browser(second, token) as client:
+        response = await client.get(path)
+    if state == "valid":
+        assert response.status_code == 200
+        assert response.json() == {"id": 42}
+    elif path == "/optional-reuse":
+        assert response.status_code == 200
+        assert response.json() == {"id": None}
+    else:
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Unauthorized"}
 
 
 @pytest.mark.parametrize(
@@ -363,8 +457,10 @@ async def test_no_connection_held_during_route_or_provider_work(
         active -= 1
 
     @first.get("/remote")
-    async def remote(current_user: CurrentUser):
+    async def remote(account: CurrentAccount, current_user: CurrentUser):
         assert active == 0
+        assert inspect(account).detached
+        assert account.id == current_user.user_id
         await asyncio.sleep(0)
         assert active == 0
         return {"id": current_user.user_id}
@@ -448,7 +544,18 @@ async def test_oauth_issues_rotates_preserves_states_and_releases_connections(
         assert (await replay.get("/api/user/me")).status_code == 401
 
 
-@pytest.mark.parametrize("operation", ["lookup", "logout", "global", "delete"])
+@pytest.mark.parametrize(
+    "operation",
+    [
+        "lookup",
+        "required-account",
+        "required-identity",
+        "optional-identity",
+        "logout",
+        "global",
+        "delete",
+    ],
+)
 async def test_store_failure_is_500_not_anonymous_or_success(
     session_apps, test_settings, caplog, operation
 ):
@@ -462,6 +569,12 @@ async def test_store_failure_is_500_not_anonymous_or_success(
         ):
             if operation == "lookup":
                 response = await client.get("/")
+            elif operation == "required-account":
+                response = await client.get("/account")
+            elif operation == "required-identity":
+                response = await client.get("/reuse")
+            elif operation == "optional-identity":
+                response = await client.get("/optional-reuse")
             elif operation == "logout":
                 response = await client.post("/auth/logout")
             elif operation == "global":

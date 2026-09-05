@@ -8,18 +8,21 @@ import pytest
 from fastapi import Request
 from learn_to_cloud_shared.core.config import OAuthConfig
 from learn_to_cloud_shared.models import User
-from learn_to_cloud_shared.repositories.auth_session_repository import SessionRejection
+from learn_to_cloud_shared.repositories.auth_session_repository import (
+    ResolvedSession,
+    SessionRejection,
+)
 from starlette.datastructures import State
 
 from learn_to_cloud.core.auth import (
     AuthenticatedUser,
     AuthenticationRequired,
     IdentityRejectionReason,
-    RequestAuthentication,
-    get_authenticated_user_from_session,
     init_oauth,
     oauth,
+    optional_authenticated_account,
     optional_authenticated_user,
+    require_authenticated_account,
     require_authenticated_user,
     validate_identity,
 )
@@ -50,8 +53,65 @@ def _make_request(session: dict | None = None, headers: dict | None = None) -> R
 
 
 @pytest.mark.unit
-class TestGetAuthenticatedUserFromSession:
-    """Test session identity extraction."""
+class TestOptionalAuthenticatedAccount:
+    """Test session account resolution."""
+
+    async def test_loaded_account_is_cached_and_populates_telemetry(self):
+        request = _make_request()
+        request.cookies[AUTH_COOKIE_NAME] = "A" * 43
+        account = User(id=42, github_username="current-name")
+        db = AsyncMock()
+        transaction = AsyncMock()
+        db.begin = MagicMock(return_value=transaction)
+        request.app.state.session_maker.return_value.__aenter__ = AsyncMock(
+            return_value=db
+        )
+        with patch(
+            "learn_to_cloud.core.auth.AuthSessionRepository", autospec=True
+        ) as repository:
+            repository.return_value.resolve_and_touch.return_value = ResolvedSession(
+                session=MagicMock(), user=account
+            )
+            assert await optional_authenticated_account(request) is account
+            transaction.__aexit__.assert_awaited_once_with(None, None, None)
+            request.app.state.session_maker.return_value.__aexit__.assert_awaited_once()
+            assert await optional_authenticated_account(request) is account
+            assert require_authenticated_account(account) is account
+            assert (
+                require_authenticated_user(account)
+                == optional_authenticated_user(account)
+                == AuthenticatedUser(42, "current-name")
+            )
+            repository.return_value.resolve_and_touch.assert_awaited_once()
+        assert request.state.user_id == 42
+        assert request.state.github_username == "current-name"
+
+    @pytest.mark.parametrize("failure", ["lookup", "commit"])
+    async def test_store_failure_is_not_cached_as_anonymous(self, failure):
+        request = _make_request()
+        request.cookies[AUTH_COOKIE_NAME] = "A" * 43
+        db = AsyncMock()
+        transaction = AsyncMock()
+        db.begin = MagicMock(return_value=transaction)
+        request.app.state.session_maker.return_value.__aenter__ = AsyncMock(
+            return_value=db
+        )
+        with patch(
+            "learn_to_cloud.core.auth.AuthSessionRepository", autospec=True
+        ) as repository:
+            operation = (
+                repository.return_value.resolve_and_touch
+                if failure == "lookup"
+                else transaction.__aexit__
+            )
+            operation.side_effect = RuntimeError("store unavailable")
+            for _ in range(2):
+                with pytest.raises(RuntimeError, match="store unavailable"):
+                    await optional_authenticated_account(request)
+                assert not getattr(request.state, "auth_resolved", False)
+                assert not hasattr(request.state, "user_id")
+                assert not hasattr(request.state, "clear_auth_cookie")
+            assert repository.return_value.resolve_and_touch.await_count == 2
 
     @pytest.mark.parametrize("reason", list(SessionRejection))
     async def test_store_rejection_severity_and_request_cache(self, reason, caplog):
@@ -67,8 +127,8 @@ class TestGetAuthenticatedUserFromSession:
             "learn_to_cloud.core.auth.AuthSessionRepository", autospec=True
         ) as repository:
             repository.return_value.resolve_and_touch.return_value = reason
-            assert await optional_authenticated_user(request) is None
-            assert await optional_authenticated_user(request) is None
+            assert await optional_authenticated_account(request) is None
+            assert await optional_authenticated_account(request) is None
             repository.return_value.resolve_and_touch.assert_awaited_once()
         (record,) = caplog.records
         assert record.getMessage() == "auth.session.rejected"
@@ -85,19 +145,19 @@ class TestGetAuthenticatedUserFromSession:
         request = _make_request(
             session={"user_id": user_id, "github_username": "testuser"}
         )
-        result = await get_authenticated_user_from_session(request)
+        result = await optional_authenticated_account(request)
         assert result is None
         assert request.session == {}
 
     async def test_returns_none_without_username(self):
         request = _make_request(session={"user_id": 42})
-        result = await get_authenticated_user_from_session(request)
+        result = await optional_authenticated_account(request)
         assert result is None
 
     @pytest.mark.parametrize("username", [None, "", 42, []])
     async def test_returns_none_for_invalid_username(self, username):
         request = _make_request(session={"user_id": 42, "github_username": username})
-        assert await get_authenticated_user_from_session(request) is None
+        assert await optional_authenticated_account(request) is None
 
     @pytest.mark.parametrize(
         "session",
@@ -109,7 +169,7 @@ class TestGetAuthenticatedUserFromSession:
     )
     async def test_returns_none_when_user_id_missing(self, session):
         request = _make_request(session=session)
-        result = await get_authenticated_user_from_session(request)
+        result = await optional_authenticated_account(request)
         assert result is None
 
 
@@ -188,12 +248,12 @@ class TestSessionIdentityCleanup:
         unrelated = {"_state_github_probe": {"data": {"state": "private-state"}}}
         session = {**unrelated, **identity}
         request = _make_request(session)
-        assert await optional_authenticated_user(request) is None
+        assert await optional_authenticated_account(request) is None
         assert request.session is session
         assert session == unrelated
         assert not hasattr(request.state, "user_id")
         assert not hasattr(request.state, "github_username")
-        assert await optional_authenticated_user(request) is None
+        assert await optional_authenticated_account(request) is None
         (record,) = caplog.records
         assert record.getMessage() == "auth.session.rejected"
         assert record.__dict__["auth.session.reason"] == "legacy"
@@ -209,13 +269,13 @@ class TestSessionIdentityCleanup:
     )
     async def test_absent_identity_does_not_mutate_or_log(self, caplog, session):
         original = session.copy()
-        assert await optional_authenticated_user(_make_request(session)) is None
+        assert await optional_authenticated_account(_make_request(session)) is None
         assert session == original
         assert caplog.records == []
 
     async def test_complete_legacy_identity_is_removed(self, caplog):
         session = {"user_id": 42, "github_username": "MiXeD", "other": "private-state"}
-        assert await get_authenticated_user_from_session(_make_request(session)) is None
+        assert await optional_authenticated_account(_make_request(session)) is None
         assert session == {"other": "private-state"}
 
 
@@ -223,16 +283,11 @@ class TestSessionIdentityCleanup:
 class TestRequireAuthenticatedUser:
     """Test require_authenticated_user dependency."""
 
-    async def test_returns_identity_and_sets_state(self):
-        request = _make_request()
-        request.state.auth_resolved = True
-        request.state.authentication = RequestAuthentication(
-            AuthenticatedUser(42, "testuser"), User(id=42, github_username="testuser")
-        )
-        result = await require_authenticated_user(request)
+    def test_returns_identity(self):
+        account = User(id=42, github_username="testuser")
+        assert require_authenticated_account(account) is account
+        result = require_authenticated_user(account)
         assert result == AuthenticatedUser(user_id=42, github_username="testuser")
-        assert request.state.user_id == 42
-        assert request.state.github_username == "testuser"
 
     @pytest.mark.parametrize("session", [{}, {"user_id": 42}])
     @pytest.mark.parametrize("htmx", [False, True])
@@ -241,7 +296,7 @@ class TestRequireAuthenticatedUser:
             session=session, headers={"hx-request": "true"} if htmx else {}
         )
         with pytest.raises(AuthenticationRequired) as exc_info:
-            await require_authenticated_user(request)
+            require_authenticated_account(await optional_authenticated_account(request))
         assert exc_info.value.status_code == 401
         assert exc_info.value.headers is None
 
@@ -250,21 +305,12 @@ class TestRequireAuthenticatedUser:
 class TestOptionalAuthenticatedUser:
     """Test optional_authenticated_user dependency."""
 
-    async def test_returns_identity_and_sets_state(self):
-        request = _make_request()
-        request.state.auth_resolved = True
-        request.state.authentication = RequestAuthentication(
-            AuthenticatedUser(99, "user"), User(id=99, github_username="user")
-        )
-        result = await optional_authenticated_user(request)
+    def test_returns_identity(self):
+        result = optional_authenticated_user(User(id=99, github_username="user"))
         assert result == AuthenticatedUser(user_id=99, github_username="user")
-        assert request.state.user_id == 99
-        assert request.state.github_username == "user"
 
-    async def test_returns_none_when_not_authenticated(self):
-        request = _make_request(session={})
-        result = await optional_authenticated_user(request)
-        assert result is None
+    def test_returns_none_when_not_authenticated(self):
+        assert optional_authenticated_user(None) is None
 
 
 @pytest.mark.unit

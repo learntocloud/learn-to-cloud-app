@@ -6,9 +6,10 @@ from uuid import UUID
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
+from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.schemas import HandsOnRequirement, Topic
 
-from learn_to_cloud.core.auth import AuthenticatedUser, get_request_user
+from learn_to_cloud.core.auth import AuthenticatedUser
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.context import (
     RequirementCardContext,
@@ -99,11 +100,11 @@ def render_unavailable(
 
 def render_step_toggle(
     request: Request,
+    account: User,
     topic: Topic,
     step,
     completed_step_uuids: set[UUID],
 ) -> HTMLResponse:
-    user = get_request_user(request)
     progress = build_progress_dict(
         len(completed_step_uuids),
         len(topic.learning_steps),
@@ -112,7 +113,7 @@ def render_step_toggle(
         request=request,
         step=step,
         completed_steps=completed_step_uuids,
-        user=user,
+        user=account,
     )
     progress_html = templates.get_template("partials/topic_progress.html").render(
         progress=progress

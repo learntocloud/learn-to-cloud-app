@@ -412,19 +412,38 @@ These are positive durations, and inactivity cannot exceed absolute lifetime.
 Seven inactive days is a convenience tradeoff, not a claim of high-assurance
 session timeout policy.
 
-The API uses one identity type:
+Choose the dependency for the data the route actually consumes:
 
 | Name | Purpose |
 |------|---------|
 | `AuthenticatedUser` | Plain identity data: numeric user ID and GitHub username. Use it in helpers receiving an existing identity. |
 | `CurrentUser` | An `Annotated` alias that tells FastAPI to call `require_authenticated_user` and supply that identity to a protected route. |
 | `OptionalCurrentUser` | Supplies the same identity or `None` to a public route. |
+| `CurrentAccount` | Supplies the loaded `User` account to a protected route that needs profile fields or renders account-aware templates. |
+| `OptionalCurrentAccount` | Supplies that loaded account or `None` to a public route. |
 
-Import these from `learn_to_cloud.core.auth`. Routes access
-`current_user.user_id` or `current_user.github_username`; do not introduce
-ID-only dependencies or a separate browser-user type.
-`require_authenticated_user` raises `AuthenticationRequired` when no live
-session and current account resolve. It does not choose a browser redirect.
+Import these from `learn_to_cloud.core.auth`. Identity consumers access
+`current_user.user_id` or `current_user.github_username`; account consumers access
+`account.id`, `account.github_username`, and loaded profile fields. Do not introduce
+ID-only dependencies or a separate browser-user type. Pass accounts explicitly
+to templates and rendering helpers; do not look them up through `request.state`.
+
+All four aliases share `optional_authenticated_account`, which resolves the
+session and loads the account in one short, committed transaction before route
+work. FastAPI caches this shared subdependency per request; a request-local cache
+also prevents repeat resolution and touches when the resolver is called directly.
+The resolver populates telemetry identity state for both account and identity
+consumers. Database failures propagate rather than becoming anonymous requests.
+`require_authenticated_account` raises `AuthenticationRequired` when no live
+session and current account resolve; the required identity dependency derives
+from it. Neither chooses a browser redirect.
+
+The injected account is a read-only, loaded ORM snapshot, not a transaction.
+Session makers use `expire_on_commit=False` so loaded scalar fields remain
+available after the authentication session closes. Do not lazy-load relationships,
+attach the snapshot for writes, or mutate it. Use an explicit service and database
+session for additional reads or writes; do not query the account again just to
+render it.
 
 Browser navigation is a route policy, separate from identity loading.
 Page routers select `LoginRedirectRoute` from `learn_to_cloud.core.routing`

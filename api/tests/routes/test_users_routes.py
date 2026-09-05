@@ -5,12 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from learn_to_cloud_shared.models import User
-from starlette.datastructures import State
 
 from learn_to_cloud.core.auth import (
     AuthenticatedUser,
     AuthenticationRequired,
-    RequestAuthentication,
 )
 from learn_to_cloud.routes.users_routes import delete_current_user, get_current_user
 
@@ -26,10 +24,7 @@ async def test_current_user_reuses_loaded_account():
         is_admin=False,
         created_at=datetime(2024, 1, 1, tzinfo=UTC),
     )
-    identity = AuthenticatedUser(1, "testuser")
-    request = MagicMock()
-    request.state = State({"authentication": RequestAuthentication(identity, user)})
-    result = await get_current_user(request, identity)
+    result = await get_current_user(user)
     assert result.id == 1
     assert result.github_username == "testuser"
     assert result.display_name == "Test User"

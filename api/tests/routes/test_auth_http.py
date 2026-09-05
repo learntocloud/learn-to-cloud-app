@@ -16,6 +16,7 @@ from httpx import ASGITransport, AsyncClient
 from itsdangerous import TimestampSigner
 from learn_to_cloud_shared.core.database import get_db
 from learn_to_cloud_shared.models import User
+from learn_to_cloud_shared.schemas import UserResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging.handler import LoggingHandler
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
@@ -28,24 +29,26 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind, StatusCode
-from sqlalchemy import text
+from sqlalchemy import inspect, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.middleware.sessions import SessionMiddleware
 
-from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, CurrentUser, get_request_user
+from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, CurrentUser
 from learn_to_cloud.core.middleware import TelemetrySanitizationMiddleware
 from learn_to_cloud.core.routing import LoginRedirectRoute
 from learn_to_cloud.core.session_cookies import (
     AUTH_COOKIE_NAME,
     SessionResponseMiddleware,
 )
+from learn_to_cloud.core.templates import templates
 from learn_to_cloud.routes import (
     auth_router,
     htmx_router,
     pages_router,
     users_router,
 )
+from learn_to_cloud.routes.pages_routes import _template_context
 from learn_to_cloud.services.sessions_service import issue_session, mutate_account
 
 pytestmark = pytest.mark.integration
@@ -115,12 +118,12 @@ def user():
 
 
 @pytest.fixture
-def api_services(user):
+def api_services():
     with (
         patch(
-            "learn_to_cloud.routes.users_routes.get_request_user",
+            "learn_to_cloud.routes.users_routes.UserResponse.model_validate",
             autospec=True,
-            side_effect=get_request_user,
+            side_effect=UserResponse.model_validate,
         ) as get_user,
         patch(
             "learn_to_cloud.routes.users_routes.mutate_account",
@@ -197,16 +200,16 @@ async def app(test_settings, test_engine, user, api_services, github):
             return_value=test_settings,
         ),
         patch(
-            "learn_to_cloud.routes.pages_routes.get_request_user",
+            "learn_to_cloud.routes.pages_routes._template_context",
             autospec=True,
-            side_effect=get_request_user,
-        ) as page_user,
+            side_effect=_template_context,
+        ) as page_context,
         patch(
             "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
             return_value=(),
         ),
     ):
-        app.state.page_user = page_user
+        app.state.page_context = page_context
         yield app
 
 
@@ -425,7 +428,7 @@ async def test_logout_expires_cookie_and_is_repeatable(client, github, cookie_ki
     "path", ["/", "/curriculum", "/account", "/faq", "/privacy", "/terms"]
 )
 @pytest.mark.parametrize("session_state", ["anonymous", "valid", "revoked"])
-async def test_pages_resolve_identity_without_route_database(
+async def test_pages_inject_account_without_route_database(
     app, client, auth_cookie, path, session_state
 ):
     def unexpected_database():
@@ -447,12 +450,11 @@ async def test_pages_resolve_identity_without_route_database(
     if path == "/account" and session_state != "valid":
         assert response.status_code == 303
         assert response.headers["location"] == "/auth/login"
-        app.state.page_user.assert_not_called()
+        app.state.page_context.assert_not_called()
     else:
         assert response.status_code == 200
-        app.state.page_user.assert_called_once()
-        request = app.state.page_user.call_args.args[0]
-        user = get_request_user(request)
+        app.state.page_context.assert_called_once()
+        user = app.state.page_context.call_args.kwargs["user"]
         if session_state == "valid":
             assert user is not None
             assert user.id == 42
@@ -475,6 +477,42 @@ async def test_persisted_session_authenticates_real_routes(client, auth_cookie, 
         assert response.json()["id"] == 42
     else:
         assert "testuser" in response.text
+
+
+@pytest.mark.parametrize("path", ["/", "/account", "/api/user/me"])
+async def test_account_routes_use_current_loaded_profile(
+    app, client, auth_cookie, api_services, path
+):
+    async with app.state.session_maker() as db, db.begin():
+        await db.execute(
+            update(User)
+            .where(User.id == 42)
+            .values(github_username="renamed-user", display_name="Current Profile")
+        )
+    client.cookies.set(
+        AUTH_COOKIE_NAME, auth_cookie, domain="testserver.local", path="/"
+    )
+    with patch.object(
+        templates, "TemplateResponse", side_effect=templates.TemplateResponse
+    ) as render:
+        response = await client.get(path)
+    assert response.status_code == 200
+    if path == "/api/user/me":
+        account = api_services[0].call_args.args[0]
+        assert response.json()["github_username"] == "renamed-user"
+        assert response.json()["display_name"] == "Current Profile"
+    else:
+        account = app.state.page_context.call_args.kwargs["user"]
+        request, _, context = render.call_args.args
+        assert context["user"] is account
+        assert request.state.user_id == account.id
+        assert request.state.github_username == account.github_username
+        assert "renamed-user" in response.text
+    assert account.id == 42
+    assert account.github_username == "renamed-user"
+    assert account.display_name == "Current Profile"
+    assert inspect(account).detached
+    assert not inspect(account).unloaded
 
 
 async def test_authenticated_api_delete_keeps_204_contract(
