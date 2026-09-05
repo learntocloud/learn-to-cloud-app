@@ -181,7 +181,7 @@ attribute is `auth.identity.reason`:
 | `incomplete_identity` | A session contains only one application identity field. |
 | `invalid_user_id` | The ID fails the strict positive signed-64-bit integer contract. |
 | `invalid_github_username` | The username fails the type, nonblank, length, or storage-encoding contract, including after OAuth normalization. |
-| `invalid_profile` | The provider response has invalid JSON/character encoding or is not a JSON object. |
+| `invalid_response_format` | The provider response has invalid JSON/character encoding or is not a JSON object. |
 
 These events replace the callback's former `auth.callback.missing_github_id`
 and `auth.callback.missing_github_login` events. Existing provider transport

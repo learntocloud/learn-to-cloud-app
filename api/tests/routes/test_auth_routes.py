@@ -369,9 +369,9 @@ class TestCallbackIdentityContract:
             ({"id": 42, "login": "\u0130" * 128}, "invalid_github_username"),
             ({"id": 42, "login": "private\x00name"}, "invalid_github_username"),
             ({"id": 42, "login": "private\ud800name"}, "invalid_github_username"),
-            (None, "invalid_profile"),
-            ([], "invalid_profile"),
-            ("private-profile", "invalid_profile"),
+            (None, "invalid_response_format"),
+            ([], "invalid_response_format"),
+            ("private-profile", "invalid_response_format"),
         ],
     )
     async def test_rejects_before_persistence_and_preserves_session(

@@ -1,13 +1,4 @@
-"""Session-based authentication utilities.
-
-Provides:
-- Session cookie auth via Starlette SessionMiddleware
-- FastAPI dependencies for authenticated routes
-- Authlib OAuth client configuration for GitHub
-
-Session data is stored in signed cookies (via Starlette).
-The session contains user_id (GitHub numeric ID) and github_username.
-"""
+"""Session identity validation, authentication dependencies, and GitHub OAuth setup."""
 
 from __future__ import annotations
 
@@ -24,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 oauth = OAuth()
 SESSION_COOKIE_NAME = "session"
+MAX_GITHUB_USER_ID = 2**63 - 1
+MAX_USERNAME_LENGTH = 255
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,22 +31,22 @@ class IdentityRejectionReason(StrEnum):
     INCOMPLETE_IDENTITY = "incomplete_identity"
     INVALID_USER_ID = "invalid_user_id"
     INVALID_GITHUB_USERNAME = "invalid_github_username"
-    INVALID_PROFILE = "invalid_profile"
+    INVALID_RESPONSE_FORMAT = "invalid_response_format"
 
 
 def validate_identity(
     user_id: object, github_username: object
 ) -> AuthenticatedUser | IdentityRejectionReason:
-    """Validate identity data without coercion or GitHub naming rules."""
+    """Return a valid user identity or the reason it was rejected."""
     if (
         not isinstance(user_id, int)
         or isinstance(user_id, bool)
-        or not 0 < user_id < 2**63
+        or not 0 < user_id <= MAX_GITHUB_USER_ID
     ):
         return IdentityRejectionReason.INVALID_USER_ID
     if (
         not isinstance(github_username, str)
-        or not 0 < len(github_username) <= 255
+        or not 0 < len(github_username) <= MAX_USERNAME_LENGTH
         or not github_username.strip()
         or "\x00" in github_username
     ):
@@ -73,11 +66,7 @@ class AuthenticationRequired(HTTPException):
 
 
 def init_oauth(settings: OAuthConfig) -> None:
-    """Register GitHub as an OAuth provider.
-
-    Call once at app startup (in lifespan). Uses Authlib's built-in
-    GitHub integration which knows the authorize/token/userinfo URLs.
-    """
+    """Configure the GitHub OAuth client."""
     if not settings.client_id:
         logger.warning(
             "auth.github_oauth_disabled",
@@ -97,7 +86,7 @@ def init_oauth(settings: OAuthConfig) -> None:
 
 
 def get_authenticated_user_from_session(request: Request) -> AuthenticatedUser | None:
-    """Read valid identity, removing malformed identity but preserving OAuth state."""
+    """Return the session user, removing invalid identity fields."""
     session = request.session
     if "user_id" not in session and "github_username" not in session:
         return None
@@ -118,7 +107,7 @@ def get_authenticated_user_from_session(request: Request) -> AuthenticatedUser |
 
 
 def require_authenticated_user(request: Request) -> AuthenticatedUser:
-    """Require a session identity, returning 401 when unauthenticated."""
+    """Return the session user or raise a 401 authentication error."""
     authenticated_user = optional_authenticated_user(request)
     if authenticated_user is None:
         raise AuthenticationRequired()
@@ -126,7 +115,7 @@ def require_authenticated_user(request: Request) -> AuthenticatedUser:
 
 
 def optional_authenticated_user(request: Request) -> AuthenticatedUser | None:
-    """Dependency: returns session identity or None. Does not raise."""
+    """Return the session user and populate request state when authenticated."""
     authenticated_user = get_authenticated_user_from_session(request)
     if authenticated_user is not None:
         request.state.user_id = authenticated_user.user_id
