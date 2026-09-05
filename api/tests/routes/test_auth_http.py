@@ -181,6 +181,18 @@ async def app(test_settings, test_engine, user, api_services, github):
     app.dependency_overrides[get_db] = database
     with (
         patch(
+            "learn_to_cloud.core.auth.get_web_settings",
+            return_value=test_settings,
+        ),
+        patch(
+            "learn_to_cloud.core.session_cookies.get_web_settings",
+            return_value=test_settings,
+        ),
+        patch(
+            "learn_to_cloud.services.sessions_service.get_web_settings",
+            return_value=test_settings,
+        ),
+        patch(
             "learn_to_cloud.routes.auth_routes.get_web_settings",
             return_value=test_settings,
         ),
