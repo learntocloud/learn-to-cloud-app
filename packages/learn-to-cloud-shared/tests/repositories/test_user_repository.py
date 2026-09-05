@@ -4,7 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy import event, select, text
+from sqlalchemy import event, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
@@ -85,12 +85,6 @@ class TestUpsert:
             github_username="original",
             display_name="Original",
             avatar_url="avatar",
-        )
-        await db_session.execute(
-            text(
-                "UPDATE users SET first_name = 'Stale', last_name = 'Legacy' "
-                "WHERE id = 99999"
-            )
         )
         assert await repo.upsert(99999, github_username="original") is user
         assert user.display_name is None

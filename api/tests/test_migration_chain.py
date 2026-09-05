@@ -19,8 +19,12 @@ from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
 import pytest
+from alembic.autogenerate import compare_metadata
 from alembic.config import Config
+from alembic.migration import MigrationContext
+from learn_to_cloud_shared.core.database import Base
 from learn_to_cloud_shared.models import LearnerStepCompletion, User
+from learn_to_cloud_shared.repositories import user_repository
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from pytest_alembic.tests import (
     test_model_definitions_match_ddl,
@@ -28,8 +32,20 @@ from pytest_alembic.tests import (
     test_up_down_consistency,
     test_upgrade,
 )
-from sqlalchemy import Text, create_engine, event, inspect, select, text
+from sqlalchemy import (
+    Column,
+    MetaData,
+    String,
+    Text,
+    create_engine,
+    event,
+    inspect,
+    select,
+    text,
+)
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import registry
 
 from alembic import command
 
@@ -199,6 +215,7 @@ def test_head_removes_unused_attempt_traceparent(
 
 _PRE_DISPLAY_NAME = "0057_drop_verification_attempt_traceparent"
 _DISPLAY_NAME_EXPANSION = "0058_add_user_display_name"
+_DISPLAY_NAME_CONTRACT = "0059_drop_user_legacy_names"
 _LEGACY_USER_COLUMNS = (
     "id, first_name, last_name, avatar_url, github_username, "
     "is_admin, created_at, updated_at"
@@ -216,6 +233,39 @@ _WHITESPACE_CODEPOINTS = (
     0x205F,
     0x3000,
 )
+
+
+def _expanded_metadata() -> MetaData:
+    """Reconstruct transitional metadata without restoring runtime dependencies."""
+    metadata = MetaData()
+    for table in Base.metadata.sorted_tables:
+        table.to_metadata(metadata)
+    for name in ("first_name", "last_name"):
+        metadata.tables["users"].append_column(Column(name, String(255), nullable=True))
+    return metadata
+
+
+@pytest.fixture()
+def historical_user_models():
+    """Keep the A/B subset mappings executable after their runtime cleanup."""
+    registries = []
+    models = {}
+    for layer, excluded in (
+        ("expansion", ["display_name"]),
+        ("cutover", ["first_name", "last_name"]),
+    ):
+        mapper_registry = registry(metadata=_expanded_metadata())
+        model = type(f"Historical{layer.title()}User", (), {})
+        mapper_registry.map_imperatively(
+            model,
+            mapper_registry.metadata.tables["users"],
+            exclude_properties=excluded,
+        )
+        registries.append(mapper_registry)
+        models[layer] = model
+    yield models
+    for mapper_registry in registries:
+        mapper_registry.dispose()
 
 
 def test_display_name_offline_sql_is_atomic_and_bounded() -> None:
@@ -241,6 +291,148 @@ def test_display_name_offline_sql_is_atomic_and_bounded() -> None:
     assert "UPDATE users" in upgrade_sql.getvalue()
     assert "DROP COLUMN display_name" in downgrade_sql.getvalue()
     assert "UPDATE users" not in downgrade_sql.getvalue()
+
+
+def test_display_name_contract_offline_sql_is_atomic_and_bounded() -> None:
+    config = Config(str(Path(__file__).parent.parent / "alembic.ini"))
+    config.set_main_option(
+        "script_location", str(Path(__file__).parent.parent / "alembic")
+    )
+    upgrade_sql = StringIO()
+    config.output_buffer = upgrade_sql
+    command.upgrade(
+        config, f"{_DISPLAY_NAME_EXPANSION}:{_DISPLAY_NAME_CONTRACT}", sql=True
+    )
+    downgrade_sql = StringIO()
+    config.output_buffer = downgrade_sql
+    command.downgrade(
+        config, f"{_DISPLAY_NAME_CONTRACT}:{_DISPLAY_NAME_EXPANSION}", sql=True
+    )
+    for sql in (upgrade_sql.getvalue(), downgrade_sql.getvalue()):
+        assert sql.count("BEGIN;") == sql.count("COMMIT;") == 1
+        assert "SET LOCAL lock_timeout = '5s';" in sql
+        assert "SET LOCAL statement_timeout = '2min';" in sql
+        assert sql.index("SET LOCAL statement_timeout") < sql.index("ALTER TABLE users")
+        assert "UPDATE users" not in sql
+        assert "SET display_name" not in sql
+        assert "COLUMN display_name" not in sql
+    for legacy in ("first_name", "last_name"):
+        assert f"DROP COLUMN {legacy}" in upgrade_sql.getvalue()
+        assert f"ADD COLUMN {legacy} VARCHAR(255);" in downgrade_sql.getvalue()
+
+
+def test_display_name_contract_preserves_populated_data_and_downgrade_is_empty(
+    alembic_runner, alembic_engine
+) -> None:
+    alembic_runner.migrate_up_to(_DISPLAY_NAME_EXPANSION)
+    names = [None, "  李  e\u0301 👩🏽‍💻  ", "a" * 600, "<b>Exact</b>", "One"]
+    created_at = datetime(2024, 1, 2, tzinfo=UTC)
+    updated_at = datetime(2025, 2, 3, tzinfo=UTC)
+    canonical_columns = (
+        "id, display_name, avatar_url, github_username, "
+        "is_admin, created_at, updated_at"
+    )
+    with alembic_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO users "
+                f"({canonical_columns}, first_name, last_name) VALUES "
+                "(:id, :display_name, :avatar_url, :github_username, :is_admin, "
+                ":created_at, :updated_at, 'Stale', 'Legacy')"
+            ),
+            [
+                {
+                    "id": user_id,
+                    "display_name": name,
+                    "avatar_url": f"https://example.com/{user_id}.png",
+                    "github_username": f"contract-user-{user_id}",
+                    "is_admin": user_id % 2 == 0,
+                    "created_at": created_at,
+                    "updated_at": updated_at,
+                }
+                for user_id, name in enumerate(names, start=8000)
+            ],
+        )
+        conn.execute(
+            text(
+                "INSERT INTO learner_step_completions "
+                "(user_id, step_uuid, completed_at) "
+                "VALUES (:user_id, :step_uuid, :completed_at)"
+            ),
+            [
+                {
+                    "user_id": user_id,
+                    "step_uuid": UUID(int=user_id),
+                    "completed_at": created_at,
+                }
+                for user_id in range(8000, 8000 + len(names))
+            ],
+        )
+        before_users = conn.execute(
+            text(f"SELECT {canonical_columns} FROM users ORDER BY id")
+        ).all()
+        before_progress = conn.execute(
+            text("SELECT * FROM learner_step_completions ORDER BY user_id")
+        ).all()
+        before_grants = conn.execute(
+            text("SELECT relacl FROM pg_class WHERE oid = 'users'::regclass")
+        ).scalar_one()
+
+    for revision in (
+        _DISPLAY_NAME_CONTRACT,
+        _DISPLAY_NAME_EXPANSION,
+        _DISPLAY_NAME_CONTRACT,
+    ):
+        contracted = revision == _DISPLAY_NAME_CONTRACT
+        if contracted:
+            alembic_runner.migrate_up_to(revision)
+        else:
+            alembic_runner.migrate_down_to(revision)
+        with alembic_engine.connect() as conn:
+            assert (
+                conn.execute(
+                    text(f"SELECT {canonical_columns} FROM users ORDER BY id")
+                ).all()
+                == before_users
+            )
+            assert conn.execute(text("SELECT count(*) FROM users")).scalar_one() == len(
+                names
+            )
+            assert (
+                conn.execute(
+                    text("SELECT * FROM learner_step_completions ORDER BY user_id")
+                ).all()
+                == before_progress
+            )
+            assert (
+                conn.execute(
+                    text("SELECT relacl FROM pg_class WHERE oid = 'users'::regclass")
+                ).scalar_one()
+                == before_grants
+            )
+            columns = {c["name"]: c for c in inspect(conn).get_columns("users")}
+            assert isinstance(columns["display_name"]["type"], Text)
+            assert columns["display_name"]["nullable"] is True
+            assert columns["display_name"]["default"] is None
+            for legacy in ("first_name", "last_name"):
+                assert legacy not in User.__table__.c
+                assert legacy not in inspect(User).column_attrs
+                if contracted:
+                    assert legacy not in columns
+                else:
+                    assert isinstance(columns[legacy]["type"], String)
+                    assert columns[legacy]["type"].length == 255
+                    assert columns[legacy]["nullable"] is True
+                    assert columns[legacy]["default"] is None
+            if not contracted:
+                assert conn.execute(
+                    text("SELECT first_name, last_name FROM users ORDER BY id")
+                ).all() == [(None, None)] * len(names)
+            context = MigrationContext.configure(
+                conn, opts={"compare_type": True, "compare_server_default": True}
+            )
+            metadata = Base.metadata if contracted else _expanded_metadata()
+            assert compare_metadata(context, metadata) == []
 
 
 def test_display_name_populated_upgrade_and_loss_aware_downgrade(
@@ -381,9 +573,134 @@ def test_display_name_populated_upgrade_and_loss_aware_downgrade(
                 )
 
 
+@pytest.mark.parametrize("revision", [_PRE_DISPLAY_NAME, _DISPLAY_NAME_EXPANSION])
+async def test_display_name_expansion_historical_runtime_compatibility(
+    alembic_runner, alembic_engine, revision, historical_user_models
+) -> None:
+    """Execute A's legacy ORM/RETURNING shapes without reverting today's repository."""
+    alembic_runner.migrate_up_to(_PRE_DISPLAY_NAME)
+    with alembic_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO users "
+                "(id, github_username, first_name, last_name, is_admin, "
+                "created_at, updated_at) VALUES "
+                "(7004, 'stored', 'Stored', 'Legacy', true, :now, :now)"
+            ),
+            {"now": datetime(2024, 1, 1, tzinfo=UTC)},
+        )
+    alembic_runner.migrate_up_to(revision)
+    user_model = historical_user_models["expansion"]
+    assert "display_name" in user_model.__table__.c
+    assert "display_name" not in inspect(user_model).column_attrs
+    async_engine = create_async_engine(
+        alembic_engine.url.set(drivername="postgresql+asyncpg")
+    )
+    statements = []
+
+    def record_statement(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement.lower())
+
+    event.listen(async_engine.sync_engine, "before_cursor_execute", record_statement)
+    try:
+        async with AsyncSession(
+            async_engine, autoflush=False, expire_on_commit=False
+        ) as db:
+            created = (
+                await db.execute(
+                    pg_insert(user_model)
+                    .values(id=7001, github_username="legacy", first_name="First")
+                    .on_conflict_do_nothing(index_elements=["id"])
+                    .returning(user_model)
+                )
+            ).scalar_one()
+            assert isinstance(created, user_model)
+            assert (created.first_name, created.last_name) == ("First", None)
+            conflict = (
+                await db.execute(
+                    pg_insert(user_model)
+                    .values(id=7001, github_username="ignored", first_name="Ignored")
+                    .on_conflict_do_nothing(index_elements=["id"])
+                    .returning(user_model)
+                )
+            ).scalar_one_or_none()
+            assert conflict is None
+            assert (
+                await db.scalar(select(user_model).where(user_model.id == 7001))
+                is created
+            )
+            assert created.first_name == "First"
+            stored = await db.get(user_model, 7004)
+            assert stored is not None
+            created_at = stored.created_at
+            for first_name, last_name in (("Later", "Write"), (None, None)):
+                statement = pg_insert(user_model).values(
+                    id=7004,
+                    github_username="stored",
+                    first_name=first_name,
+                    last_name=last_name,
+                )
+                updated = (
+                    await db.execute(
+                        statement.on_conflict_do_update(
+                            index_elements=["id"],
+                            set_={
+                                "first_name": statement.excluded.first_name,
+                                "last_name": statement.excluded.last_name,
+                            },
+                        ).returning(user_model),
+                        execution_options={"populate_existing": True},
+                    )
+                ).scalar_one()
+                assert updated is stored
+                assert (updated.first_name, updated.last_name) == (
+                    first_name,
+                    last_name,
+                )
+                assert updated.is_admin is True
+                assert updated.created_at == created_at
+            normal = user_model(id=7003, github_username="normal", first_name="Normal")
+            db.add(normal)
+            await db.flush()
+            normal.last_name = "Write"
+            await db.flush()
+            await db.commit()
+            db.expunge_all()
+            selected = await db.get(user_model, 7003)
+            assert selected is not None
+            assert (selected.first_name, selected.last_name) == ("Normal", "Write")
+            await db.delete(selected)
+            await db.commit()
+    finally:
+        event.remove(
+            async_engine.sync_engine, "before_cursor_execute", record_statement
+        )
+        await async_engine.dispose()
+    assert statements
+    assert all("display_name" not in statement for statement in statements)
+    assert any("on conflict (id) do update" in statement for statement in statements)
+    assert any(
+        statement.startswith("insert into users") and "returning" not in statement
+        for statement in statements
+    )
+    if revision == _DISPLAY_NAME_EXPANSION:
+        with alembic_engine.connect() as conn:
+            assert conn.execute(
+                text("SELECT display_name FROM users ORDER BY id")
+            ).scalars().all() == [None, "Stored Legacy"]
+
+
+@pytest.mark.parametrize(
+    "legacy_metadata", [False, True], ids=["current-C", "historical-B"]
+)
 @pytest.mark.parametrize("contracted", [False, True])
 async def test_display_name_cutover_runtime_compatibility(
-    alembic_runner, alembic_engine, contracted
+    alembic_runner,
+    alembic_engine,
+    contracted,
+    legacy_metadata,
+    historical_user_models,
+    monkeypatch,
 ) -> None:
     """Execute real ORM SQL on both rollout schemas, not standalone compilation."""
     alembic_runner.migrate_up_to(_PRE_DISPLAY_NAME)
@@ -399,15 +716,14 @@ async def test_display_name_cutover_runtime_compatibility(
         )
     alembic_runner.migrate_up_to(_DISPLAY_NAME_EXPANSION)
     if contracted:
-        with alembic_engine.begin() as conn:
-            conn.execute(
-                text("ALTER TABLE users DROP COLUMN first_name, DROP COLUMN last_name")
-            )
-    assert "display_name" in User.__table__.c
-    assert "display_name" in inspect(User).column_attrs
+        alembic_runner.migrate_up_to(_DISPLAY_NAME_CONTRACT)
+    user_model = historical_user_models["cutover"] if legacy_metadata else User
+    monkeypatch.setattr(user_repository, "User", user_model)
+    assert "display_name" in user_model.__table__.c
+    assert "display_name" in inspect(user_model).column_attrs
     for legacy in ("first_name", "last_name"):
-        assert legacy in User.__table__.c
-        assert legacy not in inspect(User).column_attrs
+        assert (legacy in user_model.__table__.c) is legacy_metadata
+        assert legacy not in inspect(user_model).column_attrs
     async_engine = create_async_engine(
         alembic_engine.url.set(drivername="postgresql+asyncpg")
     )
@@ -425,7 +741,7 @@ async def test_display_name_cutover_runtime_compatibility(
             created = await repo.get_or_create(
                 7001, github_username="profile", display_name="  First  Last 李  "
             )
-            assert isinstance(created, User)
+            assert isinstance(created, user_model)
             assert created.display_name == "  First  Last 李  "
             existing = await repo.get_or_create(
                 7001, github_username="ignored", display_name="Ignored"
@@ -437,7 +753,7 @@ async def test_display_name_cutover_runtime_compatibility(
             inserted = await repo.upsert(
                 7002, github_username="inserted", display_name="Original"
             )
-            assert isinstance(inserted, User)
+            assert isinstance(inserted, user_model)
             created_at = inserted.created_at
             updated_at = inserted.updated_at
             updated = await repo.upsert(
@@ -446,7 +762,7 @@ async def test_display_name_cutover_runtime_compatibility(
                 display_name="Updated Profile",
                 avatar_url="https://example.com/updated.png",
             )
-            assert isinstance(updated, User)
+            assert isinstance(updated, user_model)
             assert updated is inserted
             assert (updated.id, updated.github_username) == (7002, "updated")
             assert updated.display_name == "Updated Profile"
@@ -467,7 +783,9 @@ async def test_display_name_cutover_runtime_compatibility(
             assert stored.is_admin is True
             assert stored.created_at == datetime(2024, 1, 1, tzinfo=UTC)
 
-            normal = User(id=7003, github_username="normal", display_name="Normal")
+            normal = user_model(
+                id=7003, github_username="normal", display_name="Normal"
+            )
             db.add(normal)
             await db.flush()
             normal.display_name = "Normal Write"
@@ -503,7 +821,7 @@ async def test_display_name_cutover_runtime_compatibility(
             await db.commit()
             db.expunge_all()
             selected = (
-                await db.execute(select(User).where(User.id == 7003))
+                await db.execute(select(user_model).where(user_model.id == 7003))
             ).scalar_one()
             assert selected.display_name == "Normal Write"
             await repo.delete(7003)
