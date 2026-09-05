@@ -8,6 +8,7 @@ from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from learn_to_cloud_shared.core.config import get_web_settings
+from learn_to_cloud_shared.core.profile_privacy import profile_persistence
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud.core.auth import (
@@ -108,23 +109,24 @@ async def callback(request: Request) -> RedirectResponse:
     avatar_url = github_user.get("avatar_url")
 
     sm: async_sessionmaker[AsyncSession] = request.app.state.session_maker
-    async with sm() as db:
-        user = await get_or_create_user_from_github(
-            db=db,
-            github_id=normalized_identity.user_id,
-            display_name=github_user.get("name"),
-            avatar_url=avatar_url,
-            github_username=normalized_identity.github_username,
-        )
-        persisted_identity = validate_identity(user.id, user.github_username)
-        if (
-            not isinstance(persisted_identity, AuthenticatedUser)
-            or persisted_identity != normalized_identity
-        ):
-            raise RuntimeError(
-                "Persisted OAuth identity does not match validated identity"
+    with profile_persistence():
+        async with sm() as db:
+            user = await get_or_create_user_from_github(
+                db=db,
+                github_id=normalized_identity.user_id,
+                display_name=github_user.get("name"),
+                avatar_url=avatar_url,
+                github_username=normalized_identity.github_username,
             )
-        await db.commit()
+            persisted_identity = validate_identity(user.id, user.github_username)
+            if (
+                not isinstance(persisted_identity, AuthenticatedUser)
+                or persisted_identity != normalized_identity
+            ):
+                raise RuntimeError(
+                    "Persisted OAuth identity does not match validated identity"
+                )
+            await db.commit()
 
     request.session["user_id"] = persisted_identity.user_id
     request.session["github_username"] = persisted_identity.github_username
