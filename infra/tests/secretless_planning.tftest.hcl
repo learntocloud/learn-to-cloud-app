@@ -18,6 +18,26 @@ mock_provider "azurerm" {
 mock_provider "azapi" {}
 mock_provider "random" {}
 
+run "session_migration_runtime_grant" {
+  command = plan
+
+  variables {
+    postgres_api_runtime_role = "custom_api_runtime"
+  }
+
+  plan_options {
+    target = [azapi_resource.migrations]
+  }
+
+  assert {
+    condition = one([
+      for setting in azapi_resource.migrations.body.properties.template.containers[0].env :
+      setting.value if setting.name == "POSTGRES_API_RUNTIME_ROLE"
+    ]) == "custom_api_runtime"
+    error_message = "Session migrations must grant DML to the configured API runtime role."
+  }
+}
+
 variables {
   subscription_id                     = "00000000-0000-0000-0000-000000000001"
   postgres_entra_admin_object_id      = "00000000-0000-0000-0000-000000000002"

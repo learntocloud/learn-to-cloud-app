@@ -1,15 +1,10 @@
 """User-related endpoints."""
 
-from fastapi import APIRouter, HTTPException, Request
-from learn_to_cloud_shared.core.database import DbSession
+from fastapi import APIRouter, Request
 from learn_to_cloud_shared.schemas import UserResponse
 
-from learn_to_cloud.core.auth import CurrentUser
-from learn_to_cloud.services.users_service import (
-    UserNotFoundError,
-    delete_user_account,
-    get_user_by_id,
-)
+from learn_to_cloud.core.auth import CurrentAccount, CurrentUser
+from learn_to_cloud.services.sessions_service import mutate_account
 
 __all__ = ["router"]
 
@@ -21,14 +16,9 @@ router = APIRouter(prefix="/api/user", tags=["users"])
     summary="Get current user",
     responses={401: {"description": "Not authenticated"}},
 )
-async def get_current_user(
-    request: Request, current_user: CurrentUser, db: DbSession
-) -> UserResponse:
+async def get_current_user(account: CurrentAccount) -> UserResponse:
     """Get current user info."""
-    user = await get_user_by_id(db, current_user.user_id)
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return UserResponse.model_validate(user)
+    return UserResponse.model_validate(account)
 
 
 @router.delete(
@@ -38,16 +28,8 @@ async def get_current_user(
     responses={
         204: {"description": "Account deleted"},
         401: {"description": "Not authenticated"},
-        404: {"description": "User not found"},
     },
 )
-async def delete_current_user(
-    request: Request, current_user: CurrentUser, db: DbSession
-) -> None:
+async def delete_current_user(request: Request, current_user: CurrentUser) -> None:
     """Permanently delete the authenticated user's account and all associated data."""
-    try:
-        await delete_user_account(db, current_user.user_id)
-    except UserNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="User not found") from exc
-
-    request.session.clear()
+    await mutate_account(request, current_user.user_id, delete_account=True)

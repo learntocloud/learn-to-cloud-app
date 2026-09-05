@@ -31,7 +31,7 @@
         </ul>
         <p>
             We do <strong>not</strong> collect your email address, password, private repositories, or any other personal
-            information beyond what is listed above.
+            profile information beyond what is listed above.
         </p>
         <p>
             We collect basic browser telemetry, such as page views, performance timings, and client-side errors, to
@@ -90,8 +90,11 @@
     <section>
         <h2>Cookies</h2>
         <p>
-            We use a single session cookie to keep you signed in. This cookie is signed, HTTP-only, and contains only
-            your user ID. We do not use tracking cookies, analytics cookies, or any third-party cookies. Browser
+            We use two HTTP-only cookies for different purposes. A short-lived signed cookie preserves GitHub
+            sign-in state for up to 10 minutes. A separate authentication cookie contains an opaque random
+            credential, not your profile or user ID. On the server, we store only its digest, account link,
+            creation and activity times, and absolute expiry. We do not store IP addresses or device details
+            with sessions. We do not use tracking cookies, analytics cookies, or any third-party cookies. Browser
             telemetry is configured without cookies or browser storage.
         </p>
     </section>
@@ -103,6 +106,13 @@
             associated data (progress and submissions) at any time from your
             <a href="/account">Account page</a>.
             Deletion is immediate and irreversible.
+        </p>
+        <p>
+            Sessions stop working after 7 days without authenticated activity or 30 days after sign-in.
+            Signing out deletes that browser's session; Sign out everywhere deletes all current sessions.
+            Account deletion also deletes all sessions. Expired records are removed in small batches during
+            later successful sign-ins, so physical removal has no guaranteed deadline. Expired records
+            cannot authenticate while waiting for cleanup.
         </p>
         <p>
             Account deletion does not remove existing diagnostic logs. Those logs follow the telemetry

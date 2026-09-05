@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
-from learn_to_cloud_shared.core.database import DbSession
+from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.schemas import HandsOnRequirement, Topic
 
 from learn_to_cloud.core.auth import AuthenticatedUser
@@ -18,7 +18,6 @@ from learn_to_cloud.rendering.context import (
     build_progress_dict,
     build_unavailable_requirement_card_context,
 )
-from learn_to_cloud.services.users_service import get_user_by_id
 
 
 def reload_page_response() -> HTMLResponse:
@@ -99,15 +98,13 @@ def render_unavailable(
     )
 
 
-async def render_step_toggle(
+def render_step_toggle(
     request: Request,
-    user_id: int,
+    account: User,
     topic: Topic,
     step,
     completed_step_uuids: set[UUID],
-    db: DbSession,
 ) -> HTMLResponse:
-    user = await get_user_by_id(db, user_id)
     progress = build_progress_dict(
         len(completed_step_uuids),
         len(topic.learning_steps),
@@ -116,7 +113,7 @@ async def render_step_toggle(
         request=request,
         step=step,
         completed_steps=completed_step_uuids,
-        user=user,
+        user=account,
     )
     progress_html = templates.get_template("partials/topic_progress.html").render(
         progress=progress

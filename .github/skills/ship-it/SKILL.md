@@ -12,8 +12,12 @@ Deliver the current task without absorbing unrelated worktree changes.
 2. Stage only files belonging to the task, then run `uv run poe check`. Run any
    additional CI-equivalent checks required by the changed surfaces (Terraform,
    migrations, curriculum artifacts, or workflow commands).
-3. Review the staged diff and commit with a conventional message plus required
-   repository trailers.
+3. Review the staged diff, following the `validate` skill's unused-argument and
+   unnecessary-async guidance. Trace changed signatures through callers and
+   mocks; preserve dependency side effects and required callback interfaces.
+   Ruff enforces `ARG001` and `RUF029` in API rendering helpers, so manually
+   review these concerns outside that scope. Commit with a conventional message
+   plus required repository trailers.
 4. Push without force. If histories diverge, stop rather than rebasing or
    rewriting history automatically.
 5. Open a PR to `main` and watch its checks.

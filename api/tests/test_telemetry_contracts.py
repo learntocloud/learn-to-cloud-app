@@ -20,6 +20,9 @@ _PYTHON_TELEMETRY_ROOTS = (
 _ALLOWED_APPLICATION_ATTRIBUTES = {
     "auth.configuration.reason",
     "auth.identity.reason",
+    "auth.session.reason",
+    "auth.session.scope",
+    "auth.session.count",
     "content.artifact.hash",
     "content.artifact_schema.version",
     "content.curriculum.version",
@@ -64,6 +67,10 @@ _ALLOWED_APPLICATION_ATTRIBUTES = {
 }
 
 _PROHIBITED_APPLICATION_ATTRIBUTES = {
+    "session.id",
+    "session.token",
+    "session.digest",
+    "csrf",
     "attempt_age_seconds",
     "attempt_created",
     "attempt_id",

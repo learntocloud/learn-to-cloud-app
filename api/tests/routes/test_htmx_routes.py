@@ -19,6 +19,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.responses import HTMLResponse
+from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.submission_values import (
     GitHubUrlValue,
     TextValue,
@@ -27,7 +28,7 @@ from learn_to_cloud_shared.submission_values import (
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.datastructures import FormData, UploadFile
 
-from learn_to_cloud.core.auth import AuthenticatedUser
+from learn_to_cloud.core.auth import AuthenticatedUser, AuthenticationRequired
 from learn_to_cloud.rendering.context import UnavailableCardContext
 from learn_to_cloud.routes.htmx_routes import (
     _submit_canonical_verification,
@@ -49,7 +50,6 @@ from learn_to_cloud.services.steps_service import StepValidationError
 from learn_to_cloud.services.submissions_service import (
     VerificationAttemptSubmission,
 )
-from learn_to_cloud.services.users_service import UserNotFoundError
 from learn_to_cloud.services.verification_status_tokens import VerificationStatusToken
 from learn_to_cloud.verification_forms import combine_reflection_answers
 
@@ -101,6 +101,7 @@ class TestHtmxCompleteStep:
         mock_step.uuid = step_uuid
         mock_step.slug = "step-1"
         mock_topic.learning_steps = [mock_step]
+        account = User(id=1, github_username="user")
 
         with (
             patch(
@@ -110,18 +111,21 @@ class TestHtmxCompleteStep:
             ) as mock_complete,
             patch(
                 "learn_to_cloud.routes.htmx_routes.render_step_toggle",
-                new_callable=AsyncMock,
+                autospec=True,
                 return_value=HTMLResponse("<html>mock</html>"),
-            ),
+            ) as mock_render,
         ):
             result = await htmx_complete_step(
                 request,
                 mock_db,
-                current_user=AuthenticatedUser(user_id=1, github_username="user"),
+                account=account,
                 step_uuid=step_uuid,
             )
 
         mock_complete.assert_awaited_once_with(mock_db, 1, step_uuid)
+        mock_render.assert_called_once_with(
+            request, account, mock_topic, mock_step, {step_uuid}
+        )
         assert isinstance(result, HTMLResponse)
 
     async def test_complete_step_returns_hx_refresh_on_validation_error(self):
@@ -138,7 +142,7 @@ class TestHtmxCompleteStep:
             result = await htmx_complete_step(
                 request,
                 mock_db,
-                current_user=AuthenticatedUser(user_id=1, github_username="user"),
+                account=User(id=1, github_username="user"),
                 step_uuid=step_uuid,
             )
 
@@ -159,6 +163,7 @@ class TestHtmxUncompleteStep:
         mock_step.uuid = step_uuid
         mock_step.slug = "step-1"
         mock_topic.learning_steps = [mock_step]
+        account = User(id=1, github_username="user")
 
         with (
             patch(
@@ -168,18 +173,21 @@ class TestHtmxUncompleteStep:
             ) as mock_uncomplete,
             patch(
                 "learn_to_cloud.routes.htmx_routes.render_step_toggle",
-                new_callable=AsyncMock,
+                autospec=True,
                 return_value=HTMLResponse("<html>mock</html>"),
-            ),
+            ) as mock_render,
         ):
             result = await htmx_uncomplete_step(
                 request,
                 step_uuid,
                 mock_db,
-                current_user=AuthenticatedUser(user_id=1, github_username="user"),
+                account=account,
             )
 
         mock_uncomplete.assert_awaited_once_with(mock_db, 1, step_uuid)
+        mock_render.assert_called_once_with(
+            request, account, mock_topic, mock_step, set()
+        )
         assert isinstance(result, HTMLResponse)
 
     async def test_uncomplete_step_returns_hx_refresh_on_validation_error(self):
@@ -197,7 +205,7 @@ class TestHtmxUncompleteStep:
                 request,
                 step_uuid,
                 mock_db,
-                current_user=AuthenticatedUser(user_id=1, github_username="user"),
+                account=User(id=1, github_username="user"),
             )
 
         assert result.headers.get("HX-Refresh") == "true"
@@ -1234,33 +1242,31 @@ class TestHtmxDeleteAccount:
     async def test_delete_account_clears_session_and_redirects(self):
         """Successful deletion clears session and sets HX-Redirect."""
         request = _mock_request(session={"user_id": 42, "github_username": "testuser"})
-        mock_db = AsyncMock()
-
         with patch(
-            "learn_to_cloud.routes.htmx_routes.delete_user_account", autospec=True
-        ):
+            "learn_to_cloud.routes.htmx_routes.mutate_account", autospec=True
+        ) as mutate:
             result = await htmx_delete_account(
-                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
+                request, current_user=AuthenticatedUser(42, "testuser")
             )
 
         assert result.headers.get("HX-Redirect") == "/"
-        assert request.session == {}
+        mutate.assert_awaited_once_with(request, 42, delete_account=True)
 
-    async def test_delete_account_returns_404_for_missing_user(self):
-        """UserNotFoundError returns 404 HTML."""
+    async def test_delete_account_rechecks_authorization(self):
+        """Deletion recheck failures stay unauthorized."""
         request = _mock_request(session={"user_id": 999})
-        mock_db = AsyncMock()
 
-        with patch(
-            "learn_to_cloud.routes.htmx_routes.delete_user_account",
-            autospec=True,
-            side_effect=UserNotFoundError(999),
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.mutate_account",
+                autospec=True,
+                side_effect=AuthenticationRequired(),
+            ),
+            pytest.raises(AuthenticationRequired),
         ):
-            result = await htmx_delete_account(
-                request, mock_db, current_user=AuthenticatedUser(999, "testuser")
+            await htmx_delete_account(
+                request, current_user=AuthenticatedUser(999, "testuser")
             )
-
-        assert result.status_code == 404
 
 
 class TestCombineReflectionAnswers:

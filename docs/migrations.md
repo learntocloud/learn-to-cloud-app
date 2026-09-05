@@ -46,6 +46,47 @@ in failure messages and swallowed real `UniqueViolation`s as "already
 applied by another process." Production stayed pinned to an older
 revision for eight days while CI reported green deploys.
 
+## Revocable-session cutover (#828, #829)
+
+This is a hard cutover, with downtime acceptable. Deploy the schema and
+application together in one release; there is no legacy-cookie fallback,
+session backfill, dual-write period, or rolling-version support. Everyone
+must sign in again. Old in-flight OAuth handshakes may also need restarting.
+
+`0060_add_auth_sessions` creates digest-only session storage with an account
+foreign key using `ON DELETE CASCADE`. Existing accounts and learning data are
+unchanged. The migration uses local five-second lock and two-minute statement
+timeouts. It grants the configured API runtime role only SELECT, INSERT,
+UPDATE, and DELETE on this table; it does not grant ownership or Functions
+access. The migration job and deployment workflow pass
+`POSTGRES_API_RUNTIME_ROLE` from Terraform's effective `api_postgres_role`.
+This explicit grant avoids relying on unverified production default ACLs.
+Local owner-backed migrations can omit it; nonowner migration tests exercise
+both explicit grants and default ACLs.
+
+`0061_auth_sessions_concurrent_indexes` creates the account, absolute-expiry,
+and last-activity indexes concurrently. Separating it ensures the table and
+its revision stamp commit together before index work leaves a transaction.
+The index migration uses bounded five-second lock and ten-minute statement
+timeouts. An interrupted build can be retried: it drops and rebuilds its named
+indexes, including invalid indexes, without discarding sessions or accounts.
+Do not stamp a failed migration manually or suppress index errors.
+
+For an authorized deployment, stop old API processes from serving requests,
+apply both migrations, and start only the session-aware application. Downtime
+is preferable to serving old identity-cookie authentication. The automated
+pipeline runs migrations before the image update; retiring old processes is
+an explicit cutover boundary, not a claim made by database readiness or Single
+revision mode. Confirm new GitHub login, copied-cookie rejection after logout,
+and independent-browser behavior before considering the cutover complete.
+
+Prefer a forward fix or a session-aware known-good revision. Restoring old
+identity-cookie code would undo revocation guarantees and is not a routine
+rollback. Do not downgrade while session-aware processes run. Downgrade removes
+the indexes before the table and loses every login session, but preserves
+accounts and learning data. Re-upgrade starts with no sessions; it cannot
+recover discarded sessions or make revoked cookies valid.
+
 ## Display-name rollout (#836)
 
 Ship the schema addition and application cutover together, then remove legacy

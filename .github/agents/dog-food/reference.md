@@ -43,17 +43,22 @@ HTTP request was rejected.
 | Anonymous API request | 401 without a login redirect |
 | HTMX action with a missing or expired session | 401; the existing browser handler navigates to login |
 | HTMX endpoint called without the HTMX header | Still 401, not a login redirect |
-| Logout with a valid, missing, or rejected cookie | Session/cookie cleared, 303 to `/`; safe to repeat |
+| Logout with a valid, missing, or rejected cookie | Current session revoked and cookies cleared, 303 to `/`; safe to repeat |
+| Sign out everywhere from Account | All current account sessions revoked, including this browser; 303 to `/` |
 | Public page without a session | Remains available |
 
 A fresh, valid local session unexpectedly rejected by a protected route is a
 defect. Normal expired-session navigation is not; report friction if it is
 confusing or leaves the learner stuck.
 
-Logout clears this browser's cookie, not every copy of an issued signed cookie.
-Do not report missing global revocation as a new regression; it is tracked in
-[#828](https://github.com/learntocloud/learn-to-cloud-app/issues/828). Do report
-new behavior that differs from the documented response contract.
+Replay the exact saved cookie in a fresh browser context after logout: it must
+be rejected, while an independently issued session remains valid. Sign out
+everywhere must reject both sessions and requires the Account form's CSRF token.
+Database failure is a real failure, not successful revocation or anonymous
+fallback. Sessions expire after seven inactive days or thirty days total.
+Deleting an account invalidates all its sessions; recreating it cannot revive
+old cookies. These are application sessions, not GitHub sessions, and revocation
+does not cancel already-authorized work.
 
 See [Authentication and sessions](../../../docs/contributing.md#authentication-and-sessions)
 for the underlying design. Record sanitized routes, statuses, and visible

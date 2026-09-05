@@ -142,9 +142,18 @@ class OAuthConfig(FrozenConfig):
 
 
 class SessionConfig(FrozenConfig):
-    """Session cookie config."""
+    """OAuth cookie signing and server-enforced authentication lifetimes."""
 
     secret_key: str = _DEV_SESSION_SECRET
+    oauth_state_max_age_seconds: int = Field(default=600, gt=0, le=600)
+    idle_timeout_seconds: int = Field(default=604800, gt=0, le=604800)
+    absolute_timeout_seconds: int = Field(default=2592000, gt=0, le=2592000)
+
+    @model_validator(mode="after")
+    def _validate_lifetimes(self) -> Self:
+        if self.idle_timeout_seconds > self.absolute_timeout_seconds:
+            raise ValueError("Session idle timeout must not exceed absolute timeout.")
+        return self
 
 
 class SmokeTestConfig(FrozenConfig):

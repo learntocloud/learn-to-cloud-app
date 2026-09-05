@@ -9,26 +9,38 @@ from typing import Annotated
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, HTTPException, Request
-from learn_to_cloud_shared.core.config import OAuthConfig
+from learn_to_cloud_shared.core.config import OAuthConfig, get_web_settings
+from learn_to_cloud_shared.models import User
+from learn_to_cloud_shared.repositories.auth_session_repository import (
+    AuthSessionRepository,
+    ResolvedSession,
+    SessionRejection,
+)
+
+from learn_to_cloud.core.session_cookies import (
+    AUTH_COOKIE_NAME,
+    token_digest,
+)
+from learn_to_cloud.core.session_cookies import (
+    SESSION_COOKIE_NAME as SESSION_COOKIE_NAME,
+)
 
 logger = logging.getLogger(__name__)
 
 oauth = OAuth()
-SESSION_COOKIE_NAME = "session"
 MAX_GITHUB_USER_ID = 2**63 - 1
 MAX_USERNAME_LENGTH = 255
 
 
 @dataclass(frozen=True, slots=True)
 class AuthenticatedUser:
-    """Authenticated identity stored in the session cookie."""
+    """Authenticated identity resolved from the database."""
 
     user_id: int
     github_username: str
 
 
 class IdentityRejectionReason(StrEnum):
-    INCOMPLETE_IDENTITY = "incomplete_identity"
     INVALID_USER_ID = "invalid_user_id"
     INVALID_GITHUB_USERNAME = "invalid_github_username"
     INVALID_RESPONSE_FORMAT = "invalid_response_format"
@@ -85,42 +97,77 @@ def init_oauth(settings: OAuthConfig) -> None:
     )
 
 
-def get_authenticated_user_from_session(request: Request) -> AuthenticatedUser | None:
-    """Return the session user, removing invalid identity fields."""
+async def optional_authenticated_account(request: Request) -> User | None:
+    """Resolve and touch once, releasing the transaction before route work."""
+    if getattr(request.state, "auth_resolved", False):
+        account = request.state.auth_account
+        return account
+    request.state.auth_account = None
     session = request.session
-    if "user_id" not in session and "github_username" not in session:
+    if "user_id" in session or "github_username" in session:
+        session.pop("user_id", None)
+        session.pop("github_username", None)
+        logger.info("auth.session.rejected", extra={"auth.session.reason": "legacy"})
+    cookie = request.cookies.get(AUTH_COOKIE_NAME)
+    if cookie is None:
+        request.state.auth_resolved = True
         return None
-    identity = (
-        IdentityRejectionReason.INCOMPLETE_IDENTITY
-        if "user_id" not in session or "github_username" not in session
-        else validate_identity(session["user_id"], session["github_username"])
-    )
-    if isinstance(identity, AuthenticatedUser):
-        return identity
-    session.pop("user_id", None)
-    session.pop("github_username", None)
-    logger.warning(
-        "auth.session.identity_rejected",
-        extra={"auth.identity.reason": identity.value},
-    )
-    return None
+    digest = token_digest(cookie)
+    if digest is None:
+        request.state.auth_resolved = True
+        request.state.clear_auth_cookie = True
+        logger.warning(
+            "auth.session.rejected", extra={"auth.session.reason": "malformed"}
+        )
+        return None
+    async with request.app.state.session_maker() as db:
+        async with db.begin():
+            resolved = await AuthSessionRepository(
+                db, get_web_settings().session
+            ).resolve_and_touch(digest)
+    request.state.auth_resolved = True
+    if not isinstance(resolved, ResolvedSession):
+        request.state.clear_auth_cookie = True
+        logger.log(
+            logging.WARNING
+            if resolved == SessionRejection.ACCOUNT_MISSING
+            else logging.INFO,
+            "auth.session.rejected",
+            extra={"auth.session.reason": resolved.value},
+        )
+        return None
+    account = resolved.user
+    request.state.auth_account = account
+    request.state.user_id = account.id
+    request.state.github_username = account.github_username
+    return account
 
 
-def require_authenticated_user(request: Request) -> AuthenticatedUser:
-    """Return the session user or raise a 401 authentication error."""
-    authenticated_user = optional_authenticated_user(request)
-    if authenticated_user is None:
+OptionalCurrentAccount = Annotated[User | None, Depends(optional_authenticated_account)]
+
+
+def require_authenticated_account(account: OptionalCurrentAccount) -> User:
+    """Return the loaded account or raise a 401 authentication error."""
+    if account is None:
         raise AuthenticationRequired()
-    return authenticated_user
+    return account
 
 
-def optional_authenticated_user(request: Request) -> AuthenticatedUser | None:
-    """Return the session user and populate request state when authenticated."""
-    authenticated_user = get_authenticated_user_from_session(request)
-    if authenticated_user is not None:
-        request.state.user_id = authenticated_user.user_id
-        request.state.github_username = authenticated_user.github_username
-    return authenticated_user
+CurrentAccount = Annotated[User, Depends(require_authenticated_account)]
+
+
+def require_authenticated_user(account: CurrentAccount) -> AuthenticatedUser:
+    """Return the identity of the required account."""
+    return AuthenticatedUser(account.id, account.github_username)
+
+
+def optional_authenticated_user(
+    account: OptionalCurrentAccount,
+) -> AuthenticatedUser | None:
+    """Return the identity of the optional account."""
+    if account is None:
+        return None
+    return AuthenticatedUser(account.id, account.github_username)
 
 
 CurrentUser = Annotated[AuthenticatedUser, Depends(require_authenticated_user)]

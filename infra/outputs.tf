@@ -105,6 +105,11 @@ output "migration_postgres_role" {
   value       = local.migration_postgres_role
 }
 
+output "api_postgres_role" {
+  description = "PostgreSQL runtime role receiving application table DML grants"
+  value       = local.api_postgres_role
+}
+
 output "verification_functions_name" {
   description = "Azure Functions app name used for Durable verification jobs"
   value       = azapi_resource.verification_functions.name

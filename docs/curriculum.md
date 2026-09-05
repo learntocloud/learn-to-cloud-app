@@ -31,6 +31,7 @@ PostgreSQL stores only durable learner state:
 | Table | Purpose |
 |---|---|
 | `users` | GitHub-authenticated learner accounts |
+| `auth_sessions` | Revocable login-session digests, account ownership, and expiry timestamps |
 | `learner_step_completions` | Checked learning steps, keyed by catalog UUID |
 | `verification_attempts` | Submitted verification attempts and outcomes |
 

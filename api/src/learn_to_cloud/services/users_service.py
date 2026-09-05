@@ -32,12 +32,6 @@ def normalize_display_name(name: object) -> str | None:
     return None
 
 
-async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
-    """Get a user by ID, or None if not found."""
-    user_repo = UserRepository(db)
-    return await user_repo.get_by_id(user_id)
-
-
 async def get_or_create_user_from_github(
     db: AsyncSession,
     *,
@@ -64,28 +58,3 @@ async def get_or_create_user_from_github(
         github_username=normalized_username,
     )
     return user
-
-
-class UserNotFoundError(Exception):
-    """Raised when a user is not found in the database."""
-
-    def __init__(self, user_id: int) -> None:
-        self.user_id = user_id
-        super().__init__(f"User not found: {user_id}")
-
-
-async def delete_user_account(db: AsyncSession, user_id: int) -> None:
-    """Permanently delete a user and all associated data.
-
-    Cascades to verification attempts and learning-step completions.
-
-    Raises:
-        UserNotFoundError: If the user does not exist.
-    """
-    user_repo = UserRepository(db)
-    user = await user_repo.get_by_id(user_id)
-    if user is None:
-        raise UserNotFoundError(user_id)
-
-    await user_repo.delete(user_id)
-    logger.info("user.account_deleted")

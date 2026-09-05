@@ -6,6 +6,22 @@
 {% endblock %}
 
 {% block page_body %}
+<section class="mb-8">
+    <h2 class="section-title mb-3">Sign out everywhere</h2>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        Sign out of Learn to Cloud in every browser, including this one. This does not sign you out of GitHub
+        or cancel work already authorized. If your GitHub account is compromised, secure it at GitHub first.
+        Sessions expire after 7 days without activity or 30 days after sign-in.
+    </p>
+    <form action="/auth/logout-all" method="post" hx-boost="false">
+        <input type="hidden" name="csrf" value="{{ logout_all_csrf }}">
+        <label class="block mb-4">
+            <input type="checkbox" required>
+            I confirm I want to sign out of all browsers, including this one.
+        </label>
+        <button type="submit" class="button-secondary">Sign out everywhere</button>
+    </form>
+</section>
 <div x-data="{ confirmDelete: false }">
     <h2 class="section-title mb-3">Delete Account</h2>
     <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">

@@ -1,137 +1,74 @@
-"""Generate a signed Starlette session cookie for local dogfooding.
-
-Outputs JSON with the cookie name, value, domain, and path so that
-browser automation or test scripts can inject the session without
-going through the GitHub OAuth flow.
-
-Usage:
-    cd api && uv run python ../scripts/dogfood_session.py
-    cd api && uv run python ../scripts/dogfood_session.py 6733686  # specific user ID
-
-Security:
-    Only works with the dev secret key ("dev-secret-key-change-in-production").
-    Production rejects this key at startup (see core/config.py validator).
-"""
+"""Issue a real local login session; stdout is a private browser-cookie JSON value."""
 
 from __future__ import annotations
 
+import asyncio
+import ipaddress
 import json
-import os
 import sys
-from base64 import b64encode
 
-import itsdangerous
-import sqlalchemy
-
-SECRET_KEY = "dev-secret-key-change-in-production"
-
-
-def _load_secret_key() -> str:
-    """Load the session secret key from the API's .env file."""
-    env_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
-    if os.path.exists(env_path):
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("SESSION__SECRET_KEY"):
-                    _, _, value = line.partition("=")
-                    value = value.strip().strip("'\"")
-                    if value:
-                        return value
-    return SECRET_KEY
+from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME
+from learn_to_cloud.services.sessions_service import issue_session
+from learn_to_cloud_shared.core.config import WebSettings, get_web_settings
+from learn_to_cloud_shared.models import User
+from sqlalchemy import select
+from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
-def _get_user_from_db(user_id: int | None = None) -> dict[str, object] | None:
-    """Query the local DB for a user."""
+def validate_local_target(settings: WebSettings) -> None:
+    """Refuse nondevelopment and ambiguous/nonloopback database targets."""
+    if not settings.is_development:
+        raise ValueError("Session generation requires development configuration")
+    url = make_url(settings.database.url)
+    if url.drivername != "postgresql+asyncpg" or url.query or not url.database:
+        raise ValueError("Session generation requires an explicit local PostgreSQL URL")
+    host = url.host or ""
+    if host != "localhost":
+        try:
+            address = ipaddress.ip_address(host)
+        except ValueError:
+            raise ValueError(
+                "Session generation requires a loopback database"
+            ) from None
+        if not address.is_loopback or "%" in host:
+            raise ValueError("Session generation requires a loopback database")
+
+
+async def generate_cookie(
+    user_id: int | None = None, *, settings: WebSettings | None = None
+) -> dict[str, object]:
+    settings = settings or get_web_settings()
+    validate_local_target(settings)
+    engine = create_async_engine(settings.database.url, hide_parameters=True)
     try:
-        # Build a sync URL from the async one in .env
-        raw_url = os.environ.get("DATABASE__URL", "")
-        if not raw_url:
-            # Try loading from .env file in api/ directory
-            env_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
-            if os.path.exists(env_path):
-                with open(env_path) as f:
-                    for line in f:
-                        if line.startswith("DATABASE__URL="):
-                            raw_url = line.split("=", 1)[1].strip()
-                            break
-
-        if not raw_url:
-            return None
-
-        # Convert async driver to sync for this one-off query
-        sync_url = raw_url.replace("postgresql+asyncpg://", "postgresql://")
-
-        engine = sqlalchemy.create_engine(sync_url)
-        with engine.connect() as conn:
-            if user_id is not None:
-                row = conn.execute(
-                    sqlalchemy.text(
-                        "SELECT id, github_username FROM users WHERE id = :id"
-                    ),
-                    {"id": user_id},
-                ).fetchone()
-            else:
-                row = conn.execute(
-                    sqlalchemy.text(
-                        "SELECT id, github_username FROM users "
-                        "WHERE github_username = 'madebygps' LIMIT 1"
-                    )
-                ).fetchone()
-
-            if row:
-                return {"id": row[0], "github_username": row[1] or "unknown"}
-        return None
-    except Exception:
-        return None
-
-
-def generate_cookie(user_id: int, github_username: str) -> dict[str, object]:
-    secret = _load_secret_key()
-    session_data = {
-        "user_id": user_id,
-        "github_username": github_username,
-    }
-    signer = itsdangerous.TimestampSigner(secret)
-    payload = b64encode(json.dumps(session_data).encode("utf-8"))
-    signed = signer.sign(payload).decode("utf-8")
-    return {
-        "cookie_name": "session",
-        "cookie_value": signed,
-        "user_id": user_id,
-        "domain": "localhost",
-        "path": "/",
-    }
+        maker = async_sessionmaker(engine, expire_on_commit=False)
+        async with maker() as db, db.begin():
+            query = select(User).where(
+                User.id == user_id
+                if user_id is not None
+                else User.github_username == "madebygps"
+            )
+            user = await db.scalar(query)
+            if user is None:
+                raise ValueError("An existing local account is required")
+            issued = await issue_session(db, settings.session, user.id)
+        return {
+            "cookie_name": AUTH_COOKIE_NAME,
+            "cookie_value": issued.token,
+            "user_id": user.id,
+            "domain": "localhost",
+            "path": "/",
+        }
+    finally:
+        await engine.dispose()
 
 
 def main() -> None:
-    # Accept optional user ID argument
     requested_id = int(sys.argv[1]) if len(sys.argv) > 1 else None
-
-    # Try to auto-detect from DB
-    user = _get_user_from_db(requested_id)
-
-    if user:
-        user_id = user["id"]
-        username = str(user["github_username"])
-    elif requested_id is not None:
-        # Use the requested ID even if DB lookup failed
-        user_id = requested_id
-        username = "unknown"
-    else:
-        # Fallback: no DB, no arg — use a synthetic user
-        user_id = 1
-        username = "dogfood-user"
-        print(
-            "Warning: User 'madebygps' not found in DB. Using synthetic user_id=1. "
-            "Seed the DB or pass a user ID as argument.",
-            file=sys.stderr,
-        )
-
-    result = generate_cookie(user_id, username)
+    result = asyncio.run(generate_cookie(requested_id))
     json.dump(result, sys.stdout)
     sys.stdout.write("\n")
-    sys.stdout.flush()
 
 
 if __name__ == "__main__":

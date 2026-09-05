@@ -25,8 +25,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from learn_to_cloud_shared.models import User
 
-from learn_to_cloud.core.auth import AuthenticatedUser
 from learn_to_cloud.routes.pages_routes import (
     account_page,
     community_page,
@@ -86,7 +86,6 @@ class TestHomePage:
     async def test_home_renders_for_anonymous_user(self, _patch_templates):
         """Anonymous users see the home page with phases."""
         request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
         phases = [_fake_phase(order=i) for i in range(1, 6)]
 
         with (
@@ -94,13 +93,8 @@ class TestHomePage:
                 "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
                 return_value=phases,
             ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=None,
-            ),
         ):
-            await home_page(request, mock_db, current_user=None)
+            await home_page(request, account=None)
 
         template.assert_called_once()
         ctx = template.call_args[0][2]
@@ -112,8 +106,7 @@ class TestHomePage:
     async def test_home_renders_for_authenticated_user(self, _patch_templates):
         """Authenticated users see their user object in context."""
         request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-        mock_user = MagicMock()
+        mock_user = User(id=42, github_username="testuser")
         phases = [_fake_phase()]
 
         with (
@@ -121,15 +114,8 @@ class TestHomePage:
                 "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
                 return_value=phases,
             ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=mock_user,
-            ),
         ):
-            await home_page(
-                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
-            )
+            await home_page(request, account=mock_user)
 
         ctx = template.call_args[0][2]
         assert ctx["user"] is mock_user
@@ -142,7 +128,6 @@ class TestCurriculumPage:
     async def test_curriculum_renders_with_phases(self, _patch_templates):
         """Curriculum page passes all phases to template."""
         request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
         phases = [_fake_phase(order=i) for i in range(1, 6)]
 
         with (
@@ -150,13 +135,8 @@ class TestCurriculumPage:
                 "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
                 return_value=phases,
             ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=None,
-            ),
         ):
-            await curriculum_page(request, mock_db, current_user=None)
+            await curriculum_page(request, account=None)
 
         assert template.call_args[0][1] == "pages/curriculum.html"
         ctx = template.call_args[0][2]
@@ -177,17 +157,12 @@ class TestPhasePage:
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
                 return_value=None,
             ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=None,
-            ),
         ):
             await phase_page(
                 request,
                 phase_id=999,
                 db=mock_db,
-                current_user=AuthenticatedUser(1, "testuser"),
+                account=User(id=1, github_username="testuser"),
             )
 
         assert template.call_args[0][1] == "pages/404.html"
@@ -200,17 +175,12 @@ class TestPhasePage:
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
         phase = _fake_phase()
-        mock_user = MagicMock()
+        mock_user = User(id=42, github_username="testuser")
 
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
                 return_value=phase,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=mock_user,
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.fetch_phase_progress",
@@ -226,7 +196,7 @@ class TestPhasePage:
                 request,
                 phase_id=1,
                 db=mock_db,
-                current_user=AuthenticatedUser(42, "testuser"),
+                account=mock_user,
             )
 
         assert template.call_args[0][1] == "pages/phase.html"
@@ -243,43 +213,22 @@ class TestVerificationsPage:
     async def test_verifications_renders_overview(self, _patch_templates):
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
-        mock_user = MagicMock()
+        mock_user = User(id=42, github_username="testuser")
         mock_overview = MagicMock()
 
         with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=mock_user,
-            ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_verifications_overview",
                 autospec=True,
                 return_value=mock_overview,
             ),
         ):
-            await verifications_page(
-                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
-            )
+            await verifications_page(request, mock_db, account=mock_user)
 
         assert template.call_args[0][1] == "pages/verifications.html"
         ctx = template.call_args[0][2]
         assert ctx["user"] is mock_user
         assert ctx["overview"] is mock_overview
-
-    async def test_verifications_returns_404_when_user_missing(self, _patch_templates):
-        request, template = _mock_request(_patch_templates)
-
-        with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
-            autospec=True,
-            return_value=None,
-        ):
-            await verifications_page(
-                request, AsyncMock(), current_user=AuthenticatedUser(999, "testuser")
-            )
-
-        assert template.call_args[0][1] == "pages/404.html"
 
 
 @pytest.mark.unit
@@ -291,11 +240,6 @@ class TestPhaseVerificationPage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=MagicMock(),
-            ),
-            patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
                 return_value=None,
             ),
@@ -304,7 +248,7 @@ class TestPhaseVerificationPage:
                 request,
                 phase_id=999,
                 db=AsyncMock(),
-                current_user=AuthenticatedUser(42, "testuser"),
+                account=User(id=42, github_username="testuser"),
             )
 
         assert template.call_args[0][1] == "pages/404.html"
@@ -312,7 +256,7 @@ class TestPhaseVerificationPage:
     async def test_phase_verification_renders_workspace(self, _patch_templates):
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
-        mock_user = MagicMock(github_username="learner")
+        mock_user = User(id=42, github_username="learner")
         phase = _fake_phase(order=4)
         workspace = MagicMock(
             phase=phase,
@@ -325,11 +269,6 @@ class TestPhaseVerificationPage:
         )
 
         with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=mock_user,
-            ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
                 return_value=phase,
@@ -344,7 +283,7 @@ class TestPhaseVerificationPage:
                 request,
                 phase_id=4,
                 db=mock_db,
-                current_user=AuthenticatedUser(42, "testuser"),
+                account=mock_user,
             )
 
         get_workspace.assert_awaited_once_with(
@@ -376,18 +315,13 @@ class TestTopicPage:
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
                 return_value=None,
             ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=None,
-            ),
         ):
             await topic_page(
                 request,
                 phase_id=1,
                 topic_slug="bad-topic",
                 db=mock_db,
-                current_user=AuthenticatedUser(1, "testuser"),
+                account=User(id=1, github_username="testuser"),
             )
 
         assert template.call_args[0][1] == "pages/404.html"
@@ -404,18 +338,13 @@ class TestTopicPage:
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
                 return_value=phase,
             ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=None,
-            ),
         ):
             await topic_page(
                 request,
                 phase_id=1,
                 topic_slug="bad-topic",
                 db=mock_db,
-                current_user=AuthenticatedUser(1, "testuser"),
+                account=User(id=1, github_username="testuser"),
             )
 
         assert template.call_args[0][1] == "pages/404.html"
@@ -434,11 +363,6 @@ class TestTopicPage:
                 return_value=phase,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=MagicMock(),
-            ),
-            patch(
                 "learn_to_cloud.routes.pages_routes.get_valid_completed_steps",
                 autospec=True,
                 return_value=[],
@@ -453,7 +377,7 @@ class TestTopicPage:
                 phase_id=1,
                 topic_slug="linux-basics",
                 db=mock_db,
-                current_user=AuthenticatedUser(1, "testuser"),
+                account=User(id=1, github_username="testuser"),
             )
 
         assert template.call_args[0][1] == "pages/topic.html"
@@ -469,47 +393,22 @@ class TestDashboardPage:
         """Dashboard renders with user and dashboard data."""
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
-        mock_user = MagicMock()
+        mock_user = User(id=42, github_username="testuser")
         mock_dashboard = MagicMock()
 
         with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=mock_user,
-            ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_dashboard_data",
                 autospec=True,
                 return_value=mock_dashboard,
             ),
         ):
-            await dashboard_page(
-                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
-            )
+            await dashboard_page(request, mock_db, account=mock_user)
 
         assert template.call_args[0][1] == "pages/dashboard.html"
         ctx = template.call_args[0][2]
         assert ctx["user"] is mock_user
         assert ctx["dashboard"] is mock_dashboard
-
-    async def test_dashboard_returns_404_when_user_not_found(self, _patch_templates):
-        """Dashboard returns 404 if user_id doesn't match a DB user."""
-        request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-
-        with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
-            autospec=True,
-            return_value=None,
-        ):
-            await dashboard_page(
-                request, mock_db, current_user=AuthenticatedUser(999, "testuser")
-            )
-
-        assert template.call_args[0][1] == "pages/404.html"
-        call_kwargs = template.call_args[1] if template.call_args[1] else {}
-        assert call_kwargs.get("status_code") == 404
 
 
 @pytest.mark.unit
@@ -519,37 +418,12 @@ class TestAccountPage:
     async def test_account_renders_for_user(self, _patch_templates):
         """Account page renders with user context."""
         request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-        mock_user = MagicMock()
-
-        with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
-            autospec=True,
-            return_value=mock_user,
-        ):
-            await account_page(
-                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
-            )
+        mock_user = User(id=42, github_username="testuser")
+        await account_page(request, account=mock_user)
 
         assert template.call_args[0][1] == "pages/account.html"
         ctx = template.call_args[0][2]
         assert ctx["user"] is mock_user
-
-    async def test_account_returns_404_when_user_not_found(self, _patch_templates):
-        """Account returns 404 if user doesn't exist."""
-        request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-
-        with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
-            autospec=True,
-            return_value=None,
-        ):
-            await account_page(
-                request, mock_db, current_user=AuthenticatedUser(999, "testuser")
-            )
-
-        assert template.call_args[0][1] == "pages/404.html"
 
 
 @pytest.mark.unit
@@ -567,14 +441,8 @@ class TestPublicPages:
     )
     async def test_public_page_renders(self, _patch_templates, handler, template_name):
         request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
 
-        with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
-            autospec=True,
-            return_value=None,
-        ):
-            await handler(request, mock_db, current_user=None)
+        await handler(request, account=None)
 
         assert template.call_args[0][1] == template_name
 
@@ -590,17 +458,12 @@ class TestCommunityPage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                autospec=True,
-                return_value=None,
-            ),
-            patch(
                 "learn_to_cloud.routes.pages_routes.get_community_page_data",
                 autospec=True,
                 return_value=mock_community,
             ),
         ):
-            await community_page(request, mock_db, current_user=None)
+            await community_page(request, mock_db, account=None)
 
         assert template.call_args[0][1] == "pages/community.html"
         ctx = template.call_args[0][2]

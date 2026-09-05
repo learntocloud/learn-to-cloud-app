@@ -225,7 +225,7 @@ or invoke the agent directly with `@dog-food`. The agent will:
 2. **Install Chromium** if needed (headless, `--no-sandbox`)
 3. **Test all public pages** — Home, Curriculum, FAQ, Privacy, Terms, Status
 4. **Toggle dark mode** and verify it works
-5. **Authenticate** via a signed session cookie (no real GitHub OAuth needed)
+5. **Authenticate** via a persisted local session (no real GitHub OAuth needed)
 6. **Test authenticated pages** — Dashboard, Account, Phase, Topic
 7. **Toggle a learning step** checkbox and verify it persists
 8. **Report results** as a structured summary with pass/fail for each page
@@ -241,7 +241,11 @@ playwright-mcp install-browser chromium --with-deps
 
 The MCP server is configured in `.mcp.json` for the Copilot CLI and
 `.vscode/mcp.json` for VS Code. The database must contain at least one user;
-`scripts/dogfood_session.py` creates the local authenticated session.
+`scripts/dogfood_session.py` commits an authenticated session for an existing
+local account. It requires development settings and a loopback database and
+refuses production targets. Missing accounts and database errors are failures,
+not reasons to invent a user. Its cookie JSON is a local credential: pass it
+directly to browser automation, never into logs, issue reports, or commits.
 
 ### Cross-architecture support
 
@@ -302,13 +306,22 @@ Routes (HTTP) → Services (Business Logic) → Repositories (Database)
 
 ### Authentication and sessions
 
-GitHub OAuth establishes a signed client-side session cookie containing
-`user_id` and `github_username`. Session middleware verifies its signature and
-age on subsequent requests; those requests do not contact GitHub again.
-The cookie is signed, not encrypted, so do not store secrets in its payload.
+GitHub OAuth establishes an opaque login cookie, `ltc_session`, backed by
+PostgreSQL. The cookie is a random credential, not an encoded identity. The
+`auth_sessions` table stores only its SHA-256 digest, account ID, and creation,
+update, last-activity, and absolute-expiry timestamps. It stores no IP address,
+User-Agent, device label, profile snapshot, or OAuth token. Normal authenticated
+requests resolve the current account from this store; they do not contact GitHub.
 
-OAuth issuance and session reads share `validate_identity` from
-`learn_to_cloud.core.auth`. It requires:
+The separate signed `session` cookie is only for Authlib's temporary OAuth
+handshake state, with a ten-minute browser lifetime. Its contents are signed,
+not encrypted. Unrelated in-flight OAuth state survives callback failures;
+OAuth responses cannot replace the separate authentication cookie.
+Both cookies use HttpOnly, SameSite=Lax, Path=/, no Domain, and Secure in
+production. Browser expiry is not the authority for session validity.
+
+OAuth issuance uses `validate_identity` from `learn_to_cloud.core.auth`.
+It requires:
 
 - An integer GitHub ID from 1 through `2**63 - 1`. Booleans, floats, numeric
   strings, zero, negative values, and larger integers are rejected, not converted.
@@ -318,11 +331,11 @@ OAuth issuance and session reads share `validate_identity` from
 
 GitHub's authenticated profile response establishes account identity. We do not
 duplicate signup rules, check reserved names, or requery GitHub on each request.
-Session reads preserve accepted values without trimming or changing case.
 OAuth retains lowercase normalization and validates the normalized value before
 database access, since lowercasing can increase a Unicode string's length.
 The returned database identity must match that validated identity, and the
-transaction must commit before a new cookie identity is written. A mismatch
+account upsert and session-creation transaction must commit before a new cookie
+or successful-login event is issued. A mismatch
 is an internal error, not an ordinary rejected login.
 
 #### Profile names
@@ -367,35 +380,70 @@ an existing user's profile unchanged.
 
 #### Session reads
 
-Missing both identity fields is normal anonymous access, including a session
-containing only OAuth state. Partial or malformed identity is also treated as
-anonymous, but both identity fields are removed from the existing session object.
-Unrelated entries, including OAuth state, are preserved. Middleware persists the
-cleaned cookie or expires it if nothing remains.
+Missing authentication cookies and OAuth-state-only cookies are anonymous
+without a session/account query. Legacy identity fields are never trusted and
+are removed while preserving unrelated OAuth state. The cutover requires
+everyone to sign in again; there is no legacy fallback or session backfill.
+The signing key does not need rotation.
 
-Rejecting numeric-string IDs is an intentional change from the previous
-coercing reader. Valid sessions remain valid; rejected sessions require login
-again. Local tools such as `scripts/dogfood_session.py` must also supply valid
-identity values. No migration, backfill, or cookie-key rotation is needed.
-Malformed cookie encoding, JSON, or top-level session shapes are a separate
-middleware concern tracked in
-[#834](https://github.com/learntocloud/learn-to-cloud-app/issues/834).
+Resolution is asynchronous and cached for this request only, including
+anonymous results. A valid session is conditionally touched using the database
+clock and returned with its current account in a short committed transaction.
+Pages, `/api/user/me`, and HTMX step rendering reuse that account rather than
+select it again. No session lock or database connection remains held during
+template rendering, provider calls, or verification work.
 
-The API uses one identity type:
+Unknown, revoked, deleted-account, and expired credentials cannot authenticate
+or recreate rows. Supplied invalid credentials are cleared on handled responses,
+including 401s and redirects. A database failure is a real service failure,
+not anonymous access or permission to trust a cookie. Responses affected by
+identity vary on Cookie; authenticated and account/auth responses are private
+and non-cacheable. Static asset caching is unchanged.
+
+| Session limit | Behavior |
+| --- | --- |
+| Inactivity | Reject at seven days since the last authenticated request. Pages, APIs, and verification polling count; static assets, health probes, and simply keeping a page open do not. |
+| Absolute lifetime | Reject at thirty days after creation, even with continual activity. A new GitHub login starts a new lifetime. |
+| Expired-row retention | A successful login prunes at most 100 idle- or absolute-expired rows. No worker or wall-clock removal deadline is promised; pending cleanup never makes expired rows valid. |
+
+`SessionConfig` exposes `idle_timeout_seconds` (604800),
+`absolute_timeout_seconds` (2592000), and `oauth_state_max_age_seconds` (600).
+These are positive durations, and inactivity cannot exceed absolute lifetime.
+Seven inactive days is a convenience tradeoff, not a claim of high-assurance
+session timeout policy.
+
+Choose the dependency for the data the route actually consumes:
 
 | Name | Purpose |
 |------|---------|
 | `AuthenticatedUser` | Plain identity data: numeric user ID and GitHub username. Use it in helpers receiving an existing identity. |
 | `CurrentUser` | An `Annotated` alias that tells FastAPI to call `require_authenticated_user` and supply that identity to a protected route. |
 | `OptionalCurrentUser` | Supplies the same identity or `None` to a public route. |
+| `CurrentAccount` | Supplies the loaded `User` account to a protected route that needs profile fields or renders account-aware templates. |
+| `OptionalCurrentAccount` | Supplies that loaded account or `None` to a public route. |
 
-Import these from `learn_to_cloud.core.auth`. Routes access
-`current_user.user_id` or `current_user.github_username`; do not introduce
-ID-only dependencies or a separate browser-user type.
-`require_authenticated_user` raises `AuthenticationRequired` when the session
-has no complete identity. It does not choose a browser redirect or check
-whether the application account still exists. Account-validity work is tracked
-in [#829](https://github.com/learntocloud/learn-to-cloud-app/issues/829).
+Import these from `learn_to_cloud.core.auth`. Identity consumers access
+`current_user.user_id` or `current_user.github_username`; account consumers access
+`account.id`, `account.github_username`, and loaded profile fields. Do not introduce
+ID-only dependencies or a separate browser-user type. Pass accounts explicitly
+to templates and rendering helpers; do not look them up through `request.state`.
+
+All four aliases share `optional_authenticated_account`, which resolves the
+session and loads the account in one short, committed transaction before route
+work. FastAPI caches this shared subdependency per request; a request-local cache
+also prevents repeat resolution and touches when the resolver is called directly.
+The resolver populates telemetry identity state for both account and identity
+consumers. Database failures propagate rather than becoming anonymous requests.
+`require_authenticated_account` raises `AuthenticationRequired` when no live
+session and current account resolve; the required identity dependency derives
+from it. Neither chooses a browser redirect.
+
+The injected account is a read-only, loaded ORM snapshot, not a transaction.
+Session makers use `expire_on_commit=False` so loaded scalar fields remain
+available after the authentication session closes. Do not lazy-load relationships,
+attach the snapshot for writes, or mutate it. Use an explicit service and database
+session for additional reads or writes; do not query the account again just to
+render it.
 
 Browser navigation is a route policy, separate from identity loading.
 Page routers select `LoginRedirectRoute` from `learn_to_cloud.core.routing`
@@ -414,22 +462,44 @@ A browser mutation that intentionally redirects uses 303 so the next request
 is GET, not a replay of POST or DELETE. Do not infer auth response policy from
 URL prefixes or `Accept` headers.
 
-POST `/auth/logout` needs no authenticated dependency. It clears the session,
-explicitly expires the browser cookie, and returns 303 to `/`, including when
-the cookie is missing, rejected, or already cleared. Explicit cookie deletion
-also handles rejected cookies that middleware presents as an empty session.
-The signed session lifetime is currently 30 days. Logout removes this browser's
-cookie but does not revoke a previously copied valid cookie; session-revocation
-and expiry guarantees are tracked in
-[#828](https://github.com/learntocloud/learn-to-cloud-app/issues/828).
+POST `/auth/logout` needs no authenticated dependency. It deletes this browser's
+session, commits, clears its cookies, and returns 303 to `/`. Replaying an exact
+copy of that cookie fails across all app processes; independent browser sessions
+stay valid. Missing, malformed, unknown, expired, and already-revoked cookies
+retain repeatable cleanup behavior. If the database cannot confirm revocation,
+the route fails instead of claiming success.
+
+The Account page's Sign out everywhere form posts to `/auth/logout-all`. It
+requires a live session and a session-bound, non-bearer CSRF token. Missing or
+incorrect tokens return 403 without deletion. The form asks for confirmation,
+includes this browser, and disables HTMX boost so its 303 navigates normally.
+The server locks the account before rechecking the requesting session and
+deleting all current sessions. Login issuance uses the same account-first lock
+order; a genuinely later GitHub login can create a new session.
+
+Both account-deletion endpoints commit account deletion and foreign-key
+cascades before reporting success, emitting `user.account_deleted`, or clearing
+cookies. All sessions, progress, and submissions are removed atomically.
+Other browsers become anonymous on their next request. A new login can recreate
+the same numeric GitHub account ID, but never revives an old session.
+
+Revocation takes effect when its transaction commits. Already-authorized work
+may finish, and running verification work is not cancelled. An expired open
+page is rejected on its next server interaction; there is no background logout
+timer. Sign out everywhere revokes this app's sessions, not GitHub sessions or
+GitHub authorization. After cookie theft, sign in on a trusted browser and use
+that action. A compromised GitHub account must also be secured at GitHub.
 
 Auth behavior is covered through real routes, session middleware, and HTTP
-redirects in `api/tests/routes/test_auth_http.py`. Auth overrides are useful
+redirects in `api/tests/routes/test_auth_http.py`, with persisted multi-browser
+lifecycle coverage in `api/tests/routes/test_session_lifecycle.py`.
+Auth overrides are useful
 for unrelated rendering tests, but must not replace authentication in tests
 of the auth contract itself. Request telemetry records handled 401/303 outcomes;
 it must not add usernames, user IDs, cookie values, or session identifiers.
-Handled identity rejection emits a bounded warning without exception details;
-ordinary anonymous access does not. Failed OAuth attempts do not clear an
+Session rejections use bounded reasons without exception details; expected
+expiry, unknown-session, and cutover outcomes are informational, not automatic
+compromise warnings. Ordinary anonymous access emits no event. Failed OAuth attempts do not clear an
 existing valid login or unrelated authorization state.
 See the [telemetry schema](observability/telemetry-schema.html).
 

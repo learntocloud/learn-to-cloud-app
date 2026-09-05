@@ -44,9 +44,10 @@ Keep docstrings short and useful. One line is enough for most functions.
 
 ## Authentication
 
-- Use `CurrentUser` for protected routes and `OptionalCurrentUser` for public routes. Both supply `AuthenticatedUser`; use its `.user_id` or `.github_username` rather than adding ID-only dependencies.
+- Use `CurrentUser` / `OptionalCurrentUser` when a route needs only `AuthenticatedUser` identity (`.user_id`, `.github_username`). Use `CurrentAccount` / `OptionalCurrentAccount` when it needs the loaded `User` account (`.id`, profile fields), including account-aware pages and rendering. Required aliases protect routes; optional aliases allow anonymous requests.
+- All four aliases share the cached account resolver and one session lookup/touch per request. Treat the account as a read-only loaded snapshot after the auth transaction closes: no lazy loading or writes through it. Pass accounts explicitly to helpers/templates, never retrieve them from `request.state`; do not add ID-only dependencies or duplicate account queries.
 - Keep identity loading separate from navigation. Page routers use `LoginRedirectRoute`; API and HTMX endpoints retain 401 responses. Do not infer this policy from URL prefixes or `Accept`.
-- Logout clears the local cookie but does not revoke copied signed cookies. Do not claim server-side revocation exists.
+- Authentication uses opaque PostgreSQL-backed sessions, not identity fields in the OAuth cookie. Logout revokes the current session; Sign out everywhere revokes all current account sessions. Commit before clearing cookies or reporting success.
 - Keep expected auth responses in request telemetry, without logging identities, cookies, or tokens.
 - Follow [Authentication and sessions](../docs/contributing.md#authentication-and-sessions) for the complete contract and test boundaries.
 

@@ -38,11 +38,7 @@ from learn_to_cloud_shared.schemas import (
     VerificationProgress,
 )
 
-from learn_to_cloud.core.auth import (
-    AuthenticatedUser,
-    optional_authenticated_user,
-    require_authenticated_user,
-)
+from learn_to_cloud.core.auth import optional_authenticated_account
 
 # =============================================================================
 # Fixtures
@@ -155,7 +151,7 @@ async def anon_client(_patched_content):
 
     app.dependency_overrides[get_db] = _override_get_db
     app.dependency_overrides[get_db_readonly] = _override_get_db_readonly
-    app.dependency_overrides[optional_authenticated_user] = _override_optional_user
+    app.dependency_overrides[optional_authenticated_account] = _override_optional_user
 
     # Mark app as initialized so /ready doesn't 503
     app.state.init_done = True
@@ -173,7 +169,7 @@ async def anon_client(_patched_content):
 async def auth_client(_patched_content):
     """HTTP client for authenticated requests.
 
-    Overrides auth to return an identity, mocks DB and user service.
+    Overrides the account resolver and mocks route database work.
     """
     from learn_to_cloud.main import app
 
@@ -186,12 +182,11 @@ async def auth_client(_patched_content):
         yield mock_db
 
     def _override_current_user():
-        return AuthenticatedUser(user_id=1, github_username="testuser")
+        return _fake_user()
 
     app.dependency_overrides[get_db] = _override_get_db
     app.dependency_overrides[get_db_readonly] = _override_get_db_readonly
-    app.dependency_overrides[optional_authenticated_user] = _override_current_user
-    app.dependency_overrides[require_authenticated_user] = _override_current_user
+    app.dependency_overrides[optional_authenticated_account] = _override_current_user
 
     app.state.init_done = True
     app.state.init_error = None
@@ -271,10 +266,6 @@ class TestAuthPageSmoke:
         """GET /dashboard renders the dashboard template."""
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                return_value=_fake_user(),
-            ),
-            patch(
                 "learn_to_cloud.routes.pages_routes.get_dashboard_data",
                 return_value=_fake_dashboard(),
             ),
@@ -284,11 +275,7 @@ class TestAuthPageSmoke:
 
     async def test_account_renders(self, auth_client: AsyncClient):
         """GET /account renders the account settings template."""
-        with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
-            return_value=_fake_user(),
-        ):
-            response = await auth_client.get("/account")
+        response = await auth_client.get("/account")
         assert response.status_code == 200
 
     async def test_typed_verification_submission_routes_bind_forms(
@@ -364,10 +351,6 @@ class TestAuthPageSmoke:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                return_value=_fake_user(),
-            ),
-            patch(
                 "learn_to_cloud.routes.pages_routes.fetch_phase_progress",
                 return_value=detail,
             ),
@@ -397,10 +380,6 @@ class TestAuthPageSmoke:
         )
 
         with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                return_value=_fake_user(),
-            ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_verifications_overview",
                 return_value=overview,
@@ -491,10 +470,6 @@ class TestAuthPageSmoke:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                return_value=_fake_user(),
-            ),
-            patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_verification_workspace",
                 return_value=workspace,
             ),
@@ -520,10 +495,6 @@ class TestAuthPageSmoke:
         topic_slug = phase.topics[0].slug
 
         with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
-                return_value=_fake_user(),
-            ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_valid_completed_steps",
                 return_value=[],

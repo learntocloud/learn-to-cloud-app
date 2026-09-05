@@ -1,21 +1,31 @@
 """GitHub OAuth login, callback, and logout routes."""
 
+import hmac
 import logging
 from json import JSONDecodeError
+from time import time
 
 import httpx2
 from authlib.integrations.starlette_client import OAuthError
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from learn_to_cloud_shared.core.config import get_web_settings
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud.core.auth import (
-    SESSION_COOKIE_NAME,
     AuthenticatedUser,
+    CurrentUser,
     IdentityRejectionReason,
     oauth,
     validate_identity,
+)
+from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME, issue_cookie
+from learn_to_cloud.services.sessions_service import (
+    csrf_token,
+    issue_session,
+    log_pruned,
+    mutate_account,
+    revoke_current,
 )
 from learn_to_cloud.services.users_service import (
     get_or_create_user_from_github,
@@ -25,6 +35,21 @@ from learn_to_cloud.services.users_service import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _prepare_oauth_state(request: Request) -> dict:
+    """Discard obsolete identities and expired handshakes, retaining live tabs."""
+    request.session.pop("user_id", None)
+    request.session.pop("github_username", None)
+    now = time()
+    for key, value in list(request.session.items()):
+        if key.startswith("_state_github_") and (
+            not isinstance(value, dict)
+            or not isinstance(value.get("exp"), (int, float))
+            or value["exp"] <= now
+        ):
+            request.session.pop(key)
+    return dict(request.session)
 
 
 def _reject_identity(reason: IdentityRejectionReason) -> RedirectResponse:
@@ -47,6 +72,8 @@ async def login(request: Request) -> RedirectResponse:
         logger.error("auth.login.github_not_configured")
         return RedirectResponse(url="/", status_code=302)
 
+    previous_states = _prepare_oauth_state(request)
+    github.framework.expires_in = get_web_settings().session.oauth_state_max_age_seconds
     redirect_uri = str(request.url_for("auth_callback"))
     # Azure Container Apps terminates TLS at the load balancer; ensure
     # the redirect URI uses https so it matches the GitHub OAuth config.
@@ -54,7 +81,10 @@ async def login(request: Request) -> RedirectResponse:
         "http://"
     ):
         redirect_uri = redirect_uri.replace("http://", "https://", 1)
-    return await github.authorize_redirect(request, redirect_uri)
+    response = await github.authorize_redirect(request, redirect_uri)
+    for key, value in previous_states.items():
+        request.session.setdefault(key, value)
+    return response
 
 
 @router.get(
@@ -70,6 +100,7 @@ async def callback(request: Request) -> RedirectResponse:
         logger.error("auth.callback.github_not_configured")
         return RedirectResponse(url="/", status_code=302)
 
+    _prepare_oauth_state(request)
     try:
         token = await github.authorize_access_token(request)
     except (OAuthError, httpx2.HTTPError) as exc:
@@ -124,13 +155,22 @@ async def callback(request: Request) -> RedirectResponse:
             raise RuntimeError(
                 "Persisted OAuth identity does not match validated identity"
             )
+        issued = await issue_session(
+            db,
+            get_web_settings().session,
+            user.id,
+            request.cookies.get(AUTH_COOKIE_NAME),
+        )
         await db.commit()
 
-    request.session["user_id"] = persisted_identity.user_id
-    request.session["github_username"] = persisted_identity.github_username
+    request.session.pop("user_id", None)
+    request.session.pop("github_username", None)
+    response = RedirectResponse(url="/dashboard", status_code=302)
+    issue_cookie(request, response, issued.token, issued.expires_at)
     logger.info("auth.login.success")
+    log_pruned(issued)
 
-    return RedirectResponse(url="/dashboard", status_code=302)
+    return response
 
 
 @router.post(
@@ -139,15 +179,18 @@ async def callback(request: Request) -> RedirectResponse:
     include_in_schema=False,
 )
 async def logout(request: Request) -> RedirectResponse:
-    """Clear the session cookie and redirect to home."""
-    request.session.clear()
-    response = RedirectResponse(url="/", status_code=303)
-    # Rejected cookies look like empty sessions to SessionMiddleware.
-    response.delete_cookie(
-        SESSION_COOKIE_NAME,
-        path="/",
-        secure=get_web_settings().web_security.require_https,
-        httponly=True,
-        samesite="lax",
-    )
-    return response
+    """Revoke this browser's credential before clearing its cookies."""
+    await revoke_current(request)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.post("/logout-all", include_in_schema=False)
+async def logout_all(
+    request: Request, current_user: CurrentUser, csrf: str = Form("")
+) -> RedirectResponse:
+    """Revoke every current session, including this browser."""
+    expected = csrf_token(request)
+    if not expected or not hmac.compare_digest(expected.encode(), csrf.encode()):
+        raise HTTPException(status_code=403, detail="Invalid confirmation token")
+    await mutate_account(request, current_user.user_id, delete_account=False)
+    return RedirectResponse(url="/", status_code=303)
