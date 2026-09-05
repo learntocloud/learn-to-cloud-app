@@ -52,14 +52,13 @@ class UserRepository:
         user_id: int,
         *,
         github_username: str,
-        first_name: str | None = None,
-        last_name: str | None = None,
+        display_name: str | None = None,
         avatar_url: str | None = None,
     ) -> User:
         """Get user from DB or create from GitHub OAuth data.
 
         Uses INSERT ... ON CONFLICT to handle concurrent requests safely.
-        On conflict, updates profile fields from GitHub.
+        An existing user's profile is returned unchanged.
 
         Query strategy:
         - Existing user (common path): 1 SELECT
@@ -72,8 +71,7 @@ class UserRepository:
 
         values = {
             "id": user_id,
-            "first_name": first_name,
-            "last_name": last_name,
+            "display_name": display_name,
             "avatar_url": avatar_url,
             "github_username": github_username,
         }
@@ -98,24 +96,23 @@ class UserRepository:
         user_id: int,
         *,
         github_username: str,
-        first_name: str | None = None,
-        last_name: str | None = None,
+        display_name: str | None = None,
         avatar_url: str | None = None,
     ) -> User:
-        """Insert or update a user in a single query.
+        """Flush the whole session, then insert or refresh the user's profile.
 
-        Returns the upserted user. Expects github_username to be pre-normalized.
+        Provider fields override pending profile edits; unrelated changes survive.
+        A clean session uses one statement. The caller owns commit or rollback.
         """
+        await self.db.flush()
         values = {
             "id": user_id,
-            "first_name": first_name,
-            "last_name": last_name,
+            "display_name": display_name,
             "avatar_url": avatar_url,
             "github_username": github_username,
         }
         update_values = {
-            "first_name": first_name,
-            "last_name": last_name,
+            "display_name": display_name,
             "avatar_url": avatar_url,
             "github_username": github_username,
             "updated_at": utcnow(),
@@ -127,7 +124,9 @@ class UserRepository:
             .on_conflict_do_update(index_elements=["id"], set_=update_values)
             .returning(User)
         )
-        result = await self.db.execute(stmt)
+        result = await self.db.execute(
+            stmt, execution_options={"populate_existing": True}
+        )
         return result.scalar_one()
 
     async def delete(self, user_id: int) -> None:

@@ -167,8 +167,7 @@ class StrictFrozenModel(BaseModel):
 class UserBase(BaseModel):
     """Base user schema."""
 
-    first_name: str | None = None
-    last_name: str | None = None
+    display_name: str | None = None
     avatar_url: str | None = None
     github_username: str | None = None
 

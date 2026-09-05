@@ -19,8 +19,7 @@ def _fake_user() -> User:
     """Build a minimal User model for testing."""
     user = User()
     user.id = 1
-    user.first_name = "Test"
-    user.last_name = "User"
+    user.display_name = "Test User"
     user.avatar_url = "https://example.com/avatar.png"
     user.github_username = "testuser"
     user.is_admin = False
@@ -50,6 +49,15 @@ class TestGetCurrentUser:
         mock_service.assert_awaited_once_with(mock_db, 1)
         assert result.id == 1
         assert result.github_username == "testuser"
+        assert result.display_name == "Test User"
+        assert set(result.model_dump()) == {
+            "id",
+            "github_username",
+            "display_name",
+            "avatar_url",
+            "is_admin",
+            "created_at",
+        }
 
     async def test_user_not_found_raises_404(self):
         """Returns 404 when user not found."""

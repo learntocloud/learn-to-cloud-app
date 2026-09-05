@@ -173,8 +173,7 @@ class TestCallbackRoute:
         mock_get_or_create.assert_awaited_once_with(
             db=request._mock_db_session,
             github_id=12345,
-            first_name="Test",
-            last_name="User",
+            display_name="Test User",
             avatar_url="https://example.com/avatar.png",
             github_username="testuser",
         )
@@ -351,6 +350,26 @@ def callback_context():
 
 @pytest.mark.unit
 class TestCallbackIdentityContract:
+    @pytest.mark.parametrize(
+        "profile",
+        [
+            {},
+            {"name": None},
+            {"name": "  Sentinel 李  "},
+            {"name": ["sentinel"]},
+            {"name": ""},
+        ],
+    )
+    async def test_passes_optional_name_unchanged(self, callback_context, profile):
+        request, github, _, upsert = callback_context
+        github.get.return_value = httpx2.Response(
+            200,
+            json={"id": 42, "login": "testuser", **profile},
+            request=httpx2.Request("GET", "https://api.github.com/user"),
+        )
+        await callback(request)
+        assert upsert.call_args.kwargs["display_name"] == profile.get("name")
+
     @pytest.mark.parametrize(
         ("profile", "reason"),
         [

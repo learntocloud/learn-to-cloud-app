@@ -325,6 +325,48 @@ The returned database identity must match that validated identity, and the
 transaction must commit before a new cookie identity is written. A mismatch
 is an internal error, not an ordinary rejected login.
 
+#### Profile names
+
+The numeric GitHub ID is the durable account key. Username and optional
+`display_name` are presentation data refreshed from GitHub at each login.
+Nonblank names are preserved exactly, including Unicode and outer/repeated
+whitespace; they are not split or truncated. Missing, null, or whitespace-only
+names become SQL `NULL`. The dashboard falls back to the username and escapes
+all names as ordinary text. Normal HTML may visually collapse whitespace.
+Community profiles continue to expose only username and avatar.
+
+Non-string names, NUL characters, and unpaired Unicode surrogates are ignored
+with the fixed value-free warning `auth.callback.display_name_ignored`. Login
+continues normally; this is not rejected identity. Blank names produce no
+warning. Do not deliberately log profile payloads or add names to span
+attributes, metric labels, browser identity context, or session cookies.
+
+Profile persistence uses normal database exception handling. Failed writes or
+commits still roll back, return the generic 500 response, and issue no new
+session. Engine parameter hiding keeps bound values out of SQL logs and
+formatted SQLAlchemy errors, but database diagnostics can still include public
+GitHub profile values. This is an accepted diagnostic tradeoff; we do not
+rewrite driver exceptions or guarantee profile-value redaction. OAuth tokens,
+credentials, cookies, and session secrets must remain out of telemetry.
+
+The internal `GET /api/user/me` response replaces `first_name` and `last_name`
+with `display_name` without API versioning. All other fields remain unchanged:
+
+```json
+{"id":42,"github_username":"learner","display_name":"  李  ","avatar_url":null,"is_admin":false,"created_at":"2024-01-01T00:00:00Z"}
+```
+
+`UserRepository.upsert` flushes **all pending work in the current session** before
+its profile statement. It refreshes an already-loaded user in place; provider
+profile arguments override pending profile edits, while unrelated changes
+survive. Passing `None` explicitly clears the name/avatar. It does not commit:
+the caller owns commit/rollback for both flush and upsert, and flush failures
+propagate before the profile statement. A clean session still uses one
+INSERT/ON CONFLICT/RETURNING statement. In contrast, `get_or_create` returns
+an existing user's profile unchanged.
+
+#### Session reads
+
 Missing both identity fields is normal anonymous access, including a session
 containing only OAuth state. Partial or malformed identity is also treated as
 anonymous, but both identity fields are removed from the existing session object.
@@ -401,25 +443,24 @@ See the [telemetry schema](observability/telemetry-schema.html).
 
 ## Database Migrations
 
-### Keep schema changes and code changes in separate PRs
+### Combine compatible schema and application changes
 
-A PR that adds a new migration should not also change app code that
-depends on the new schema. Ship them as two PRs:
+An additive migration and the app code that uses it can ship in one PR.
+Deployment runs migrations and checks schema agreement before updating the
+API; a migration failure stops that update. Keep model metadata aligned with
+the migrated schema, and apply migrations before starting the new code locally.
 
-1. **Schema PR** -- contains only the migration file. Merges and deploys
-   first so the new table/index/column exists in production.
-2. **Code PR** -- uses the new schema (e.g., `ON CONFLICT` against a new
-   index, queries on a new column). Merges after the schema PR has
-   deployed successfully.
+The old app continues running while migrations execute, so it must still work
+with the expanded schema. For example, add `display_name` and start using it
+in the same release, but retain the legacy name columns for old instances and
+rollback. Remove unused columns in a later cleanup after those instances have
+retired.
 
-Why: if a migration fails silently (or gets rolled back), the old app
-code is still running. If that old code already depends on the new
-schema, users see 500 errors. Keeping them separate means the old code
-keeps working against the old schema.
-
-It's fine to bundle them in one PR when the code change is purely
-additive and the old code path doesn't break without the new schema
-(e.g., adding a nullable column that nothing reads yet).
+Brief downtime is acceptable for this app; separate schema-only releases are
+not required just to avoid it. For incompatible changes, explicitly plan to
+stop affected app instances before migrating, or use compatible intermediate
+steps. The deployment workflow does not stop old instances before migrations.
+Never drop data or weaken migration failure checks merely to combine releases.
 
 See [Database Migrations](migrations.html) for more on how migrations work.
 

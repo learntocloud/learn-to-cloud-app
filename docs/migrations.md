@@ -35,16 +35,97 @@ future image changes. On each deploy, the workflow starts the job with the real
 ### Failure Detection
 
 `alembic/env.py` logs and re-raises every exception from
-`context.run_migrations()`, then verifies the schema actually advanced by
-comparing `MigrationContext.get_current_heads()` to
-`ScriptDirectory.get_heads()` on the same connection. If they diverge, it
-raises and the migration job exits non-zero, failing the deploy.
+`context.run_migrations()`. `api/scripts/run_migrations.py` then verifies the
+current heads with `command.current(config, check_heads=True)` and runs
+`command.check(config)` to compare the physical schema with model metadata.
+Any failure makes the migration job exit non-zero and stops the deploy.
 
 This guards against the class of bug from issue #432, where an earlier
 version of `env.py` substring-matched `"duplicate"` / `"already exists"`
 in failure messages and swallowed real `UniqueViolation`s as "already
 applied by another process." Production stayed pinned to an older
 revision for eight days while CI reported green deploys.
+
+## Display-name rollout (#836)
+
+Ship the schema addition and application cutover together, then remove legacy
+storage in a separate cleanup release. Merging requires separate authorization.
+
+| Release | Database | Application |
+| --- | --- | --- |
+| Profile release (`0058_add_user_display_name`) | Adds nullable `users.display_name` as unrestricted `Text`, with no default, index, or uniqueness constraint; retains both legacy columns | Uses `display_name` for profiles and greetings |
+| Cleanup (later PR) | Removes `first_name` and `last_name` | Removes legacy model metadata and temporary mapper exclusions |
+
+Deployment applies the migration and checks schema agreement before starting
+the new API image. `display_name` is a normal mapped attribute; the new app
+requires the expanded schema. Old instances continue to use the retained legacy
+columns until replaced. There is no separate schema-only deployment.
+
+Legacy columns remain in table metadata but are excluded from the new ORM
+mapping, so runtime queries and writes no longer need them. This keeps strict
+migration schema comparison intact and prepares the app for later cleanup.
+Remove that transitional metadata only with the cleanup migration.
+
+The profile release's PostgreSQL compatibility tests execute normal ORM insertion, SELECTs, both
+entity-returning repository paths, conflict fallback, batch lookups, refresh,
+clearing, and deletion with progress cascades. They cover expanded storage and
+a manually contracted disposable database while legacy metadata is retained;
+they do not require the future cleanup migration. The deployed profile schema must
+still retain all three columns to pass strict migration metadata comparison.
+
+Expansion backfills once. Each legacy component containing non-whitespace text
+is preserved exactly, and populated components are joined with one space.
+Both absent or blank components produce SQL `NULL`. Blank detection explicitly
+handles ASCII whitespace and separators and Unicode whitespace, including
+nonbreaking spaces; it does not depend on the database locale. Stored outer
+and repeated internal spaces, Unicode, and names longer than 255 characters
+are preserved. This is best-effort recovery: information lost by the old name
+parser cannot be recreated. IDs, usernames, legacy values, timestamps,
+permissions, and progress ownership are not changed.
+
+The column addition and backfill share one transaction with a local 5-second
+lock timeout and 2-minute per-statement timeout. Rehearse against representative
+disposable data and assess aggregate account counts before deployment. If the
+backfill cannot fit this bounded operation, revisit batching rather than
+removing the timeouts. No production names need to be inspected or logged.
+
+An old revision can still write legacy fields after backfill. That accepted gap
+can leave an older name or username greeting until a login through the new app refreshes
+the profile. Do not add a trigger, dual write, legacy read fallback, or another
+`WHERE display_name IS NULL` backfill: NULL may be an intentional name removal
+after cutover.
+
+### Deployment gates and recovery
+
+- **Profile release:** after an authorized merge, wait for the entire
+  Application Deploy workflow (`app-deploy.yml`) to succeed. Confirm the
+  expanded schema, expected API image, and verification Functions deployment.
+  Run authenticated profile/dashboard, readiness, and verification-submit
+  checks. All old API replicas must retire, with no rollback outstanding,
+  before cleanup may merge. A passing `/ready` alone does not prove that old
+  readers are gone; revision drift is warning-only.
+- **Cleanup:** after a separately authorized merge, require the full deployment plus
+  authenticated profile/dashboard and public community checks.
+
+Downgrading the addition drops `display_name` and loses any refreshed canonical
+names; legacy columns remain unchanged. The new app must not be running during
+that downgrade. Reapplying the addition reconstructs only the old legacy values,
+not discarded display names. Cleanup's future downgrade restores empty nullable legacy columns,
+not their discarded contents, and must not split the canonical name.
+
+After cleanup, pre-cutover code is not an allowed image-only rollback. Prefer a
+forward fix. Even if the profile release's runtime supports the contracted table,
+its older migration files do not know the cleanup revision and its metadata still expects legacy
+columns. Any compatible image-only recovery must retain schema-aware migration
+tooling and account for revision-drift warnings; do not rerun an old deployment
+workflow as an assumed rollback.
+
+Use a disposable database matching the checked-out release for local reviews.
+Before switching from cleanup to an earlier branch, downgrade that disposable database
+using cleanup's migration files or create a fresh disposable database. Never reset
+normal development data. Upper stacked PRs targeting another feature branch
+have local checks only under the current CI policy; require normal successful
+PR CI after each layer is retargeted to `main`.
 
 ## Production Database Identities
 

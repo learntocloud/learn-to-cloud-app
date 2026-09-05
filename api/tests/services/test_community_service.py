@@ -47,7 +47,11 @@ async def test_graduates_are_full_curriculum_completers(
     completable = sorted(order for order, count in counts.items() if count > 0)
     db_session.add_all(
         [
-            User(id=60001, github_username="grad"),
+            User(
+                id=60001,
+                github_username="grad",
+                display_name="Private profile sentinel",
+            ),
             User(id=60002, github_username="partial"),
         ]
     )
@@ -64,6 +68,10 @@ async def test_graduates_are_full_curriculum_completers(
         community = await get_community_page_data(db_session)
 
     assert [member.github_username for member in community.graduates] == ["grad"]
+    assert community.graduates[0].model_dump() == {
+        "github_username": "grad",
+        "avatar_url": None,
+    }
 
 
 async def test_activity_uses_authoritative_attempts_and_current_phase_mapping(

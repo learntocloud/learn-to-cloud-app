@@ -1,6 +1,7 @@
 """Authentication contracts through real routes and signed-cookie middleware."""
 
 import json
+import logging
 from base64 import b64decode, b64encode
 from datetime import UTC, datetime
 from http.cookies import SimpleCookie
@@ -16,10 +17,19 @@ from itsdangerous import TimestampSigner
 from learn_to_cloud_shared.core.database import get_db
 from learn_to_cloud_shared.models import User
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.logging.handler import LoggingHandler
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from opentelemetry.sdk._logs import LoggerProvider
+from opentelemetry.sdk._logs.export import (
+    InMemoryLogRecordExporter,
+    SimpleLogRecordProcessor,
+)
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind, StatusCode
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 from starlette.middleware.sessions import SessionMiddleware
 
 from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, CurrentUser
@@ -86,8 +96,7 @@ def _session_cookie(session: dict, *, expired: bool = False) -> str:
 def user():
     return User(
         id=42,
-        first_name="Test",
-        last_name="User",
+        display_name="Test User",
         github_username="testuser",
         avatar_url=None,
         is_admin=False,
@@ -140,7 +149,8 @@ def app(test_settings, user, api_services, github):
 
     browser_router = APIRouter(route_class=LoginRedirectRoute)
 
-    @browser_router.api_route("/browser-mutation", methods=["POST", "DELETE"])
+    @browser_router.post("/browser-mutation")
+    @browser_router.delete("/browser-mutation")
     async def browser_mutation(current_user: CurrentUser):
         return PlainTextResponse(str(current_user.user_id))
 
@@ -195,6 +205,32 @@ async def telemetry_client(app):
     finally:
         FastAPIInstrumentor.uninstrument_app(app)
         provider.shutdown()
+
+
+@pytest.fixture
+def telemetry_logs():
+    exporter = InMemoryLogRecordExporter()
+    provider = LoggerProvider()
+    provider.add_log_record_processor(SimpleLogRecordProcessor(exporter))
+    handler = LoggingHandler(logger_provider=provider)
+    root = logging.getLogger()
+    root.addHandler(handler)
+    try:
+        yield exporter
+    finally:
+        root.removeHandler(handler)
+        handler.close()
+        provider.shutdown()
+
+
+def _exported_telemetry(span_exporter, log_exporter, caplog):
+    from learn_to_cloud_shared.core.logger import _json_formatter
+
+    return "\n".join(
+        [span.to_json() for span in span_exporter.get_finished_spans()]
+        + [record.to_json() for record in log_exporter.get_finished_logs()]
+        + [_json_formatter().format(record) for record in caplog.records]
+    )
 
 
 @pytest.mark.parametrize("method", ["GET", "DELETE"])
@@ -534,6 +570,290 @@ async def test_oauth_invariant_failure_remains_500(app, oauth_callback, user, ca
     database.commit.assert_not_awaited()
     assert "auth.callback.identity_rejected" not in caplog.text
     assert "auth.login.success" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("profile", "expected", "warns"),
+    [
+        ({}, None, False),
+        ({"name": None}, None, False),
+        ({"name": ""}, None, False),
+        ({"name": "\t \u2003\n"}, None, False),
+        (
+            {"name": "  Profile-Sentinel 李 e\u0301 🛰️  "},
+            "  Profile-Sentinel 李 e\u0301 🛰️  ",
+            False,
+        ),
+        ({"name": {"value": "Profile-Sentinel"}}, None, True),
+        ({"name": "Profile-Sentinel\x00"}, None, True),
+        ({"name": "Profile-Sentinel\ud800"}, None, True),
+    ],
+)
+@pytest.mark.parametrize("failure", [None, "upsert", "commit"])
+async def test_callback_profile_and_session_contract(
+    app,
+    telemetry_client,
+    telemetry_logs,
+    github,
+    user,
+    caplog,
+    profile,
+    expected,
+    warns,
+    failure,
+):
+    from learn_to_cloud.main import global_exception_handler
+
+    app.add_exception_handler(Exception, global_exception_handler)
+    _, exporter = telemetry_client
+    caplog.set_level(logging.INFO)
+    database = AsyncMock()
+    context = AsyncMock()
+    context.__aenter__.return_value = database
+    context.__aexit__.return_value = False
+    app.state.session_maker = MagicMock(return_value=context)
+    github.authorize_access_token = AsyncMock(
+        return_value={"access_token": "private-token"}
+    )
+    # json.dumps also represents malformed Unicode safely on the wire.
+    github.get = AsyncMock(
+        return_value=httpx2.Response(
+            200,
+            content=json.dumps({"id": 42, "login": "TestUser", **profile}).encode(),
+            request=httpx2.Request("GET", "https://api.github.com/user"),
+        )
+    )
+    user.display_name = expected
+    with patch(
+        "learn_to_cloud.services.users_service.UserRepository", autospec=True
+    ) as repository:
+        upsert = repository.return_value.upsert
+        upsert.return_value = user
+        if failure:
+            operation = upsert if failure == "upsert" else database.commit
+            operation.side_effect = OperationalError(
+                "UPDATE users SET display_name = :name",
+                {"name": "Profile-Sentinel"},
+                RuntimeError("Synthetic persistence failure"),
+                hide_parameters=True,
+            )
+        async with AsyncClient(
+            transport=ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://testserver",
+        ) as client:
+            response = await client.get("/auth/callback")
+            if failure:
+                assert response.status_code == 500
+                assert "set-cookie" not in response.headers
+                assert SESSION_COOKIE_NAME not in client.cookies
+                assert "auth.login.success" not in caplog.text
+                assert "unhandled.exception" in caplog.text
+                assert "OperationalError" in caplog.text
+                assert response.json() == {
+                    "detail": "An unexpected error occurred. Please try again."
+                }
+                if failure == "upsert":
+                    database.commit.assert_not_awaited()
+            else:
+                assert response.status_code == 302
+                assert response.headers["location"] == "/dashboard"
+                database.commit.assert_awaited_once()
+                cookie = client.cookies.get(SESSION_COOKIE_NAME)
+                assert cookie is not None
+                payload = json.loads(b64decode(TimestampSigner(_SECRET).unsign(cookie)))
+                assert payload == {"user_id": 42, "github_username": "testuser"}
+                assert "Profile-Sentinel" not in repr(payload)
+                me = await client.get("/api/user/me")
+                assert me.status_code == 200
+                assert me.json() == {
+                    "id": 42,
+                    "github_username": "testuser",
+                    "display_name": expected,
+                    "avatar_url": None,
+                    "is_admin": False,
+                    "created_at": "2024-01-01T00:00:00Z",
+                }
+                assert "auth.login.success" in caplog.text
+        upsert.assert_awaited_once_with(
+            42, github_username="testuser", display_name=expected, avatar_url=None
+        )
+    warnings = [
+        r
+        for r in caplog.records
+        if r.getMessage() == "auth.callback.display_name_ignored"
+    ]
+    assert len(warnings) == int(warns)
+    for record in warnings:
+        assert record.args == ()
+        assert record.exc_info is None
+        assert not any(key.startswith("auth.") for key in record.__dict__)
+    assert "auth.callback.identity_rejected" not in caplog.text
+    spans = exporter.get_finished_spans()
+    assert any(span.kind == SpanKind.SERVER for span in spans)
+    telemetry = _exported_telemetry(exporter, telemetry_logs, caplog)
+    assert "private-token" not in telemetry
+    assert _SECRET not in telemetry
+    if not failure:
+        assert "Profile-Sentinel" not in telemetry
+    for span in spans:
+        assert (
+            not {"display_name", "first_name", "last_name", "user.display_name"}
+            & span.attributes.keys()
+        )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("failure", ["upsert", "commit"])
+async def test_callback_postgres_failure_rolls_back_without_issuing_session(
+    app, github, test_engine, test_settings, telemetry_logs, caplog, failure
+):
+    from learn_to_cloud_shared.core.database import (
+        create_engine,
+        create_session_maker,
+    )
+
+    from learn_to_cloud.main import global_exception_handler
+
+    caplog.set_level(logging.INFO)
+    caplog.set_level(logging.INFO, logger="sqlalchemy.engine.Engine")
+    app.add_exception_handler(Exception, global_exception_handler)
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    instrumentor = SQLAlchemyInstrumentor()
+    # Keep production instrumentation, but export only to memory.
+    with patch(
+        "learn_to_cloud_shared.core.database.instrument_database",
+        side_effect=lambda engine: instrumentor.instrument(
+            engine=engine.sync_engine, tracer_provider=provider
+        ),
+    ):
+        engine = create_engine(test_settings.database)
+    assert engine.sync_engine.hide_parameters is True
+    FastAPIInstrumentor.instrument_app(app, tracer_provider=provider)
+    github.authorize_access_token = AsyncMock(
+        return_value={"access_token": "private-oauth-token"}
+    )
+    github.get = AsyncMock(
+        return_value=httpx2.Response(
+            200,
+            json={"id": 42, "login": "TestUser", "name": "Profile-Sentinel"},
+            request=httpx2.Request("GET", "https://api.github.com/user"),
+        )
+    )
+    try:
+        async with engine.connect() as connection:
+            # All writes target a connection-local table, never real users.
+            await connection.execute(
+                text("CREATE TEMP TABLE users (LIKE public.users INCLUDING ALL)")
+            )
+            await connection.execute(
+                text(
+                    "INSERT INTO pg_temp.users "
+                    "(id, github_username, display_name, is_admin, "
+                    "created_at, updated_at) "
+                    "VALUES (42, 'testuser', 'Before', false, now(), now())"
+                )
+            )
+            if failure == "upsert":
+                await connection.execute(
+                    text(
+                        "ALTER TABLE pg_temp.users ADD CHECK "
+                        "(length(display_name) < 10)"
+                    )
+                )
+            else:
+                await connection.execute(
+                    text(
+                        "CREATE FUNCTION pg_temp.reject_profile() RETURNS trigger "
+                        "LANGUAGE plpgsql AS $$ BEGIN "
+                        "RAISE EXCEPTION '%', NEW.display_name "
+                        "USING ERRCODE = '23514'; END $$"
+                    )
+                )
+                await connection.execute(
+                    text(
+                        "CREATE CONSTRAINT TRIGGER reject_profile "
+                        "AFTER INSERT OR UPDATE ON pg_temp.users "
+                        "DEFERRABLE INITIALLY DEFERRED FOR EACH ROW "
+                        "EXECUTE FUNCTION pg_temp.reject_profile()"
+                    )
+                )
+            await connection.commit()
+        app.state.session_maker = create_session_maker(engine)
+        exporter.clear()
+        telemetry_logs.clear()
+        caplog.clear()
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://testserver",
+        ) as client:
+            response = await client.get("/auth/callback")
+            assert response.status_code == 500
+            assert response.json() == {
+                "detail": "An unexpected error occurred. Please try again."
+            }
+            assert "set-cookie" not in response.headers
+            assert SESSION_COOKIE_NAME not in client.cookies
+        async with engine.connect() as connection:
+            assert not connection.in_transaction()
+            assert (
+                await connection.scalar(
+                    text("SELECT display_name FROM pg_temp.users WHERE id = 42")
+                )
+                == "Before"
+            )
+            assert await connection.scalar(text("SELECT 1")) == 1
+
+            spans = exporter.get_finished_spans()
+            assert any(
+                span.kind == SpanKind.SERVER
+                and span.status.status_code == StatusCode.ERROR
+                for span in spans
+            )
+            writes = [
+                span
+                for span in spans
+                if span.kind == SpanKind.CLIENT and span.name.startswith("INSERT")
+            ]
+            assert len(writes) == 1
+            assert writes[0].status.status_code == (
+                StatusCode.ERROR if failure == "upsert" else StatusCode.UNSET
+            )
+            assert "unhandled.exception" in caplog.text
+            assert "IntegrityError" in caplog.text
+            assert "auth.login.success" not in caplog.text
+            telemetry = _exported_telemetry(exporter, telemetry_logs, caplog)
+            assert "private-oauth-token" not in telemetry
+            assert _SECRET not in telemetry
+            await connection.rollback()
+            await connection.execute(text("DROP TABLE pg_temp.users"))
+            if failure == "commit":
+                await connection.execute(text("DROP FUNCTION pg_temp.reject_profile()"))
+            await connection.commit()
+    finally:
+        # Disposing closes the connection and drops pg_temp resources even
+        # when an assertion fails before explicit cleanup.
+        await engine.dispose()
+        instrumentor.uninstrument()
+        FastAPIInstrumentor.uninstrument_app(app)
+        provider.shutdown()
+
+
+async def test_profile_openapi_has_only_new_name_field(client):
+    response = await client.get("/openapi.json")
+    assert response.status_code == 200
+    properties = response.json()["components"]["schemas"]["UserResponse"]["properties"]
+    assert set(properties) == {
+        "id",
+        "github_username",
+        "display_name",
+        "avatar_url",
+        "is_admin",
+        "created_at",
+    }
+    assert properties["display_name"]["anyOf"] == [{"type": "string"}, {"type": "null"}]
 
 
 @pytest.mark.parametrize(

@@ -14,15 +14,22 @@ def normalize_github_username(username: str | None) -> str | None:
     return username.lower() if username else None
 
 
-def parse_display_name(name: str | None) -> tuple[str, str]:
-    """Split a display name into (first_name, last_name).
-
-    Handles single names, multi-part names, and empty/None values.
-    """
-    if not name:
-        return ("", "")
-    parts = name.split(" ", 1)
-    return (parts[0], parts[1] if len(parts) > 1 else "")
+def normalize_display_name(name: object) -> str | None:
+    """Preserve nonblank provider names that PostgreSQL can store."""
+    if name is None:
+        return None
+    if isinstance(name, str):
+        if not name.strip():
+            return None
+        if "\x00" not in name:
+            try:
+                name.encode("utf-8")
+            except UnicodeEncodeError:
+                logger.warning("auth.callback.display_name_ignored")
+                return None
+            return name
+    logger.warning("auth.callback.display_name_ignored")
+    return None
 
 
 async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
@@ -35,8 +42,7 @@ async def get_or_create_user_from_github(
     db: AsyncSession,
     *,
     github_id: int,
-    first_name: str,
-    last_name: str,
+    display_name: object,
     avatar_url: str | None,
     github_username: str,
 ) -> User:
@@ -53,8 +59,7 @@ async def get_or_create_user_from_github(
 
     user = await user_repo.upsert(
         github_id,
-        first_name=first_name,
-        last_name=last_name,
+        display_name=normalize_display_name(display_name),
         avatar_url=avatar_url,
         github_username=normalized_username,
     )

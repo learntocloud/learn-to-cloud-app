@@ -5,7 +5,7 @@
 {% block page_header %}
 <h1 class="page-title">Dashboard</h1>
 <p class="mt-3 break-words text-base text-gray-600 dark:text-gray-400">
-    Welcome back, {{ user.first_name or user.github_username }}.
+    Welcome back, {{ user.display_name or user.github_username }}.
 </p>
 {% endblock %}
 

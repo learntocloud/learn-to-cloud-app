@@ -89,6 +89,7 @@ def create_engine(settings: DatabaseConfig) -> AsyncEngine:
     # connection surfaces as a single failed request that the user retries.
     engine_kwargs: dict = {
         "echo": settings.echo,
+        "hide_parameters": True,
         "pool_size": settings.pool_size,
         "max_overflow": settings.pool_max_overflow,
         "pool_timeout": settings.pool_timeout,
