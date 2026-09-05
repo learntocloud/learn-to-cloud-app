@@ -35,16 +35,90 @@ future image changes. On each deploy, the workflow starts the job with the real
 ### Failure Detection
 
 `alembic/env.py` logs and re-raises every exception from
-`context.run_migrations()`, then verifies the schema actually advanced by
-comparing `MigrationContext.get_current_heads()` to
-`ScriptDirectory.get_heads()` on the same connection. If they diverge, it
-raises and the migration job exits non-zero, failing the deploy.
+`context.run_migrations()`. `api/scripts/run_migrations.py` then verifies the
+current heads with `command.current(config, check_heads=True)` and runs
+`command.check(config)` to compare the physical schema with model metadata.
+Any failure makes the migration job exit non-zero and stops the deploy.
 
 This guards against the class of bug from issue #432, where an earlier
 version of `env.py` substring-matched `"duplicate"` / `"already exists"`
 in failure messages and swallowed real `UniqueViolation`s as "already
 applied by another process." Production stayed pinned to an older
 revision for eight days while CI reported green deploys.
+
+## Display-name rollout (#836)
+
+Ship these three dependent releases separately. Review or successful PR checks
+do not replace a completed deployment between releases; merging requires
+separate authorization.
+
+| Release | Database | Application |
+| --- | --- | --- |
+| A: expansion (`0058_add_user_display_name`) | Adds nullable `users.display_name` as unrestricted `Text`, with no default, index, or uniqueness constraint; retains both legacy columns | Still reads and writes `first_name` and `last_name`; the API and greeting are unchanged |
+| B: application cutover (later PR) | Retains all three columns | Uses `display_name`; legacy columns remain only in model metadata |
+| C: cleanup (later PR) | Removes `first_name` and `last_name` | No runtime dependency on legacy storage |
+
+During A, `display_name` is in table metadata but excluded from the ORM mapping.
+This keeps the migration runner's strict schema comparison intact while normal
+inserts, SELECTs, and repository entity-returning inserts/upserts still work
+before expansion. In B, the same technique applies to the legacy columns.
+Do not remove transitional metadata or weaken Alembic's schema checks.
+
+Expansion backfills once. Each legacy component containing non-whitespace text
+is preserved exactly, and populated components are joined with one space.
+Both absent or blank components produce SQL `NULL`. Blank detection explicitly
+handles ASCII whitespace and separators and Unicode whitespace, including
+nonbreaking spaces; it does not depend on the database locale. Stored outer
+and repeated internal spaces, Unicode, and names longer than 255 characters
+are preserved. This is best-effort recovery: information lost by the old name
+parser cannot be recreated. IDs, usernames, legacy values, timestamps,
+permissions, and progress ownership are not changed.
+
+The column addition and backfill share one transaction with a local 5-second
+lock timeout and 2-minute per-statement timeout. Rehearse against representative
+disposable data and assess aggregate account counts before deployment. If the
+backfill cannot fit this bounded operation, revisit batching rather than
+removing the timeouts. No production names need to be inspected or logged.
+
+An old revision can still write legacy fields after backfill. That accepted gap
+can leave an older name or username greeting until a login through B refreshes
+the profile. Do not add a trigger, dual write, legacy read fallback, or another
+`WHERE display_name IS NULL` backfill: NULL may be an intentional name removal
+after cutover.
+
+### Deployment gates and recovery
+
+- **Gate A:** after an authorized merge, wait for the entire Application Deploy
+  workflow (`app-deploy.yml`) to succeed. Confirm the expansion head and physical
+  schema, the expected API image, and the verification Functions deployment.
+  Only then may B be merged.
+- **Gate B:** after B deploys, run authenticated profile/dashboard checks and the
+  existing readiness and verification-submit checks. Confirm B-or-newer is
+  serving, all old API replicas have retired, Functions deployed successfully,
+  and no rollback is outstanding before allowing C. A passing `/ready` is not
+  proof that old readers are gone; revision drift is warning-only.
+- **Gate C:** after cleanup deploys, require the full deployment plus
+  authenticated profile/dashboard and public community checks.
+
+Downgrading A drops `display_name` and loses any refreshed canonical names;
+legacy columns remain unchanged. B must not be running during that downgrade.
+Upgrading A again reconstructs only the old legacy values, not discarded
+display names. C's future downgrade restores empty nullable legacy columns,
+not their discarded contents, and must not split the canonical name.
+
+After C, pre-cutover code is not an allowed image-only rollback. Prefer a
+forward fix. Even if B's runtime supports the contracted table, B's older
+migration files do not know C's revision and its metadata still expects legacy
+columns. Any compatible image-only recovery must retain schema-aware migration
+tooling and account for revision-drift warnings; do not rerun an old deployment
+workflow as an assumed rollback.
+
+Use a disposable database matching the checked-out release for local reviews.
+Before switching from C to an earlier branch, downgrade that disposable database
+using C's migration files or create a fresh disposable database. Never reset
+normal development data. Upper stacked PRs targeting another feature branch
+have local checks only under the current CI policy; require normal successful
+PR CI after each layer is retargeted to `main`.
 
 ## Production Database Identities
 

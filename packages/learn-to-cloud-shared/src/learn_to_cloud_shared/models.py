@@ -8,6 +8,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Column,
     DateTime,
     ForeignKey,
     Index,
@@ -43,7 +44,12 @@ class User(TimestampMixin, Base):
     """GitHub-authenticated learner."""
 
     __tablename__ = "users"
-    __table_args__ = (Index("ix_users_github_username", "github_username"),)
+    __table_args__ = (
+        Column("display_name", Text, nullable=True),
+        Index("ix_users_github_username", "github_username"),
+    )
+    # Keep migration metadata complete without querying the column before expansion.
+    __mapper_args__ = {"exclude_properties": ["display_name"]}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
