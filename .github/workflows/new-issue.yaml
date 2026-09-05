@@ -6,6 +6,7 @@ on:
 
 jobs:
   triage:
+    if: ${{ github.event.issue.user.login != 'madebygps' && github.event.issue.user.login != 'rishabkumar7' }}
     runs-on: ubuntu-latest
     permissions:
       issues: write
