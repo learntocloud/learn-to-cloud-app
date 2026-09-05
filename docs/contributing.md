@@ -307,6 +307,38 @@ GitHub OAuth establishes a signed client-side session cookie containing
 age on subsequent requests; those requests do not contact GitHub again.
 The cookie is signed, not encrypted, so do not store secrets in its payload.
 
+OAuth issuance and session reads share `validate_identity` from
+`learn_to_cloud.core.auth`. It requires:
+
+- An integer GitHub ID from 1 through `2**63 - 1`. Booleans, floats, numeric
+  strings, zero, negative values, and larger integers are rejected, not converted.
+- A username string of 1 through 255 characters containing non-whitespace text,
+  representable as UTF-8 and containing no NUL character. The length is the
+  existing database capacity, not a GitHub naming rule.
+
+GitHub's authenticated profile response establishes account identity. We do not
+duplicate signup rules, check reserved names, or requery GitHub on each request.
+Session reads preserve accepted values without trimming or changing case.
+OAuth retains lowercase normalization and validates the normalized value before
+database access, since lowercasing can increase a Unicode string's length.
+The returned database identity must match that validated identity, and the
+transaction must commit before a new cookie identity is written. A mismatch
+is an internal error, not an ordinary rejected login.
+
+Missing both identity fields is normal anonymous access, including a session
+containing only OAuth state. Partial or malformed identity is also treated as
+anonymous, but both identity fields are removed from the existing session object.
+Unrelated entries, including OAuth state, are preserved. Middleware persists the
+cleaned cookie or expires it if nothing remains.
+
+Rejecting numeric-string IDs is an intentional change from the previous
+coercing reader. Valid sessions remain valid; rejected sessions require login
+again. Local tools such as `scripts/dogfood_session.py` must also supply valid
+identity values. No migration, backfill, or cookie-key rotation is needed.
+Malformed cookie encoding, JSON, or top-level session shapes are a separate
+middleware concern tracked in
+[#834](https://github.com/learntocloud/learn-to-cloud-app/issues/834).
+
 The API uses one identity type:
 
 | Name | Purpose |
@@ -354,6 +386,9 @@ redirects in `api/tests/routes/test_auth_http.py`. Auth overrides are useful
 for unrelated rendering tests, but must not replace authentication in tests
 of the auth contract itself. Request telemetry records handled 401/303 outcomes;
 it must not add usernames, user IDs, cookie values, or session identifiers.
+Handled identity rejection emits a bounded warning without exception details;
+ordinary anonymous access does not. Failed OAuth attempts do not clear an
+existing valid login or unrelated authorization state.
 See the [telemetry schema](observability/telemetry-schema.html).
 
 ## Conventions

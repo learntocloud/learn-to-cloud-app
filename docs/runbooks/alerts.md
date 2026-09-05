@@ -77,6 +77,30 @@ after a deployment. Do not suppress the exception or disable the alert. If a
 dependency is transiently unavailable, restore that dependency and confirm the
 exact exception alert returns to a healthy state.
 
+## Rejected session or OAuth identity
+
+`auth.session.identity_rejected` and `auth.callback.identity_rejected` are
+handled warnings, not unhandled-exception alerts. Inspect their bounded
+`auth.identity.reason` and the associated request outcome; do not request or
+copy the cookie, user identity, OAuth state, or provider response body.
+
+Session rejection removes only the application identity. Public pages remain
+available, protected API/HTMX routes return 401, and browser page navigation
+redirects to login. OAuth rejection redirects home without replacing an existing
+valid login. Ordinary anonymous requests do not emit these warnings.
+
+Compare an increase with the deployed revision and recent authentication
+changes. An old malformed signed cookie, a faulty session-producing tool, or
+unexpected provider data can explain a rejection; the warning alone does not
+prove cookie forgery or account compromise. Reauthentication can replace a
+malformed identity. Do not disable validation or restore numeric-ID coercion.
+
+A persisted OAuth identity that differs from the validated provider identity is
+an application invariant failure. It should not commit or issue a new session;
+investigate it through the existing unhandled-exception guide above. Malformed
+cookie decoding occurs earlier in middleware and is tracked separately in #834.
+See the [telemetry schema](../observability/telemetry-schema.html) for reason values.
+
 ## Telemetry pipeline failure
 
 ### Meaning

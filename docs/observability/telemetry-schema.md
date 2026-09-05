@@ -167,9 +167,38 @@ alert notifications, and must not be added to general request spans.
 | `repo` | `github.repository` | Identify a failed curriculum repository lookup | Fixed public repository set | Operational | Rename; only approved curriculum repositories |
 | `status_code` on auth events | `http.response.status_code` | GitHub OAuth response status | Bounded integer | Operational | Rename |
 | `reason` on auth events | `auth.configuration.reason` | Explain disabled OAuth | Fixed enum | Operational | Rename |
+| `auth.identity.reason` | `auth.identity.reason` | Explain rejected session or provider identity | Fixed enum below | Operational | Keep |
 
 Authentication telemetry never includes GitHub usernames, GitHub IDs, internal
 user IDs, OAuth tokens, claims, or session identifiers.
+
+`auth.session.identity_rejected` and `auth.callback.identity_rejected` are
+warning-level logs for handled identity rejection. Their only application
+attribute is `auth.identity.reason`:
+
+| Value | Meaning |
+| --- | --- |
+| `incomplete_identity` | A session contains only one application identity field. |
+| `invalid_user_id` | The ID fails the strict positive signed-64-bit integer contract. |
+| `invalid_github_username` | The username fails the type, nonblank, length, or storage-encoding contract, including after OAuth normalization. |
+| `invalid_profile` | The provider response has invalid JSON/character encoding or is not a JSON object. |
+
+These events replace the callback's former `auth.callback.missing_github_id`
+and `auth.callback.missing_github_login` events. Existing provider transport
+failures retain `auth.callback.profile_fetch_failed` and bounded `error.type`.
+
+Rejection does not attach exception details or identity values. Empty sessions,
+OAuth-state-only sessions, and cookies rejected by middleware do not produce
+identity warnings. Cleaning an invalid session prevents another warning when
+that cleaned session is read again; this is not cross-request deduplication if
+a client keeps replaying the original cookie.
+
+Handled rejection keeps the normal public-page 200, protected API/HTMX 401, and
+browser 303 request telemetry. An invalid or mismatched persisted OAuth identity
+after validated input is instead an internal invariant failure. It reaches
+the existing `unhandled.exception` boundary with a fixed identity-free message,
+not an additional identity-rejection warning. Never suppress that failure to
+make authentication telemetry look healthy.
 
 ## Metrics
 
@@ -219,7 +248,7 @@ names are bounded code constants and never contain learner values.
 
 The following event families are retained:
 
-- `auth.*`: OAuth configuration and bounded callback outcomes.
+- `auth.*`: OAuth configuration, bounded callback outcomes, and identity rejection.
 - `content.*`: failures loading bundled curriculum artifacts.
 - `db.*`: database lifecycle and rollback failures.
 - `health.*`: readiness and schema drift signals.

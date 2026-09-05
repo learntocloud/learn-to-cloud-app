@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Annotated
 
 from authlib.integrations.starlette_client import OAuth
@@ -31,6 +32,37 @@ class AuthenticatedUser:
 
     user_id: int
     github_username: str
+
+
+class IdentityRejectionReason(StrEnum):
+    INCOMPLETE_IDENTITY = "incomplete_identity"
+    INVALID_USER_ID = "invalid_user_id"
+    INVALID_GITHUB_USERNAME = "invalid_github_username"
+    INVALID_PROFILE = "invalid_profile"
+
+
+def validate_identity(
+    user_id: object, github_username: object
+) -> AuthenticatedUser | IdentityRejectionReason:
+    """Validate identity data without coercion or GitHub naming rules."""
+    if (
+        not isinstance(user_id, int)
+        or isinstance(user_id, bool)
+        or not 0 < user_id < 2**63
+    ):
+        return IdentityRejectionReason.INVALID_USER_ID
+    if (
+        not isinstance(github_username, str)
+        or not 0 < len(github_username) <= 255
+        or not github_username.strip()
+        or "\x00" in github_username
+    ):
+        return IdentityRejectionReason.INVALID_GITHUB_USERNAME
+    try:
+        github_username.encode("utf-8")
+    except UnicodeEncodeError:
+        return IdentityRejectionReason.INVALID_GITHUB_USERNAME
+    return AuthenticatedUser(user_id=user_id, github_username=github_username)
 
 
 class AuthenticationRequired(HTTPException):
@@ -65,18 +97,24 @@ def init_oauth(settings: OAuthConfig) -> None:
 
 
 def get_authenticated_user_from_session(request: Request) -> AuthenticatedUser | None:
-    """Read the session identity, requiring both an ID and a nonempty username."""
-    user_id = request.session.get("user_id")
-    if user_id is None:
+    """Read valid identity, removing malformed identity but preserving OAuth state."""
+    session = request.session
+    if "user_id" not in session and "github_username" not in session:
         return None
-    user_id = int(user_id)
-    github_username = request.session.get("github_username")
-    if not isinstance(github_username, str) or not github_username:
-        return None
-    return AuthenticatedUser(
-        user_id=user_id,
-        github_username=github_username,
+    identity = (
+        IdentityRejectionReason.INCOMPLETE_IDENTITY
+        if "user_id" not in session or "github_username" not in session
+        else validate_identity(session["user_id"], session["github_username"])
     )
+    if isinstance(identity, AuthenticatedUser):
+        return identity
+    session.pop("user_id", None)
+    session.pop("github_username", None)
+    logger.warning(
+        "auth.session.identity_rejected",
+        extra={"auth.identity.reason": identity.value},
+    )
+    return None
 
 
 def require_authenticated_user(request: Request) -> AuthenticatedUser:
