@@ -1,12 +1,7 @@
-"""GitHub OAuth authentication routes.
-
-Handles:
-- GET /auth/login — redirect to GitHub OAuth authorize
-- GET /auth/callback — exchange code for token, create session
-- POST /auth/logout — clear session, redirect to home
-"""
+"""GitHub OAuth login, callback, and logout routes."""
 
 import logging
+from json import JSONDecodeError
 
 import httpx2
 from authlib.integrations.starlette_client import OAuthError
@@ -15,9 +10,16 @@ from fastapi.responses import RedirectResponse
 from learn_to_cloud_shared.core.config import get_web_settings
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, oauth
+from learn_to_cloud.core.auth import (
+    SESSION_COOKIE_NAME,
+    AuthenticatedUser,
+    IdentityRejectionReason,
+    oauth,
+    validate_identity,
+)
 from learn_to_cloud.services.users_service import (
     get_or_create_user_from_github,
+    normalize_github_username,
     parse_display_name,
 )
 
@@ -26,17 +28,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _reject_identity(reason: IdentityRejectionReason) -> RedirectResponse:
+    logger.warning(
+        "auth.callback.identity_rejected",
+        extra={"auth.identity.reason": reason.value},
+    )
+    return RedirectResponse(url="/", status_code=302)
+
+
 @router.get(
     "/login",
     summary="Redirect to GitHub OAuth login",
     include_in_schema=False,
 )
 async def login(request: Request) -> RedirectResponse:
-    """Initiate GitHub OAuth flow.
-
-    Redirects the user to GitHub's authorization page.
-    After granting access, GitHub redirects back to /auth/callback.
-    """
+    """Redirect to GitHub to start OAuth login."""
     github = oauth.create_client("github")
     if github is None:
         logger.error("auth.login.github_not_configured")
@@ -59,15 +65,7 @@ async def login(request: Request) -> RedirectResponse:
     include_in_schema=False,
 )
 async def callback(request: Request) -> RedirectResponse:
-    """Handle GitHub OAuth callback.
-
-    Exchanges the authorization code for an access token, fetches the
-    user's GitHub profile, creates or updates the user in the database,
-    and sets the session cookie.
-
-    DB session is acquired only after GitHub API calls complete to avoid
-    holding a connection idle during external HTTP round-trips.
-    """
+    """Validate the user ID and username, save the user, and create a session."""
     github = oauth.create_client("github")
     if github is None:
         logger.error("auth.callback.github_not_configured")
@@ -84,7 +82,7 @@ async def callback(request: Request) -> RedirectResponse:
 
     try:
         resp = await github.get("user", token=token)
-        github_user = resp.json()
+        resp.raise_for_status()
     except httpx2.HTTPError as exc:
         logger.warning(
             "auth.callback.profile_fetch_failed",
@@ -92,40 +90,47 @@ async def callback(request: Request) -> RedirectResponse:
         )
         return RedirectResponse(url="/", status_code=302)
 
-    github_id = github_user.get("id")
-    if github_id is None:
-        logger.error(
-            "auth.callback.missing_github_id",
-            extra={"http.response.status_code": getattr(resp, "status_code", None)},
-        )
-        return RedirectResponse(url="/", status_code=302)
+    try:
+        github_user = resp.json()
+    except (JSONDecodeError, UnicodeDecodeError):
+        return _reject_identity(IdentityRejectionReason.INVALID_RESPONSE_FORMAT)
+    if not isinstance(github_user, dict):
+        return _reject_identity(IdentityRejectionReason.INVALID_RESPONSE_FORMAT)
 
-    github_username = github_user.get("login", "")
-    if not github_username:
-        logger.error(
-            "auth.callback.missing_github_login",
-            extra={"http.response.status_code": getattr(resp, "status_code", None)},
-        )
-        return RedirectResponse(url="/", status_code=302)
+    identity = validate_identity(github_user.get("id"), github_user.get("login"))
+    if not isinstance(identity, AuthenticatedUser):
+        return _reject_identity(identity)
+    normalized_identity = validate_identity(
+        identity.user_id, normalize_github_username(identity.github_username)
+    )
+    if not isinstance(normalized_identity, AuthenticatedUser):
+        return _reject_identity(normalized_identity)
 
     avatar_url = github_user.get("avatar_url")
     first_name, last_name = parse_display_name(github_user.get("name", ""))
 
-    # Acquire DB session only now — GitHub API calls are done.
     sm: async_sessionmaker[AsyncSession] = request.app.state.session_maker
     async with sm() as db:
         user = await get_or_create_user_from_github(
             db=db,
-            github_id=github_id,
+            github_id=normalized_identity.user_id,
             first_name=first_name,
             last_name=last_name,
             avatar_url=avatar_url,
-            github_username=github_username.lower(),
+            github_username=normalized_identity.github_username,
         )
+        persisted_identity = validate_identity(user.id, user.github_username)
+        if (
+            not isinstance(persisted_identity, AuthenticatedUser)
+            or persisted_identity != normalized_identity
+        ):
+            raise RuntimeError(
+                "Persisted OAuth identity does not match validated identity"
+            )
         await db.commit()
 
-    request.session["user_id"] = user.id
-    request.session["github_username"] = user.github_username or ""
+    request.session["user_id"] = persisted_identity.user_id
+    request.session["github_username"] = persisted_identity.github_username
     logger.info("auth.login.success")
 
     return RedirectResponse(url="/dashboard", status_code=302)

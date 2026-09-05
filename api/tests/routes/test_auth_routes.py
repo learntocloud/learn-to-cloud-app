@@ -13,7 +13,9 @@ Testing approach:
 These are unit tests: no HTTP client, no real OAuth, no database.
 """
 
+import json
 from http.cookies import SimpleCookie
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx2
@@ -143,7 +145,7 @@ class TestCallbackRoute:
         mock_github.get = AsyncMock(return_value=mock_response)
 
         mock_user = MagicMock()
-        mock_user.id = 42
+        mock_user.id = 12345
         mock_user.github_username = "testuser"
 
         with (
@@ -159,7 +161,7 @@ class TestCallbackRoute:
             result = await callback(request)
 
         # Session should be populated
-        assert request.session["user_id"] == 42
+        assert request.session["user_id"] == 12345
         assert request.session["github_username"] == "testuser"
 
         # Should redirect to /dashboard
@@ -294,7 +296,7 @@ class TestCallbackRoute:
         mock_github.get = AsyncMock(return_value=mock_response)
 
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = 999
         mock_user.github_username = "mixedcase"
 
         with (
@@ -312,6 +314,172 @@ class TestCallbackRoute:
         # Verify github_username was lowercased before being passed
         call_kwargs = mock_get_or_create.call_args.kwargs
         assert call_kwargs["github_username"] == "mixedcase"
+
+
+@pytest.fixture
+def callback_context():
+    request = _mock_request(
+        session={
+            "user_id": 99,
+            "github_username": "existing-user",
+            "_state_github_other": {"data": {"state": "private-state"}},
+        }
+    )
+    github = MagicMock()
+    github.authorize_access_token = AsyncMock(
+        return_value={"access_token": "private-oauth-token"}
+    )
+    github.get = AsyncMock(
+        return_value=httpx2.Response(
+            200,
+            json={"id": 42, "login": "testuser"},
+            request=httpx2.Request("GET", "https://api.github.com/user"),
+        )
+    )
+    user = SimpleNamespace(id=42, github_username="testuser")
+    with (
+        patch("learn_to_cloud.routes.auth_routes.oauth") as oauth,
+        patch(
+            "learn_to_cloud.routes.auth_routes.get_or_create_user_from_github",
+            autospec=True,
+            return_value=user,
+        ) as upsert,
+    ):
+        oauth.create_client.return_value = github
+        yield request, github, user, upsert
+
+
+@pytest.mark.unit
+class TestCallbackIdentityContract:
+    @pytest.mark.parametrize(
+        ("profile", "reason"),
+        [
+            ({}, "invalid_user_id"),
+            ({"id": True, "login": "testuser"}, "invalid_user_id"),
+            ({"id": 42.0, "login": "testuser"}, "invalid_user_id"),
+            ({"id": "42", "login": "testuser"}, "invalid_user_id"),
+            ({"id": 0, "login": "testuser"}, "invalid_user_id"),
+            ({"id": -1, "login": "testuser"}, "invalid_user_id"),
+            ({"id": 2**63, "login": "testuser"}, "invalid_user_id"),
+            ({"id": [], "login": "testuser"}, "invalid_user_id"),
+            ({"id": 42}, "invalid_github_username"),
+            ({"id": 42, "login": []}, "invalid_github_username"),
+            ({"id": 42, "login": " \t"}, "invalid_github_username"),
+            ({"id": 42, "login": "x" * 256}, "invalid_github_username"),
+            ({"id": 42, "login": "\u0130" * 128}, "invalid_github_username"),
+            ({"id": 42, "login": "private\x00name"}, "invalid_github_username"),
+            ({"id": 42, "login": "private\ud800name"}, "invalid_github_username"),
+            (None, "invalid_response_format"),
+            ([], "invalid_response_format"),
+            ("private-profile", "invalid_response_format"),
+        ],
+    )
+    async def test_rejects_before_persistence_and_preserves_session(
+        self, callback_context, caplog, profile, reason
+    ):
+        request, github, _, upsert = callback_context
+        original = request.session.copy()
+        github.get.return_value = httpx2.Response(
+            200,
+            content=json.dumps(profile).encode(),
+            request=httpx2.Request("GET", "https://api.github.com/user"),
+        )
+
+        response = await callback(request)
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/"
+        assert request.session == original
+        request.app.state.session_maker.assert_not_called()
+        upsert.assert_not_awaited()
+        (record,) = caplog.records
+        assert record.getMessage() == "auth.callback.identity_rejected"
+        assert record.__dict__["auth.identity.reason"] == reason
+        assert record.args == ()
+        assert record.exc_info is None
+
+    @pytest.mark.parametrize(
+        ("status", "body"),
+        [
+            (200, b"private-provider-body"),
+            (200, b"\xff"),
+            (401, b"private-provider-body"),
+            (403, b"private-provider-body"),
+            (500, b"private-provider-body"),
+        ],
+    )
+    async def test_bad_provider_response_does_not_issue_identity(
+        self, callback_context, caplog, status, body
+    ):
+        request, github, _, upsert = callback_context
+        original = request.session.copy()
+        github.get.return_value = httpx2.Response(
+            status,
+            content=body,
+            request=httpx2.Request("GET", "https://api.github.com/user"),
+        )
+        response = await callback(request)
+        assert response.status_code == 302
+        assert request.session == original
+        request.app.state.session_maker.assert_not_called()
+        upsert.assert_not_awaited()
+        assert "private-provider-body" not in caplog.text
+        assert all(record.exc_info is None for record in caplog.records)
+
+    @pytest.mark.parametrize(
+        ("user_id", "username"), [(42, None), (43, "testuser"), (42, "different-user")]
+    )
+    async def test_invalid_persisted_identity_is_an_internal_failure(
+        self, callback_context, caplog, user_id, username
+    ):
+        request, _, user, _ = callback_context
+        original = request.session.copy()
+        user.id, user.github_username = user_id, username
+        with pytest.raises(
+            RuntimeError,
+            match="^Persisted OAuth identity does not match validated identity$",
+        ):
+            await callback(request)
+        request._mock_db_session.commit.assert_not_awaited()
+        exit_args = (
+            request.app.state.session_maker.return_value.__aexit__.call_args.args
+        )
+        assert exit_args[0] is RuntimeError
+        assert request.session == original
+        assert caplog.records == []
+
+    @pytest.mark.parametrize("stage", ["upsert", "commit"])
+    async def test_database_failure_does_not_issue_identity(
+        self, callback_context, caplog, stage
+    ):
+        request, _, _, upsert = callback_context
+        original = request.session.copy()
+        operation = upsert if stage == "upsert" else request._mock_db_session.commit
+        operation.side_effect = RuntimeError("database-failure-probe")
+        with pytest.raises(RuntimeError, match="database-failure-probe"):
+            await callback(request)
+        assert request.session == original
+        assert "auth.login.success" not in caplog.text
+
+    async def test_commit_precedes_session_issuance(self, callback_context, caplog):
+        request, _, _, upsert = callback_context
+        original = request.session.copy()
+
+        async def commit():
+            assert request.session == original
+            upsert.assert_awaited_once()
+
+        request._mock_db_session.commit.side_effect = commit
+        with caplog.at_level("INFO", logger="learn_to_cloud.routes.auth_routes"):
+            response = await callback(request)
+        assert response.status_code == 302
+        assert request.session == {
+            **original,
+            "user_id": 42,
+            "github_username": "testuser",
+        }
+        request._mock_db_session.commit.assert_awaited_once()
+        assert [r.getMessage() for r in caplog.records] == ["auth.login.success"]
 
 
 @pytest.mark.unit

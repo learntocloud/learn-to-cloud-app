@@ -1,12 +1,13 @@
 """Authentication contracts through real routes and signed-cookie middleware."""
 
 import json
-from base64 import b64encode
+from base64 import b64decode, b64encode
 from datetime import UTC, datetime
 from http.cookies import SimpleCookie
 from time import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx2
 import pytest
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse, RedirectResponse
@@ -42,6 +43,36 @@ _PAGE_PATHS = [
     "/verifications",
     "/verifications/phase/1",
 ]
+_INVALID_IDENTITIES = (
+    [
+        pytest.param(
+            {"user_id": value, "github_username": "private-name"}, id=f"id-{index}"
+        )
+        for index, value in enumerate(
+            [True, False, 42.0, 42.5, "42", "private-id", None, [], {}, 0, -1, 2**63]
+        )
+    ]
+    + [
+        pytest.param({"user_id": 42, "github_username": value}, id=f"name-{index}")
+        for index, value in enumerate(
+            [
+                None,
+                True,
+                [],
+                {},
+                "",
+                "\t \u2003",
+                "a" * 256,
+                "private\x00name",
+                "private\ud800name",
+            ]
+        )
+    ]
+    + [
+        pytest.param({"user_id": 42}, id="missing-name"),
+        pytest.param({"github_username": "private-name"}, id="missing-id"),
+    ]
+)
 
 
 def _session_cookie(session: dict, *, expired: bool = False) -> str:
@@ -132,12 +163,13 @@ def app(test_settings, user, api_services, github):
             "learn_to_cloud.routes.pages_routes.get_user_by_id",
             autospec=True,
             return_value=user,
-        ),
+        ) as page_user,
         patch(
             "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
             return_value=(),
         ),
     ):
+        app.state.page_user = page_user
         yield app
 
 
@@ -348,6 +380,210 @@ async def test_authenticated_api_delete_keeps_204_contract(client, api_services)
     assert response.history == []
     assert SESSION_COOKIE_NAME not in client.cookies
     api_services[1].assert_awaited_once()
+
+
+@pytest.mark.parametrize("identity", _INVALID_IDENTITIES)
+@pytest.mark.parametrize("preserve_oauth", [False, True])
+@pytest.mark.parametrize(
+    ("path", "htmx", "status"),
+    [
+        ("/", False, 200),
+        ("/curriculum", False, 200),
+        ("/api/user/me", False, 401),
+        ("/account", False, 303),
+        ("/account", True, 401),
+        ("/htmx/verification/attempts/status?token=private-token", False, 401),
+        ("/htmx/verification/attempts/status?token=private-token", True, 401),
+    ],
+)
+async def test_malformed_identity_is_cleaned_over_http(
+    client, app, api_services, caplog, identity, preserve_oauth, path, htmx, status
+):
+    unrelated = (
+        {"_state_github_probe": {"data": {"state": "private-oauth-state"}}}
+        if preserve_oauth
+        else {}
+    )
+    client.cookies.set(
+        SESSION_COOKIE_NAME,
+        _session_cookie({**unrelated, **identity}),
+        domain="testserver.local",
+        path="/",
+    )
+    headers = {"HX-Request": "true"} if htmx else {}
+
+    response = await client.get(path, headers=headers)
+
+    assert response.status_code == status
+    assert response.headers.get("location") == (
+        "/auth/login" if status == 303 else None
+    )
+    assert response.headers.get_list("set-cookie")
+    if preserve_oauth:
+        cookie = client.cookies.get(SESSION_COOKIE_NAME)
+        cleaned = json.loads(b64decode(TimestampSigner(_SECRET).unsign(cookie)))
+        assert cleaned == unrelated
+    else:
+        assert SESSION_COOKIE_NAME not in client.cookies
+        expired = SimpleCookie(response.headers["set-cookie"])[SESSION_COOKIE_NAME]
+        assert "1970" in expired["expires"]
+    for service in api_services:
+        service.assert_not_awaited()
+    app.state.page_user.assert_not_awaited()
+
+    again = await client.get(path, headers=headers)
+    assert again.status_code == status
+    assert "set-cookie" not in again.headers
+    (record,) = [r for r in caplog.records if r.name == "learn_to_cloud.core.auth"]
+    assert record.getMessage() == "auth.session.identity_rejected"
+    assert record.args == ()
+    assert record.exc_info is None
+    assert set(key for key in record.__dict__ if key.startswith("auth.")) == {
+        "auth.identity.reason"
+    }
+
+
+@pytest.mark.parametrize(
+    "kind", ["missing", "valid", "expired", "tampered", "oauth-only"]
+)
+@pytest.mark.parametrize("path", ["/", "/curriculum", "/api/user/me", "/account"])
+async def test_session_cookie_lifecycle_on_real_routes(client, caplog, kind, path):
+    if kind != "missing":
+        session = (
+            {"_state_github_probe": {"data": {"state": "private-state"}}}
+            if kind == "oauth-only"
+            else {"user_id": 42, "github_username": "testuser"}
+        )
+        cookie = _session_cookie(session, expired=kind == "expired")
+        if kind == "tampered":
+            payload, timestamp, signature = cookie.split(".")
+            cookie = ".".join((payload, timestamp, "a" if signature != "a" else "b"))
+        client.cookies.set(
+            SESSION_COOKIE_NAME, cookie, domain="testserver.local", path="/"
+        )
+    response = await client.get(path)
+    status = 200
+    if kind != "valid" and path == "/api/user/me":
+        status = 401
+    elif kind != "valid" and path == "/account":
+        status = 303
+    assert response.status_code == status
+    assert "set-cookie" not in response.headers
+    assert not [r for r in caplog.records if r.name == "learn_to_cloud.core.auth"]
+
+
+@pytest.fixture
+def oauth_callback(app, github, user):
+    database = AsyncMock()
+    context = AsyncMock()
+    context.__aenter__.return_value = database
+    context.__aexit__.return_value = False
+    app.state.session_maker = MagicMock(return_value=context)
+    github.authorize_access_token = AsyncMock(
+        return_value={"access_token": "private-oauth-token"}
+    )
+    github.get = AsyncMock(
+        return_value=httpx2.Response(
+            200,
+            json={"id": 42, "login": "TestUser"},
+            request=httpx2.Request("GET", "https://api.github.com/user"),
+        )
+    )
+    with patch(
+        "learn_to_cloud.routes.auth_routes.get_or_create_user_from_github",
+        autospec=True,
+        return_value=user,
+    ) as upsert:
+        yield database, upsert
+
+
+async def test_oauth_issued_cookie_authenticates_next_request(client, oauth_callback):
+    database, upsert = oauth_callback
+    unrelated = {"_state_github_other": {"data": {"state": "private-other-state"}}}
+    client.cookies.set(
+        SESSION_COOKIE_NAME,
+        _session_cookie(unrelated),
+        domain="testserver.local",
+        path="/",
+    )
+    response = await client.get("/auth/callback")
+    assert response.status_code == 302
+    assert response.headers["location"] == "/dashboard"
+    cookie = client.cookies.get(SESSION_COOKIE_NAME)
+    identity = json.loads(b64decode(TimestampSigner(_SECRET).unsign(cookie)))
+    assert identity == {**unrelated, "user_id": 42, "github_username": "testuser"}
+    database.commit.assert_awaited_once()
+    assert upsert.call_args.kwargs["github_id"] == identity["user_id"]
+    assert upsert.call_args.kwargs["github_username"] == identity["github_username"]
+    authenticated = await client.get("/api/user/me")
+    assert authenticated.status_code == 200
+    assert authenticated.json()["id"] == 42
+
+
+async def test_oauth_invariant_failure_remains_500(app, oauth_callback, user, caplog):
+    database, _ = oauth_callback
+    user.id = 43
+    async with AsyncClient(
+        transport=ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get("/auth/callback")
+    assert response.status_code == 500
+    assert "set-cookie" not in response.headers
+    assert "location" not in response.headers
+    database.commit.assert_not_awaited()
+    assert "auth.callback.identity_rejected" not in caplog.text
+    assert "auth.login.success" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("path", "htmx", "status"),
+    [
+        ("/", False, 200),
+        ("/api/user/me", False, 401),
+        ("/account", False, 303),
+        ("/account", True, 401),
+    ],
+)
+async def test_malformed_identity_telemetry_has_no_private_values(
+    telemetry_client, caplog, path, htmx, status
+):
+    client, exporter = telemetry_client
+    cookie = _session_cookie(
+        {"user_id": "private-user-id", "github_username": "private-username"}
+    )
+    client.cookies.set(SESSION_COOKIE_NAME, cookie, domain="testserver.local", path="/")
+    response = await client.get(
+        path,
+        params={"token": "private-token"},
+        headers={"HX-Request": "true"} if htmx else {},
+    )
+    assert response.status_code == status
+    spans = exporter.get_finished_spans()
+    (server,) = [span for span in spans if span.kind == SpanKind.SERVER]
+    assert server.status.status_code == StatusCode.UNSET
+    assert server.attributes["http.route"] == path
+    assert (
+        server.attributes.get(
+            "http.response.status_code", server.attributes.get("http.status_code")
+        )
+        == status
+    )
+    for attribute in ("http.target", "http.url", "url.full", "url.path"):
+        assert server.attributes[attribute] == path
+    assert server.attributes["url.query"] == ""
+    for span in spans:
+        assert not any(event.name == "exception" for event in span.events)
+        assert (
+            not {"user_id", "github_username", "user.id", "session.id"}
+            & span.attributes.keys()
+        )
+    records = [r for r in caplog.records if r.name == "learn_to_cloud.core.auth"]
+    assert len(records) == 1
+    log_payload = json.dumps(records[0].__dict__, default=str)
+    telemetry = "\n".join(span.to_json() for span in spans) + log_payload
+    for prohibited in ("private-user-id", "private-username", "private-token", cookie):
+        assert prohibited not in telemetry
 
 
 @pytest.mark.parametrize(

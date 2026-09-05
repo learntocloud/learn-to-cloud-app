@@ -19,6 +19,7 @@ _PYTHON_TELEMETRY_ROOTS = (
 
 _ALLOWED_APPLICATION_ATTRIBUTES = {
     "auth.configuration.reason",
+    "auth.identity.reason",
     "content.artifact.hash",
     "content.artifact_schema.version",
     "content.curriculum.version",

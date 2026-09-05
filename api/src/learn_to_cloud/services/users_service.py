@@ -10,11 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def normalize_github_username(username: str | None) -> str | None:
-    """Normalize GitHub username to lowercase for consistency.
-
-    GitHub usernames are case-insensitive, so we normalize to lowercase
-    to avoid duplicate accounts and enable case-insensitive lookups.
-    """
+    """Return the lowercase username, or None if it is missing or empty."""
     return username.lower() if username else None
 
 
