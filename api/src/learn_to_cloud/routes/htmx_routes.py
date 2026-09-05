@@ -31,7 +31,7 @@ from learn_to_cloud_shared.submission_values import (
 )
 from pydantic import BaseModel, ValidationError
 
-from learn_to_cloud.core.auth import AuthenticatedUser, CurrentUser, UserId
+from learn_to_cloud.core.auth import AuthenticatedUser, CurrentUser
 from learn_to_cloud.rendering.htmx_responses import (
     reload_page_response,
     render_input_error,
@@ -101,12 +101,12 @@ router = APIRouter(prefix="/htmx", tags=["htmx"], include_in_schema=False)
 async def htmx_complete_step(
     request: Request,
     db: DbSession,
-    user_id: UserId,
+    current_user: CurrentUser,
     step_uuid: Annotated[UUID, Form()],
 ) -> HTMLResponse:
     """Complete a step and return the updated step partial."""
     try:
-        _, topic, completed = await complete_step(db, user_id, step_uuid)
+        _, topic, completed = await complete_step(db, current_user.user_id, step_uuid)
     except StepValidationError:
         # Step UUID doesn't exist in current content (stale cached page).
         # Force a full page reload so the user gets the current steps.
@@ -115,7 +115,9 @@ async def htmx_complete_step(
         return response
 
     step = next(s for s in topic.learning_steps if s.uuid == step_uuid)
-    return await render_step_toggle(request, user_id, topic, step, completed, db)
+    return await render_step_toggle(
+        request, current_user.user_id, topic, step, completed, db
+    )
 
 
 @router.delete("/steps/{step_uuid}", response_class=HTMLResponse)
@@ -123,17 +125,21 @@ async def htmx_uncomplete_step(
     request: Request,
     step_uuid: UUID,
     db: DbSession,
-    user_id: UserId,
+    current_user: CurrentUser,
 ) -> HTMLResponse:
     """Uncomplete a step and return the updated step partial."""
     try:
-        _, topic, step, completed = await uncomplete_step(db, user_id, step_uuid)
+        _, topic, step, completed = await uncomplete_step(
+            db, current_user.user_id, step_uuid
+        )
     except StepValidationError:
         response = HTMLResponse("")
         response.headers["HX-Refresh"] = "true"
         return response
 
-    return await render_step_toggle(request, user_id, topic, step, completed, db)
+    return await render_step_toggle(
+        request, current_user.user_id, topic, step, completed, db
+    )
 
 
 async def _parse_verification_form[FormModel: BaseModel](
@@ -446,11 +452,11 @@ async def htmx_verification_attempt_status(
 async def htmx_delete_account(
     request: Request,
     db: DbSession,
-    user_id: UserId,
+    current_user: CurrentUser,
 ) -> HTMLResponse:
     """Delete the current user's account and redirect to home via HTMX."""
     try:
-        await delete_user_account(db, user_id)
+        await delete_user_account(db, current_user.user_id)
     except UserNotFoundError:
         return HTMLResponse(
             '<p class="text-sm text-red-600">Account not found.</p>',

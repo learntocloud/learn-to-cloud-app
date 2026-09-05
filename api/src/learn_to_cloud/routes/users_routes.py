@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.schemas import UserResponse
 
-from learn_to_cloud.core.auth import UserId
+from learn_to_cloud.core.auth import CurrentUser
 from learn_to_cloud.services.users_service import (
     UserNotFoundError,
     delete_user_account,
@@ -22,10 +22,10 @@ router = APIRouter(prefix="/api/user", tags=["users"])
     responses={401: {"description": "Not authenticated"}},
 )
 async def get_current_user(
-    request: Request, user_id: UserId, db: DbSession
+    request: Request, current_user: CurrentUser, db: DbSession
 ) -> UserResponse:
     """Get current user info."""
-    user = await get_user_by_id(db, user_id)
+    user = await get_user_by_id(db, current_user.user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return UserResponse.model_validate(user)
@@ -41,10 +41,12 @@ async def get_current_user(
         404: {"description": "User not found"},
     },
 )
-async def delete_current_user(request: Request, user_id: UserId, db: DbSession) -> None:
+async def delete_current_user(
+    request: Request, current_user: CurrentUser, db: DbSession
+) -> None:
     """Permanently delete the authenticated user's account and all associated data."""
     try:
-        await delete_user_account(db, user_id)
+        await delete_user_account(db, current_user.user_id)
     except UserNotFoundError as exc:
         raise HTTPException(status_code=404, detail="User not found") from exc
 

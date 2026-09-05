@@ -58,6 +58,11 @@ Inbound API paths must be FastAPI route templates such as
 `/steps/{step_uuid}`, never the concrete request path. Outbound HTTP dependency
 URLs retain only the destination origin and replace the path with `/`.
 
+Route discovery uses FastAPI's public route contexts so included and nested
+router prefixes remain part of the template. Unmatched requests use `/unmatched`.
+Expected authentication responses (401 or a 303 login redirect) remain request
+telemetry, not unhandled exceptions or additional identity-bearing auth events.
+
 The application currently writes both current and legacy OpenTelemetry HTTP
 names because the Azure exporter and instrumentations can read different
 generations of the convention. These are intentional compatibility aliases,

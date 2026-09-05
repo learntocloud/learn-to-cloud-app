@@ -5,12 +5,15 @@ description: Scaffold a new feature with Route, Service, and Repository followin
 
 Create a new feature following the **Routes > Services > Repositories** architecture.
 
+Follow the [authentication contract](../../docs/contributing.md#authentication-and-sessions)
+when adding or changing protected routes.
+
 ## What I need from you
 
 1. **Feature name** and a brief description of what it does.
 2. Whether it needs **database access** (new model/table, or existing model).
 3. Whether it's a **page route** (TemplateResponse), **HTMX route** (HTMLResponse fragment), or **API route** (JSON).
-4. Whether it requires **authentication** (`UserId` or `OptionalUserId`).
+4. Whether it requires **authentication** (`CurrentUser` or `OptionalCurrentUser`).
 
 ## What to generate
 
@@ -18,7 +21,8 @@ Create a new feature following the **Routes > Services > Repositories** architec
 - Add to an existing route file or create a new one with `APIRouter(prefix="...", tags=[...])`.
 - Use `async def` for all handlers.
 - Use `DbSession` or `DbSessionReadOnly` from `core.database` for database access.
-- Use `UserId` or `OptionalUserId` from `core.auth` for authentication.
+- Use `CurrentUser` or `OptionalCurrentUser` from `core.auth`; access `.user_id` or `.github_username` on the identity.
+- Page routers use `route_class=LoginRedirectRoute` from `core.routing` for login navigation. API and HTMX routers retain 401 responses.
 - Keep routes thin - delegate business logic to the service layer.
 - Add a module-level docstring explaining the routes.
 

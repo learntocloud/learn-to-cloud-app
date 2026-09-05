@@ -27,7 +27,7 @@ from learn_to_cloud_shared.core.logger import configure_logging
 from learn_to_cloud_shared.core.observability import configure_observability
 from starlette.middleware.sessions import SessionMiddleware
 
-from learn_to_cloud.core.auth import init_oauth
+from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, init_oauth
 from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
     TelemetrySanitizationMiddleware,
@@ -178,7 +178,7 @@ app.add_middleware(TelemetrySanitizationMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=_settings.session.secret_key,
-    session_cookie="session",
+    session_cookie=SESSION_COOKIE_NAME,
     max_age=60 * 60 * 24 * 30,
     same_site="lax",
     https_only=_settings.web_security.require_https,

@@ -13,6 +13,7 @@ Testing approach:
 These are unit tests: no HTTP client, no real OAuth, no database.
 """
 
+from http.cookies import SimpleCookie
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx2
@@ -20,6 +21,7 @@ import pytest
 from authlib.integrations.starlette_client import OAuthError
 from fastapi.responses import RedirectResponse
 
+from learn_to_cloud.core.auth import SESSION_COOKIE_NAME
 from learn_to_cloud.routes.auth_routes import callback, login, logout
 
 
@@ -316,13 +318,27 @@ class TestCallbackRoute:
 class TestLogoutRoute:
     """Tests for POST /auth/logout."""
 
-    async def test_logout_clears_session_and_redirects(self):
+    @pytest.mark.parametrize(
+        "session", [{}, {"user_id": 42}, {"user_id": 42, "github_username": "testuser"}]
+    )
+    @pytest.mark.parametrize("secure", [False, True])
+    async def test_logout_clears_session_and_redirects(self, session, secure):
         """Logout clears session data and redirects to /."""
-        request = _mock_request(session={"user_id": 42, "github_username": "testuser"})
+        request = _mock_request(session=session.copy())
 
-        result = await logout(request, user_id=42)
+        with patch(
+            "learn_to_cloud.routes.auth_routes.get_web_settings"
+        ) as mock_settings:
+            mock_settings.return_value.web_security.require_https = secure
+            result = await logout(request)
 
         assert isinstance(result, RedirectResponse)
-        assert result.status_code == 302
+        assert result.status_code == 303
         assert result.headers["location"] == "/"
         assert request.session == {}
+        cookie = SimpleCookie(result.headers["set-cookie"])[SESSION_COOKIE_NAME]
+        assert cookie["max-age"] == "0"
+        assert cookie["path"] == "/"
+        assert cookie["httponly"]
+        assert cookie["samesite"] == "lax"
+        assert bool(cookie["secure"]) is secure

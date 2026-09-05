@@ -300,6 +300,62 @@ Routes (HTTP) → Services (Business Logic) → Repositories (Database)
 - **Services** contain business rules — no HTTP knowledge
 - **Repositories** execute queries — return ORM models or primitives
 
+### Authentication and sessions
+
+GitHub OAuth establishes a signed client-side session cookie containing
+`user_id` and `github_username`. Session middleware verifies its signature and
+age on subsequent requests; those requests do not contact GitHub again.
+The cookie is signed, not encrypted, so do not store secrets in its payload.
+
+The API uses one identity type:
+
+| Name | Purpose |
+|------|---------|
+| `AuthenticatedUser` | Plain identity data: numeric user ID and GitHub username. Use it in helpers receiving an existing identity. |
+| `CurrentUser` | An `Annotated` alias that tells FastAPI to call `require_authenticated_user` and supply that identity to a protected route. |
+| `OptionalCurrentUser` | Supplies the same identity or `None` to a public route. |
+
+Import these from `learn_to_cloud.core.auth`. Routes access
+`current_user.user_id` or `current_user.github_username`; do not introduce
+ID-only dependencies or a separate browser-user type.
+`require_authenticated_user` raises `AuthenticationRequired` when the session
+has no complete identity. It does not choose a browser redirect or check
+whether the application account still exists. Account-validity work is tracked
+in [#829](https://github.com/learntocloud/learn-to-cloud-app/issues/829).
+
+Browser navigation is a route policy, separate from identity loading.
+Page routers select `LoginRedirectRoute` from `learn_to_cloud.core.routing`
+using `APIRouter(route_class=LoginRedirectRoute, ...)`. That route class uses
+FastAPI's supported route-handler extension and catches only
+`AuthenticationRequired`; unrelated errors keep their normal behavior.
+
+| Unauthenticated request | Response |
+|-------------------------|----------|
+| JSON API endpoint | 401, without a login redirect |
+| HTMX endpoint, with or without `HX-Request` | 401, without a login redirect |
+| Protected page navigation | 303 to `/auth/login` |
+| Protected page requested with `HX-Request: true` | 401; the existing frontend handler navigates to login |
+
+A browser mutation that intentionally redirects uses 303 so the next request
+is GET, not a replay of POST or DELETE. Do not infer auth response policy from
+URL prefixes or `Accept` headers.
+
+POST `/auth/logout` needs no authenticated dependency. It clears the session,
+explicitly expires the browser cookie, and returns 303 to `/`, including when
+the cookie is missing, rejected, or already cleared. Explicit cookie deletion
+also handles rejected cookies that middleware presents as an empty session.
+The signed session lifetime is currently 30 days. Logout removes this browser's
+cookie but does not revoke a previously copied valid cookie; session-revocation
+and expiry guarantees are tracked in
+[#828](https://github.com/learntocloud/learn-to-cloud-app/issues/828).
+
+Auth behavior is covered through real routes, session middleware, and HTTP
+redirects in `api/tests/routes/test_auth_http.py`. Auth overrides are useful
+for unrelated rendering tests, but must not replace authentication in tests
+of the auth contract itself. Request telemetry records handled 401/303 outcomes;
+it must not add usernames, user IDs, cookie values, or session identifiers.
+See the [telemetry schema](observability/telemetry-schema.html).
+
 ## Conventions
 
 - Async/await everywhere -- no sync database calls

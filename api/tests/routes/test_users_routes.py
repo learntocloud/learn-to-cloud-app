@@ -7,6 +7,7 @@ import pytest
 from fastapi import HTTPException
 from learn_to_cloud_shared.models import User
 
+from learn_to_cloud.core.auth import AuthenticatedUser
 from learn_to_cloud.routes.users_routes import (
     delete_current_user,
     get_current_user,
@@ -42,7 +43,9 @@ class TestGetCurrentUser:
             autospec=True,
             return_value=user,
         ) as mock_service:
-            result = await get_current_user(mock_request, user_id=1, db=mock_db)
+            result = await get_current_user(
+                mock_request, current_user=AuthenticatedUser(1, "testuser"), db=mock_db
+            )
 
         mock_service.assert_awaited_once_with(mock_db, 1)
         assert result.id == 1
@@ -61,7 +64,11 @@ class TestGetCurrentUser:
             ),
             pytest.raises(HTTPException) as exc_info,
         ):
-            await get_current_user(mock_request, user_id=999, db=mock_db)
+            await get_current_user(
+                mock_request,
+                current_user=AuthenticatedUser(999, "testuser"),
+                db=mock_db,
+            )
 
         assert exc_info.value.status_code == 404
 
@@ -79,7 +86,9 @@ class TestDeleteCurrentUser:
             "learn_to_cloud.routes.users_routes.delete_user_account",
             autospec=True,
         ) as mock_service:
-            result = await delete_current_user(mock_request, user_id=42, db=mock_db)
+            result = await delete_current_user(
+                mock_request, current_user=AuthenticatedUser(42, "testuser"), db=mock_db
+            )
 
         assert result is None
         mock_service.assert_awaited_once_with(mock_db, 42)
@@ -98,6 +107,8 @@ class TestDeleteCurrentUser:
             ),
             pytest.raises(HTTPException) as exc_info,
         ):
-            await delete_current_user(mock_request, user_id=42, db=mock_db)
+            await delete_current_user(
+                mock_request, current_user=AuthenticatedUser(42, "testuser"), db=mock_db
+            )
 
         assert exc_info.value.status_code == 404

@@ -36,7 +36,8 @@ floor, not the plan.
 
 Report as a **defect** anything with objective evidence:
 
-- an HTTP status of 400 or higher;
+- an unexpected HTTP status of 400 or higher (anonymous/expired-session 401s can
+  be normal; see the authentication response contract in the reference);
 - an unhandled traceback in a server log;
 - a JavaScript console error;
 - visible failure text such as `Internal Server Error`, `500`, `404`, or
@@ -137,6 +138,13 @@ confirm you are signed in.
 If session generation or authentication fails, record it as a defect with the
 script's error output, and continue against public pages only.
 
+The session needs both `user_id` and `github_username`; use the helper rather
+than minting an ID-only cookie. Do not paste cookie values or identity data into
+logs or reports. Session data is signed, not encrypted.
+
+Expected login navigation and repeatable logout behavior are described in
+[the authentication response contract](dog-food/reference.md#authentication-response-contract).
+
 ## Diagnose every failure
 
 The browser tells you *that* something broke; the logs tell you *why*. Never
@@ -157,9 +165,10 @@ rendered error page. Two specifics about these logs:
   per-request access lines: `uvicorn.access` is pinned to `WARNING` in
   `learn_to_cloud_shared.core.logger`. Correlate by exception and ordering, not
   by looking for a request line.
-- A user-visible failure with *no* corresponding log entry is itself a defect
-  worth reporting: it means the failure is invisible to anyone debugging from
-  the server side.
+- An unexpected server failure with *no* corresponding log entry is itself a
+  defect worth reporting. Normal authentication 401s and login redirects are
+  request telemetry, not unhandled exceptions; they do not require a traceback
+  or an additional auth error log.
 
 ## Submitting a phase requirement
 

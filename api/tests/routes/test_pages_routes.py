@@ -26,6 +26,7 @@ from uuid import uuid4
 
 import pytest
 
+from learn_to_cloud.core.auth import AuthenticatedUser
 from learn_to_cloud.routes.pages_routes import (
     account_page,
     community_page,
@@ -99,7 +100,7 @@ class TestHomePage:
                 return_value=None,
             ),
         ):
-            await home_page(request, mock_db, user_id=None)
+            await home_page(request, mock_db, current_user=None)
 
         template.assert_called_once()
         ctx = template.call_args[0][2]
@@ -126,7 +127,9 @@ class TestHomePage:
                 return_value=mock_user,
             ),
         ):
-            await home_page(request, mock_db, user_id=42)
+            await home_page(
+                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
+            )
 
         ctx = template.call_args[0][2]
         assert ctx["user"] is mock_user
@@ -153,7 +156,7 @@ class TestCurriculumPage:
                 return_value=None,
             ),
         ):
-            await curriculum_page(request, mock_db, user_id=None)
+            await curriculum_page(request, mock_db, current_user=None)
 
         assert template.call_args[0][1] == "pages/curriculum.html"
         ctx = template.call_args[0][2]
@@ -180,7 +183,12 @@ class TestPhasePage:
                 return_value=None,
             ),
         ):
-            await phase_page(request, phase_id=999, db=mock_db, user_id=1)
+            await phase_page(
+                request,
+                phase_id=999,
+                db=mock_db,
+                current_user=AuthenticatedUser(1, "testuser"),
+            )
 
         assert template.call_args[0][1] == "pages/404.html"
         # Verify 404 status code is set
@@ -214,7 +222,12 @@ class TestPhasePage:
                 return_value=[],
             ),
         ):
-            await phase_page(request, phase_id=1, db=mock_db, user_id=42)
+            await phase_page(
+                request,
+                phase_id=1,
+                db=mock_db,
+                current_user=AuthenticatedUser(42, "testuser"),
+            )
 
         assert template.call_args[0][1] == "pages/phase.html"
         ctx = template.call_args[0][2]
@@ -245,7 +258,9 @@ class TestVerificationsPage:
                 return_value=mock_overview,
             ),
         ):
-            await verifications_page(request, mock_db, user_id=42)
+            await verifications_page(
+                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
+            )
 
         assert template.call_args[0][1] == "pages/verifications.html"
         ctx = template.call_args[0][2]
@@ -260,7 +275,9 @@ class TestVerificationsPage:
             autospec=True,
             return_value=None,
         ):
-            await verifications_page(request, AsyncMock(), user_id=999)
+            await verifications_page(
+                request, AsyncMock(), current_user=AuthenticatedUser(999, "testuser")
+            )
 
         assert template.call_args[0][1] == "pages/404.html"
 
@@ -284,7 +301,10 @@ class TestPhaseVerificationPage:
             ),
         ):
             await phase_verification_page(
-                request, phase_id=999, db=AsyncMock(), user_id=42
+                request,
+                phase_id=999,
+                db=AsyncMock(),
+                current_user=AuthenticatedUser(42, "testuser"),
             )
 
         assert template.call_args[0][1] == "pages/404.html"
@@ -320,7 +340,12 @@ class TestPhaseVerificationPage:
                 return_value=workspace,
             ) as get_workspace,
         ):
-            await phase_verification_page(request, phase_id=4, db=mock_db, user_id=42)
+            await phase_verification_page(
+                request,
+                phase_id=4,
+                db=mock_db,
+                current_user=AuthenticatedUser(42, "testuser"),
+            )
 
         get_workspace.assert_awaited_once_with(
             mock_db,
@@ -358,7 +383,11 @@ class TestTopicPage:
             ),
         ):
             await topic_page(
-                request, phase_id=1, topic_slug="bad-topic", db=mock_db, user_id=1
+                request,
+                phase_id=1,
+                topic_slug="bad-topic",
+                db=mock_db,
+                current_user=AuthenticatedUser(1, "testuser"),
             )
 
         assert template.call_args[0][1] == "pages/404.html"
@@ -382,7 +411,11 @@ class TestTopicPage:
             ),
         ):
             await topic_page(
-                request, phase_id=1, topic_slug="bad-topic", db=mock_db, user_id=1
+                request,
+                phase_id=1,
+                topic_slug="bad-topic",
+                db=mock_db,
+                current_user=AuthenticatedUser(1, "testuser"),
             )
 
         assert template.call_args[0][1] == "pages/404.html"
@@ -416,7 +449,11 @@ class TestTopicPage:
             ),
         ):
             await topic_page(
-                request, phase_id=1, topic_slug="linux-basics", db=mock_db, user_id=1
+                request,
+                phase_id=1,
+                topic_slug="linux-basics",
+                db=mock_db,
+                current_user=AuthenticatedUser(1, "testuser"),
             )
 
         assert template.call_args[0][1] == "pages/topic.html"
@@ -447,7 +484,9 @@ class TestDashboardPage:
                 return_value=mock_dashboard,
             ),
         ):
-            await dashboard_page(request, mock_db, user_id=42)
+            await dashboard_page(
+                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
+            )
 
         assert template.call_args[0][1] == "pages/dashboard.html"
         ctx = template.call_args[0][2]
@@ -464,7 +503,9 @@ class TestDashboardPage:
             autospec=True,
             return_value=None,
         ):
-            await dashboard_page(request, mock_db, user_id=999)
+            await dashboard_page(
+                request, mock_db, current_user=AuthenticatedUser(999, "testuser")
+            )
 
         assert template.call_args[0][1] == "pages/404.html"
         call_kwargs = template.call_args[1] if template.call_args[1] else {}
@@ -486,7 +527,9 @@ class TestAccountPage:
             autospec=True,
             return_value=mock_user,
         ):
-            await account_page(request, mock_db, user_id=42)
+            await account_page(
+                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
+            )
 
         assert template.call_args[0][1] == "pages/account.html"
         ctx = template.call_args[0][2]
@@ -502,7 +545,9 @@ class TestAccountPage:
             autospec=True,
             return_value=None,
         ):
-            await account_page(request, mock_db, user_id=999)
+            await account_page(
+                request, mock_db, current_user=AuthenticatedUser(999, "testuser")
+            )
 
         assert template.call_args[0][1] == "pages/404.html"
 
@@ -529,7 +574,7 @@ class TestPublicPages:
             autospec=True,
             return_value=None,
         ):
-            await handler(request, mock_db, user_id=None)
+            await handler(request, mock_db, current_user=None)
 
         assert template.call_args[0][1] == template_name
 
@@ -555,7 +600,7 @@ class TestCommunityPage:
                 return_value=mock_community,
             ),
         ):
-            await community_page(request, mock_db, user_id=None)
+            await community_page(request, mock_db, current_user=None)
 
         assert template.call_args[0][1] == "pages/community.html"
         ctx = template.call_args[0][2]
