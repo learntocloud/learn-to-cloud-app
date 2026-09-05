@@ -62,7 +62,6 @@ def _template_context(
 @router.get("/", response_class=HTMLResponse, summary="Home page")
 async def home_page(
     request: Request,
-    db: DbSession,
     current_user: OptionalCurrentUser,
 ) -> HTMLResponse:
     """Home page with phase overview."""
@@ -79,7 +78,6 @@ async def home_page(
 @router.get("/curriculum", response_class=HTMLResponse, summary="Curriculum overview")
 async def curriculum_page(
     request: Request,
-    db: DbSession,
     current_user: OptionalCurrentUser,
 ) -> HTMLResponse:
     """Full curriculum overview with all phases and topics."""
@@ -306,7 +304,6 @@ async def dashboard_page(
 @router.get("/account", response_class=HTMLResponse, summary="Account settings")
 async def account_page(
     request: Request,
-    db: DbSession,
     current_user: CurrentUser,
 ) -> HTMLResponse:
     """Account settings page."""
@@ -357,7 +354,6 @@ async def stats_page_redirect() -> RedirectResponse:
 @router.get("/faq", response_class=HTMLResponse, summary="FAQ")
 async def faq_page(
     request: Request,
-    db: DbSession,
     current_user: OptionalCurrentUser,
 ) -> HTMLResponse:
     """FAQ page."""
@@ -373,7 +369,6 @@ async def faq_page(
 @router.get("/privacy", response_class=HTMLResponse, summary="Privacy policy")
 async def privacy_page(
     request: Request,
-    db: DbSession,
     current_user: OptionalCurrentUser,
 ) -> HTMLResponse:
     """Privacy policy page."""
@@ -389,7 +384,6 @@ async def privacy_page(
 @router.get("/terms", response_class=HTMLResponse, summary="Terms of service")
 async def terms_page(
     request: Request,
-    db: DbSession,
     current_user: OptionalCurrentUser,
 ) -> HTMLResponse:
     """Terms of service page."""

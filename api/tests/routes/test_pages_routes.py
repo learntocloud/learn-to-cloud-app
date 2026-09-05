@@ -86,7 +86,6 @@ class TestHomePage:
     async def test_home_renders_for_anonymous_user(self, _patch_templates):
         """Anonymous users see the home page with phases."""
         request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
         phases = [_fake_phase(order=i) for i in range(1, 6)]
 
         with (
@@ -100,7 +99,7 @@ class TestHomePage:
                 return_value=None,
             ),
         ):
-            await home_page(request, mock_db, current_user=None)
+            await home_page(request, current_user=None)
 
         template.assert_called_once()
         ctx = template.call_args[0][2]
@@ -112,7 +111,6 @@ class TestHomePage:
     async def test_home_renders_for_authenticated_user(self, _patch_templates):
         """Authenticated users see their user object in context."""
         request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
         mock_user = MagicMock()
         phases = [_fake_phase()]
 
@@ -127,9 +125,7 @@ class TestHomePage:
                 return_value=mock_user,
             ),
         ):
-            await home_page(
-                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
-            )
+            await home_page(request, current_user=AuthenticatedUser(42, "testuser"))
 
         ctx = template.call_args[0][2]
         assert ctx["user"] is mock_user
@@ -142,7 +138,6 @@ class TestCurriculumPage:
     async def test_curriculum_renders_with_phases(self, _patch_templates):
         """Curriculum page passes all phases to template."""
         request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
         phases = [_fake_phase(order=i) for i in range(1, 6)]
 
         with (
@@ -156,7 +151,7 @@ class TestCurriculumPage:
                 return_value=None,
             ),
         ):
-            await curriculum_page(request, mock_db, current_user=None)
+            await curriculum_page(request, current_user=None)
 
         assert template.call_args[0][1] == "pages/curriculum.html"
         ctx = template.call_args[0][2]
@@ -519,7 +514,6 @@ class TestAccountPage:
     async def test_account_renders_for_user(self, _patch_templates):
         """Account page renders with user context."""
         request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
         mock_user = MagicMock()
 
         with patch(
@@ -527,9 +521,7 @@ class TestAccountPage:
             autospec=True,
             return_value=mock_user,
         ):
-            await account_page(
-                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
-            )
+            await account_page(request, current_user=AuthenticatedUser(42, "testuser"))
 
         assert template.call_args[0][1] == "pages/account.html"
         ctx = template.call_args[0][2]
@@ -538,16 +530,13 @@ class TestAccountPage:
     async def test_account_returns_404_when_user_not_found(self, _patch_templates):
         """Account returns 404 if user doesn't exist."""
         request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
 
         with patch(
             "learn_to_cloud.routes.pages_routes.get_request_user",
             autospec=True,
             return_value=None,
         ):
-            await account_page(
-                request, mock_db, current_user=AuthenticatedUser(999, "testuser")
-            )
+            await account_page(request, current_user=AuthenticatedUser(999, "testuser"))
 
         assert template.call_args[0][1] == "pages/404.html"
 
@@ -567,14 +556,13 @@ class TestPublicPages:
     )
     async def test_public_page_renders(self, _patch_templates, handler, template_name):
         request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
 
         with patch(
             "learn_to_cloud.routes.pages_routes.get_request_user",
             autospec=True,
             return_value=None,
         ):
-            await handler(request, mock_db, current_user=None)
+            await handler(request, current_user=None)
 
         assert template.call_args[0][1] == template_name
 

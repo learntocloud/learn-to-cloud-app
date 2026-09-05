@@ -421,6 +421,45 @@ async def test_logout_expires_cookie_and_is_repeatable(client, github, cookie_ki
     github.authorize_redirect.assert_not_awaited()
 
 
+@pytest.mark.parametrize(
+    "path", ["/", "/curriculum", "/account", "/faq", "/privacy", "/terms"]
+)
+@pytest.mark.parametrize("session_state", ["anonymous", "valid", "revoked"])
+async def test_pages_resolve_identity_without_route_database(
+    app, client, auth_cookie, path, session_state
+):
+    def unexpected_database():
+        raise AssertionError("This page should not request a route database session")
+
+    app.dependency_overrides[get_db] = unexpected_database
+    if session_state != "anonymous":
+        client.cookies.set(
+            AUTH_COOKIE_NAME, auth_cookie, domain="testserver.local", path="/"
+        )
+        if session_state == "revoked":
+            logout = await client.post("/auth/logout")
+            assert logout.status_code == 303
+            client.cookies.set(
+                AUTH_COOKIE_NAME, auth_cookie, domain="testserver.local", path="/"
+            )
+
+    response = await client.get(path)
+    if path == "/account" and session_state != "valid":
+        assert response.status_code == 303
+        assert response.headers["location"] == "/auth/login"
+        app.state.page_user.assert_not_called()
+    else:
+        assert response.status_code == 200
+        app.state.page_user.assert_called_once()
+        request = app.state.page_user.call_args.args[0]
+        user = get_request_user(request)
+        if session_state == "valid":
+            assert user is not None
+            assert user.id == 42
+        else:
+            assert user is None
+
+
 @pytest.mark.parametrize("path", ["/api/user/me", "/account"])
 async def test_persisted_session_authenticates_real_routes(client, auth_cookie, path):
     client.cookies.set(
