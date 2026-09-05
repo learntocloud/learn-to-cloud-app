@@ -138,9 +138,11 @@ confirm you are signed in.
 If session generation or authentication fails, record it as a defect with the
 script's error output, and continue against public pages only.
 
-The session needs both `user_id` and `github_username`; use the helper rather
-than minting an ID-only cookie. Do not paste cookie values or identity data into
-logs or reports. Session data is signed, not encrypted.
+The helper commits an opaque session for an existing local account. It requires
+development settings and a loopback database; it refuses production targets and
+does not invent a fallback user. Signed identity cookies cannot authenticate.
+Treat the returned cookie as a credential: consume it directly in the browser
+context, never paste it or identity data into logs, issues, or reports.
 
 Expected login navigation and repeatable logout behavior are described in
 [the authentication response contract](dog-food/reference.md#authentication-response-contract).

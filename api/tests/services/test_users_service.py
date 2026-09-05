@@ -3,9 +3,7 @@
 Tests cover:
 - normalize_github_username lowercasing and edge cases
 - normalize_display_name preservation and malformed provider data
-- get_user_by_id cache hit/miss and not found
 - get_or_create_user_from_github upsert and username conflict
-- delete_user_account success and not found
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -15,85 +13,10 @@ from learn_to_cloud_shared.schemas import UserResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud.services.users_service import (
-    UserNotFoundError,
-    delete_user_account,
     get_or_create_user_from_github,
-    get_user_by_id,
     normalize_display_name,
     normalize_github_username,
 )
-
-
-@pytest.mark.unit
-class TestDeleteUserAccount:
-    """Tests for delete_user_account service function."""
-
-    @pytest.mark.asyncio
-    async def test_delete_existing_user(self):
-        """Deleting an existing user calls repo.delete (caller commits)."""
-        mock_db = AsyncMock()
-        mock_user = MagicMock()
-        mock_user.github_username = "testuser"
-
-        with patch(
-            "learn_to_cloud.services.users_service.UserRepository", autospec=True
-        ) as mock_repo_class:
-            mock_repo = mock_repo_class.return_value
-            mock_repo.get_by_id = AsyncMock(return_value=mock_user)
-            mock_repo.delete = AsyncMock()
-
-            await delete_user_account(mock_db, user_id=12345)
-
-            mock_repo.get_by_id.assert_awaited_once_with(12345)
-            mock_repo.delete.assert_awaited_once_with(12345)
-            # Service does NOT commit — caller (route) owns the transaction
-            mock_db.commit.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_delete_nonexistent_user_raises(self):
-        """Deleting a user that doesn't exist raises UserNotFoundError."""
-        mock_db = AsyncMock()
-
-        with patch(
-            "learn_to_cloud.services.users_service.UserRepository", autospec=True
-        ) as mock_repo_class:
-            mock_repo = mock_repo_class.return_value
-            mock_repo.get_by_id = AsyncMock(return_value=None)
-
-            with pytest.raises(UserNotFoundError) as exc_info:
-                await delete_user_account(mock_db, user_id=99999)
-
-            assert exc_info.value.user_id == 99999
-            mock_db.commit.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_delete_calls_repo(self):
-        """Account deletion calls repository delete."""
-        mock_db = AsyncMock()
-        mock_user = MagicMock()
-        mock_user.github_username = "loguser"
-
-        with patch(
-            "learn_to_cloud.services.users_service.UserRepository", autospec=True
-        ) as mock_repo_class:
-            mock_repo = mock_repo_class.return_value
-            mock_repo.get_by_id = AsyncMock(return_value=mock_user)
-            mock_repo.delete = AsyncMock()
-
-            await delete_user_account(mock_db, user_id=12345)
-
-            mock_repo.delete.assert_awaited_once()
-
-
-@pytest.mark.integration
-class TestDeleteUserAccountIntegration:
-    """Integration tests for account deletion.
-
-    Cascade behavior (submissions, step_progress) is enforced
-    by SQLAlchemy model definitions (cascade="all, delete-orphan") and
-    PostgreSQL ON DELETE CASCADE foreign keys.
-    """
-
 
 # ---------------------------------------------------------------------------
 # normalize_github_username
@@ -154,33 +77,6 @@ class TestNormalizeDisplayName:
         assert record.getMessage() == "auth.callback.display_name_ignored"
         assert record.args == ()
         assert record.exc_info is None
-
-
-# ---------------------------------------------------------------------------
-# get_user_by_id
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestGetUserById:
-    @pytest.mark.asyncio
-    async def test_returns_user_from_db(self):
-        mock_user = MagicMock()
-        with patch(
-            "learn_to_cloud.services.users_service.UserRepository", autospec=True
-        ) as MockRepo:
-            MockRepo.return_value.get_by_id = AsyncMock(return_value=mock_user)
-            result = await get_user_by_id(AsyncMock(), user_id=1)
-        assert result is mock_user
-
-    @pytest.mark.asyncio
-    async def test_not_found_returns_none(self):
-        with patch(
-            "learn_to_cloud.services.users_service.UserRepository", autospec=True
-        ) as MockRepo:
-            MockRepo.return_value.get_by_id = AsyncMock(return_value=None)
-            result = await get_user_by_id(AsyncMock(), user_id=999)
-        assert result is None
 
 
 # ---------------------------------------------------------------------------

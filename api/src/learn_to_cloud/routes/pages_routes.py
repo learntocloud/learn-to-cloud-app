@@ -18,9 +18,9 @@ from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.models import User
 
 from learn_to_cloud.core.auth import (
-    AuthenticatedUser,
     CurrentUser,
     OptionalCurrentUser,
+    get_request_user,
 )
 from learn_to_cloud.core.routing import LoginRedirectRoute
 from learn_to_cloud.core.templates import templates
@@ -36,7 +36,6 @@ from learn_to_cloud.services.community_service import get_community_page_data
 from learn_to_cloud.services.dashboard_service import get_dashboard_data
 from learn_to_cloud.services.progress_service import fetch_phase_progress
 from learn_to_cloud.services.steps_service import get_valid_completed_steps
-from learn_to_cloud.services.users_service import get_user_by_id
 from learn_to_cloud.services.verification_page_service import (
     get_phase_verification_workspace,
     get_verifications_overview,
@@ -47,15 +46,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     tags=["pages"], include_in_schema=False, route_class=LoginRedirectRoute
 )
-
-
-async def _get_user_or_none(
-    db: DbSession, current_user: AuthenticatedUser | None
-) -> User | None:
-    """Get user from DB if authenticated, else None."""
-    if current_user is None:
-        return None
-    return await get_user_by_id(db, current_user.user_id)
 
 
 def _template_context(
@@ -76,7 +66,7 @@ async def home_page(
     current_user: OptionalCurrentUser,
 ) -> HTMLResponse:
     """Home page with phase overview."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
     phases = get_curriculum_overview()
 
     return templates.TemplateResponse(
@@ -93,7 +83,7 @@ async def curriculum_page(
     current_user: OptionalCurrentUser,
 ) -> HTMLResponse:
     """Full curriculum overview with all phases and topics."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
     phases = get_curriculum_overview()
 
     return templates.TemplateResponse(
@@ -115,7 +105,7 @@ async def phase_page(
     current_user: CurrentUser,
 ) -> HTMLResponse:
     """Single phase learning detail (requires auth)."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
     phase = get_phase_by_slug(f"phase{phase_id}")
     if phase is None:
         return templates.TemplateResponse(
@@ -156,7 +146,7 @@ async def verifications_page(
     current_user: CurrentUser,
 ) -> HTMLResponse:
     """Verification progress and phase navigation (requires auth)."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
     if user is None:
         return templates.TemplateResponse(
             request,
@@ -186,7 +176,7 @@ async def phase_verification_page(
     history_page: Annotated[int, Query(ge=1)] = 1,
 ) -> HTMLResponse:
     """One phase's verification requirements and feedback (requires auth)."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
     phase = get_phase_by_slug(f"phase{phase_id}")
     if user is None or phase is None:
         return templates.TemplateResponse(
@@ -233,7 +223,7 @@ async def topic_page(
     current_user: CurrentUser,
 ) -> HTMLResponse:
     """Single topic with learning steps (requires auth)."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
     phase_slug = f"phase{phase_id}"
     phase = get_phase_by_slug(phase_slug)
     topic = None
@@ -290,7 +280,7 @@ async def dashboard_page(
     current_user: CurrentUser,
 ) -> HTMLResponse:
     """Authenticated dashboard with progress."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
     if user is None:
         return templates.TemplateResponse(
             request,
@@ -320,7 +310,7 @@ async def account_page(
     current_user: CurrentUser,
 ) -> HTMLResponse:
     """Account settings page."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
     if user is None:
         return templates.TemplateResponse(
             request,
@@ -343,7 +333,7 @@ async def community_page(
     current_user: OptionalCurrentUser,
 ) -> HTMLResponse:
     """Public community progress, graduates, and curriculum updates."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
     community = await get_community_page_data(db)
 
     return templates.TemplateResponse(
@@ -371,7 +361,7 @@ async def faq_page(
     current_user: OptionalCurrentUser,
 ) -> HTMLResponse:
     """FAQ page."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
 
     return templates.TemplateResponse(
         request,
@@ -387,7 +377,7 @@ async def privacy_page(
     current_user: OptionalCurrentUser,
 ) -> HTMLResponse:
     """Privacy policy page."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
 
     return templates.TemplateResponse(
         request,
@@ -403,7 +393,7 @@ async def terms_page(
     current_user: OptionalCurrentUser,
 ) -> HTMLResponse:
     """Terms of service page."""
-    user = await _get_user_or_none(db, current_user)
+    user = get_request_user(request)
 
     return templates.TemplateResponse(
         request,

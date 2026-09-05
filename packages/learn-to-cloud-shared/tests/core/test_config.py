@@ -49,6 +49,56 @@ class TestDatabaseConfig:
 
 
 @pytest.mark.unit
+class TestSessionConfig:
+    def test_defaults(self):
+        config = SessionConfig()
+        assert config.oauth_state_max_age_seconds == 600
+        assert config.idle_timeout_seconds == 7 * 24 * 3600
+        assert config.absolute_timeout_seconds == 30 * 24 * 3600
+
+    @pytest.mark.parametrize(
+        "field,maximum",
+        [
+            ("oauth_state_max_age_seconds", 600),
+            ("idle_timeout_seconds", 604800),
+            ("absolute_timeout_seconds", 2592000),
+        ],
+    )
+    @pytest.mark.parametrize("invalid", [0, -1, 1.5, "bad", None])
+    def test_invalid_durations(self, field, maximum, invalid):
+        with pytest.raises(ValidationError):
+            SessionConfig(**{field: invalid})
+
+    @pytest.mark.parametrize(
+        "field,maximum",
+        [
+            ("oauth_state_max_age_seconds", 600),
+            ("idle_timeout_seconds", 604800),
+            ("absolute_timeout_seconds", 2592000),
+        ],
+    )
+    def test_lifetimes_cannot_exceed_policy(self, field, maximum):
+        with pytest.raises(ValidationError):
+            SessionConfig(**{field: maximum + 1})
+
+    def test_idle_cannot_exceed_absolute(self):
+        with pytest.raises(ValidationError, match="must not exceed"):
+            SessionConfig(idle_timeout_seconds=20, absolute_timeout_seconds=10)
+
+    def test_environment_overrides(self, monkeypatch):
+        monkeypatch.setenv("SESSION__IDLE_TIMEOUT_SECONDS", "60")
+        monkeypatch.setenv("SESSION__ABSOLUTE_TIMEOUT_SECONDS", "120")
+        monkeypatch.setenv("SESSION__OAUTH_STATE_MAX_AGE_SECONDS", "90")
+        settings = WebSettings(
+            database=DatabaseConfig(url="postgresql+asyncpg://localhost/test"),
+            environment=Environment.DEVELOPMENT,
+        )
+        assert settings.session.idle_timeout_seconds == 60
+        assert settings.session.absolute_timeout_seconds == 120
+        assert settings.session.oauth_state_max_age_seconds == 90
+
+
+@pytest.mark.unit
 class TestWorkerSettings:
     def test_accepts_worker_sections(self):
         s = WorkerSettings(

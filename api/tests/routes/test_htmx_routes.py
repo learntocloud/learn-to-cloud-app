@@ -27,7 +27,7 @@ from learn_to_cloud_shared.submission_values import (
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.datastructures import FormData, UploadFile
 
-from learn_to_cloud.core.auth import AuthenticatedUser
+from learn_to_cloud.core.auth import AuthenticatedUser, AuthenticationRequired
 from learn_to_cloud.rendering.context import UnavailableCardContext
 from learn_to_cloud.routes.htmx_routes import (
     _submit_canonical_verification,
@@ -49,7 +49,6 @@ from learn_to_cloud.services.steps_service import StepValidationError
 from learn_to_cloud.services.submissions_service import (
     VerificationAttemptSubmission,
 )
-from learn_to_cloud.services.users_service import UserNotFoundError
 from learn_to_cloud.services.verification_status_tokens import VerificationStatusToken
 from learn_to_cloud.verification_forms import combine_reflection_answers
 
@@ -1234,33 +1233,31 @@ class TestHtmxDeleteAccount:
     async def test_delete_account_clears_session_and_redirects(self):
         """Successful deletion clears session and sets HX-Redirect."""
         request = _mock_request(session={"user_id": 42, "github_username": "testuser"})
-        mock_db = AsyncMock()
-
         with patch(
-            "learn_to_cloud.routes.htmx_routes.delete_user_account", autospec=True
-        ):
+            "learn_to_cloud.routes.htmx_routes.mutate_account", autospec=True
+        ) as mutate:
             result = await htmx_delete_account(
-                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
+                request, current_user=AuthenticatedUser(42, "testuser")
             )
 
         assert result.headers.get("HX-Redirect") == "/"
-        assert request.session == {}
+        mutate.assert_awaited_once_with(request, 42, delete_account=True)
 
-    async def test_delete_account_returns_404_for_missing_user(self):
-        """UserNotFoundError returns 404 HTML."""
+    async def test_delete_account_rechecks_authorization(self):
+        """Deletion recheck failures stay unauthorized."""
         request = _mock_request(session={"user_id": 999})
-        mock_db = AsyncMock()
 
-        with patch(
-            "learn_to_cloud.routes.htmx_routes.delete_user_account",
-            autospec=True,
-            side_effect=UserNotFoundError(999),
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.mutate_account",
+                autospec=True,
+                side_effect=AuthenticationRequired(),
+            ),
+            pytest.raises(AuthenticationRequired),
         ):
-            result = await htmx_delete_account(
-                request, mock_db, current_user=AuthenticatedUser(999, "testuser")
+            await htmx_delete_account(
+                request, current_user=AuthenticatedUser(999, "testuser")
             )
-
-        assert result.status_code == 404
 
 
 class TestCombineReflectionAnswers:

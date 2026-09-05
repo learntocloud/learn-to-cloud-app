@@ -14,7 +14,8 @@ These are unit tests: no HTTP client, no real OAuth, no database.
 """
 
 import json
-from http.cookies import SimpleCookie
+from datetime import UTC, datetime, timedelta
+from time import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -23,14 +24,16 @@ import pytest
 from authlib.integrations.starlette_client import OAuthError
 from fastapi.responses import RedirectResponse
 
-from learn_to_cloud.core.auth import SESSION_COOKIE_NAME
+from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME
 from learn_to_cloud.routes.auth_routes import callback, login, logout
+from learn_to_cloud.services.sessions_service import IssuedSession
 
 
 def _mock_request(*, session: dict | None = None) -> MagicMock:
     """Build a minimal mock Request with session support."""
     request = MagicMock()
     request.session = session if session is not None else {}
+    request.cookies = {}
     request.url_for.return_value = "http://testserver/auth/callback"
 
     # session_maker context manager used by callback() for scoped DB access
@@ -43,6 +46,16 @@ def _mock_request(*, session: dict | None = None) -> MagicMock:
     request._mock_db_session = mock_session  # exposed for test assertions
 
     return request
+
+
+@pytest.fixture(autouse=True)
+def session_issuance():
+    with patch(
+        "learn_to_cloud.routes.auth_routes.issue_session",
+        autospec=True,
+        return_value=IssuedSession("a" * 43, datetime.now(UTC) + timedelta(days=30), 0),
+    ) as issue:
+        yield issue
 
 
 @pytest.mark.unit
@@ -160,9 +173,8 @@ class TestCallbackRoute:
 
             result = await callback(request)
 
-        # Session should be populated
-        assert request.session["user_id"] == 12345
-        assert request.session["github_username"] == "testuser"
+        assert request.session == {}
+        assert AUTH_COOKIE_NAME in result.headers["set-cookie"]
 
         # Should redirect to /dashboard
         assert isinstance(result, RedirectResponse)
@@ -319,9 +331,10 @@ class TestCallbackRoute:
 def callback_context():
     request = _mock_request(
         session={
-            "user_id": 99,
-            "github_username": "existing-user",
-            "_state_github_other": {"data": {"state": "private-state"}},
+            "_state_github_other": {
+                "data": {"state": "private-state"},
+                "exp": time() + 600,
+            },
         }
     )
     github = MagicMock()
@@ -492,11 +505,8 @@ class TestCallbackIdentityContract:
         with caplog.at_level("INFO", logger="learn_to_cloud.routes.auth_routes"):
             response = await callback(request)
         assert response.status_code == 302
-        assert request.session == {
-            **original,
-            "user_id": 42,
-            "github_username": "testuser",
-        }
+        assert request.session == original
+        assert AUTH_COOKIE_NAME in response.headers["set-cookie"]
         request._mock_db_session.commit.assert_awaited_once()
         assert [r.getMessage() for r in caplog.records] == ["auth.login.success"]
 
@@ -523,9 +533,5 @@ class TestLogoutRoute:
         assert result.status_code == 303
         assert result.headers["location"] == "/"
         assert request.session == {}
-        cookie = SimpleCookie(result.headers["set-cookie"])[SESSION_COOKIE_NAME]
-        assert cookie["max-age"] == "0"
-        assert cookie["path"] == "/"
-        assert cookie["httponly"]
-        assert cookie["samesite"] == "lax"
-        assert bool(cookie["secure"]) is secure
+        assert request.state.clear_auth_cookie is True
+        assert request.state.clear_oauth_cookie is True

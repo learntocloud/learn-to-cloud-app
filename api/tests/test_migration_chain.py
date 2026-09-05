@@ -235,13 +235,17 @@ _WHITESPACE_CODEPOINTS = (
 )
 
 
-def _expanded_metadata() -> MetaData:
+def _expanded_metadata(*, contracted: bool = False) -> MetaData:
     """Reconstruct transitional metadata without restoring runtime dependencies."""
     metadata = MetaData()
     for table in Base.metadata.sorted_tables:
-        table.to_metadata(metadata)
-    for name in ("first_name", "last_name"):
-        metadata.tables["users"].append_column(Column(name, String(255), nullable=True))
+        if table.name != "auth_sessions":
+            table.to_metadata(metadata)
+    if not contracted:
+        for name in ("first_name", "last_name"):
+            metadata.tables["users"].append_column(
+                Column(name, String(255), nullable=True)
+            )
     return metadata
 
 
@@ -431,7 +435,7 @@ def test_display_name_contract_preserves_populated_data_and_downgrade_is_empty(
             context = MigrationContext.configure(
                 conn, opts={"compare_type": True, "compare_server_default": True}
             )
-            metadata = Base.metadata if contracted else _expanded_metadata()
+            metadata = _expanded_metadata(contracted=contracted)
             assert compare_metadata(context, metadata) == []
 
 

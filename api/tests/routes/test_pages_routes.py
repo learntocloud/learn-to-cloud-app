@@ -95,7 +95,7 @@ class TestHomePage:
                 return_value=phases,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=None,
             ),
@@ -122,7 +122,7 @@ class TestHomePage:
                 return_value=phases,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=mock_user,
             ),
@@ -151,7 +151,7 @@ class TestCurriculumPage:
                 return_value=phases,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=None,
             ),
@@ -178,7 +178,7 @@ class TestPhasePage:
                 return_value=None,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=None,
             ),
@@ -208,7 +208,7 @@ class TestPhasePage:
                 return_value=phase,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=mock_user,
             ),
@@ -248,7 +248,7 @@ class TestVerificationsPage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=mock_user,
             ),
@@ -271,7 +271,7 @@ class TestVerificationsPage:
         request, template = _mock_request(_patch_templates)
 
         with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
+            "learn_to_cloud.routes.pages_routes.get_request_user",
             autospec=True,
             return_value=None,
         ):
@@ -291,7 +291,7 @@ class TestPhaseVerificationPage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=MagicMock(),
             ),
@@ -326,7 +326,7 @@ class TestPhaseVerificationPage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=mock_user,
             ),
@@ -377,7 +377,7 @@ class TestTopicPage:
                 return_value=None,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=None,
             ),
@@ -405,7 +405,7 @@ class TestTopicPage:
                 return_value=phase,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=None,
             ),
@@ -434,7 +434,7 @@ class TestTopicPage:
                 return_value=phase,
             ),
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=MagicMock(),
             ),
@@ -474,7 +474,7 @@ class TestDashboardPage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=mock_user,
             ),
@@ -499,7 +499,7 @@ class TestDashboardPage:
         mock_db = AsyncMock()
 
         with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
+            "learn_to_cloud.routes.pages_routes.get_request_user",
             autospec=True,
             return_value=None,
         ):
@@ -523,7 +523,7 @@ class TestAccountPage:
         mock_user = MagicMock()
 
         with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
+            "learn_to_cloud.routes.pages_routes.get_request_user",
             autospec=True,
             return_value=mock_user,
         ):
@@ -541,7 +541,7 @@ class TestAccountPage:
         mock_db = AsyncMock()
 
         with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
+            "learn_to_cloud.routes.pages_routes.get_request_user",
             autospec=True,
             return_value=None,
         ):
@@ -570,7 +570,7 @@ class TestPublicPages:
         mock_db = AsyncMock()
 
         with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
+            "learn_to_cloud.routes.pages_routes.get_request_user",
             autospec=True,
             return_value=None,
         ):
@@ -590,7 +590,7 @@ class TestCommunityPage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 autospec=True,
                 return_value=None,
             ),

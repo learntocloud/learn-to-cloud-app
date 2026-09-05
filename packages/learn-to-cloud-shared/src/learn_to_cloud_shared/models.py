@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    LargeBinary,
     String,
     Text,
     Uuid,
@@ -50,6 +51,29 @@ class User(TimestampMixin, Base):
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     github_username: Mapped[str] = mapped_column(String(255), nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class AuthSession(Base):
+    """Revocable authentication credential digest; never a bearer token."""
+
+    __tablename__ = "auth_sessions"
+    __table_args__ = (
+        CheckConstraint(
+            "octet_length(token_digest) = 32", name="ck_auth_sessions_digest_length"
+        ),
+        Index("ix_auth_sessions_user_id", "user_id"),
+        Index("ix_auth_sessions_expires_at", "expires_at"),
+        Index("ix_auth_sessions_last_seen_at", "last_seen_at"),
+    )
+
+    token_digest: Mapped[bytes] = mapped_column(LargeBinary, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class SubmissionType(StrEnum):

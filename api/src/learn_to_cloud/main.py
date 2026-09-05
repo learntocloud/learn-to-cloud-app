@@ -32,6 +32,7 @@ from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
     TelemetrySanitizationMiddleware,
 )
+from learn_to_cloud.core.session_cookies import SessionResponseMiddleware
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.routes import (
     auth_router,
@@ -175,11 +176,12 @@ async def global_exception_handler(_request: Request, exc: Exception) -> JSONRes
 
 
 app.add_middleware(TelemetrySanitizationMiddleware)
+app.add_middleware(SessionResponseMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=_settings.session.secret_key,
     session_cookie=SESSION_COOKIE_NAME,
-    max_age=60 * 60 * 24 * 30,
+    max_age=_settings.session.oauth_state_max_age_seconds,
     same_site="lax",
     https_only=_settings.web_security.require_https,
 )

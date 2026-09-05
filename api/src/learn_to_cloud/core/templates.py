@@ -16,6 +16,7 @@ from fastapi.templating import Jinja2Templates
 from learn_to_cloud_shared.core.config import get_web_settings
 
 from learn_to_cloud.rendering.markdown import render_md
+from learn_to_cloud.services.sessions_service import csrf_token
 
 _templates_dir = Path(__file__).resolve().parent.parent / "templates"
 _static_dir = Path(__file__).resolve().parent.parent / "static"
@@ -48,7 +49,7 @@ def static_url(path: str) -> str:
 
 def _static_url_context(request: Request) -> dict[str, object]:
     """Context processor that injects ``static_url`` into every template."""
-    return {"static_url": static_url}
+    return {"static_url": static_url, "logout_all_csrf": csrf_token(request)}
 
 
 def _frontend_telemetry_context(request: Request) -> dict[str, object]:

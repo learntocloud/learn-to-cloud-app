@@ -175,13 +175,19 @@ alert notifications, and must not be added to general request spans.
 | `repo` | `github.repository` | Identify a failed curriculum repository lookup | Fixed public repository set | Operational | Rename; only approved curriculum repositories |
 | `status_code` on auth events | `http.response.status_code` | GitHub OAuth response status | Bounded integer | Operational | Rename |
 | `reason` on auth events | `auth.configuration.reason` | Explain disabled OAuth | Fixed enum | Operational | Rename |
-| `auth.identity.reason` | `auth.identity.reason` | Explain rejected session or provider identity | Fixed enum below | Operational | Keep |
+| `auth.identity.reason` | `auth.identity.reason` | Explain rejected provider identity | Fixed enum below | Operational | Keep |
+| `auth.session.reason` | `auth.session.reason` | Explain rejected app session | Fixed enum below | Operational | Keep |
+| `auth.session.scope` | `auth.session.scope` | Distinguish current-session and account-wide revocation | `current`, `all` | Operational | Keep |
+| `auth.session.count` | `auth.session.count` | Count committed revocations or expired-row pruning | Nonnegative aggregate integer | Operational | Keep |
 
 Authentication events do not deliberately include GitHub usernames, GitHub IDs,
 internal user IDs, or profile names. Public profile values may occur in unexpected
 database error diagnostics under the error policy above. Do not add them as
 metric labels, span attributes, or browser identity context. OAuth tokens,
-session cookies, claims, and session secrets remain prohibited.
+session cookies, token digests, session identifiers, CSRF values, OAuth state,
+claims, and session secrets remain prohibited. Raw session credentials are
+never sent to PostgreSQL. Keep SQL parameter hiding; normal profile diagnostics
+are not permission to expose authentication credentials.
 
 `auth.callback.display_name_ignored` is a constant warning with no application
 attributes or exception details. It means an optional profile name was a
@@ -190,13 +196,12 @@ The name becomes `NULL` and normal login continues. Missing/null/blank names
 are ordinary profile data and emit no warning. Do not use this warning as an
 identity-rejection or failed-login signal, and never attach the discarded value.
 
-`auth.session.identity_rejected` and `auth.callback.identity_rejected` are
-warning-level logs for handled identity rejection. Their only application
+`auth.callback.identity_rejected` is a warning for handled provider identity
+rejection. Its only application
 attribute is `auth.identity.reason`:
 
 | Value | Meaning |
 | --- | --- |
-| `incomplete_identity` | A session contains only one application identity field. |
 | `invalid_user_id` | The ID fails the strict positive signed-64-bit integer contract. |
 | `invalid_github_username` | The username fails the type, nonblank, length, or storage-encoding contract, including after OAuth normalization. |
 | `invalid_response_format` | The provider response has invalid JSON/character encoding or is not a JSON object. |
@@ -205,11 +210,35 @@ These events replace the callback's former `auth.callback.missing_github_id`
 and `auth.callback.missing_github_login` events. Existing provider transport
 failures retain `auth.callback.profile_fetch_failed` and bounded `error.type`.
 
-Rejection does not attach exception details or identity values. Empty sessions,
-OAuth-state-only sessions, and cookies rejected by middleware do not produce
-identity warnings. Cleaning an invalid session prevents another warning when
-that cleaned session is read again; this is not cross-request deduplication if
-a client keeps replaying the original cookie.
+`auth.session.rejected` replaces `auth.session.identity_rejected`. Its sole
+application attribute is `auth.session.reason`:
+
+| Value | Meaning |
+| --- | --- |
+| `malformed` | Supplied opaque credential has an invalid shape. |
+| `unknown` | No matching session exists, including a previously revoked session. |
+| `idle_expired` | The inactivity deadline has been reached. |
+| `absolute_expired` | The immutable absolute deadline has been reached. |
+| `account_missing` | A session has no current account; an invariant problem under the cascade FK. |
+| `legacy` | Obsolete identity fields were found in the signed OAuth cookie and removed. |
+
+Ordinary expiry, unknown, and legacy cutover outcomes use info; malformed input
+and account-invariant failures use warning. No event is emitted for missing
+authentication cookies, OAuth-only state, or successful reads/touches. Cleaning
+a cookie is not cross-request deduplication if a client replays the original.
+Rejection attaches no exception details or identity values.
+
+`auth.session.revoked` is an info event emitted only after committed revocation,
+with `auth.session.scope` (`current` or `all`) and `auth.session.count`.
+`auth.session.pruned` is informational and emitted only after committed removal
+of expired rows, with the aggregate count alone. `user.account_deleted` likewise
+means committed deletion and has no identity attribute. None is emitted as a
+success when the store transaction fails.
+
+Store errors retain ordinary request/dependency failure and
+`unhandled.exception` telemetry; they must not become expiry or anonymous
+outcomes. These signals describe app sessions, not GitHub logout or cancellation
+of already-authorized work.
 
 Handled rejection keeps the normal public-page 200, protected API/HTMX 401, and
 browser 303 request telemetry. An invalid or mismatched persisted OAuth identity
@@ -266,7 +295,7 @@ names are bounded code constants and never contain learner values.
 
 The following event families are retained:
 
-- `auth.*`: OAuth configuration, bounded callback outcomes, and identity rejection.
+- `auth.*`: OAuth configuration, bounded callback outcomes, and session lifecycle.
 - `content.*`: failures loading bundled curriculum artifacts.
 - `db.*`: database lifecycle and rollback failures.
 - `health.*`: readiness and schema drift signals.

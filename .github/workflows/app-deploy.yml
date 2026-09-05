@@ -118,6 +118,7 @@ jobs:
       migration_identity_client_id: ${{ steps.outputs.outputs.migration_identity_client_id }}
       migration_identity_id: ${{ steps.outputs.outputs.migration_identity_id }}
       migration_postgres_role: ${{ steps.outputs.outputs.migration_postgres_role }}
+      api_postgres_role: ${{ steps.outputs.outputs.api_postgres_role }}
       verification_functions_postgres_role: ${{ steps.outputs.outputs.verification_functions_postgres_role }}
       api_url: ${{ steps.outputs.outputs.api_url }}
       smoke_auth_scope: ${{ steps.outputs.outputs.smoke_auth_scope }}
@@ -182,6 +183,7 @@ jobs:
           publish_output migration_identity_client_id migration_identity_client_id
           publish_output migration_identity_id migration_identity_id
           publish_output migration_postgres_role migration_postgres_role
+          publish_output api_postgres_role api_postgres_role
           publish_output verification_functions_postgres_role verification_functions_postgres_role
           publish_output api_url api_url
           publish_output smoke_auth_scope smoke_auth_scope
@@ -346,6 +348,7 @@ jobs:
           DATABASE_NAME: ${{ needs.deployment_context.outputs.database_name }}
           DATABASE_HOST: ${{ needs.deployment_context.outputs.database_host }}
           DATABASE_USER: ${{ needs.deployment_context.outputs.migration_postgres_role }}
+          POSTGRES_API_RUNTIME_ROLE: ${{ needs.deployment_context.outputs.api_postgres_role }}
           POSTGRES_VERIFICATION_FUNCTIONS_ROLE: ${{ needs.deployment_context.outputs.verification_functions_postgres_role }}
           RESOURCE_GROUP: ${{ needs.deployment_context.outputs.resource_group_name }}
           IMAGE: ${{ needs.deployment_context.outputs.container_registry_endpoint }}/migrations:${{ github.sha }}
@@ -366,6 +369,7 @@ jobs:
                 DATABASE__USER="$DATABASE_USER" \
                 DATABASE__NAME="$DATABASE_NAME" \
                 AZURE_CLIENT_ID="$MIGRATION_CLIENT_ID" \
+                POSTGRES_API_RUNTIME_ROLE="$POSTGRES_API_RUNTIME_ROLE" \
                 POSTGRES_VERIFICATION_FUNCTIONS_ROLE="$POSTGRES_VERIFICATION_FUNCTIONS_ROLE" \
               --registry-identity "$MIGRATION_IDENTITY_ID" \
               --query name \

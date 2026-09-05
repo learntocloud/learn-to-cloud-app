@@ -271,7 +271,7 @@ class TestAuthPageSmoke:
         """GET /dashboard renders the dashboard template."""
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 return_value=_fake_user(),
             ),
             patch(
@@ -285,7 +285,7 @@ class TestAuthPageSmoke:
     async def test_account_renders(self, auth_client: AsyncClient):
         """GET /account renders the account settings template."""
         with patch(
-            "learn_to_cloud.routes.pages_routes.get_user_by_id",
+            "learn_to_cloud.routes.pages_routes.get_request_user",
             return_value=_fake_user(),
         ):
             response = await auth_client.get("/account")
@@ -364,7 +364,7 @@ class TestAuthPageSmoke:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 return_value=_fake_user(),
             ),
             patch(
@@ -398,7 +398,7 @@ class TestAuthPageSmoke:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 return_value=_fake_user(),
             ),
             patch(
@@ -491,7 +491,7 @@ class TestAuthPageSmoke:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 return_value=_fake_user(),
             ),
             patch(
@@ -521,7 +521,7 @@ class TestAuthPageSmoke:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_request_user",
                 return_value=_fake_user(),
             ),
             patch(

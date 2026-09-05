@@ -46,7 +46,7 @@ Keep docstrings short and useful. One line is enough for most functions.
 
 - Use `CurrentUser` for protected routes and `OptionalCurrentUser` for public routes. Both supply `AuthenticatedUser`; use its `.user_id` or `.github_username` rather than adding ID-only dependencies.
 - Keep identity loading separate from navigation. Page routers use `LoginRedirectRoute`; API and HTMX endpoints retain 401 responses. Do not infer this policy from URL prefixes or `Accept`.
-- Logout clears the local cookie but does not revoke copied signed cookies. Do not claim server-side revocation exists.
+- Authentication uses opaque PostgreSQL-backed sessions, not identity fields in the OAuth cookie. Logout revokes the current session; Sign out everywhere revokes all current account sessions. Commit before clearing cookies or reporting success.
 - Keep expected auth responses in request telemetry, without logging identities, cookies, or tokens.
 - Follow [Authentication and sessions](../docs/contributing.md#authentication-and-sessions) for the complete contract and test boundaries.
 

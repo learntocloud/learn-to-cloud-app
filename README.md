@@ -24,9 +24,9 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 | **Infra** | Azure Container Apps, Azure Functions, Azure PostgreSQL, Terraform |
 | **CI/CD** | GitHub Actions |
 
-GitHub login establishes signed-cookie sessions. See
+GitHub login establishes revocable, PostgreSQL-backed sessions. See
 [Authentication and sessions](docs/contributing.md#authentication-and-sessions)
-for route dependencies, login redirects, and logout limitations.
+for route dependencies, login redirects, expiry, and logout guarantees.
 
 ## Quick Start
 

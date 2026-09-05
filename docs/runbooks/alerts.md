@@ -72,33 +72,63 @@ revision, path, exception type, and first/last timestamps.
 
 ### Safe recovery
 
-Prefer rolling back the affected API revision when the failures began directly
-after a deployment. Do not suppress the exception or disable the alert. If a
+Use only a compatible rollback when failures began directly after a deployment.
+For the session cutover, prefer a forward fix or a session-aware known-good
+revision: old identity-cookie code would undo revocation. Do not suppress the
+exception or disable the alert. If a
 dependency is transiently unavailable, restore that dependency and confirm the
 exact exception alert returns to a healthy state.
 
-## Rejected session or OAuth identity
+## Session lifecycle and rejected OAuth identity
 
-`auth.session.identity_rejected` and `auth.callback.identity_rejected` are
-handled warnings, not unhandled-exception alerts. Inspect their bounded
-`auth.identity.reason` and the associated request outcome; do not request or
-copy the cookie, user identity, OAuth state, or provider response body.
+`auth.session.rejected` records bounded `auth.session.reason` values. Expiry,
+unknown sessions, and legacy-cookie cutover are expected info events, not
+automatic compromise alerts. Malformed credentials and account-invariant
+problems are warnings. `auth.callback.identity_rejected` remains a handled
+provider warning with `auth.identity.reason`. Inspect the reason and request
+outcome; never request or copy cookies, digests, CSRF tokens, user identity,
+OAuth state, or provider bodies.
 
-Session rejection removes only the application identity. Public pages remain
-available, protected API/HTMX routes return 401, and browser page navigation
-redirects to login. OAuth rejection redirects home without replacing an existing
-valid login. Ordinary anonymous requests do not emit these warnings.
+Public pages stay available, protected API/HTMX routes return 401, and browser
+page navigation redirects to login. Rejected credentials are cleared; unrelated
+OAuth state survives. Provider rejection redirects home without replacing a
+valid existing login. Ordinary anonymous access emits no rejection event.
 
-Compare an increase with the deployed revision and recent authentication
-changes. An old malformed signed cookie, a faulty session-producing tool, or
-unexpected provider data can explain a rejection; the warning alone does not
-prove cookie forgery or account compromise. Reauthentication can replace a
-malformed identity. Do not disable validation or restore numeric-ID coercion.
+Expect a one-time rise in login traffic at the hard cutover: all old identity
+cookies require a fresh GitHub login. Compare subsequent changes with the
+revision, auth request statuses, and `auth.login.success`. Do not restore
+legacy-cookie trust, numeric-ID coercion, or a cache-based bypass.
+
+Every authenticated request now uses PostgreSQL. For unexpected 5xxs or slow
+login/navigation, correlate database dependency latency, connection/pool errors,
+lock waits, migration completion, and API runtime table grants. Check
+`auth_sessions` schema readiness and the configured API role's DML privileges,
+not just database connectivity. A store outage must remain a real failure:
+neither successful logout nor anonymous fallback is safe.
+
+Cookie cleanup alone is not revocation. `auth.session.revoked` means the
+transaction committed, with scope `current` or `all` and aggregate count only.
+Current logout invalidates copies of that session; other browsers stay signed
+in. Sign out everywhere invalidates all current app sessions. It does not
+revoke GitHub sessions or authorization, prevent genuinely later logins, or
+cancel already-authorized requests and running verification work.
+
+After cookie theft, use a trusted browser to sign in and choose Sign out
+everywhere on Account. Secure a compromised GitHub account at GitHub as well.
+Deleting an app account cascades all sessions; recreating it never revives
+old cookies. Use real replay and independent-browser behavior to diagnose a
+revocation defect, without copying credentials into telemetry or reports.
+
+Successful logins opportunistically prune at most 100 expired rows.
+`auth.session.pruned` reports committed aggregate counts. To investigate
+retention backlog, use aggregate idle/absolute-expired counts only, never
+session records or identifiers. No scheduler or fixed removal deadline exists;
+expired rows cannot authenticate while awaiting cleanup. Sustained backlog
+requires a separately scoped retention decision, not an assumed timer.
 
 A persisted OAuth identity that differs from the validated provider identity is
 an application invariant failure. It should not commit or issue a new session;
-investigate it through the existing unhandled-exception guide above. Malformed
-cookie decoding occurs earlier in middleware and is tracked separately in #834.
+investigate it through the existing unhandled-exception guide above.
 See the [telemetry schema](../observability/telemetry-schema.html) for reason values.
 
 ## Ignored optional profile names and staged schema rollout

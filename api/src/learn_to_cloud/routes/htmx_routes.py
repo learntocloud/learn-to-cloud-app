@@ -45,6 +45,7 @@ from learn_to_cloud.services.durable_verification_client import (
     DurableVerificationConfigError,
     DurableVerificationStatusError,
 )
+from learn_to_cloud.services.sessions_service import mutate_account
 from learn_to_cloud.services.steps_service import (
     StepValidationError,
     complete_step,
@@ -55,10 +56,6 @@ from learn_to_cloud.services.submissions_service import (
     InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
-)
-from learn_to_cloud.services.users_service import (
-    UserNotFoundError,
-    delete_user_account,
 )
 from learn_to_cloud.services.verification_attempt_service import (
     INITIAL_VERIFICATION_STATUS_DELAY_SECONDS,
@@ -451,19 +448,10 @@ async def htmx_verification_attempt_status(
 @router.delete("/account", response_class=HTMLResponse)
 async def htmx_delete_account(
     request: Request,
-    db: DbSession,
     current_user: CurrentUser,
 ) -> HTMLResponse:
     """Delete the current user's account and redirect to home via HTMX."""
-    try:
-        await delete_user_account(db, current_user.user_id)
-    except UserNotFoundError:
-        return HTMLResponse(
-            '<p class="text-sm text-red-600">Account not found.</p>',
-            status_code=404,
-        )
-
-    request.session.clear()
+    await mutate_account(request, current_user.user_id, delete_account=True)
     response = HTMLResponse("")
     response.headers["HX-Redirect"] = "/"
     return response
