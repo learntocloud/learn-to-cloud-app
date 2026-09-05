@@ -15,6 +15,17 @@ It runs static checks, package installation smoke testing, and all test suites.
 New files must be staged before `prek --all-files` can inspect them; stage only
 files belonging to the current task.
 
+Before changing a function signature or removing `async`, trace its callers,
+dependency declarations, callback contracts, and test mocks. Ruff's `ARG001`
+(unused function arguments) and preview `RUF029` (unneeded `async`) are enforced
+for API rendering helpers; elsewhere, include these checks in the diff review.
+Remove genuinely unused parameters and unnecessary `async`, updating callers
+and mocks together. Preserve authentication dependencies, required callback
+parameters, async interfaces, and fixtures that execute for their side effects.
+Do not add dummy awaits, rename parameters just to hide findings, or suppress
+rules to pass the gate. If an interface requires an apparent violation, explain
+the contract and get agreement on an appropriate rule scope before changing it.
+
 After Python application changes, start a fresh API process on
 `127.0.0.1:8000` and request:
 

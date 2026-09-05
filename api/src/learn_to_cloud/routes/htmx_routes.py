@@ -112,9 +112,7 @@ async def htmx_complete_step(
         return response
 
     step = next(s for s in topic.learning_steps if s.uuid == step_uuid)
-    return await render_step_toggle(
-        request, current_user.user_id, topic, step, completed, db
-    )
+    return render_step_toggle(request, topic, step, completed)
 
 
 @router.delete("/steps/{step_uuid}", response_class=HTMLResponse)
@@ -134,9 +132,7 @@ async def htmx_uncomplete_step(
         response.headers["HX-Refresh"] = "true"
         return response
 
-    return await render_step_toggle(
-        request, current_user.user_id, topic, step, completed, db
-    )
+    return render_step_toggle(request, topic, step, completed)
 
 
 async def _parse_verification_form[FormModel: BaseModel](

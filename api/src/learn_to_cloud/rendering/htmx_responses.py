@@ -6,7 +6,6 @@ from uuid import UUID
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
-from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.schemas import HandsOnRequirement, Topic
 
 from learn_to_cloud.core.auth import AuthenticatedUser, get_request_user
@@ -98,13 +97,11 @@ def render_unavailable(
     )
 
 
-async def render_step_toggle(
+def render_step_toggle(
     request: Request,
-    user_id: int,
     topic: Topic,
     step,
     completed_step_uuids: set[UUID],
-    db: DbSession,
 ) -> HTMLResponse:
     user = get_request_user(request)
     progress = build_progress_dict(

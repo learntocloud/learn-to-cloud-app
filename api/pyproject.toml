@@ -72,9 +72,13 @@ line-length = 88
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "PLC0415"]
+select = ["E", "F", "I", "UP", "PLC0415", "ARG001", "RUF029"]
+preview = true
+explicit-preview-rules = true
 
 [tool.ruff.lint.per-file-ignores]
+# Enforce cleanup rules in rendering helpers first; wider adoption needs interface review.
+"!src/learn_to_cloud/rendering/**" = ["ARG001", "RUF029"]
 "tests/**" = ["PLC0415"]
 "alembic/**" = ["PLC0415"]
 "src/learn_to_cloud/core/observability.py" = ["PLC0415"]

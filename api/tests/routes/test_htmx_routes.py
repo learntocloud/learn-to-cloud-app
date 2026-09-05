@@ -109,9 +109,9 @@ class TestHtmxCompleteStep:
             ) as mock_complete,
             patch(
                 "learn_to_cloud.routes.htmx_routes.render_step_toggle",
-                new_callable=AsyncMock,
+                autospec=True,
                 return_value=HTMLResponse("<html>mock</html>"),
-            ),
+            ) as mock_render,
         ):
             result = await htmx_complete_step(
                 request,
@@ -121,6 +121,7 @@ class TestHtmxCompleteStep:
             )
 
         mock_complete.assert_awaited_once_with(mock_db, 1, step_uuid)
+        mock_render.assert_called_once_with(request, mock_topic, mock_step, {step_uuid})
         assert isinstance(result, HTMLResponse)
 
     async def test_complete_step_returns_hx_refresh_on_validation_error(self):
@@ -167,9 +168,9 @@ class TestHtmxUncompleteStep:
             ) as mock_uncomplete,
             patch(
                 "learn_to_cloud.routes.htmx_routes.render_step_toggle",
-                new_callable=AsyncMock,
+                autospec=True,
                 return_value=HTMLResponse("<html>mock</html>"),
-            ),
+            ) as mock_render,
         ):
             result = await htmx_uncomplete_step(
                 request,
@@ -179,6 +180,7 @@ class TestHtmxUncompleteStep:
             )
 
         mock_uncomplete.assert_awaited_once_with(mock_db, 1, step_uuid)
+        mock_render.assert_called_once_with(request, mock_topic, mock_step, set())
         assert isinstance(result, HTMLResponse)
 
     async def test_uncomplete_step_returns_hx_refresh_on_validation_error(self):
