@@ -54,7 +54,7 @@ storage in a separate cleanup release. Merging requires separate authorization.
 | Release | Database | Application |
 | --- | --- | --- |
 | Profile release (`0058_add_user_display_name`) | Adds nullable `users.display_name` as unrestricted `Text`, with no default, index, or uniqueness constraint; retains both legacy columns | Uses `display_name` for profiles and greetings |
-| Cleanup (later PR) | Removes `first_name` and `last_name` | Removes legacy model metadata and temporary mapper exclusions |
+| Cleanup (`0059_drop_user_legacy_names`) | Removes `first_name` and `last_name`; leaves canonical display names unchanged | Removes legacy model metadata and temporary mapper exclusions |
 
 Deployment applies the migration and checks schema agreement before starting
 the new API image. `display_name` is a normal mapped attribute; the new app
@@ -72,6 +72,9 @@ clearing, and deletion with progress cascades. They cover expanded storage and
 a manually contracted disposable database while legacy metadata is retained;
 they do not require the future cleanup migration. The deployed profile schema must
 still retain all three columns to pass strict migration metadata comparison.
+Cleanup retains compatibility tests for old and new application mappings,
+exercises the real cleanup migration, and requires exact model/schema equality
+at the contracted head.
 
 Expansion backfills once. Each legacy component containing non-whitespace text
 is preserved exactly, and populated components are joined with one space.
@@ -95,6 +98,11 @@ the profile. Do not add a trigger, dual write, legacy read fallback, or another
 `WHERE display_name IS NULL` backfill: NULL may be an intentional name removal
 after cutover.
 
+Cleanup drops only the two obsolete columns in one transaction, with the same local
+5-second lock timeout and 2-minute per-statement timeout. It performs no backfill
+or display-name update. A lock timeout fails the migration instead of waiting
+indefinitely; investigate the blocker before a separately authorized retry.
+
 ### Deployment gates and recovery
 
 - **Profile release:** after an authorized merge, wait for the entire
@@ -104,21 +112,33 @@ after cutover.
   checks. All old API replicas must retire, with no rollback outstanding,
   before cleanup may merge. A passing `/ready` alone does not prove that old
   readers are gone; revision drift is warning-only.
-- **Cleanup:** after a separately authorized merge, require the full deployment plus
-  authenticated profile/dashboard and public community checks.
+- **Cleanup:** after a separately authorized merge, require the full deployment,
+  expected API image and Functions artifact, plus authenticated profile/dashboard
+  and public community checks.
 
 Downgrading the addition drops `display_name` and loses any refreshed canonical
 names; legacy columns remain unchanged. The new app must not be running during
 that downgrade. Reapplying the addition reconstructs only the old legacy values,
-not discarded display names. Cleanup's future downgrade restores empty nullable legacy columns,
-not their discarded contents, and must not split the canonical name.
+not discarded display names. Cleanup's downgrade to
+`0058_add_user_display_name` restores both legacy
+columns as nullable `String(255)`, with no default and SQL `NULL` in every row.
+It preserves canonical display names and unrelated account/progress data,
+does not split names, and cannot recover discarded legacy values. Reapplying cleanup
+only drops those columns again; it never repeats the backfill. If the addition is later
+downgraded after this schema-only recovery, canonical names are lost and the
+recreated legacy columns contain no recovery copy.
 
 After cleanup, pre-cutover code is not an allowed image-only rollback. Prefer a
 forward fix. Even if the profile release's runtime supports the contracted table,
 its older migration files do not know the cleanup revision and its metadata still expects legacy
 columns. Any compatible image-only recovery must retain schema-aware migration
 tooling and account for revision-drift warnings; do not rerun an old deployment
-workflow as an assumed rollback.
+workflow as an assumed rollback. Runtime/image compatibility is not old-pipeline
+compatibility: schema-aware tooling must still know the current revision and
+match its metadata. If pre-cutover code must be restored, separately authorize a
+schema-aware recovery, restore its required schema with cleanup-aware tooling before
+serving that code, and accept that recreated legacy values are empty. Do not
+deploy the old image first or describe schema restoration as data recovery.
 
 Use a disposable database matching the checked-out release for local reviews.
 Before switching from cleanup to an earlier branch, downgrade that disposable database
