@@ -3,7 +3,7 @@
 
 {% block page_header %}
 <h1 class="page-title">Privacy Policy</h1>
-<p class="mt-3 text-sm text-gray-500 dark:text-gray-400">Last updated: May 7, 2026</p>
+<p class="mt-3 text-sm text-gray-500 dark:text-gray-400">Last updated: September 5, 2026</p>
 {% endblock %}
 
 {% block page_body %}
@@ -38,6 +38,11 @@
             diagnose reliability issues. Browser telemetry is not linked to your GitHub account, username, or internal
             user ID. Profile names are not included in browser telemetry.
         </p>
+        <p>
+            We also collect server diagnostics to investigate failures. We do not deliberately log profile payloads,
+            and database query parameters are hidden, but database error messages may include public GitHub profile
+            values such as your username, display name, or avatar URL.
+        </p>
     </section>
 
     <section>
@@ -67,14 +72,14 @@
             <li>Track your learning progress across phases</li>
             <li>Verify completion of hands-on exercises</li>
             <li>Compute anonymous, aggregate community statistics</li>
-            <li>Diagnose client-side errors and performance issues</li>
+            <li>Diagnose server and client-side errors and performance issues</li>
         </ul>
     </section>
 
     <section>
         <h2>What We Do Not Do</h2>
         <ul>
-            <li>We do not sell, rent, or share your personal information with third parties</li>
+            <li>We do not sell or rent your personal information; service providers below process data to operate the platform</li>
             <li>We do not use your data for advertising, recruiting, or marketing purposes</li>
             <li>We do not send unsolicited emails (we don't even collect your email)</li>
             <li>We do not scrape or crawl GitHub profiles beyond your own authenticated data</li>
@@ -99,15 +104,19 @@
             <a href="/account">Account page</a>.
             Deletion is immediate and irreversible.
         </p>
+        <p>
+            Account deletion does not remove existing diagnostic logs. Those logs follow the telemetry
+            service's separate retention settings and have restricted access.
+        </p>
     </section>
 
     <section>
         <h2>Third-Party Services</h2>
         <p>
-            We interact with the following external services on your behalf, only when you initiate a verification:
+            We use the following external services for sign-in, verification, and platform diagnostics:
         </p>
         <ul>
-            <li><strong>GitHub API</strong> — to verify repositories and profiles you submit</li>
+            <li><strong>GitHub API</strong> — to sign you in and verify repositories and profiles you submit</li>
             <li><strong>Azure OpenAI</strong> — to analyze code you submit for verification (code is not stored by the LLM)</li>
             <li><strong>Azure Application Insights</strong> — to collect server and browser diagnostics</li>
         </ul>

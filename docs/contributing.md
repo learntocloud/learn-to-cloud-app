@@ -338,20 +338,16 @@ Community profiles continue to expose only username and avatar.
 Non-string names, NUL characters, and unpaired Unicode surrogates are ignored
 with the fixed value-free warning `auth.callback.display_name_ignored`. Login
 continues normally; this is not rejected identity. Blank names produce no
-warning. Names must never enter logs, spans, metric labels, browser identity
-context, or session cookies.
+warning. Do not deliberately log profile payloads or add names to span
+attributes, metric labels, browser identity context, or session cookies.
 
-The callback scopes database error sanitization to its profile transaction,
-including commit and session cleanup. An engine `handle_error` listener registered
-before SQLAlchemy instrumentation sanitizes the asyncpg dialect's DBAPI error
-arguments and chains, preserving the driver error type and SQLSTATE for cleanup.
-It returns a fixed message and a bounded SQLAlchemy error category. This prevents
-dependency spans from exporting driver detail before the callback can catch it.
-The callback then raises a value-free error without the driver exception chain;
-the normal 500 handler and failed request telemetry still run, no new session is
-issued, and session cleanup retains rollback ownership. Other transactions and
-non-database exceptions keep their existing handling. Engine parameter hiding
-also prevents bound values in SQL logs; it alone cannot hide driver diagnostics.
+Profile persistence uses normal database exception handling. Failed writes or
+commits still roll back, return the generic 500 response, and issue no new
+session. Engine parameter hiding keeps bound values out of SQL logs and
+formatted SQLAlchemy errors, but database diagnostics can still include public
+GitHub profile values. This is an accepted diagnostic tradeoff; we do not
+rewrite driver exceptions or guarantee profile-value redaction. OAuth tokens,
+credentials, cookies, and session secrets must remain out of telemetry.
 
 The internal `GET /api/user/me` response replaces `first_name` and `last_name`
 with `display_name` without API versioning. All other fields remain unchanged:

@@ -10,9 +10,10 @@ The contract follows three rules:
 1. Emit the minimum data needed to operate the service.
 2. Use OpenTelemetry semantic conventions when they fit; otherwise use a
    dotted, domain-prefixed application name.
-3. Never emit usernames, database user IDs, submitted values, prompts,
-   completions, tokens, query strings, raw exception messages, or arbitrary
-   learner-controlled text.
+3. Never deliberately add usernames, database user IDs, submitted values,
+   prompts, completions, or arbitrary learner-controlled text to application
+   attributes. Tokens, credentials, cookies, and query strings remain prohibited.
+   Unexpected database errors may contain public profile values as described below.
 
 ## Destinations and ownership
 
@@ -35,7 +36,7 @@ Insights instead.
 | Operational | Bounded service state that does not describe a learner | Error category, HTTP status, revision, candidate count |
 | Learner activity | Describes a verification or page action but does not identify the learner by itself | Requirement slug, verification result, bounded page family |
 | Linkable | An opaque value that can be joined with restricted application data to identify one learner or submission | Verification attempt ID |
-| Prohibited | Direct identity, secrets, or uncontrolled text that can contain sensitive data | User ID, username, query string, raw exception text, submitted URL |
+| Prohibited application attributes | Direct identity, secrets, or uncontrolled text that can contain sensitive data | User ID, username, query string, raw exception text, submitted URL |
 
 Linkable telemetry requires an operational need, restricted access, and a
 documented retention boundary. `verification.attempt.id` is the only approved
@@ -97,6 +98,13 @@ privacy decision owned by #765.
 boundary. Expected or handled failures use a bounded category without raw
 exception text. Exception alerts and incident notes must not include learner
 input or provider response bodies.
+
+Unexpected profile database failures use normal exception reporting. SQL
+parameters are hidden, but driver diagnostics and exception chains may include
+public GitHub profile values. We accept those incidental values in restricted
+server diagnostics rather than maintaining custom exception sanitization.
+This exception does not permit tokens, credentials, cookies, submitted secrets,
+or explicit profile payload logging, and does not change browser telemetry.
 
 ## Verification attributes
 
@@ -169,10 +177,11 @@ alert notifications, and must not be added to general request spans.
 | `reason` on auth events | `auth.configuration.reason` | Explain disabled OAuth | Fixed enum | Operational | Rename |
 | `auth.identity.reason` | `auth.identity.reason` | Explain rejected session or provider identity | Fixed enum below | Operational | Keep |
 
-Authentication telemetry never includes GitHub usernames, GitHub IDs, internal
-user IDs, OAuth tokens, claims, or session identifiers.
-Display names and legacy first/last names are prohibited in logs, spans/events,
-metric labels, and browser identity context, including on persistence failures.
+Authentication events do not deliberately include GitHub usernames, GitHub IDs,
+internal user IDs, or profile names. Public profile values may occur in unexpected
+database error diagnostics under the error policy above. Do not add them as
+metric labels, span attributes, or browser identity context. OAuth tokens,
+session cookies, claims, and session secrets remain prohibited.
 
 `auth.callback.display_name_ignored` is a constant warning with no application
 attributes or exception details. It means an optional profile name was a

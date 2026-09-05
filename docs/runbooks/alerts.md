@@ -106,8 +106,11 @@ See the [telemetry schema](../observability/telemetry-schema.html) for reason va
 `auth.callback.display_name_ignored` is a value-free warning, not rejected
 identity or failed login. An unusable optional name becomes `NULL`; successful
 login still emits `auth.login.success`. Missing or blank names produce no warning.
-Never request names or attach them to logs, spans, metric labels, or browser
-identity context, including while investigating persistence failures.
+Do not request profile payloads or add names to logs, span attributes, metric
+labels, or browser identity context. Unexpected database error diagnostics may
+contain public profile values; no custom profile-error redaction is applied.
+Keep those diagnostics within the restricted telemetry system, not alert
+notifications. Tokens, credentials, and cookies remain prohibited.
 
 During the [display-name rollout](../migrations.html#display-name-rollout-836),
 compare existing login-success, callback-error, request-status, migration-job,

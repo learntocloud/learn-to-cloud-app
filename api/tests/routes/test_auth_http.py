@@ -590,8 +590,7 @@ async def test_oauth_invariant_failure_remains_500(app, oauth_callback, user, ca
     ],
 )
 @pytest.mark.parametrize("failure", [None, "upsert", "commit"])
-@pytest.mark.parametrize("error_kind", ["parameters", "driver_detail", "chain"])
-async def test_callback_profile_privacy_and_session_contract(
+async def test_callback_profile_and_session_contract(
     app,
     telemetry_client,
     telemetry_logs,
@@ -602,7 +601,6 @@ async def test_callback_profile_privacy_and_session_contract(
     expected,
     warns,
     failure,
-    error_kind,
 ):
     from learn_to_cloud.main import global_exception_handler
 
@@ -633,20 +631,12 @@ async def test_callback_profile_privacy_and_session_contract(
         upsert.return_value = user
         if failure:
             operation = upsert if failure == "upsert" else database.commit
-            error = OperationalError(
+            operation.side_effect = OperationalError(
                 "UPDATE users SET display_name = :name",
                 {"name": "Profile-Sentinel"},
-                RuntimeError(
-                    "Driver DETAIL: Profile-Sentinel"
-                    if error_kind == "driver_detail"
-                    else "Synthetic persistence failure"
-                ),
-                hide_parameters=error_kind != "parameters",
+                RuntimeError("Synthetic persistence failure"),
+                hide_parameters=True,
             )
-            if error_kind == "chain":
-                error.__cause__ = RuntimeError("Driver cause: Profile-Sentinel")
-                error.__context__ = RuntimeError("Driver context: Profile-Sentinel")
-            operation.side_effect = error
         async with AsyncClient(
             transport=ASGITransport(app=app, raise_app_exceptions=False),
             base_url="http://testserver",
@@ -658,7 +648,7 @@ async def test_callback_profile_privacy_and_session_contract(
                 assert SESSION_COOKIE_NAME not in client.cookies
                 assert "auth.login.success" not in caplog.text
                 assert "unhandled.exception" in caplog.text
-                assert "Profile persistence failed (OperationalError)" in caplog.text
+                assert "OperationalError" in caplog.text
                 assert response.json() == {
                     "detail": "An unexpected error occurred. Please try again."
                 }
@@ -701,7 +691,10 @@ async def test_callback_profile_privacy_and_session_contract(
     spans = exporter.get_finished_spans()
     assert any(span.kind == SpanKind.SERVER for span in spans)
     telemetry = _exported_telemetry(exporter, telemetry_logs, caplog)
-    assert "Profile-Sentinel" not in telemetry
+    assert "private-token" not in telemetry
+    assert _SECRET not in telemetry
+    if not failure:
+        assert "Profile-Sentinel" not in telemetry
     for span in spans:
         assert (
             not {"display_name", "first_name", "last_name", "user.display_name"}
@@ -711,7 +704,7 @@ async def test_callback_profile_privacy_and_session_contract(
 
 @pytest.mark.integration
 @pytest.mark.parametrize("failure", ["upsert", "commit"])
-async def test_callback_instrumented_postgres_failure_is_private(
+async def test_callback_postgres_failure_rolls_back_without_issuing_session(
     app, github, test_engine, test_settings, telemetry_logs, caplog, failure
 ):
     from learn_to_cloud_shared.core.database import (
@@ -728,8 +721,7 @@ async def test_callback_instrumented_postgres_failure_is_private(
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     instrumentor = SQLAlchemyInstrumentor()
-    # Use the production engine factory and its listener ordering, with only
-    # the telemetry destination replaced by an in-memory exporter.
+    # Keep production instrumentation, but export only to memory.
     with patch(
         "learn_to_cloud_shared.core.database.instrument_database",
         side_effect=lambda engine: instrumentor.instrument(
@@ -739,7 +731,9 @@ async def test_callback_instrumented_postgres_failure_is_private(
         engine = create_engine(test_settings.database)
     assert engine.sync_engine.hide_parameters is True
     FastAPIInstrumentor.instrument_app(app, tracer_provider=provider)
-    github.authorize_access_token = AsyncMock(return_value={"access_token": "token"})
+    github.authorize_access_token = AsyncMock(
+        return_value={"access_token": "private-oauth-token"}
+    )
     github.get = AsyncMock(
         return_value=httpx2.Response(
             200,
@@ -827,15 +821,12 @@ async def test_callback_instrumented_postgres_failure_is_private(
             assert writes[0].status.status_code == (
                 StatusCode.ERROR if failure == "upsert" else StatusCode.UNSET
             )
-            if failure == "upsert":
-                assert writes[0].status.description == (
-                    "Profile persistence failed (IntegrityError)"
-                )
             assert "unhandled.exception" in caplog.text
-            assert "Profile persistence failed (IntegrityError)" in caplog.text
+            assert "IntegrityError" in caplog.text
             assert "auth.login.success" not in caplog.text
             telemetry = _exported_telemetry(exporter, telemetry_logs, caplog)
-            assert "Profile-Sentinel" not in telemetry
+            assert "private-oauth-token" not in telemetry
+            assert _SECRET not in telemetry
             await connection.rollback()
             await connection.execute(text("DROP TABLE pg_temp.users"))
             if failure == "commit":

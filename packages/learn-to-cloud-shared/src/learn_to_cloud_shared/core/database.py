@@ -14,7 +14,7 @@ from typing import Annotated
 
 import asyncpg
 from fastapi import Depends, Request
-from sqlalchemy import event, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -26,7 +26,6 @@ from sqlalchemy.orm import DeclarativeBase
 from learn_to_cloud_shared.core.azure_auth import get_token as _get_azure_token
 from learn_to_cloud_shared.core.config import DatabaseConfig
 from learn_to_cloud_shared.core.observability import instrument_database
-from learn_to_cloud_shared.core.profile_privacy import sanitize_profile_database_error
 
 logger = logging.getLogger(__name__)
 
@@ -105,12 +104,6 @@ def create_engine(settings: DatabaseConfig) -> AsyncEngine:
         engine_kwargs["async_creator"] = async_creator
 
     engine = create_async_engine(database_url, **engine_kwargs)
-    event.listen(
-        engine.sync_engine,
-        "handle_error",
-        sanitize_profile_database_error,
-        retval=True,
-    )
     instrument_database(engine)
     return engine
 
