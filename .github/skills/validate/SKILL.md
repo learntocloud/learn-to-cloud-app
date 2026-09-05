@@ -25,6 +25,16 @@ After Python application changes, start a fresh API process on
 Track the exact process ID and always terminate that process during cleanup.
 Do not kill unrelated listeners. Report startup logs if any endpoint fails.
 
+For authentication or route-policy changes, preserve the real-route coverage in
+`api/tests/routes/test_auth_http.py`: API/HTMX 401s, page 303s, redirect methods,
+signed-session success, and repeatable logout. Do not bypass authentication
+with dependency overrides when testing authentication itself. The same file
+checks exported request spans; `api/tests/core/test_middleware.py` covers nested
+router templates. These tests already run in `uv run poe check`.
+
+See [Authentication and sessions](../../../docs/contributing.md#authentication-and-sessions)
+for the response and session-lifecycle contract.
+
 For workflow changes that add a Python command, also run that exact command
 with only the environment variables supplied by the workflow. Do not assume
 the local WSL environment is available in CI.

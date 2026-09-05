@@ -35,7 +35,14 @@ below 10.
 **Warning:** P95 above 500 ms; failed availability test; recurring exception;
 other dependency failure; DB CPU 50-80%, memory/storage 70-85%, or credits
 10-30; Container App CPU/memory above 80%; unhealthy replicas without matching
-scale events; auth failures above 50% when login activity exists.
+scale events; OAuth callback failures above 50% of observed OAuth callback
+outcomes when login activity exists.
+
+Use `auth.login.success` and `auth.callback.*` failure events for OAuth outcomes.
+Expected request 401s for missing sessions and 303 login redirects are not OAuth
+callback failures or unhandled application errors. Request URL attributes should
+use route templates, including router prefixes; `/unmatched` is reserved for
+requests without a known route template.
 
 Otherwise report **Healthy**. Missing telemetry is `Unknown`, not healthy.
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from fastapi.routing import iter_route_contexts
 from opentelemetry import trace
 from starlette.routing import Match
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -68,7 +69,7 @@ class TelemetrySanitizationMiddleware:
         partial_match: str | None = None
         app = scope.get("app")
         router = getattr(app, "router", None)
-        for route in getattr(router, "routes", ()):
+        for route in iter_route_contexts(getattr(router, "routes", ())):
             match, _ = route.matches(scope)
             route_path = getattr(route, "path", None)
             if not isinstance(route_path, str):

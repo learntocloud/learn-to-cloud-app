@@ -42,6 +42,14 @@ Keep docstrings short and useful. One line is enough for most functions.
 - Don't add `# noqa`, `# type: ignore`, `try/except: pass`, or rule exclusions to make CI green. Same applies to inserting "make the warning happy" code that wouldn't otherwise belong.
 - If a real fix would require a bigger refactor, don't quietly patch around the symptom instead. Tell the user and let them choose.
 
+## Authentication
+
+- Use `CurrentUser` for protected routes and `OptionalCurrentUser` for public routes. Both supply `AuthenticatedUser`; use its `.user_id` or `.github_username` rather than adding ID-only dependencies.
+- Keep identity loading separate from navigation. Page routers use `LoginRedirectRoute`; API and HTMX endpoints retain 401 responses. Do not infer this policy from URL prefixes or `Accept`.
+- Logout clears the local cookie but does not revoke copied signed cookies. Do not claim server-side revocation exists.
+- Keep expected auth responses in request telemetry, without logging identities, cookies, or tokens.
+- Follow [Authentication and sessions](../docs/contributing.md#authentication-and-sessions) for the complete contract and test boundaries.
+
 ## Docker in WSL
 
 - **Before saying Docker is unavailable, run the preflight check:**

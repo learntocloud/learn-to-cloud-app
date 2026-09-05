@@ -117,7 +117,7 @@ class TestHtmxCompleteStep:
             result = await htmx_complete_step(
                 request,
                 mock_db,
-                user_id=1,
+                current_user=AuthenticatedUser(user_id=1, github_username="user"),
                 step_uuid=step_uuid,
             )
 
@@ -138,7 +138,7 @@ class TestHtmxCompleteStep:
             result = await htmx_complete_step(
                 request,
                 mock_db,
-                user_id=1,
+                current_user=AuthenticatedUser(user_id=1, github_username="user"),
                 step_uuid=step_uuid,
             )
 
@@ -176,7 +176,7 @@ class TestHtmxUncompleteStep:
                 request,
                 step_uuid,
                 mock_db,
-                user_id=1,
+                current_user=AuthenticatedUser(user_id=1, github_username="user"),
             )
 
         mock_uncomplete.assert_awaited_once_with(mock_db, 1, step_uuid)
@@ -197,7 +197,7 @@ class TestHtmxUncompleteStep:
                 request,
                 step_uuid,
                 mock_db,
-                user_id=1,
+                current_user=AuthenticatedUser(user_id=1, github_username="user"),
             )
 
         assert result.headers.get("HX-Refresh") == "true"
@@ -1239,7 +1239,9 @@ class TestHtmxDeleteAccount:
         with patch(
             "learn_to_cloud.routes.htmx_routes.delete_user_account", autospec=True
         ):
-            result = await htmx_delete_account(request, mock_db, user_id=42)
+            result = await htmx_delete_account(
+                request, mock_db, current_user=AuthenticatedUser(42, "testuser")
+            )
 
         assert result.headers.get("HX-Redirect") == "/"
         assert request.session == {}
@@ -1254,7 +1256,9 @@ class TestHtmxDeleteAccount:
             autospec=True,
             side_effect=UserNotFoundError(999),
         ):
-            result = await htmx_delete_account(request, mock_db, user_id=999)
+            result = await htmx_delete_account(
+                request, mock_db, current_user=AuthenticatedUser(999, "testuser")
+            )
 
         assert result.status_code == 404
 

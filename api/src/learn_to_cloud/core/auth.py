@@ -6,7 +6,7 @@ Provides:
 - Authlib OAuth client configuration for GitHub
 
 Session data is stored in signed cookies (via Starlette).
-The session contains: user_id (GitHub numeric ID).
+The session contains user_id (GitHub numeric ID) and github_username.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from learn_to_cloud_shared.core.config import OAuthConfig
 logger = logging.getLogger(__name__)
 
 oauth = OAuth()
+SESSION_COOKIE_NAME = "session"
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,13 @@ class AuthenticatedUser:
 
     user_id: int
     github_username: str
+
+
+class AuthenticationRequired(HTTPException):
+    """The request has no authenticated session identity."""
+
+    def __init__(self) -> None:
+        super().__init__(status_code=401, detail="Unauthorized")
 
 
 def init_oauth(settings: OAuthConfig) -> None:
@@ -56,38 +64,14 @@ def init_oauth(settings: OAuthConfig) -> None:
     )
 
 
-def get_user_id_from_session(request: Request) -> int | None:
-    """Read user_id from the session cookie.
-
-    Returns the GitHub numeric user ID or None if not authenticated.
-    """
-    user_id = request.session.get("user_id")
-    if user_id is not None:
-        return int(user_id)
-    return None
-
-
-def get_github_username_from_session(request: Request) -> str | None:
-    """Read github_username from the session cookie."""
-    github_username = request.session.get("github_username")
-    if isinstance(github_username, str) and github_username:
-        return github_username
-    return None
-
-
 def get_authenticated_user_from_session(request: Request) -> AuthenticatedUser | None:
-    """Read authenticated identity from the session cookie.
-
-    Returns None when either the user ID or the GitHub username is missing.
-    The username is always written to the session at login, so a missing
-    username means a stale cookie (for example, a user whose row predates the
-    NOT NULL backfill); returning None forces a clean re-login.
-    """
-    user_id = get_user_id_from_session(request)
+    """Read the session identity, requiring both an ID and a nonempty username."""
+    user_id = request.session.get("user_id")
     if user_id is None:
         return None
-    github_username = get_github_username_from_session(request)
-    if github_username is None:
+    user_id = int(user_id)
+    github_username = request.session.get("github_username")
+    if not isinstance(github_username, str) or not github_username:
         return None
     return AuthenticatedUser(
         user_id=user_id,
@@ -95,39 +79,11 @@ def get_authenticated_user_from_session(request: Request) -> AuthenticatedUser |
     )
 
 
-def _unauthenticated_exception(request: Request) -> HTTPException:
-    is_htmx = request.headers.get("hx-request") == "true"
-    if is_htmx:
-        return HTTPException(status_code=401, detail="Unauthorized")
-    return HTTPException(
-        status_code=307,
-        headers={"Location": "/auth/login"},
-    )
-
-
-def require_auth(request: Request) -> int:
-    """Dependency: raises 401 if not authenticated. Sets request.state.user_id.
-
-    For HTMX requests, returns 401 so the htmx:responseError handler
-    can redirect client-side. For regular browser page requests,
-    redirects to /auth/login directly.
-    """
-    return require_authenticated_user(request).user_id
-
-
-def optional_auth(request: Request) -> int | None:
-    """Dependency: returns user_id or None. Does not raise."""
-    authenticated_user = optional_authenticated_user(request)
-    if authenticated_user is None:
-        return None
-    return authenticated_user.user_id
-
-
 def require_authenticated_user(request: Request) -> AuthenticatedUser:
-    """Dependency: returns session identity or raises if not authenticated."""
+    """Require a session identity, returning 401 when unauthenticated."""
     authenticated_user = optional_authenticated_user(request)
     if authenticated_user is None:
-        raise _unauthenticated_exception(request)
+        raise AuthenticationRequired()
     return authenticated_user
 
 
@@ -140,8 +96,6 @@ def optional_authenticated_user(request: Request) -> AuthenticatedUser | None:
     return authenticated_user
 
 
-UserId = Annotated[int, Depends(require_auth)]
-OptionalUserId = Annotated[int | None, Depends(optional_auth)]
 CurrentUser = Annotated[AuthenticatedUser, Depends(require_authenticated_user)]
 OptionalCurrentUser = Annotated[
     AuthenticatedUser | None, Depends(optional_authenticated_user)

@@ -31,6 +31,34 @@ rendered, not the full definition of working.
 | Phase 7 | `/phase/7` | Navigation, main content, no server error |
 | First topic | First `/phase/1/*` link | Learning steps and checkboxes |
 
+## Authentication response contract
+
+Use these expectations when the learner's goal involves signing in, session
+expiry, or signing out. They are not all product defects merely because an
+HTTP request was rejected.
+
+| Situation | Expected behavior |
+|-----------|-------------------|
+| Anonymous user opens a protected page | 303 to `/auth/login`; subsequent login navigation uses GET |
+| Anonymous API request | 401 without a login redirect |
+| HTMX action with a missing or expired session | 401; the existing browser handler navigates to login |
+| HTMX endpoint called without the HTMX header | Still 401, not a login redirect |
+| Logout with a valid, missing, or rejected cookie | Session/cookie cleared, 303 to `/`; safe to repeat |
+| Public page without a session | Remains available |
+
+A fresh, valid local session unexpectedly rejected by a protected route is a
+defect. Normal expired-session navigation is not; report friction if it is
+confusing or leaves the learner stuck.
+
+Logout clears this browser's cookie, not every copy of an issued signed cookie.
+Do not report missing global revocation as a new regression; it is tracked in
+[#828](https://github.com/learntocloud/learn-to-cloud-app/issues/828). Do report
+new behavior that differs from the documented response contract.
+
+See [Authentication and sessions](../../../docs/contributing.md#authentication-and-sessions)
+for the underlying design. Record sanitized routes, statuses, and visible
+outcomes, never cookies, tokens, or user identities.
+
 ## Submission requirements
 
 Source of truth is `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/curriculum.json`

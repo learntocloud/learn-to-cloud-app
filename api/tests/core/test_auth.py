@@ -1,29 +1,19 @@
-"""Unit tests for core.auth module.
-
-Tests session-based authentication utilities:
-- get_user_id_from_session reads user_id from session
-- require_auth raises HTTPException when unauthenticated
-- optional_auth returns user_id or None without raising
-- init_oauth registers GitHub OAuth provider
-"""
+"""Tests for session identities, authentication policies, and OAuth registration."""
 
 from importlib import import_module, util
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi import HTTPException, Request
+from fastapi import Request
 from learn_to_cloud_shared.core.config import OAuthConfig
 
 from learn_to_cloud.core.auth import (
     AuthenticatedUser,
+    AuthenticationRequired,
     get_authenticated_user_from_session,
-    get_github_username_from_session,
-    get_user_id_from_session,
     init_oauth,
     oauth,
-    optional_auth,
     optional_authenticated_user,
-    require_auth,
     require_authenticated_user,
 )
 
@@ -51,86 +41,39 @@ def _make_request(session: dict | None = None, headers: dict | None = None) -> R
 
 
 @pytest.mark.unit
-class TestGetUserIdFromSession:
-    """Test get_user_id_from_session reads session correctly."""
-
-    def test_returns_int_when_user_id_present(self):
-        request = _make_request(session={"user_id": 12345})
-        result = get_user_id_from_session(request)
-        assert result == 12345
-
-    def test_returns_int_when_user_id_is_string(self):
-        request = _make_request(session={"user_id": "67890"})
-        result = get_user_id_from_session(request)
-        assert result == 67890
-
-    def test_returns_none_when_user_id_missing(self):
-        request = _make_request(session={})
-        result = get_user_id_from_session(request)
-        assert result is None
-
-
-@pytest.mark.unit
-class TestGetGitHubUsernameFromSession:
-    """Test get_github_username_from_session reads session correctly."""
-
-    def test_returns_username_when_present(self):
-        request = _make_request(session={"github_username": "testuser"})
-        result = get_github_username_from_session(request)
-        assert result == "testuser"
-
-    def test_returns_none_when_missing_or_empty(self):
-        request = _make_request(session={"github_username": ""})
-        result = get_github_username_from_session(request)
-        assert result is None
-
-
-@pytest.mark.unit
 class TestGetAuthenticatedUserFromSession:
     """Test session identity extraction."""
 
-    def test_returns_identity_when_user_id_present(self):
-        request = _make_request(session={"user_id": 42, "github_username": "testuser"})
+    @pytest.mark.parametrize("user_id", [42, "42"])
+    def test_returns_identity_with_integer_id(self, user_id):
+        request = _make_request(
+            session={"user_id": user_id, "github_username": "testuser"}
+        )
         result = get_authenticated_user_from_session(request)
         assert result == AuthenticatedUser(user_id=42, github_username="testuser")
 
     def test_returns_none_without_username(self):
-        # Username is always written to the session at login. A missing
-        # username means a stale cookie, so we force a clean re-login.
         request = _make_request(session={"user_id": 42})
         result = get_authenticated_user_from_session(request)
         assert result is None
 
-    def test_returns_none_when_user_id_missing(self):
-        request = _make_request(session={"github_username": "testuser"})
+    @pytest.mark.parametrize("username", [None, "", 42, []])
+    def test_returns_none_for_invalid_username(self, username):
+        request = _make_request(session={"user_id": 42, "github_username": username})
+        assert get_authenticated_user_from_session(request) is None
+
+    @pytest.mark.parametrize(
+        "session",
+        [
+            {},
+            {"github_username": "testuser"},
+            {"user_id": None, "github_username": "testuser"},
+        ],
+    )
+    def test_returns_none_when_user_id_missing(self, session):
+        request = _make_request(session=session)
         result = get_authenticated_user_from_session(request)
         assert result is None
-
-
-@pytest.mark.unit
-class TestRequireAuth:
-    """Test require_auth dependency."""
-
-    def test_returns_user_id_and_sets_state(self):
-        request = _make_request(session={"user_id": 42, "github_username": "user"})
-        result = require_auth(request)
-        assert result == 42
-        assert request.state.user_id == 42
-
-    def test_raises_401_for_htmx_requests(self):
-        request = _make_request(session={}, headers={"hx-request": "true"})
-        with pytest.raises(HTTPException) as exc_info:
-            require_auth(request)
-        assert exc_info.value.status_code == 401
-
-    def test_raises_307_redirect_for_regular_requests(self):
-        request = _make_request(session={}, headers={})
-        with pytest.raises(HTTPException) as exc_info:
-            require_auth(request)
-        assert exc_info.value.status_code == 307
-        headers = exc_info.value.headers
-        assert headers is not None
-        assert headers["Location"] == "/auth/login"
 
 
 @pytest.mark.unit
@@ -144,27 +87,16 @@ class TestRequireAuthenticatedUser:
         assert request.state.user_id == 42
         assert request.state.github_username == "testuser"
 
-    def test_raises_401_for_htmx_requests(self):
-        request = _make_request(session={}, headers={"hx-request": "true"})
-        with pytest.raises(HTTPException) as exc_info:
+    @pytest.mark.parametrize("session", [{}, {"user_id": 42}])
+    @pytest.mark.parametrize("htmx", [False, True])
+    def test_raises_401_when_unauthenticated(self, session, htmx):
+        request = _make_request(
+            session=session, headers={"hx-request": "true"} if htmx else {}
+        )
+        with pytest.raises(AuthenticationRequired) as exc_info:
             require_authenticated_user(request)
         assert exc_info.value.status_code == 401
-
-
-@pytest.mark.unit
-class TestOptionalAuth:
-    """Test optional_auth dependency."""
-
-    def test_returns_user_id_and_sets_state(self):
-        request = _make_request(session={"user_id": 99, "github_username": "user"})
-        result = optional_auth(request)
-        assert result == 99
-        assert request.state.user_id == 99
-
-    def test_returns_none_when_not_authenticated(self):
-        request = _make_request(session={})
-        result = optional_auth(request)
-        assert result is None
+        assert exc_info.value.headers is None
 
 
 @pytest.mark.unit

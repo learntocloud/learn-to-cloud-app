@@ -40,8 +40,7 @@ from learn_to_cloud_shared.schemas import (
 
 from learn_to_cloud.core.auth import (
     AuthenticatedUser,
-    optional_auth,
-    require_auth,
+    optional_authenticated_user,
     require_authenticated_user,
 )
 
@@ -152,12 +151,12 @@ async def anon_client(_patched_content):
     async def _override_get_db_readonly():
         yield mock_db
 
-    def _override_optional_auth():
+    def _override_optional_user():
         return None
 
     app.dependency_overrides[get_db] = _override_get_db
     app.dependency_overrides[get_db_readonly] = _override_get_db_readonly
-    app.dependency_overrides[optional_auth] = _override_optional_auth
+    app.dependency_overrides[optional_authenticated_user] = _override_optional_user
 
     # Mark app as initialized so /ready doesn't 503
     app.state.init_done = True
@@ -175,7 +174,7 @@ async def anon_client(_patched_content):
 async def auth_client(_patched_content):
     """HTTP client for authenticated requests.
 
-    Overrides auth to return user_id=1, mocks DB and user service.
+    Overrides auth to return an identity, mocks DB and user service.
     """
     from learn_to_cloud.main import app
 
@@ -187,19 +186,12 @@ async def auth_client(_patched_content):
     async def _override_get_db_readonly():
         yield mock_db
 
-    def _override_require_auth():
-        return 1
-
-    def _override_optional_auth():
-        return 1
-
     def _override_current_user():
         return AuthenticatedUser(user_id=1, github_username="testuser")
 
     app.dependency_overrides[get_db] = _override_get_db
     app.dependency_overrides[get_db_readonly] = _override_get_db_readonly
-    app.dependency_overrides[require_auth] = _override_require_auth
-    app.dependency_overrides[optional_auth] = _override_optional_auth
+    app.dependency_overrides[optional_authenticated_user] = _override_current_user
     app.dependency_overrides[require_authenticated_user] = _override_current_user
 
     app.state.init_done = True
@@ -562,5 +554,5 @@ class TestRedirectSmoke:
     ):
         """Authenticated pages redirect anonymous visitors to login."""
         response = await anon_client.get(path, follow_redirects=False)
-        assert response.status_code == 307
+        assert response.status_code == 303
         assert "/auth/login" in response.headers["location"]

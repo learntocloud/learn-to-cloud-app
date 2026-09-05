@@ -7,16 +7,17 @@ Tests ASGI middleware:
 - TelemetrySanitizationMiddleware removes raw URLs and query strings
 """
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-from starlette.routing import Match
+from fastapi import APIRouter, FastAPI
+from fastapi.routing import APIRoute
 
 from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
     TelemetrySanitizationMiddleware,
 )
+from learn_to_cloud.core.routing import LoginRedirectRoute
 
 
 async def _noop_receive():
@@ -158,16 +159,15 @@ class TestTelemetrySanitizationMiddleware:
         span.is_recording.return_value = True
         mock_trace.get_current_span.return_value = span
 
-        route = SimpleNamespace(
-            path="/steps/{step_uuid}",
-            matches=MagicMock(return_value=(Match.FULL, {})),
-        )
+        app = FastAPI()
+        app.add_api_route("/steps/{step_uuid}", lambda: None)
         middleware = TelemetrySanitizationMiddleware(_make_app_that_sends_response)
         scope = {
             "type": "http",
+            "method": "GET",
             "path": "/steps/2ea4225e",
             "query_string": b"token=sensitive",
-            "app": SimpleNamespace(router=SimpleNamespace(routes=[route])),
+            "app": app,
         }
 
         await middleware(scope, _noop_receive, _noop_send)
@@ -191,9 +191,32 @@ class TestTelemetrySanitizationMiddleware:
             "type": "http",
             "path": "/arbitrary",
             "query_string": b"code=secret",
-            "app": SimpleNamespace(router=SimpleNamespace(routes=[])),
+            "method": "GET",
+            "app": FastAPI(),
         }
 
         await middleware(scope, _noop_receive, _noop_send)
 
         span.set_attribute.assert_any_call("url.full", "/unmatched")
+
+    @pytest.mark.parametrize("route_class", [APIRoute, LoginRedirectRoute])
+    @pytest.mark.parametrize("method", ["GET", "POST"])
+    def test_resolves_nested_router_prefixes_for_full_and_partial_matches(
+        self, route_class, method
+    ):
+        app = FastAPI()
+        child = APIRouter(prefix="/child", route_class=route_class)
+        child.add_api_route("/items/{item_id}", lambda: None, methods=["GET"])
+        parent = APIRouter(prefix="/parent")
+        parent.include_router(child, prefix="/nested")
+        app.include_router(parent, prefix="/api")
+        scope = {
+            "type": "http",
+            "method": method,
+            "path": "/api/parent/nested/child/items/private-item",
+            "app": app,
+        }
+
+        assert TelemetrySanitizationMiddleware._route_template(scope) == (
+            "/api/parent/nested/child/items/{item_id}"
+        )

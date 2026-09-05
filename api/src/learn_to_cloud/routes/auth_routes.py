@@ -15,7 +15,7 @@ from fastapi.responses import RedirectResponse
 from learn_to_cloud_shared.core.config import get_web_settings
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from learn_to_cloud.core.auth import UserId, oauth
+from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, oauth
 from learn_to_cloud.services.users_service import (
     get_or_create_user_from_github,
     parse_display_name,
@@ -136,7 +136,16 @@ async def callback(request: Request) -> RedirectResponse:
     summary="Log out and clear session",
     include_in_schema=False,
 )
-async def logout(request: Request, user_id: UserId) -> RedirectResponse:
+async def logout(request: Request) -> RedirectResponse:
     """Clear the session cookie and redirect to home."""
     request.session.clear()
-    return RedirectResponse(url="/", status_code=302)
+    response = RedirectResponse(url="/", status_code=303)
+    # Rejected cookies look like empty sessions to SessionMiddleware.
+    response.delete_cookie(
+        SESSION_COOKIE_NAME,
+        path="/",
+        secure=get_web_settings().web_security.require_https,
+        httponly=True,
+        samesite="lax",
+    )
+    return response
