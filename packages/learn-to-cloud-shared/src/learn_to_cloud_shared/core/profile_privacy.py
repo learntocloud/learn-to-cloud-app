@@ -1,6 +1,6 @@
 """Value-free errors for the OAuth profile persistence transaction."""
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 
@@ -61,7 +61,7 @@ def sanitize_profile_database_error(
 
 
 @contextmanager
-def profile_persistence() -> Iterator[None]:
+def profile_persistence() -> Generator[None]:
     """Protect profile writes, commit, and session cleanup without swallowing errors."""
     token = _profile_persistence_active.set(True)
     try:
