@@ -381,9 +381,9 @@ def test_display_name_populated_upgrade_and_loss_aware_downgrade(
                 )
 
 
-@pytest.mark.parametrize("revision", [_PRE_DISPLAY_NAME, _DISPLAY_NAME_EXPANSION])
-async def test_display_name_expansion_runtime_compatibility(
-    alembic_runner, alembic_engine, revision
+@pytest.mark.parametrize("contracted", [False, True])
+async def test_display_name_cutover_runtime_compatibility(
+    alembic_runner, alembic_engine, contracted
 ) -> None:
     """Execute real ORM SQL on both rollout schemas, not standalone compilation."""
     alembic_runner.migrate_up_to(_PRE_DISPLAY_NAME)
@@ -397,9 +397,17 @@ async def test_display_name_expansion_runtime_compatibility(
             ),
             {"now": datetime(2024, 1, 1, tzinfo=UTC)},
         )
-    alembic_runner.migrate_up_to(revision)
+    alembic_runner.migrate_up_to(_DISPLAY_NAME_EXPANSION)
+    if contracted:
+        with alembic_engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE users DROP COLUMN first_name, DROP COLUMN last_name")
+            )
     assert "display_name" in User.__table__.c
-    assert "display_name" not in inspect(User).column_attrs
+    assert "display_name" in inspect(User).column_attrs
+    for legacy in ("first_name", "last_name"):
+        assert legacy in User.__table__.c
+        assert legacy not in inspect(User).column_attrs
     async_engine = create_async_engine(
         alembic_engine.url.set(drivername="postgresql+asyncpg")
     )
@@ -415,55 +423,54 @@ async def test_display_name_expansion_runtime_compatibility(
         ) as db:
             repo = UserRepository(db)
             created = await repo.get_or_create(
-                7001, github_username="legacy", first_name="First", last_name="Last"
+                7001, github_username="profile", display_name="  First  Last 李  "
             )
             assert isinstance(created, User)
-            assert (created.first_name, created.last_name) == ("First", "Last")
+            assert created.display_name == "  First  Last 李  "
             existing = await repo.get_or_create(
-                7001, github_username="ignored", first_name="Ignored"
+                7001, github_username="ignored", display_name="Ignored"
             )
             assert existing is created
-            assert existing.github_username == "legacy"
-            assert existing.first_name == "First"
+            assert existing.github_username == "profile"
+            assert existing.display_name == "  First  Last 李  "
 
             inserted = await repo.upsert(
-                7002, github_username="inserted", first_name="Original"
+                7002, github_username="inserted", display_name="Original"
             )
             assert isinstance(inserted, User)
             created_at = inserted.created_at
             updated_at = inserted.updated_at
-            db.expunge(inserted)
             updated = await repo.upsert(
                 7002,
                 github_username="updated",
-                first_name="Updated",
-                last_name="Profile",
+                display_name="Updated Profile",
                 avatar_url="https://example.com/updated.png",
             )
             assert isinstance(updated, User)
+            assert updated is inserted
             assert (updated.id, updated.github_username) == (7002, "updated")
-            assert (updated.first_name, updated.last_name) == ("Updated", "Profile")
+            assert updated.display_name == "Updated Profile"
             assert updated.avatar_url == "https://example.com/updated.png"
             assert updated.created_at == created_at
             assert updated.updated_at > updated_at
-            db.expunge(updated)
             cleared = await repo.upsert(7002, github_username="updated")
-            assert (cleared.first_name, cleared.last_name, cleared.avatar_url) == (
-                None,
-                None,
-                None,
-            )
+            assert cleared is inserted
+            assert (cleared.display_name, cleared.avatar_url) == (None, None)
+            stored_before = await repo.get_by_id(7004)
+            assert stored_before is not None
+            assert stored_before.display_name == "Stored Legacy"
             stored = await repo.upsert(
-                7004, github_username="stored", first_name="Later", last_name="Write"
+                7004, github_username="stored", display_name=None
             )
-            assert (stored.first_name, stored.last_name) == ("Later", "Write")
+            assert stored is stored_before
+            assert stored.display_name is None
             assert stored.is_admin is True
             assert stored.created_at == datetime(2024, 1, 1, tzinfo=UTC)
 
-            normal = User(id=7003, github_username="normal", first_name="Normal")
+            normal = User(id=7003, github_username="normal", display_name="Normal")
             db.add(normal)
             await db.flush()
-            normal.last_name = "Write"
+            normal.display_name = "Normal Write"
             await db.flush()
             assert await repo.get_by_id(7003) is normal
             assert set(u.id for u in await repo.get_by_ids([7001, 7002, 7003])) == {
@@ -480,11 +487,11 @@ async def test_display_name_expansion_runtime_compatibility(
             start = len(statements)
             with patch.object(repo, "get_by_id", AsyncMock(return_value=None)):
                 raced = await repo.get_or_create(
-                    7003, github_username="ignored", first_name="Ignored"
+                    7003, github_username="ignored", display_name="Ignored"
                 )
             assert raced is normal
             assert raced.github_username == "normal"
-            assert raced.first_name == "Normal"
+            assert raced.display_name == "Normal Write"
             assert "on conflict (id) do nothing returning" in statements[start]
             assert statements[start + 1].startswith("select ")
 
@@ -498,7 +505,7 @@ async def test_display_name_expansion_runtime_compatibility(
             selected = (
                 await db.execute(select(User).where(User.id == 7003))
             ).scalar_one()
-            assert (selected.first_name, selected.last_name) == ("Normal", "Write")
+            assert selected.display_name == "Normal Write"
             await repo.delete(7003)
             assert await repo.get_by_id(7003) is None
             assert await db.scalar(select(LearnerStepCompletion.user_id)) is None
@@ -511,14 +518,22 @@ async def test_display_name_expansion_runtime_compatibility(
         await async_engine.dispose()
 
     assert statements
-    assert all("display_name" not in statement for statement in statements)
+    assert all(
+        legacy not in statement
+        for statement in statements
+        for legacy in ("first_name", "last_name")
+    )
     assert any("on conflict (id) do update" in statement for statement in statements)
     assert any(
         statement.startswith("insert into users") and "returning" not in statement
         for statement in statements
     )
-    if revision == _DISPLAY_NAME_EXPANSION:
+    with alembic_engine.connect() as conn:
+        assert conn.execute(
+            text("SELECT display_name FROM users ORDER BY id")
+        ).scalars().all() == ["  First  Last 李  ", None, None]
+    if not contracted:
         with alembic_engine.connect() as conn:
             assert conn.execute(
-                text("SELECT display_name FROM users ORDER BY id")
-            ).scalars().all() == [None, None, "Stored Legacy"]
+                text("SELECT first_name, last_name FROM users ORDER BY id")
+            ).all() == [(None, None), (None, None), ("Stored", "Legacy")]

@@ -55,7 +55,7 @@ separate authorization.
 | Release | Database | Application |
 | --- | --- | --- |
 | A: expansion (`0058_add_user_display_name`) | Adds nullable `users.display_name` as unrestricted `Text`, with no default, index, or uniqueness constraint; retains both legacy columns | Still reads and writes `first_name` and `last_name`; the API and greeting are unchanged |
-| B: application cutover (later PR) | Retains all three columns | Uses `display_name`; legacy columns remain only in model metadata |
+| B: application cutover | Retains all three columns | Uses `display_name`; legacy columns remain only in model metadata |
 | C: cleanup (later PR) | Removes `first_name` and `last_name` | No runtime dependency on legacy storage |
 
 During A, `display_name` is in table metadata but excluded from the ORM mapping.
@@ -63,6 +63,13 @@ This keeps the migration runner's strict schema comparison intact while normal
 inserts, SELECTs, and repository entity-returning inserts/upserts still work
 before expansion. In B, the same technique applies to the legacy columns.
 Do not remove transitional metadata or weaken Alembic's schema checks.
+
+B's PostgreSQL compatibility tests execute normal ORM insertion, SELECTs, both
+entity-returning repository paths, conflict fallback, batch lookups, refresh,
+clearing, and deletion with progress cascades. They cover expanded storage and
+a manually contracted disposable database while legacy metadata is retained;
+they do not require the future C migration. The deployed schema at B must
+still retain all three columns to pass strict migration metadata comparison.
 
 Expansion backfills once. Each legacy component containing non-whitespace text
 is preserved exactly, and populated components are joined with one space.

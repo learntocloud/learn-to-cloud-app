@@ -45,15 +45,15 @@ class User(TimestampMixin, Base):
 
     __tablename__ = "users"
     __table_args__ = (
-        Column("display_name", Text, nullable=True),
+        Column("first_name", String(255), nullable=True),
+        Column("last_name", String(255), nullable=True),
         Index("ix_users_github_username", "github_username"),
     )
-    # Keep migration metadata complete without querying the column before expansion.
-    __mapper_args__ = {"exclude_properties": ["display_name"]}
+    # Retain migration metadata without requiring legacy columns at runtime.
+    __mapper_args__ = {"exclude_properties": ["first_name", "last_name"]}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
-    first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     github_username: Mapped[str] = mapped_column(String(255), nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)

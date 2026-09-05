@@ -53,8 +53,7 @@ def _fake_user() -> MagicMock:
     """Minimal user object that satisfies template rendering."""
     user = MagicMock()
     user.id = 1
-    user.first_name = "Test"
-    user.last_name = "User"
+    user.display_name = "Test User"
     user.github_username = "testuser"
     user.avatar_url = "https://example.com/avatar.png"
     user.is_admin = False

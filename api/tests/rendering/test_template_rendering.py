@@ -26,7 +26,7 @@ def _base_ctx(**overrides: object) -> dict[str, object]:
         frontend_telemetry=None,
         now=datetime(2026, 1, 1),
         user=SimpleNamespace(
-            github_username="tester", first_name="Tester", avatar_url=None
+            github_username="tester", display_name="Tester", avatar_url=None
         ),
     )
     ctx.update(overrides)
@@ -863,6 +863,35 @@ def test_dashboard_help_section_links_to_discord():
 
 @pytest.mark.unit
 class TestDashboardPrimaryState:
+    @pytest.mark.parametrize(
+        ("name", "greeting"),
+        [
+            (None, "tester"),
+            ("  李 e\u0301  🛰️  ", "  李 e\u0301  🛰️  "),
+            ("名" * 600, "名" * 600),
+            (
+                '<script>alert("name")</script> & \'',
+                "&lt;script&gt;alert(&#34;name&#34;)&lt;/script&gt; &amp; &#39;",
+            ),
+        ],
+    )
+    def test_greeting_preserves_and_escapes_name(self, name, greeting):
+        html = _render(
+            "pages/dashboard.html",
+            dashboard=self._dashboard(phases=[]),
+            help_links=[],
+            user=SimpleNamespace(
+                github_username="tester", display_name=name, avatar_url=None
+            ),
+        )
+        assert f"Welcome back, {greeting}." in html
+        assert '<script>alert("name")</script>' not in html
+        title = html.split("<title>", 1)[1].split("</title>", 1)[0]
+        assert "Dashboard" in title
+        assert "tester" not in title
+        if name:
+            assert name not in title
+
     @staticmethod
     def _dashboard(
         *,

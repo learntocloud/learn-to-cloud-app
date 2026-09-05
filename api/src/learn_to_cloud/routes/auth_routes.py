@@ -20,7 +20,6 @@ from learn_to_cloud.core.auth import (
 from learn_to_cloud.services.users_service import (
     get_or_create_user_from_github,
     normalize_github_username,
-    parse_display_name,
 )
 
 logger = logging.getLogger(__name__)
@@ -107,15 +106,13 @@ async def callback(request: Request) -> RedirectResponse:
         return _reject_identity(normalized_identity)
 
     avatar_url = github_user.get("avatar_url")
-    first_name, last_name = parse_display_name(github_user.get("name", ""))
 
     sm: async_sessionmaker[AsyncSession] = request.app.state.session_maker
     async with sm() as db:
         user = await get_or_create_user_from_github(
             db=db,
             github_id=normalized_identity.user_id,
-            first_name=first_name,
-            last_name=last_name,
+            display_name=github_user.get("name"),
             avatar_url=avatar_url,
             github_username=normalized_identity.github_username,
         )

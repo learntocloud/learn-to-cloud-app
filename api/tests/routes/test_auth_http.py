@@ -1,6 +1,7 @@
 """Authentication contracts through real routes and signed-cookie middleware."""
 
 import json
+import logging
 from base64 import b64decode, b64encode
 from datetime import UTC, datetime
 from http.cookies import SimpleCookie
@@ -86,8 +87,7 @@ def _session_cookie(session: dict, *, expired: bool = False) -> str:
 def user():
     return User(
         id=42,
-        first_name="Test",
-        last_name="User",
+        display_name="Test User",
         github_username="testuser",
         avatar_url=None,
         is_admin=False,
@@ -140,7 +140,8 @@ def app(test_settings, user, api_services, github):
 
     browser_router = APIRouter(route_class=LoginRedirectRoute)
 
-    @browser_router.api_route("/browser-mutation", methods=["POST", "DELETE"])
+    @browser_router.post("/browser-mutation")
+    @browser_router.delete("/browser-mutation")
     async def browser_mutation(current_user: CurrentUser):
         return PlainTextResponse(str(current_user.user_id))
 
@@ -534,6 +535,128 @@ async def test_oauth_invariant_failure_remains_500(app, oauth_callback, user, ca
     database.commit.assert_not_awaited()
     assert "auth.callback.identity_rejected" not in caplog.text
     assert "auth.login.success" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("profile", "expected", "warns"),
+    [
+        ({}, None, False),
+        ({"name": None}, None, False),
+        ({"name": ""}, None, False),
+        ({"name": "\t \u2003\n"}, None, False),
+        (
+            {"name": "  Profile-Sentinel 李 e\u0301 🛰️  "},
+            "  Profile-Sentinel 李 e\u0301 🛰️  ",
+            False,
+        ),
+        ({"name": {"value": "Profile-Sentinel"}}, None, True),
+        ({"name": "Profile-Sentinel\x00"}, None, True),
+        ({"name": "Profile-Sentinel\ud800"}, None, True),
+    ],
+)
+@pytest.mark.parametrize("failure", [None, "upsert", "commit"])
+async def test_callback_profile_privacy_and_session_contract(
+    app, telemetry_client, github, user, caplog, profile, expected, warns, failure
+):
+    _, exporter = telemetry_client
+    caplog.set_level(logging.INFO)
+    database = AsyncMock()
+    context = AsyncMock()
+    context.__aenter__.return_value = database
+    context.__aexit__.return_value = False
+    app.state.session_maker = MagicMock(return_value=context)
+    github.authorize_access_token = AsyncMock(
+        return_value={"access_token": "private-token"}
+    )
+    # json.dumps also represents malformed Unicode safely on the wire.
+    github.get = AsyncMock(
+        return_value=httpx2.Response(
+            200,
+            content=json.dumps({"id": 42, "login": "TestUser", **profile}).encode(),
+            request=httpx2.Request("GET", "https://api.github.com/user"),
+        )
+    )
+    user.display_name = expected
+    with patch(
+        "learn_to_cloud.services.users_service.UserRepository", autospec=True
+    ) as repository:
+        upsert = repository.return_value.upsert
+        upsert.return_value = user
+        if failure:
+            operation = upsert if failure == "upsert" else database.commit
+            operation.side_effect = RuntimeError("Synthetic persistence failure")
+        async with AsyncClient(
+            transport=ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://testserver",
+        ) as client:
+            response = await client.get("/auth/callback")
+            if failure:
+                assert response.status_code == 500
+                assert "set-cookie" not in response.headers
+                assert SESSION_COOKIE_NAME not in client.cookies
+                assert "auth.login.success" not in caplog.text
+                if failure == "upsert":
+                    database.commit.assert_not_awaited()
+            else:
+                assert response.status_code == 302
+                assert response.headers["location"] == "/dashboard"
+                database.commit.assert_awaited_once()
+                cookie = client.cookies.get(SESSION_COOKIE_NAME)
+                assert cookie is not None
+                payload = json.loads(b64decode(TimestampSigner(_SECRET).unsign(cookie)))
+                assert payload == {"user_id": 42, "github_username": "testuser"}
+                assert "Profile-Sentinel" not in repr(payload)
+                me = await client.get("/api/user/me")
+                assert me.status_code == 200
+                assert me.json() == {
+                    "id": 42,
+                    "github_username": "testuser",
+                    "display_name": expected,
+                    "avatar_url": None,
+                    "is_admin": False,
+                    "created_at": "2024-01-01T00:00:00Z",
+                }
+                assert "auth.login.success" in caplog.text
+        upsert.assert_awaited_once_with(
+            42, github_username="testuser", display_name=expected, avatar_url=None
+        )
+    warnings = [
+        r
+        for r in caplog.records
+        if r.getMessage() == "auth.callback.display_name_ignored"
+    ]
+    assert len(warnings) == int(warns)
+    for record in warnings:
+        assert record.args == ()
+        assert record.exc_info is None
+        assert not any(key.startswith("auth.") for key in record.__dict__)
+    assert "auth.callback.identity_rejected" not in caplog.text
+    spans = exporter.get_finished_spans()
+    assert any(span.kind == SpanKind.SERVER for span in spans)
+    telemetry = "\n".join(span.to_json() for span in spans) + json.dumps(
+        [record.__dict__ for record in caplog.records], default=str
+    )
+    assert "Profile-Sentinel" not in telemetry
+    for span in spans:
+        assert (
+            not {"display_name", "first_name", "last_name", "user.display_name"}
+            & span.attributes.keys()
+        )
+
+
+async def test_profile_openapi_has_only_new_name_field(client):
+    response = await client.get("/openapi.json")
+    assert response.status_code == 200
+    properties = response.json()["components"]["schemas"]["UserResponse"]["properties"]
+    assert set(properties) == {
+        "id",
+        "github_username",
+        "display_name",
+        "avatar_url",
+        "is_admin",
+        "created_at",
+    }
+    assert properties["display_name"]["anyOf"] == [{"type": "string"}, {"type": "null"}]
 
 
 @pytest.mark.parametrize(

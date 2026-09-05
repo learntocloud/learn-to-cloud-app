@@ -171,6 +171,15 @@ alert notifications, and must not be added to general request spans.
 
 Authentication telemetry never includes GitHub usernames, GitHub IDs, internal
 user IDs, OAuth tokens, claims, or session identifiers.
+Display names and legacy first/last names are prohibited in logs, spans/events,
+metric labels, and browser identity context, including on persistence failures.
+
+`auth.callback.display_name_ignored` is a constant warning with no application
+attributes or exception details. It means an optional profile name was a
+non-string or could not be stored (NUL or invalid UTF-8 representation).
+The name becomes `NULL` and normal login continues. Missing/null/blank names
+are ordinary profile data and emit no warning. Do not use this warning as an
+identity-rejection or failed-login signal, and never attach the discarded value.
 
 `auth.session.identity_rejected` and `auth.callback.identity_rejected` are
 warning-level logs for handled identity rejection. Their only application

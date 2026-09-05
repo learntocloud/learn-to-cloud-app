@@ -101,6 +101,27 @@ investigate it through the existing unhandled-exception guide above. Malformed
 cookie decoding occurs earlier in middleware and is tracked separately in #834.
 See the [telemetry schema](../observability/telemetry-schema.html) for reason values.
 
+## Ignored optional profile names and staged schema rollout
+
+`auth.callback.display_name_ignored` is a value-free warning, not rejected
+identity or failed login. An unusable optional name becomes `NULL`; successful
+login still emits `auth.login.success`. Missing or blank names produce no warning.
+Never request names or attach them to logs, spans, metric labels, or browser
+identity context, including while investigating persistence failures.
+
+During the [display-name rollout](../migrations.html#display-name-rollout-836),
+compare existing login-success, callback-error, request-status, migration-job,
+and schema-drift signals with the deployed revision. Wait for each full deployment
+before merging the next layer. Confirm the cutover revision serves authenticated
+profile/dashboard requests and old replicas are retired before column removal;
+readiness alone cannot prove that. No new alert or user dimension is needed.
+
+After legacy columns are removed, pre-cutover images are incompatible. Prefer
+a forward fix; even a compatible cutover runtime needs schema-aware migration
+tooling and expected revision-drift handling. Never rerun an older deployment
+workflow as an assumed rollback. Schema downgrade does not restore discarded
+legacy names, and dropping display-name storage loses refreshed names.
+
 ## Telemetry pipeline failure
 
 ### Meaning
