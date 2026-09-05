@@ -48,27 +48,29 @@ revision for eight days while CI reported green deploys.
 
 ## Display-name rollout (#836)
 
-Ship these three dependent releases separately. Review or successful PR checks
-do not replace a completed deployment between releases; merging requires
-separate authorization.
+Ship the schema addition and application cutover together, then remove legacy
+storage in a separate cleanup release. Merging requires separate authorization.
 
 | Release | Database | Application |
 | --- | --- | --- |
-| A: expansion (`0058_add_user_display_name`) | Adds nullable `users.display_name` as unrestricted `Text`, with no default, index, or uniqueness constraint; retains both legacy columns | Still reads and writes `first_name` and `last_name`; the API and greeting are unchanged |
-| B: application cutover | Retains all three columns | Uses `display_name`; legacy columns remain only in model metadata |
-| C: cleanup (later PR) | Removes `first_name` and `last_name` | No runtime dependency on legacy storage |
+| Profile release (`0058_add_user_display_name`) | Adds nullable `users.display_name` as unrestricted `Text`, with no default, index, or uniqueness constraint; retains both legacy columns | Uses `display_name` for profiles and greetings |
+| Cleanup (later PR) | Removes `first_name` and `last_name` | Removes legacy model metadata and temporary mapper exclusions |
 
-During A, `display_name` is in table metadata but excluded from the ORM mapping.
-This keeps the migration runner's strict schema comparison intact while normal
-inserts, SELECTs, and repository entity-returning inserts/upserts still work
-before expansion. In B, the same technique applies to the legacy columns.
-Do not remove transitional metadata or weaken Alembic's schema checks.
+Deployment applies the migration and checks schema agreement before starting
+the new API image. `display_name` is a normal mapped attribute; the new app
+requires the expanded schema. Old instances continue to use the retained legacy
+columns until replaced. There is no separate schema-only deployment.
 
-B's PostgreSQL compatibility tests execute normal ORM insertion, SELECTs, both
+Legacy columns remain in table metadata but are excluded from the new ORM
+mapping, so runtime queries and writes no longer need them. This keeps strict
+migration schema comparison intact and prepares the app for later cleanup.
+Remove that transitional metadata only with the cleanup migration.
+
+The profile release's PostgreSQL compatibility tests execute normal ORM insertion, SELECTs, both
 entity-returning repository paths, conflict fallback, batch lookups, refresh,
 clearing, and deletion with progress cascades. They cover expanded storage and
 a manually contracted disposable database while legacy metadata is retained;
-they do not require the future C migration. The deployed schema at B must
+they do not require the future cleanup migration. The deployed profile schema must
 still retain all three columns to pass strict migration metadata comparison.
 
 Expansion backfills once. Each legacy component containing non-whitespace text
@@ -88,41 +90,39 @@ backfill cannot fit this bounded operation, revisit batching rather than
 removing the timeouts. No production names need to be inspected or logged.
 
 An old revision can still write legacy fields after backfill. That accepted gap
-can leave an older name or username greeting until a login through B refreshes
+can leave an older name or username greeting until a login through the new app refreshes
 the profile. Do not add a trigger, dual write, legacy read fallback, or another
 `WHERE display_name IS NULL` backfill: NULL may be an intentional name removal
 after cutover.
 
 ### Deployment gates and recovery
 
-- **Gate A:** after an authorized merge, wait for the entire Application Deploy
-  workflow (`app-deploy.yml`) to succeed. Confirm the expansion head and physical
-  schema, the expected API image, and the verification Functions deployment.
-  Only then may B be merged.
-- **Gate B:** after B deploys, run authenticated profile/dashboard checks and the
-  existing readiness and verification-submit checks. Confirm B-or-newer is
-  serving, all old API replicas have retired, Functions deployed successfully,
-  and no rollback is outstanding before allowing C. A passing `/ready` is not
-  proof that old readers are gone; revision drift is warning-only.
-- **Gate C:** after cleanup deploys, require the full deployment plus
+- **Profile release:** after an authorized merge, wait for the entire
+  Application Deploy workflow (`app-deploy.yml`) to succeed. Confirm the
+  expanded schema, expected API image, and verification Functions deployment.
+  Run authenticated profile/dashboard, readiness, and verification-submit
+  checks. All old API replicas must retire, with no rollback outstanding,
+  before cleanup may merge. A passing `/ready` alone does not prove that old
+  readers are gone; revision drift is warning-only.
+- **Cleanup:** after a separately authorized merge, require the full deployment plus
   authenticated profile/dashboard and public community checks.
 
-Downgrading A drops `display_name` and loses any refreshed canonical names;
-legacy columns remain unchanged. B must not be running during that downgrade.
-Upgrading A again reconstructs only the old legacy values, not discarded
-display names. C's future downgrade restores empty nullable legacy columns,
+Downgrading the addition drops `display_name` and loses any refreshed canonical
+names; legacy columns remain unchanged. The new app must not be running during
+that downgrade. Reapplying the addition reconstructs only the old legacy values,
+not discarded display names. Cleanup's future downgrade restores empty nullable legacy columns,
 not their discarded contents, and must not split the canonical name.
 
-After C, pre-cutover code is not an allowed image-only rollback. Prefer a
-forward fix. Even if B's runtime supports the contracted table, B's older
-migration files do not know C's revision and its metadata still expects legacy
+After cleanup, pre-cutover code is not an allowed image-only rollback. Prefer a
+forward fix. Even if the profile release's runtime supports the contracted table,
+its older migration files do not know the cleanup revision and its metadata still expects legacy
 columns. Any compatible image-only recovery must retain schema-aware migration
 tooling and account for revision-drift warnings; do not rerun an old deployment
 workflow as an assumed rollback.
 
 Use a disposable database matching the checked-out release for local reviews.
-Before switching from C to an earlier branch, downgrade that disposable database
-using C's migration files or create a fresh disposable database. Never reset
+Before switching from cleanup to an earlier branch, downgrade that disposable database
+using cleanup's migration files or create a fresh disposable database. Never reset
 normal development data. Upper stacked PRs targeting another feature branch
 have local checks only under the current CI policy; require normal successful
 PR CI after each layer is retargeted to `main`.

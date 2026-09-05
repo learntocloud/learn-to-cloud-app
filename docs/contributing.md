@@ -447,25 +447,24 @@ See the [telemetry schema](observability/telemetry-schema.html).
 
 ## Database Migrations
 
-### Keep schema changes and code changes in separate PRs
+### Combine compatible schema and application changes
 
-A PR that adds a new migration should not also change app code that
-depends on the new schema. Ship them as two PRs:
+An additive migration and the app code that uses it can ship in one PR.
+Deployment runs migrations and checks schema agreement before updating the
+API; a migration failure stops that update. Keep model metadata aligned with
+the migrated schema, and apply migrations before starting the new code locally.
 
-1. **Schema PR** -- contains only the migration file. Merges and deploys
-   first so the new table/index/column exists in production.
-2. **Code PR** -- uses the new schema (e.g., `ON CONFLICT` against a new
-   index, queries on a new column). Merges after the schema PR has
-   deployed successfully.
+The old app continues running while migrations execute, so it must still work
+with the expanded schema. For example, add `display_name` and start using it
+in the same release, but retain the legacy name columns for old instances and
+rollback. Remove unused columns in a later cleanup after those instances have
+retired.
 
-Why: if a migration fails silently (or gets rolled back), the old app
-code is still running. If that old code already depends on the new
-schema, users see 500 errors. Keeping them separate means the old code
-keeps working against the old schema.
-
-It's fine to bundle them in one PR when the code change is purely
-additive and the old code path doesn't break without the new schema
-(e.g., adding a nullable column that nothing reads yet).
+Brief downtime is acceptable for this app; separate schema-only releases are
+not required just to avoid it. For incompatible changes, explicitly plan to
+stop affected app instances before migrating, or use compatible intermediate
+steps. The deployment workflow does not stop old instances before migrations.
+Never drop data or weaken migration failure checks merely to combine releases.
 
 See [Database Migrations](migrations.html) for more on how migrations work.
 
