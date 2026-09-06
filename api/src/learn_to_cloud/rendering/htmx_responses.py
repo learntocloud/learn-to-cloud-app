@@ -11,11 +11,11 @@ from learn_to_cloud_shared.schemas import HandsOnRequirement, Topic
 
 from learn_to_cloud.core.auth import AuthenticatedUser
 from learn_to_cloud.core.templates import templates
-from learn_to_cloud.rendering.context import (
+from learn_to_cloud.rendering.progress import build_progress_dict
+from learn_to_cloud.rendering.requirement_cards import (
     RequirementCardContext,
     build_checking_requirement_card_context,
     build_input_error_requirement_card_context,
-    build_progress_dict,
     build_unavailable_requirement_card_context,
 )
 

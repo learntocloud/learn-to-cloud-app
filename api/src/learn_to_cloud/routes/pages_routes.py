@@ -23,14 +23,16 @@ from learn_to_cloud.core.auth import (
 )
 from learn_to_cloud.core.routing import LoginRedirectRoute
 from learn_to_cloud.core.templates import templates
-from learn_to_cloud.rendering.context import (
+from learn_to_cloud.rendering.page_content import (
     COMMUNITY_LINKS,
     FAQS,
     HELP_LINKS,
+)
+from learn_to_cloud.rendering.progress import (
     build_phase_topics,
     build_progress_dict,
-    build_topic_nav,
 )
+from learn_to_cloud.rendering.topic_navigation import build_topic_nav
 from learn_to_cloud.services.community_service import get_community_page_data
 from learn_to_cloud.services.dashboard_service import get_dashboard_data
 from learn_to_cloud.services.progress_service import fetch_phase_progress

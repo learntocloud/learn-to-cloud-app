@@ -13,13 +13,13 @@ from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.schemas import SubmissionData
 
 from learn_to_cloud.core.templates import templates
-from learn_to_cloud.rendering.context import (
+from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
+from learn_to_cloud.rendering.htmx_responses import render_step_toggle
+from learn_to_cloud.rendering.page_content import (
     COMMUNITY_LINKS,
     HELP_LINKS,
-    build_requirement_card_context,
-    feedback_tasks_and_passed,
 )
-from learn_to_cloud.rendering.htmx_responses import render_step_toggle
+from learn_to_cloud.rendering.requirement_cards import build_requirement_card_context
 from learn_to_cloud.services.verification_page_service import (
     VerificationAttemptHistoryItem,
 )

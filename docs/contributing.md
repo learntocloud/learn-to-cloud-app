@@ -328,6 +328,30 @@ Routes (HTTP) → Services (Business Logic) → Repositories (Database)
 - **Services** contain business rules — no HTTP knowledge
 - **Repositories** execute queries — return ORM models or primitives
 
+### Rendering ownership
+
+Routes and services delegate template-data preparation to
+`api/src/learn_to_cloud/rendering/`. These helpers are synchronous and do not
+perform database or network I/O.
+
+| Module | Responsibility |
+|--------|----------------|
+| `requirement_cards.py` | Card states, builders, and card-specific display properties |
+| `verification_forms.py` | Form display models and their builder |
+| `feedback.py` | Feedback formatting, safe evidence links, and incomplete-verification wording shared by cards and history |
+| `progress.py` | Progress bars and phase-topic progress |
+| `topic_navigation.py` | Previous/next topic links |
+| `page_content.py` | FAQ content and community/help links |
+
+The top-level `learn_to_cloud/verification_forms.py` owns submission checking,
+input shapes, action URLs, and shared length limits. Form rendering uses that
+contract rather than duplicating its rules. Keep related display models and
+builders together, and import them directly from their owning modules.
+
+Rendering preserves the distinction between failed learner work and incomplete
+verification. Operational logs and spans stay at the existing request/service
+boundaries; browser telemetry context remains in `core/templates.py`.
+
 ### Repository verification ownership
 
 The worker calls `run_verification` in the shared verification engine for every

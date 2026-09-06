@@ -29,7 +29,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.datastructures import FormData, UploadFile
 
 from learn_to_cloud.core.auth import AuthenticatedUser, AuthenticationRequired
-from learn_to_cloud.rendering.context import UnavailableCardContext
+from learn_to_cloud.rendering.requirement_cards import UnavailableCardContext
 from learn_to_cloud.routes.htmx_routes import (
     _submit_canonical_verification,
     htmx_complete_step,

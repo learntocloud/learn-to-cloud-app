@@ -1,211 +1,27 @@
-"""Unit tests for rendering.context module.
-
-Tests cover:
-- build_progress_dict percentage calculation
-- build_phase_topics merges topics with progress
-- build_topic_nav prev/next navigation
-- build_requirement_card_context card_state derivation
-"""
+"""Requirement-card state derivation and form integration."""
 
 from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.schemas import (
-    HandsOnRequirement,
-    LearningProgress,
-    LearningStep,
-    Phase,
-    PhaseProgress,
-    Topic,
-    TopicProgressData,
-    VerificationProgress,
-)
+from learn_to_cloud_shared.schemas import HandsOnRequirement
 
-from learn_to_cloud.rendering.context import (
+from learn_to_cloud.rendering.requirement_cards import (
     CheckingCardContext,
     FailedCardContext,
     NotStartedCardContext,
     PassedCardContext,
     UnavailableCardContext,
     build_checking_requirement_card_context,
-    build_phase_topics,
-    build_progress_dict,
+    build_input_error_requirement_card_context,
     build_requirement_card_context,
-    build_topic_nav,
     build_unavailable_requirement_card_context,
 )
-from learn_to_cloud.verification_forms import (
+from learn_to_cloud.rendering.verification_forms import (
     DerivedFormContext,
     TokenFormContext,
 )
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_topic(topic_id: str, slug: str, name: str = "") -> Topic:
-    return Topic(
-        uuid=uuid4(),
-        slug=slug,
-        name=name or slug,
-        description="",
-        order=0,
-        learning_steps=[LearningStep(uuid=uuid4(), slug="s1", order=0)],
-    )
-
-
-# ---------------------------------------------------------------------------
-# build_progress_dict
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestBuildProgressDict:
-    def test_basic(self):
-        result = build_progress_dict(3, 10)
-        assert result == {"completed": 3, "total": 10, "percentage": 30}
-
-    def test_zero_total(self):
-        result = build_progress_dict(0, 0)
-        assert result["percentage"] == 0
-
-
-# ---------------------------------------------------------------------------
-# build_phase_topics
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestBuildPhaseTopics:
-    def test_merges_topics_with_progress(self):
-        topic = _make_topic("phase0-t1", "basics", "Basics")
-        phase = Phase(
-            uuid=uuid4(),
-            name="P0",
-            slug="phase0",
-            order=0,
-            topics=[topic],
-        )
-        detail = PhaseProgress(
-            phase_id=0,
-            learning=LearningProgress(steps_completed=1, steps_required=3),
-            verification=VerificationProgress(
-                requirements_verified=0, requirements_required=0
-            ),
-            topic_progress={
-                topic.uuid: TopicProgressData(
-                    steps_completed=1,
-                    steps_total=3,
-                    percentage=33.3,
-                    status="in_progress",
-                ),
-            },
-        )
-        topics = build_phase_topics(phase, detail)
-        assert len(topics) == 1
-        assert topics[0]["name"] == "Basics"
-        assert topics[0]["slug"] == "basics"
-        assert topics[0]["progress"]["completed"] == 1
-
-    def test_topic_without_progress(self):
-        topic = _make_topic("phase0-t1", "basics")
-        phase = Phase(
-            uuid=uuid4(),
-            name="P0",
-            slug="phase0",
-            order=0,
-            topics=[topic],
-        )
-        detail = PhaseProgress(
-            phase_id=0,
-            learning=LearningProgress(steps_completed=0, steps_required=3),
-            verification=VerificationProgress(
-                requirements_verified=0, requirements_required=0
-            ),
-            topic_progress={},
-        )
-        topics = build_phase_topics(phase, detail)
-        assert topics[0]["progress"] is None
-
-    def test_topic_order_matches_phase_topic_order(self):
-        first = _make_topic("phase0-t1", "first", "First")
-        second = _make_topic("phase0-t2", "second", "Second")
-        phase = Phase(
-            uuid=uuid4(),
-            name="P0",
-            slug="phase0",
-            order=0,
-            topics=[first, second],
-        )
-        detail = PhaseProgress(
-            phase_id=0,
-            learning=LearningProgress(steps_completed=1, steps_required=6),
-            verification=VerificationProgress(
-                requirements_verified=0, requirements_required=0
-            ),
-            topic_progress={},
-        )
-        topics = build_phase_topics(phase, detail)
-        assert [t["slug"] for t in topics] == ["first", "second"]
-
-
-# ---------------------------------------------------------------------------
-# build_topic_nav
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestBuildTopicNav:
-    def _topics(self) -> list[Topic]:
-        return [
-            _make_topic("t1", "first", "First"),
-            _make_topic("t2", "second", "Second"),
-            _make_topic("t3", "third", "Third"),
-        ]
-
-    def test_middle_topic(self):
-        prev_t, next_t = build_topic_nav(self._topics(), "second", 0, "Phase 0")
-        assert prev_t is not None
-        assert prev_t["slug"] == "first"
-        assert next_t is not None
-        assert next_t["slug"] == "third"
-
-    def test_first_topic_prev_is_phase_link(self):
-        prev_t, next_t = build_topic_nav(self._topics(), "first", 0, "Phase 0")
-        assert prev_t is not None
-        assert prev_t["slug"] is None
-        assert prev_t["url"] == "/phase/0"
-        assert next_t is not None
-        assert next_t["slug"] == "second"
-
-    def test_last_topic_next_is_phase_link(self):
-        prev_t, next_t = build_topic_nav(self._topics(), "third", 0, "Phase 0")
-        assert prev_t is not None
-        assert prev_t["slug"] == "second"
-        assert next_t is not None
-        assert next_t["slug"] is None
-        assert next_t["url"] == "/phase/0"
-
-    def test_unknown_slug_returns_none(self):
-        prev_t, next_t = build_topic_nav(self._topics(), "nonexistent", 0, "Phase 0")
-        assert prev_t is None
-        assert next_t is None
-
-    def test_single_topic(self):
-        topics = [_make_topic("t1", "only", "Only")]
-        prev_t, next_t = build_topic_nav(topics, "only", 0, "Phase 0")
-        assert prev_t is not None
-        assert prev_t["url"] == "/phase/0"
-        assert next_t is not None
-        assert next_t["url"] == "/phase/0"
-
-
-# ---------------------------------------------------------------------------
-# build_requirement_card_context
-# ---------------------------------------------------------------------------
 
 
 def _make_requirement(
@@ -270,7 +86,7 @@ class TestBuildRequirementCardContext:
         req = _make_requirement(SubmissionType.JOURNAL_API_VERIFIER)
         with (
             patch(
-                "learn_to_cloud.rendering.context.derive_submission_value",
+                "learn_to_cloud.rendering.verification_forms.derive_submission_value",
                 side_effect=ValueError("missing required_repo"),
             ),
             pytest.raises(ValueError, match="missing required_repo"),
@@ -309,15 +125,8 @@ class TestBuildRequirementCardContext:
         assert isinstance(ctx, NotStartedCardContext)
         assert not hasattr(ctx, "graded_url")
 
-    def test_misconfigured_required_repo_falls_back_to_none(self):
-        """JOURNAL_API_VERIFIER without required_repo is now impossible (#470).
-
-        After hoisting requirements into per-type subclasses, the Pydantic
-        schema rejects construction of a JournalApiVerifierRequirement
-        without required_repo. The defensive try/except in
-        build_requirement_card_context still exists as defense in depth
-        but is unreachable through normal construction.
-        """
+    def test_missing_required_repo_is_rejected_by_schema(self):
+        """Required repository configuration is enforced before rendering."""
         from learn_to_cloud_shared.schemas import HandsOnRequirementAdapter
         from pydantic import ValidationError
 
@@ -334,11 +143,6 @@ class TestBuildRequirementCardContext:
                     "type_config": {},
                 }
             )
-
-
-# ---------------------------------------------------------------------------
-# build_requirement_card_context — card_state derivation
-# ---------------------------------------------------------------------------
 
 
 def _make_submission(
@@ -364,6 +168,44 @@ def _make_submission(
 
 @pytest.mark.unit
 class TestBuildRequirementCardContextCardState:
+    def test_validated_submission_does_not_prepare_a_resubmission_form(self):
+        with patch(
+            "learn_to_cloud.rendering.verification_forms.derive_submission_value",
+            side_effect=ValueError("Form preparation must not run"),
+        ):
+            ctx = build_requirement_card_context(
+                requirement=_make_requirement(SubmissionType.PROFILE_README),
+                github_username="alice",
+                submission=_make_submission(is_validated=True),
+            )
+
+        assert isinstance(ctx, PassedCardContext)
+
+    def test_input_error_keeps_form_and_message(self):
+        ctx = build_input_error_requirement_card_context(
+            requirement=_make_requirement(SubmissionType.CTF_TOKEN),
+            github_username="alice",
+            message="Please enter a token.",
+        )
+
+        assert isinstance(ctx, NotStartedCardContext)
+        assert isinstance(ctx.verification_form, TokenFormContext)
+        assert ctx.error_message == "Please enter a token."
+        assert ctx.feedback_tasks == []
+        assert ctx.feedback_passed == 0
+
+    def test_failed_submission_without_message_uses_default(self):
+        ctx = build_requirement_card_context(
+            requirement=_make_requirement(SubmissionType.CTF_TOKEN),
+            github_username="alice",
+            submission=_make_submission(
+                is_validated=False, verification_completed=True
+            ),
+        )
+
+        assert isinstance(ctx, FailedCardContext)
+        assert ctx.error_message == "Verification did not pass."
+
     def test_processing_is_checking_regardless_of_submission(self):
         req = _make_requirement(SubmissionType.CTF_TOKEN)
         ctx = build_checking_requirement_card_context(
@@ -405,12 +247,7 @@ class TestBuildRequirementCardContextCardState:
         assert ctx.error_message == "Token did not match."
 
     def test_persisted_system_fault_is_unavailable_not_failed(self):
-        """A terminal server_error/cancelled outcome, read back from storage.
-
-        Regression: previously the phase page hardcoded ``server_error=False``
-        for every persisted card, so this state rendered identically to a
-        real learner failure.
-        """
+        """A persisted incomplete result is not a failed learner attempt."""
         req = _make_requirement(SubmissionType.CTF_TOKEN)
         submission = _make_submission(is_validated=False, verification_completed=False)
         ctx = build_requirement_card_context(
