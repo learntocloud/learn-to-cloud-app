@@ -14,13 +14,13 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-import httpx
 from opentelemetry import trace
 
 from learn_to_cloud_shared.core.github_client import get_github_client
 from learn_to_cloud_shared.verification.github_http import (
     get_github_headers,
     github_api_get,
+    raise_for_server_error,
 )
 
 
@@ -31,7 +31,8 @@ class RepoFiles(Protocol):
     ``tree`` raises ``httpx.HTTPStatusError`` (for example a 404 when the
     repository is missing or private) and the retriable GitHub server
     errors raised by the production adapter; callers already handle these.
-    ``file`` returns ``None`` when a file cannot be read.
+    ``file`` returns ``None`` only for a 404; other HTTP and request failures
+    propagate rather than producing incomplete evidence.
     """
 
     async def tree(self, owner: str, repo: str, branch: str = "main") -> list[str]: ...
@@ -58,17 +59,17 @@ class GitHubRepoFiles:
     async def file(
         self, owner: str, repo: str, path: str, branch: str = "main"
     ) -> str | None:
-        """Return a file's raw text, or ``None`` if it cannot be read."""
+        """Read a raw file once, returning ``None`` only for a 404."""
         client = await get_github_client()
         headers = get_github_headers()
         url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
-        try:
-            response = await client.get(url, headers=headers)
-            response.raise_for_status()
-        except httpx.HTTPStatusError:
+        response = await client.get(url, headers=headers)
+        if response.status_code == 404:
             span = trace.get_current_span()
             span.add_event("github.repo_file.fetch_failed")
             return None
+        raise_for_server_error(response)
+        response.raise_for_status()
         return response.text
 
 

@@ -27,8 +27,9 @@ from learn_to_cloud_shared.verification.github_http import (
 class GitHubMetadata(Protocol):
     """Existence and metadata lookups against GitHub.
 
-    ``url_exists`` returns ``True`` for a 200 and ``False`` otherwise (for
-    example a 404). ``repo_metadata`` returns the repository JSON, or
+    ``url_exists`` returns ``True`` for a 200 and ``False`` for a 404 or
+    other successful status. Other HTTP failures propagate with their response.
+    ``repo_metadata`` returns the repository JSON, or
     ``None`` when the repository does not exist (404). Both raise the
     retriable :class:`GitHubServerError` on 5xx/429 and propagate
     ``httpx`` network errors; callers map those to an incomplete result.

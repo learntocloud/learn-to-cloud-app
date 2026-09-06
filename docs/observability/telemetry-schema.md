@@ -153,6 +153,35 @@ when GitHub cannot establish ownership. It is not an extra graded task.
 Neither event nor the span includes account IDs, names, repository URLs, or
 provider response bodies.
 
+GitHub failures mapped after the applicable retries use `error.type` consistently
+on warnings, span attributes, events, and the `github.api_error` counter:
+
+| Condition | `error.type` |
+| --- | --- |
+| HTTP 429, or HTTP 403 identified by rate-limit headers/message | `rate_limit` |
+| HTTP 5xx | `provider_unavailable` |
+| HTTP 401 | `authentication` |
+| Other HTTP 403 | `authorization` |
+| Other non-404 HTTP failures | `client_error` |
+| Native request/timeout failure | `network` |
+
+Response failures include `http.response.status_code`; transport failures do not.
+Ordinary 404s retain contextual missing-work events but produce no operational
+warning or counter increment. Expected upstream failures use
+`verification.step.result=unavailable` and persist the existing incomplete
+`server_error` outcome, not a learner-failed outcome.
+
+Evidence collection emits fixed events: `llm_rubric_review.repo_tree_error`,
+`llm_rubric_review.repo_file_error`, `security_scanning.repo_file_error`,
+`deployment_architecture.repo_tree_error`, and
+`deployment_architecture.repo_file_error`. Failed fetches prevent grading even
+when earlier steps already collected evidence. File paths are never dynamic
+event names or metric dimensions. Deployed-API and GHCR response failures retain
+their existing event names, categories, and completion behavior, adding only the
+actual `http.response.status_code` when available. Do not emit exception text,
+response bodies, headers, retry-header contents, tokens, identities, repository
+URLs, or learner endpoint URLs. Retry delays are not telemetry dimensions.
+
 ### Reconciler summary attributes
 
 | Current attribute | Canonical attribute | Purpose | Cardinality | Class | Decision |
@@ -260,7 +289,14 @@ make authentication telemetry look healthy.
 
 | Metric | Attribute | Purpose | Cardinality | Class | Decision |
 | --- | --- | --- | --- | --- | --- |
-| `github.api_error` | `error.type` | Count network, authentication, authorization, rate-limit, client, and provider failures | Fixed category set | Operational | Keep metric; replace mixed numeric/string `status` with bounded categories |
+| `github.api_error` | `error.type` | Count final mapped GitHub failures using the six categories above | Fixed category set | Operational | Keep; sole dimension is `error.type` |
+
+The meter is `learn_to_cloud`. Count once per final mapper invocation, after
+applicable retries, not once per request attempt. Coverage includes profile,
+fork, HEAD existence, and raw-file failures; raw-file reads still make only one
+attempt. Exhausted 429/5xx responses retain their HTTP category instead of
+appearing as `network`. Increased counts can reflect this expanded coverage and
+corrected classification rather than a new outage.
 
 Metrics must use low-cardinality dimensions. Attempt IDs, routes with concrete
 identifiers, repository names outside the approved curriculum set, exception

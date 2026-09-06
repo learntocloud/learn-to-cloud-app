@@ -50,13 +50,15 @@ from learn_to_cloud_shared.verification.deployment_architecture import (
 from learn_to_cloud_shared.verification.devops_analysis import (
     verify_required_devops_files,
 )
-from learn_to_cloud_shared.verification.errors import github_error_to_result
 from learn_to_cloud_shared.verification.evidence import (
     collect_repo_file_evidence,
-    collect_repo_pattern_evidence,
+    select_repo_paths,
 )
 from learn_to_cloud_shared.verification.ghcr import verify_public_ghcr_image
-from learn_to_cloud_shared.verification.github_http import RETRIABLE_EXCEPTIONS
+from learn_to_cloud_shared.verification.github_errors import (
+    GitHubServerError,
+    github_error_to_result,
+)
 from learn_to_cloud_shared.verification.github_profile import (
     validate_profile_readme,
     validate_repo_fork,
@@ -393,8 +395,8 @@ async def _check_llm_rubric_review(
 ) -> StepResult:
     """Fetch bounded repository evidence for a terminal LLM rubric review.
 
-    Never a gate: it gathers the bundle the LLM will grade and marks the task
-    for grading. The actual LLM call runs later in the separate durable
+    Stops on unavailable evidence; otherwise marks the task for grading.
+    The actual LLM call runs later in the separate durable
     ``run_llm_grading`` activity, so this step stays pure of any model call.
     """
     assert isinstance(params, LLMRubricReviewParams)
@@ -402,43 +404,40 @@ async def _check_llm_rubric_review(
     if target is None:
         return StepResult(passed=True, stop_on_fail=False)
     repo_files = context.repo_files or default_repo_files()
-    if params.discover_paths:
-        try:
-            bundle = await collect_repo_pattern_evidence(
-                repo_files,
-                target.owner,
-                target.repo,
-                params.task,
+    event = "llm_rubric_review.repo_file_error"
+    try:
+        paths = list(params.evidence_paths)
+        if params.discover_paths:
+            event = "llm_rubric_review.repo_tree_error"
+            all_files = await repo_files.tree(target.owner, target.repo)
+            paths = select_repo_paths(
+                all_files,
+                params.task.evidence.path_patterns,
+                max_files=params.task.evidence.max_files,
             )
-        except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
-            result = github_error_to_result(
-                exc,
-                event="llm_rubric_review.repo_tree_error",
-            )
-            return StepResult(
-                passed=False,
-                stop_on_fail=True,
-                validation_result=result,
-            )
-        if not bundle.items:
-            return StepResult(
-                passed=False,
-                stop_on_fail=True,
-                validation_result=ValidationResult(
-                    is_valid=False,
-                    message=(
-                        "Could not collect repository evidence for automated review."
-                    ),
-                    verification_completed=False,
-                ),
-            )
-    else:
+            event = "llm_rubric_review.repo_file_error"
         bundle = await collect_repo_file_evidence(
             repo_files,
             target.owner,
             target.repo,
-            list(params.evidence_paths),
+            paths,
             params.task,
+        )
+    except (GitHubServerError, httpx.HTTPStatusError, httpx.RequestError) as exc:
+        return StepResult(
+            passed=False,
+            stop_on_fail=True,
+            validation_result=github_error_to_result(exc, event=event),
+        )
+    if params.discover_paths and not bundle.items:
+        return StepResult(
+            passed=False,
+            stop_on_fail=True,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message="Could not collect repository evidence for automated review.",
+                verification_completed=False,
+            ),
         )
     return StepResult(
         passed=True,
@@ -558,12 +557,21 @@ async def _check_security_scanning_review(
     if target is None:
         return StepResult(passed=True, stop_on_fail=False)
     repo_files = context.repo_files or default_repo_files()
-    bundle = await collect_security_scanning_evidence(
-        target.owner,
-        target.repo,
-        params.task,
-        repo_files=repo_files,
-    )
+    try:
+        bundle = await collect_security_scanning_evidence(
+            target.owner,
+            target.repo,
+            params.task,
+            repo_files=repo_files,
+        )
+    except (GitHubServerError, httpx.HTTPStatusError, httpx.RequestError) as exc:
+        return StepResult(
+            passed=False,
+            stop_on_fail=True,
+            validation_result=github_error_to_result(
+                exc, event="security_scanning.repo_file_error"
+            ),
+        )
     return StepResult(
         passed=True,
         stop_on_fail=False,
@@ -742,14 +750,23 @@ async def _check_deployment_architecture_review(
     submitted_value = context.submitted_value
     if not isinstance(submitted_value, TextValue):
         raise TypeError("Deployment architecture review requires a text value")
-    bundle = await collect_deployment_architecture_evidence(
-        target.owner,
-        target.repo,
-        submitted_value.text,
-        params.task,
-        deploy_script_path=deploy_script_path,
-        repo_files=context.repo_files or default_repo_files(),
-    )
+    try:
+        bundle = await collect_deployment_architecture_evidence(
+            target.owner,
+            target.repo,
+            submitted_value.text,
+            params.task,
+            deploy_script_path=deploy_script_path,
+            repo_files=context.repo_files or default_repo_files(),
+        )
+    except (GitHubServerError, httpx.HTTPStatusError, httpx.RequestError) as exc:
+        return StepResult(
+            passed=False,
+            stop_on_fail=True,
+            validation_result=github_error_to_result(
+                exc, event="deployment_architecture.repo_file_error"
+            ),
+        )
     return StepResult(
         passed=True,
         stop_on_fail=False,
@@ -1040,12 +1057,14 @@ def _grading_requests_for(
     """Turn steps that requested grading into recorded grading requests.
 
     Runs after aggregation so the prompt carries the final deterministic
-    result. Empty when a gate failed before the rubric step ran, which is how
-    a migrated profile signals "no grading needed" to the orchestrator.
+    result. Incomplete verification never produces grading requests, even
+    when an earlier step collected evidence before a later gate stopped the run.
 
     A task whose evidence source is ``submitted_text`` grades free text with no
     repository (Phase 7); every other task requires a repository target.
     """
+    if not deterministic_result.verification_completed:
+        return []
     requests: list[LLMGradingRequest] = []
     for result in step_results:
         task = result.grading_task

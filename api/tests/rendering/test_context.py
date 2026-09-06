@@ -416,7 +416,8 @@ class TestBuildRequirementCardContextCardState:
         )
         assert isinstance(ctx, UnavailableCardContext)
         assert ctx.kind == "unavailable"
-        assert "problem on our side, not something you did" in ctx.message
+        assert "Verification stopped before it could finish." in ctx.message
+        assert "Your work was not judged to have failed." in ctx.message
         assert "You can try again" in ctx.message
         assert "report the issue" in ctx.message
 
@@ -429,4 +430,28 @@ class TestBuildRequirementCardContextCardState:
             message="Verification could not be started.",
         )
         assert ctx.kind == "unavailable"
-        assert ctx.message == "Verification could not be started."
+        assert "Verification could not be started." in ctx.message
+        assert "Your work was not judged to have failed." in ctx.message
+
+    @pytest.mark.parametrize(
+        "cause",
+        [
+            "GitHub API error (503). Try again later.",
+            "Network error connecting to GitHub. Try again later.",
+            "GitHub API error (401). Try again later.",
+            "Verification failed before recording a result.",
+        ],
+    )
+    def test_unavailable_preserves_saved_cause_without_guessing(self, cause):
+        req = _make_requirement(SubmissionType.CTF_TOKEN)
+        submission = _make_submission(is_validated=False, validation_message=cause)
+
+        ctx = build_requirement_card_context(
+            requirement=req, github_username="alice", submission=submission
+        )
+
+        assert isinstance(ctx, UnavailableCardContext)
+        assert cause in ctx.message
+        assert "Your work was not judged to have failed." in ctx.message
+        assert "report the issue" in ctx.message
+        assert "You do not need to change your work" in ctx.message

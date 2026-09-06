@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% set footer_margin = "mt-8" %}
 {% from "macros/badges.html" import status_pill %}
+{% from "macros/callouts.html" import banner %}
 {% block title %}Phase {{ phase.order }} Verification - Learn to Cloud{% endblock %}
 
 {% block content %}
@@ -140,9 +141,17 @@
                 {{ status_pill(item.status_label, item.status_variant) }}
             </div>
 
-            {% if item.validation_message %}
+            {% if item.outcome == 'server_error' %}
+            {{ banner(
+                item.display_message,
+                'warning',
+                report=true,
+                report_title='Verification error: ' ~ item.requirement.name,
+                report_context='requirement=' ~ item.requirement.slug
+            ) }}
+            {% elif item.display_message %}
             <p class="mt-3 text-sm leading-6 {% if item.outcome == 'failed' %}text-red-700 dark:text-red-300{% else %}text-gray-600 dark:text-gray-300{% endif %}">
-                {{ item.validation_message }}
+                {{ item.display_message }}
             </p>
             {% endif %}
 

@@ -11,13 +11,18 @@ instead of patching internals, so they exercise the real validator logic
 through the ``GitHubMetadata`` seam.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
 from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
-from learn_to_cloud_shared.verification.errors import GitHubServerError
+from learn_to_cloud_shared.verification import (
+    github_errors,
+    github_http,
+    github_metadata,
+)
+from learn_to_cloud_shared.verification.github_errors import GitHubServerError
 from learn_to_cloud_shared.verification.github_http import (
     _parse_retry_after,
     get_github_headers,
@@ -176,13 +181,110 @@ class TestValidateRepoFork:
         result = await validate_repo_fork(_fork_target(), metadata)
         assert result.is_valid is False
         assert result.verification_completed is False
-        assert "Unexpected error" not in result.message
 
-    @pytest.mark.asyncio
-    async def test_server_error_propagated(self):
-        metadata = InMemoryGitHubMetadata(
-            repo_error=GitHubServerError("GitHub unavailable")
+
+async def test_server_error_propagated():
+    metadata = InMemoryGitHubMetadata(
+        repo_error=GitHubServerError("GitHub unavailable", status_code=503)
+    )
+    result = await validate_repo_fork(_fork_target(), metadata)
+    assert result.is_valid is False
+    assert result.verification_completed is False
+
+
+@pytest.mark.parametrize("kind", ["readme", "fork"])
+@pytest.mark.parametrize(
+    ("status", "headers", "category"),
+    [
+        (401, {}, "authentication"),
+        (403, {}, "authorization"),
+        (403, {"Retry-After": "30"}, "rate_limit"),
+        (404, {}, None),
+        (429, {"Retry-After": "30"}, "rate_limit"),
+        (503, {}, "provider_unavailable"),
+    ],
+)
+async def test_real_profile_requests_keep_missing_and_unavailable_distinct(
+    kind, status, headers, category
+):
+    calls = []
+    counter = MagicMock()
+    span = MagicMock()
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(status, headers=headers, text="private upstream detail")
+
+    get = github_http.github_api_get.retry_with(sleep=AsyncMock())
+    head = github_http.github_head_status.retry_with(sleep=AsyncMock())
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with (
+            patch.object(
+                github_http, "_get_github_client", AsyncMock(return_value=client)
+            ),
+            patch.object(github_http, "get_github_headers", return_value={}),
+            patch.object(github_metadata, "github_api_get", get),
+            patch.object(github_metadata, "github_head_status", head),
+            patch.object(github_errors, "_GITHUB_API_ERROR_COUNTER", counter),
+            patch.object(github_errors.trace, "get_current_span", return_value=span),
+        ):
+            result = (
+                await validate_profile_readme(
+                    GitHubRepositoryTarget(owner="testuser", repo="testuser")
+                )
+                if kind == "readme"
+                else await validate_repo_fork(_fork_target())
+            )
+    assert len(calls) == (3 if status in {429, 503} else 1)
+    assert calls[0].method == ("HEAD" if kind == "readme" else "GET")
+    assert not result.is_valid
+    assert result.username_match
+    assert "private" not in result.message
+    if status == 404:
+        assert result.verification_completed
+        assert result.repo_exists is False
+        assert "not found" in result.message
+        counter.add.assert_not_called()
+    else:
+        assert not result.verification_completed
+        assert result.repo_exists is None
+        assert result.message == f"GitHub API error ({status}). Try again later."
+        counter.add.assert_called_once_with(1, {"error.type": category})
+        event = (
+            "github.url_check.failed"
+            if kind == "readme"
+            else "github.fork_check.failed"
+            if status in {429, 503}
+            else "fork_check.api_error"
         )
-        result = await validate_repo_fork(_fork_target(), metadata)
-        assert result.is_valid is False
-        assert result.verification_completed is False
+        span.add_event.assert_called_once_with(
+            event, {"error.type": category, "http.response.status_code": status}
+        )
+
+
+@pytest.mark.parametrize("kind", ["readme", "fork"])
+@pytest.mark.parametrize(
+    "error_type", [httpx.ConnectError, httpx.ReadTimeout, ValueError]
+)
+async def test_incomplete_profile_does_not_claim_repository_absence(kind, error_type):
+    error = error_type("sensitive detail")
+    metadata = InMemoryGitHubMetadata(url_error=error, repo_error=error)
+    with patch.object(github_errors, "_GITHUB_API_ERROR_COUNTER") as counter:
+        result = (
+            await validate_profile_readme(
+                GitHubRepositoryTarget(owner="testuser", repo="testuser"), metadata
+            )
+            if kind == "readme"
+            else await validate_repo_fork(_fork_target(), metadata)
+        )
+    assert not result.verification_completed
+    assert result.repo_exists is None
+    assert result.username_match
+    assert "find your profile" not in result.message
+    assert "sensitive" not in result.message
+    if error_type is ValueError:
+        counter.add.assert_not_called()
+        assert result.message == "GitHub verification could not be completed."
+    else:
+        counter.add.assert_called_once_with(1, {"error.type": "network"})
+        assert "Unexpected error" not in result.message

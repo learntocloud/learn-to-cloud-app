@@ -93,6 +93,35 @@ HTTP status/error categories and dependency failures. Do not bypass ownership
 to work around an outage or copy identity values, repository links, tokens, or
 provider response bodies into incident notes.
 
+## GitHub upstream verification failures
+
+An incomplete attempt means verification could not finish, not that the
+learner's work failed. Any attempted evidence fetch that fails with a network
+or non-404 GitHub error stops grading. Genuine missing/private resources retain
+their existing 404 feedback and do not increment `github.api_error`.
+
+Inspect the bounded `error.type` and, for responses, `http.response.status_code`:
+
+| Category | Investigation |
+| --- | --- |
+| `rate_limit` | Check GitHub quota and throttling; wait for recovery before retrying. |
+| `provider_unavailable` | Check GitHub service availability and dependency failures. |
+| `authentication` | Check the application's GitHub credential/configuration, not learner code. |
+| `authorization` | Check integration permissions and repository access; distinguish rate-limited 403s. |
+| `client_error` | Check the HTTP status and integration request contract. |
+| `network` | Check connectivity, DNS, and timeouts; there is no HTTP response status. |
+
+Exhausted 429/5xx responses now appear under `rate_limit`/`provider_unavailable`
+rather than `network`. Profile, HEAD, and raw-file failures now reach the shared
+mapper; increases in incomplete attempts or category counts can reflect corrected
+handling rather than a new outage. Count once per final mapping, not per retry.
+Raw-file reads still make one request per file.
+
+Retry after transient recovery and investigate persistent service trouble.
+Do not ask learners to change their work to fix application credentials, bypass
+ownership checks, or sign in again as a general outage fix. Historical attempts
+without a specific saved cause do not establish which dependency failed.
+
 ## Session lifecycle and rejected OAuth identity
 
 `auth.session.rejected` records bounded `auth.session.reason` values. Expiry,

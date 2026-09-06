@@ -35,7 +35,7 @@ import httpx
 from opentelemetry import trace
 
 from learn_to_cloud_shared.schemas import ValidationResult
-from learn_to_cloud_shared.verification.errors import github_error_to_result
+from learn_to_cloud_shared.verification.github_errors import github_error_to_result
 from learn_to_cloud_shared.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
 )

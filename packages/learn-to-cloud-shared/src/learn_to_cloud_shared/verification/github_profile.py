@@ -17,7 +17,7 @@ from opentelemetry import trace
 
 from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.schemas import ValidationResult
-from learn_to_cloud_shared.verification.errors import github_error_to_result
+from learn_to_cloud_shared.verification.github_errors import github_error_to_result
 from learn_to_cloud_shared.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
 )
@@ -57,14 +57,9 @@ async def check_github_url_exists(
             message="URL exists" if exists else "URL not found (404)",
         )
     except RETRIABLE_EXCEPTIONS as e:
-        span = trace.get_current_span()
-        span.set_attribute("error.type", type(e).__name__)
-        span.add_event("github.url_check.failed", {"error.type": type(e).__name__})
-        return ValidationResult(
-            is_valid=False,
-            message="Could not reach GitHub. Please try again later.",
-            verification_completed=False,
-        )
+        return github_error_to_result(e, event="github.url_check.failed")
+    except httpx.HTTPStatusError as e:
+        return github_error_to_result(e, event="github.url_check.failed")
     except Exception:
         span = trace.get_current_span()
         span.set_attribute("error.type", "unexpected_exception")
@@ -120,14 +115,7 @@ async def check_repo_is_fork_of(
             message=f"Forked from {parent_full_name}, not {original_repo}",
         )
     except RETRIABLE_EXCEPTIONS as e:
-        span = trace.get_current_span()
-        span.set_attribute("error.type", type(e).__name__)
-        span.add_event("github.fork_check.failed", {"error.type": type(e).__name__})
-        return ValidationResult(
-            is_valid=False,
-            message="Could not reach GitHub. Please try again later.",
-            verification_completed=False,
-        )
+        return github_error_to_result(e, event="github.fork_check.failed")
     except httpx.HTTPStatusError as e:
         return github_error_to_result(
             e,
@@ -157,6 +145,8 @@ async def validate_profile_readme(
     only checks that it resolves.
     """
     result = await check_github_url_exists(target.url, metadata)
+    if not result.verification_completed:
+        return result.model_copy(update={"username_match": True, "repo_exists": None})
     if not result.is_valid:
         return result.model_copy(
             update={
@@ -198,7 +188,7 @@ async def validate_repo_fork(
         return fork_result.model_copy(
             update={
                 "username_match": True,
-                "repo_exists": False,
+                "repo_exists": False if fork_result.verification_completed else None,
             }
         )
     return ValidationResult(

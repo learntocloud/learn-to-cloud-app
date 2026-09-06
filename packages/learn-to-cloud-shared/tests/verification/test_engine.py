@@ -1,7 +1,8 @@
 """Tests for the declarative verification engine."""
 
 import json
-from unittest.mock import AsyncMock
+from dataclasses import replace
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import httpx
@@ -16,6 +17,9 @@ from learn_to_cloud_shared.testing.requirement_factories import (
     repo_fork_requirement,
 )
 from learn_to_cloud_shared.verification import engine as engine_module
+from learn_to_cloud_shared.verification import github_errors
+from learn_to_cloud_shared.verification import repo_files as repo_files_module
+from learn_to_cloud_shared.verification.deployed_api import DeployedApiServerError
 from learn_to_cloud_shared.verification.engine import (
     CheckParams,
     CIStatusParams,
@@ -26,6 +30,10 @@ from learn_to_cloud_shared.verification.engine import (
     check_for,
     register_check,
     run_verification,
+)
+from learn_to_cloud_shared.verification.repo_files import (
+    GitHubRepoFiles,
+    InMemoryRepoFiles,
 )
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
@@ -986,6 +994,232 @@ async def test_security_profile_skips_grading_when_gate_fails(monkeypatch):
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
     assert result.evidence is None
+
+
+def _evidence_flow(flow, monkeypatch):
+    passing = ValidationResult(is_valid=True, message="Prerequisite passed.")
+    monkeypatch.setattr(
+        engine_module, "verify_ci_status", AsyncMock(return_value=passing)
+    )
+    monkeypatch.setattr(
+        engine_module, "verify_codeql_status", AsyncMock(return_value=passing)
+    )
+    monkeypatch.setattr(
+        engine_module, "verify_public_ghcr_image", AsyncMock(return_value=passing)
+    )
+    if flow == "exact":
+        from learn_to_cloud_shared.verification.tasks.phase3 import (
+            JOURNAL_API_IMPORTANT_PATHS,
+        )
+
+        return _journal_job(), list(JOURNAL_API_IMPORTANT_PATHS)
+    if flow == "discovered":
+        return _devops_job(), [
+            "Dockerfile",
+            "k8s/deployment.yaml",
+            "k8s/service.yaml",
+            ".github/workflows/deploy.yml",
+            "infra/main.tf",
+        ]
+    if flow == "security":
+        from learn_to_cloud_shared.verification.security_scanning import (
+            SECURITY_SCANNING_EVIDENCE_PATHS,
+        )
+
+        return _security_job(), SECURITY_SCANNING_EVIDENCE_PATHS
+    return _deployment_job("A detailed architecture description. " * 10), ["deploy.sh"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("flow", "event"),
+    [
+        ("exact", "llm_rubric_review.repo_file_error"),
+        ("discovered", "llm_rubric_review.repo_file_error"),
+        ("security", "security_scanning.repo_file_error"),
+        ("deployment", "deployment_architecture.repo_file_error"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("failure", "category"),
+    [
+        (401, "authentication"),
+        (403, "authorization"),
+        (429, "rate_limit"),
+        (503, "provider_unavailable"),
+        ("network", "network"),
+    ],
+)
+async def test_failed_evidence_read_stops_grading(
+    monkeypatch, flow, event, failure, category
+):
+    job, paths = _evidence_flow(flow, monkeypatch)
+    failed_path = paths[0] if flow == "deployment" else paths[1]
+    fetched = []
+    mapper = Mock(wraps=github_errors.github_error_to_result)
+    monkeypatch.setattr(engine_module, "github_error_to_result", mapper)
+    counter = Mock()
+    monkeypatch.setattr(github_errors, "_GITHUB_API_ERROR_COUNTER", counter)
+    tracer = _Tracer()
+    monkeypatch.setattr(engine_module, "_tracer", tracer)
+
+    def respond(request):
+        if request.url.host == "api.github.com":
+            return httpx.Response(
+                200, json={"tree": [{"type": "blob", "path": p} for p in paths]}
+            )
+        path = request.url.path.split("/main/", 1)[1]
+        fetched.append(path)
+        if path != failed_path:
+            return httpx.Response(200, text="Evidence content")
+        if failure == "network":
+            raise httpx.ReadTimeout("private connection details", request=request)
+        return httpx.Response(failure, text="private response details")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        monkeypatch.setattr(
+            repo_files_module, "get_github_client", AsyncMock(return_value=client)
+        )
+        monkeypatch.setattr(
+            "learn_to_cloud_shared.verification.github_http._get_github_client",
+            AsyncMock(return_value=client),
+        )
+        result = await run_verification(job, repo_files=GitHubRepoFiles())
+
+    assert fetched == paths[: 1 if flow == "deployment" else 2]
+    assert result.validation_result.is_valid is False
+    assert result.validation_result.verification_completed is False
+    assert "private" not in result.validation_result.message
+    assert result.evidence is None
+    assert result.grading_requests == []
+    assert result.grading_disposition is GradingDisposition.SKIPPED_GATE_FAILED
+    mapper.assert_called_once()
+    assert mapper.call_args.kwargs == {"event": event}
+    counter.add.assert_called_once_with(1, {"error.type": category})
+    assert tracer.spans[0][1].attributes["verification.step.result"] == "passed"
+    assert tracer.spans[-1][1].attributes["verification.step.result"] == "unavailable"
+    assert tracer.spans[-1][1].status.status_code is StatusCode.ERROR
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("flow", ["exact", "discovered", "security", "deployment"])
+@pytest.mark.parametrize(
+    "error",
+    [
+        RuntimeError("programming bug"),
+        DeployedApiServerError("another integration", status_code=503),
+    ],
+)
+async def test_evidence_boundaries_do_not_swallow_unsupported_errors(
+    monkeypatch, flow, error
+):
+    job, paths = _evidence_flow(flow, monkeypatch)
+    files = InMemoryRepoFiles(dict.fromkeys(paths, "evidence"))
+    monkeypatch.setattr(files, "file", AsyncMock(side_effect=error))
+    mapper = Mock(wraps=github_errors.github_error_to_result)
+    monkeypatch.setattr(engine_module, "github_error_to_result", mapper)
+
+    with pytest.raises(type(error)) as raised:
+        await run_verification(job, repo_files=files)
+
+    assert raised.value is error
+    mapper.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("flow", ["exact", "discovered", "security", "deployment"])
+async def test_missing_optional_evidence_preserves_existing_grading(monkeypatch, flow):
+    job, paths = _evidence_flow(flow, monkeypatch)
+    contents = dict.fromkeys(paths, "evidence")
+    missing_path = paths[0] if flow == "deployment" else paths[1]
+    del contents[missing_path]
+    files = InMemoryRepoFiles(contents, tree=paths)
+
+    result = await run_verification(job, repo_files=files)
+
+    assert result.validation_result.verification_completed is True
+    assert result.grading_disposition is GradingDisposition.REQUESTED
+    assert result.grading_requests
+    assert missing_path not in [item.path for item in result.evidence[0].items]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("flow", ["discovered", "deployment"])
+@pytest.mark.parametrize(
+    "error",
+    [
+        github_errors.GitHubServerError("Unavailable", status_code=503),
+        httpx.ConnectError("private connection details"),
+    ],
+)
+async def test_tree_failure_stops_grading_with_tree_event(monkeypatch, flow, error):
+    job, _ = _evidence_flow(flow, monkeypatch)
+    monkeypatch.setattr(
+        engine_module,
+        "verify_required_devops_files",
+        AsyncMock(return_value=ValidationResult(is_valid=True, message="Files found.")),
+    )
+    mapper = Mock(wraps=github_errors.github_error_to_result)
+    monkeypatch.setattr(engine_module, "github_error_to_result", mapper)
+    monkeypatch.setattr(
+        "learn_to_cloud_shared.verification.deployment_architecture.github_error_to_result",
+        mapper,
+    )
+    files = InMemoryRepoFiles(tree_error=error)
+    read = AsyncMock()
+    monkeypatch.setattr(files, "file", read)
+
+    result = await run_verification(job, repo_files=files)
+
+    assert result.validation_result.verification_completed is False
+    assert result.grading_requests == []
+    assert result.evidence is None
+    assert result.grading_disposition is GradingDisposition.SKIPPED_GATE_FAILED
+    event = (
+        "llm_rubric_review.repo_tree_error"
+        if flow == "discovered"
+        else "deployment_architecture.repo_tree_error"
+    )
+    mapper.assert_called_once_with(error, event=event)
+    read.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_later_incomplete_step_discards_previously_recorded_grading(monkeypatch):
+    job, paths = _evidence_flow("exact", monkeypatch)
+    profile = engine_module.profile_for(job.requirement.submission_type)
+    assert profile is not None
+    monkeypatch.setattr(
+        engine_module,
+        "profile_for",
+        lambda _: replace(
+            profile, steps=(*profile.steps, _step(CIStatusParams(), "later-gate"))
+        ),
+    )
+    incomplete = github_errors.github_error_to_result(
+        httpx.ConnectError("connection details"), event="test.upstream_error"
+    )
+    gate = AsyncMock(
+        side_effect=[
+            ValidationResult(is_valid=True, message="Initial gate passed."),
+            incomplete,
+        ]
+    )
+    monkeypatch.setattr(engine_module, "verify_ci_status", gate)
+    build_prompt = Mock()
+    monkeypatch.setattr(engine_module, "build_repo_rubric_message", build_prompt)
+
+    result = await run_verification(
+        job, repo_files=InMemoryRepoFiles(dict.fromkeys(paths, "evidence"))
+    )
+
+    assert gate.await_count == 2
+    assert result.evidence
+    assert result.validation_result.verification_completed is False
+    assert result.validation_result.message == incomplete.message
+    assert result.grading_requests == []
+    assert result.grading_disposition is GradingDisposition.SKIPPED_GATE_FAILED
+    build_prompt.assert_not_called()
 
 
 @pytest.mark.asyncio

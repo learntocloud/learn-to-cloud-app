@@ -20,6 +20,9 @@ from learn_to_cloud.rendering.context import (
     feedback_tasks_and_passed,
 )
 from learn_to_cloud.rendering.htmx_responses import render_step_toggle
+from learn_to_cloud.services.verification_page_service import (
+    VerificationAttemptHistoryItem,
+)
 
 _ENV = templates.env
 
@@ -538,7 +541,7 @@ class TestPhaseVerificationCardStates:
         html = self._render_phase([req], {"ci-status": submission})
         assert "Needs work" in html
         assert "CI is not green yet." in html
-        assert "Service unavailable" not in html
+        assert "Verification incomplete" not in html
 
     def test_unavailable_shows_service_banner_not_learner_failure(self):
         """Regression: a persisted server_error/cancelled outcome must not
@@ -547,9 +550,10 @@ class TestPhaseVerificationCardStates:
         req = _requirement("ci-status", "CI Status")
         submission = _submission(is_validated=False, verification_completed=False)
         html = self._render_phase([req], {"ci-status": submission})
-        assert "Service unavailable" in html
+        assert "Verification incomplete" in html
         assert "Needs work" not in html
-        assert "a problem on our side, not something you did" in html
+        assert "Verification stopped before it could finish." in html
+        assert "Your work was not judged to have failed." in html
         assert "You can try again" in html
         assert "report the issue" in html
         assert "not counted against your rate limit" not in html
@@ -748,6 +752,7 @@ def test_phase_verification_renders_paginated_safe_attempt_history():
         status_label="Needs work",
         status_variant="error",
         validation_message="The required endpoint is missing.",
+        display_message="The required endpoint is missing.",
         feedback_tasks=[
             {
                 "name": "API shape",
@@ -791,6 +796,58 @@ def test_phase_verification_renders_paginated_safe_attempt_history():
     assert "submitted-token-value" not in html
     assert 'href="/verifications/phase/3?history_page=1"' in html
     assert 'href="/verifications/phase/3?history_page=3"' in html
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "cause",
+    [None, "GitHub API error (401). Try again later.", "<script>unsafe</script>"],
+)
+def test_incomplete_history_and_current_card_share_safe_explanation(cause):
+    requirement = _requirement("journal-api", "Journal API")
+    item = VerificationAttemptHistoryItem(
+        id=uuid4(),
+        requirement=requirement,
+        outcome="server_error",
+        validation_message=cause,
+        feedback_tasks=[],
+        feedback_passed=0,
+        completed_at=None,
+    )
+    card = build_requirement_card_context(
+        requirement=requirement,
+        github_username="alice",
+        submission=_submission(is_validated=False, validation_message=cause),
+    )
+    html = _render(
+        "pages/verification_phase.html",
+        phase=SimpleNamespace(name="Phase 3", description="", order=3),
+        phase_progress=SimpleNamespace(
+            verification=SimpleNamespace(
+                requirements_required=1,
+                requirements_verified=0,
+                percentage=0,
+                is_complete=False,
+            )
+        ),
+        requirements=[requirement],
+        card_contexts_by_req={requirement.slug: card},
+        verification_locked=False,
+        prerequisite_phase_id=None,
+        history=SimpleNamespace(
+            items=[item], page=1, has_previous=False, has_next=False
+        ),
+    )
+
+    assert html.count("Verification incomplete") == 2
+    assert html.count("Your work was not judged to have failed.") == 2
+    assert html.count("Report this issue") == 2
+    assert "Needs work" not in html
+    assert "<script>unsafe</script>" not in html
+    if cause == "<script>unsafe</script>":
+        assert html.count("&lt;script&gt;unsafe&lt;/script&gt;") == 2
+    elif cause:
+        assert html.count(cause) == 2
 
 
 @pytest.mark.unit

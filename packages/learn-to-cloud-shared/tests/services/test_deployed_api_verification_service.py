@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
+from learn_to_cloud_shared.verification import deployed_api
 from learn_to_cloud_shared.verification.deployed_api import (
     DeployedApiServerError,
     _check_response_ip,
@@ -541,7 +542,9 @@ class TestValidateDeployedApi:
             "learn_to_cloud_shared.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
-            mock_fetch.side_effect = DeployedApiServerError("Server returned 500")
+            mock_fetch.side_effect = DeployedApiServerError(
+                "Server returned 500", status_code=500
+            )
 
             result = await validate_deployed_api("https://api.example.com")
 
@@ -995,3 +998,154 @@ class TestCheckResponseIp:
 
         with pytest.raises(_SsrfError):
             _check_response_ip(response)
+
+
+@pytest.mark.parametrize("status", [500, 503])
+@pytest.mark.parametrize("method", ["GET", "POST", "DELETE"])
+async def test_crud_exhaustion_retains_safe_status_after_three_requests(status, method):
+    requests = []
+    span = MagicMock()
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(status, text="private learner response body")
+
+    operation = deployed_api._fetch_with_retry.retry_with(sleep=AsyncMock())
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with (
+            patch.object(deployed_api, "_get_client", AsyncMock(return_value=client)),
+            patch.object(deployed_api.trace, "get_current_span", return_value=span),
+        ):
+            with pytest.raises(DeployedApiServerError) as raised:
+                await operation("https://learner.example/entries", method=method)
+            error = raised.value
+            result = deployed_api.deployed_api_error_to_result(
+                error, step="GET /entries"
+            )
+    assert len(requests) == 3
+    assert [request.method for request in requests] == [method] * 3
+    assert error.status_code == status
+    assert error.retry_after is None
+    assert str(error) == f"Server returned {status}"
+    assert result.verification_completed
+    assert not result.is_valid
+    span.add_event.assert_called_once_with(
+        "deployed_api.server_error",
+        {
+            "error.type": "server_error",
+            "verification.operation": "GET /entries",
+            "http.response.status_code": status,
+        },
+    )
+    span.set_attribute.assert_any_call("http.response.status_code", status)
+    assert "private learner" not in str(span.mock_calls)
+    assert "learner.example" not in str(span.mock_calls)
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404, 429])
+async def test_crud_nonserver_responses_are_not_newly_retried(status):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(status)
+
+    operation = deployed_api._fetch_with_retry.retry_with(sleep=AsyncMock())
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with patch.object(deployed_api, "_get_client", AsyncMock(return_value=client)):
+            response = await operation("https://learner.example/entries")
+    assert response.status_code == status
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize("error_type", [httpx.ConnectError, httpx.ReadTimeout])
+@pytest.mark.parametrize("retried", [False, True])
+async def test_fetch_preserves_native_request_exceptions(error_type, retried):
+    requests = []
+    error = error_type("private transport detail")
+
+    def handler(request):
+        requests.append(request)
+        raise error
+
+    operation = (
+        deployed_api._fetch_with_retry.retry_with(sleep=AsyncMock())
+        if retried
+        else deployed_api._fetch_once
+    )
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with (
+            patch.object(deployed_api, "_get_client", AsyncMock(return_value=client)),
+            pytest.raises(error_type) as raised,
+        ):
+            await operation("https://learner.example/entries")
+    assert raised.value is error
+    assert len(requests) == (3 if retried else 1)
+
+
+@pytest.mark.parametrize("failure", [500, 503, httpx.ReadTimeout, httpx.ConnectError])
+async def test_live_analysis_failure_sends_exactly_one_request(failure):
+    requests = []
+    span = MagicMock()
+
+    def handler(request):
+        requests.append(request)
+        if isinstance(failure, int):
+            return httpx.Response(failure, text="private analysis details")
+        raise failure("private analysis details")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with (
+            patch.object(deployed_api, "_get_client", AsyncMock(return_value=client)),
+            patch.object(deployed_api.trace, "get_current_span", return_value=span),
+        ):
+            result = await deployed_api._verify_analysis(
+                "https://learner.example", "challenge-id"
+            )
+    assert len(requests) == 1
+    assert requests[0].method == "POST"
+    assert requests[0].url.path == "/entries/challenge-id/analyze"
+    assert result.verification_completed
+    assert not result.is_valid
+    assert result.message.startswith("POST /entries/{id}/analyze:")
+    assert "private" not in result.message
+    assert "private" not in str(span.mock_calls)
+    assert "learner.example" not in str(span.mock_calls)
+
+
+@pytest.mark.parametrize(
+    ("error", "category", "message"),
+    [
+        (
+            httpx.ReadTimeout("private network detail"),
+            "timeout",
+            "Request timed out. Ensure your API is accessible and responding quickly.",
+        ),
+        (
+            httpx.ConnectError("private network detail"),
+            "request_error",
+            "Could not connect to your API. Error: ConnectError",
+        ),
+    ],
+)
+def test_deployed_request_mapper_preserves_messages_and_completion(
+    error, category, message
+):
+    span = MagicMock()
+    with patch.object(deployed_api.trace, "get_current_span", return_value=span):
+        result = deployed_api.deployed_api_error_to_result(error)
+    assert result.message == message
+    assert result.verification_completed
+    assert not result.is_valid
+    span.set_attribute.assert_called_once_with("error.type", category)
+    span.add_event.assert_called_once_with(
+        f"deployed_api.{category}",
+        {"error.type": category, "verification.operation": "request"},
+    )
+
+
+def test_deployed_mapper_rethrows_unsupported_exception():
+    error = ValueError("programming error")
+    with pytest.raises(ValueError) as raised:
+        deployed_api.deployed_api_error_to_result(error)
+    assert raised.value is error

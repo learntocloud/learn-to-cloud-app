@@ -30,6 +30,7 @@ from learn_to_cloud.rendering.context import (
     build_checking_requirement_card_context,
     build_requirement_card_context,
     feedback_tasks_and_passed,
+    incomplete_verification_message,
 )
 from learn_to_cloud.services.progress_service import (
     fetch_phase_progress,
@@ -51,7 +52,7 @@ VERIFICATION_HISTORY_PAGE_SIZE = 10
 _HISTORY_STATUS = {
     "succeeded": ("Verified", "success"),
     "failed": ("Needs work", "error"),
-    "server_error": ("Service unavailable", "warning"),
+    "server_error": ("Verification incomplete", "warning"),
     "cancelled": ("Cancelled", "warning"),
 }
 
@@ -124,6 +125,12 @@ class VerificationAttemptHistoryItem:
     @property
     def status_variant(self) -> str:
         return _HISTORY_STATUS.get(self.outcome, ("Completed", "info"))[1]
+
+    @property
+    def display_message(self) -> str | None:
+        if self.outcome == "server_error":
+            return incomplete_verification_message(self.validation_message)
+        return self.validation_message
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,7 +1,11 @@
 """Tests for the evidence collector split (cap + per-source getters)."""
 
+from unittest.mock import AsyncMock
+
+import httpx
 import pytest
 
+from learn_to_cloud_shared.verification import repo_files as repo_files_module
 from learn_to_cloud_shared.verification.evidence import (
     apply_evidence_cap,
     collect_repo_file_evidence,
@@ -9,7 +13,11 @@ from learn_to_cloud_shared.verification.evidence import (
     collect_submitted_text_evidence,
     select_repo_paths,
 )
-from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+from learn_to_cloud_shared.verification.github_errors import GitHubServerError
+from learn_to_cloud_shared.verification.repo_files import (
+    GitHubRepoFiles,
+    InMemoryRepoFiles,
+)
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidencePolicy,
     FilePresenceGraderConfig,
@@ -139,3 +147,70 @@ async def test_collect_repo_pattern_evidence_preserves_paths_and_caps():
 
     assert [item.path for item in bundle.items] == ["Dockerfile", "infra/a.tf"]
     assert [item.content for item in bundle.items] == ["FROM python", "resource a"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("discovered", [False, True])
+@pytest.mark.parametrize("failure", [401, 403, 429, 503, "network"])
+async def test_failed_later_file_never_returns_partial_evidence(
+    monkeypatch, discovered, failure
+):
+    requested_paths = []
+
+    def respond(request):
+        if request.url.host == "api.github.com":
+            return httpx.Response(
+                200,
+                json={"tree": [{"type": "blob", "path": p} for p in ["a", "b", "c"]]},
+            )
+        requested_paths.append(request.url.path.rsplit("/", 1)[-1])
+        if len(requested_paths) == 1:
+            return httpx.Response(200, text="successfully fetched first file")
+        if failure == "network":
+            raise httpx.ReadTimeout("private connection details", request=request)
+        return httpx.Response(failure, text="private provider response")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        monkeypatch.setattr(
+            repo_files_module, "get_github_client", AsyncMock(return_value=client)
+        )
+        # Tree discovery uses the API helper's own client reference.
+        monkeypatch.setattr(
+            "learn_to_cloud_shared.verification.github_http._get_github_client",
+            AsyncMock(return_value=client),
+        )
+        expected = (
+            httpx.ReadTimeout
+            if failure == "network"
+            else GitHubServerError
+            if failure in (429, 503)
+            else httpx.HTTPStatusError
+        )
+        with pytest.raises(expected):
+            if discovered:
+                await collect_repo_pattern_evidence(
+                    GitHubRepoFiles(),
+                    "owner",
+                    "repo",
+                    _task(path_patterns=["a", "b", "c"]),
+                )
+            else:
+                await collect_repo_file_evidence(
+                    GitHubRepoFiles(), "owner", "repo", ["a", "b", "c"], _task()
+                )
+
+    assert requested_paths == ["a", "b"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("discovered", [False, True])
+async def test_missing_later_file_still_returns_available_evidence(discovered):
+    files = InMemoryRepoFiles({"a": "first", "c": "third"}, tree=["a", "b", "c"])
+    task = _task(path_patterns=["a", "b", "c"])
+    if discovered:
+        bundle = await collect_repo_pattern_evidence(files, "owner", "repo", task)
+    else:
+        bundle = await collect_repo_file_evidence(
+            files, "owner", "repo", ["a", "b", "c"], task
+        )
+    assert [item.path for item in bundle.items] == ["a", "c"]

@@ -16,7 +16,10 @@ from tenacity import (
 from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.http_client import PooledClient
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
-from learn_to_cloud_shared.verification.errors import make_retriable
+from learn_to_cloud_shared.verification.errors import (
+    UpstreamResponseError,
+    make_retriable,
+)
 
 GHCR_BASE_URL = "https://ghcr.io"
 GHCR_IMAGE_NAME = "journal-api"
@@ -31,7 +34,7 @@ _MANIFEST_ACCEPT = ", ".join(
 _TASK_NAME = "Public GHCR Image"
 
 
-class _GhcrServerError(Exception):
+class _GhcrServerError(UpstreamResponseError):
     """Retriable GHCR server or rate-limit response."""
 
 
@@ -62,7 +65,9 @@ async def _get_client() -> httpx.AsyncClient:
 
 def _raise_for_transient_response(response: httpx.Response) -> None:
     if response.status_code == 429 or response.status_code >= 500:
-        raise _GhcrServerError(f"GHCR returned {response.status_code}")
+        raise _GhcrServerError(
+            f"GHCR returned {response.status_code}", status_code=response.status_code
+        )
 
 
 @retry(
@@ -89,6 +94,8 @@ async def _get_manifest_status(
         payload = token_response.json()
     except ValueError as exc:
         raise _GhcrProtocolError("GHCR token response was not valid JSON") from exc
+    if not isinstance(payload, dict):
+        raise _GhcrProtocolError("GHCR token response was not an object")
     token = payload.get("token") or payload.get("access_token")
     if not isinstance(token, str) or not token:
         raise _GhcrProtocolError("GHCR token response did not include a token")
@@ -143,9 +150,13 @@ async def verify_public_ghcr_image(
     span = trace.get_current_span()
     try:
         status = await _get_manifest_status(normalized_owner, client)
-    except RETRIABLE_EXCEPTIONS:
+    except RETRIABLE_EXCEPTIONS as exc:
         span.set_attribute("error.type", "ghcr_unavailable")
-        span.add_event("ghcr.request_failed", {"error.type": "ghcr_unavailable"})
+        attributes: dict[str, str | int] = {"error.type": "ghcr_unavailable"}
+        if isinstance(exc, _GhcrServerError):
+            span.set_attribute("http.response.status_code", exc.status_code)
+            attributes["http.response.status_code"] = exc.status_code
+        span.add_event("ghcr.request_failed", attributes)
         return _result(
             passed=False,
             message="Could not reach GHCR to verify the container image.",
@@ -153,11 +164,15 @@ async def verify_public_ghcr_image(
             next_steps="Try submitting again later.",
             verification_completed=False,
         )
-    except (_GhcrProtocolError, httpx.HTTPStatusError):
+    except (_GhcrProtocolError, httpx.HTTPStatusError) as exc:
         span.set_attribute("error.type", "ghcr_response_error")
+        attributes = {"error.type": "ghcr_response_error"}
+        if isinstance(exc, httpx.HTTPStatusError):
+            span.set_attribute("http.response.status_code", exc.response.status_code)
+            attributes["http.response.status_code"] = exc.response.status_code
         span.add_event(
             "ghcr.request_failed",
-            {"error.type": "ghcr_response_error"},
+            attributes,
         )
         return _result(
             passed=False,

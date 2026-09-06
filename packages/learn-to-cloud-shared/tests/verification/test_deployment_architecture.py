@@ -1,5 +1,7 @@
 """Tests for the Phase 4 deployment-architecture deterministic gate and evidence."""
 
+from unittest.mock import AsyncMock
+
 import httpx
 import pytest
 
@@ -12,6 +14,7 @@ from learn_to_cloud_shared.verification.deployment_architecture import (
     collect_deployment_architecture_evidence,
     validate_deployment_architecture,
 )
+from learn_to_cloud_shared.verification.github_errors import GitHubServerError
 from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
 
 _TARGET = GitHubRepositoryTarget(owner="alice", repo="journal-starter")
@@ -99,11 +102,33 @@ class TestValidateDeploymentArchitecture:
         assert "not found" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_transient_github_error_reraises(self):
+    @pytest.mark.parametrize(
+        "error",
+        [
+            _http_error(401),
+            _http_error(403),
+            _http_error(500),
+            GitHubServerError("Unavailable", status_code=503),
+            httpx.ConnectError("connection details"),
+        ],
+    )
+    async def test_github_error_is_incomplete(self, error):
         req = deployment_architecture_requirement(min_answer_length=100)
-        repo_files = InMemoryRepoFiles(tree_error=_http_error(500))
+        repo_files = InMemoryRepoFiles(tree_error=error)
 
-        with pytest.raises(httpx.HTTPStatusError):
+        result = await validate_deployment_architecture(
+            req, _LONG_DESCRIPTION, _TARGET, repo_files=repo_files
+        )
+
+        assert result.is_valid is False
+        assert result.verification_completed is False
+        assert result.repo_exists is None
+
+    @pytest.mark.asyncio
+    async def test_unexpected_tree_error_propagates(self):
+        req = deployment_architecture_requirement(min_answer_length=100)
+        repo_files = InMemoryRepoFiles(tree_error=RuntimeError("programming bug"))
+        with pytest.raises(RuntimeError, match="programming bug"):
             await validate_deployment_architecture(
                 req, _LONG_DESCRIPTION, _TARGET, repo_files=repo_files
             )
@@ -111,6 +136,32 @@ class TestValidateDeploymentArchitecture:
 
 @pytest.mark.unit
 class TestCollectDeploymentArchitectureEvidence:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [
+            GitHubServerError("Unavailable", status_code=503),
+            httpx.ReadTimeout("connection details"),
+        ],
+    )
+    async def test_failed_script_read_does_not_return_description_only(
+        self, monkeypatch, error
+    ):
+        repo_files = InMemoryRepoFiles({"deploy.sh": _DEPLOY_SH})
+        read = AsyncMock(side_effect=error)
+        monkeypatch.setattr(repo_files, "file", read)
+
+        with pytest.raises(type(error)) as raised:
+            await collect_deployment_architecture_evidence(
+                "alice",
+                "journal-starter",
+                _LONG_DESCRIPTION,
+                repo_files=repo_files,
+            )
+
+        assert raised.value is error
+        read.assert_awaited_once_with("alice", "journal-starter", "deploy.sh")
+
     @pytest.mark.asyncio
     async def test_bundles_deploy_script_and_description(self):
         repo_files = InMemoryRepoFiles({"deploy.sh": _DEPLOY_SH})

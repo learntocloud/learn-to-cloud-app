@@ -45,10 +45,67 @@ from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.http_client import PooledClient
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification.errors import (
-    DeployedApiServerError,
-    deployed_api_error_to_result,
+    UpstreamResponseError,
     make_retriable,
 )
+
+
+class DeployedApiServerError(UpstreamResponseError):
+    """Raised when the learner's API returns a retriable 5xx response."""
+
+
+def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> ValidationResult:
+    """Map deployed-API failures while retaining completed learner results."""
+    step_prefix = f"{step}: " if step else ""
+    span = trace.get_current_span()
+    if isinstance(exc, httpx.TimeoutException):
+        span.set_attribute("error.type", "timeout")
+        span.add_event(
+            "deployed_api.timeout",
+            {"error.type": "timeout", "verification.operation": step or "request"},
+        )
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                f"{step_prefix}Request timed out. Ensure your API is accessible "
+                "and responding quickly."
+            ),
+        )
+    if isinstance(exc, DeployedApiServerError):
+        span.set_attribute("error.type", "server_error")
+        span.set_attribute("http.response.status_code", exc.status_code)
+        span.add_event(
+            "deployed_api.server_error",
+            {
+                "error.type": "server_error",
+                "verification.operation": step or "request",
+                "http.response.status_code": exc.status_code,
+            },
+        )
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                f"{step_prefix}Your API returned a server error (5xx). "
+                "Please check your deployment."
+            ),
+        )
+    if isinstance(exc, httpx.RequestError):
+        span.set_attribute("error.type", "request_error")
+        span.add_event(
+            "deployed_api.request_error",
+            {
+                "error.type": "request_error",
+                "verification.operation": step or "request",
+            },
+        )
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                f"{step_prefix}Could not connect to your API. "
+                f"Error: {type(exc).__name__}"
+            ),
+        )
+    raise exc
 
 
 def _build_deployed_api_client() -> httpx.AsyncClient:
@@ -383,7 +440,8 @@ async def _fetch_once(
     _check_response_ip(response)
     if response.status_code >= 500:
         raise DeployedApiServerError(
-            f"Server returned {response.status_code}: {response.text[:200]}"
+            f"Server returned {response.status_code}",
+            status_code=response.status_code,
         )
     return response
 
