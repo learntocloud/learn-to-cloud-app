@@ -94,7 +94,7 @@ learning_steps:
   order: 6
   action: 'Practice:'
   title: Verify and submit the deployment
-  description: Submit the HTTPS base URL. The verifier posts an encouraging journal entry, uses the returned entry ID to call its live AI analysis endpoint, and checks the analysis response. Both requests run once without automatic retries. The entry stays in your journal; no listing or deletion is performed.
+  description: Submit the HTTPS base URL. The verifier posts a journal entry recording your verification submission, uses the returned entry ID to call its live AI analysis endpoint, and checks the analysis response. Both requests run once without automatic retries. The entry stays in your journal; no listing or deletion is performed.
   tips:
   - type: tip
     text: The API must return direct JSON responses without HTTP redirects. AI wording is nondeterministic, so verification checks the response schema rather than exact text.

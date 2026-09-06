@@ -14,9 +14,9 @@ _SUCCESS_MESSAGE = (
     "Deployed API verified! Entry creation and live AI analysis confirmed."
 )
 _ENTRY_BODY = {
-    "work": "Nice work getting your Journal API online!",
-    "struggle": "Every challenge is a chance to learn.",
-    "intention": "Keep building, learning, and making progress.",
+    "work": "Submitted deployed API for verification.",
+    "struggle": "Verifying that entry creation and AI analysis work after deployment.",
+    "intention": "Review the verification result and address any reported issues.",
 }
 
 

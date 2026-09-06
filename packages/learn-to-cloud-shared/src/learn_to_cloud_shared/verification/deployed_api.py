@@ -272,11 +272,13 @@ async def _post_once(
 
 
 async def _create_entry(entries_url: str) -> ValidationResult | str:
-    """Create an encouraging entry and require its ID for analysis."""
+    """Record the verification submission and require its ID for analysis."""
     entry_body = {
-        "work": "Nice work getting your Journal API online!",
-        "struggle": "Every challenge is a chance to learn.",
-        "intention": "Keep building, learning, and making progress.",
+        "work": "Submitted deployed API for verification.",
+        "struggle": (
+            "Verifying that entry creation and AI analysis work after deployment."
+        ),
+        "intention": "Review the verification result and address any reported issues.",
     }
 
     try:

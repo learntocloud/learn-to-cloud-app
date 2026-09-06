@@ -418,8 +418,9 @@ step, including actionable instructions for an unimplemented analysis endpoint
 behavior. The check remains deterministic and does not request grading.
 
 Created entries stay in the learner's journal even if analysis fails. The entry
-says "Nice work getting your Journal API online!" and encourages continued
-learning and building, without claiming verification passed. The verifier never
+records "Submitted deployed API for verification.", describes checking entry
+creation and AI analysis, and sets the intention to review the result and address
+reported issues. It does not claim verification passed. The verifier never
 deletes or updates entries; learners can keep or remove them themselves.
 
 #### Findings and boundaries (#855)
