@@ -5,13 +5,13 @@ by making a live HTTP request to their submitted endpoint.
 
 Verification uses a challenge-response protocol to prove API ownership:
 1. POST a unique challenge entry to /entries
-2. GET /entries and confirm the challenge nonce appears
+2. GET /entries and validate only the entry matching the current challenge nonce
 3. POST /entries/{id}/analyze and validate the live AI response
 4. DELETE the challenge entry to clean up
 
 The deployed API must:
 - Be publicly accessible via HTTPS
-- Have working create, list, analyze, and delete endpoints
+- Have working create, list, and analyze endpoints; deletion is best-effort
 - Return valid journal entry and AI analysis JSON
 
 SCALABILITY:
@@ -144,8 +144,15 @@ async def _get_client() -> httpx.AsyncClient:
 
 def _is_valid_url(value: str) -> bool:
     """Check if a string is a valid HTTPS URL."""
-    parsed = urlparse(value)
-    return parsed.scheme == "https" and bool(parsed.netloc)
+    try:
+        parsed = urlparse(value)
+        return (
+            parsed.scheme == "https"
+            and bool(parsed.hostname)
+            and (parsed.port is None or parsed.port > 0)
+        )
+    except ValueError:
+        return False
 
 
 def _is_private_ip(addr: str) -> bool:
@@ -268,41 +275,33 @@ def _validate_datetime(value: str) -> bool:
         return False
 
 
-def _validate_entry(entry: dict, index: int) -> tuple[bool, str | None]:
-    """Validate a single journal entry.
-
-    Args:
-        entry: The entry dict to validate
-        index: The index of this entry in the array (for error messages)
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
+def _validate_entry(entry: dict) -> tuple[bool, str | None]:
+    """Validate the current challenge entry's fields."""
     missing_fields = _REQUIRED_FIELDS - set(entry.keys())
     if missing_fields:
         return (
             False,
-            f"Entry {index + 1} missing fields: {', '.join(sorted(missing_fields))}",
+            f"Challenge entry missing fields: {', '.join(sorted(missing_fields))}",
         )
 
     if not isinstance(entry.get("id"), str) or not _validate_uuid(entry["id"]):
-        return False, f"Entry {index + 1} has invalid id (expected UUID format)"
+        return False, "Challenge entry has invalid id (expected UUID format)"
 
     for field in _STRING_FIELDS_WITH_LIMIT:
         value = entry.get(field)
         if not isinstance(value, str):
-            return False, f"Entry {index + 1} field '{field}' must be a string"
+            return False, f"Challenge entry field '{field}' must be a string"
         if len(value) > _MAX_STRING_LENGTH:
-            return False, f"Entry {index + 1} field '{field}' exceeds max length"
+            return False, f"Challenge entry field '{field}' exceeds max length"
         if not value.strip():
-            return False, f"Entry {index + 1} field '{field}' cannot be empty"
+            return False, f"Challenge entry field '{field}' cannot be empty"
 
     # Validate created_at is a datetime
     created_at = entry.get("created_at")
     if not isinstance(created_at, str) or not _validate_datetime(created_at):
         return (
             False,
-            f"Entry {index + 1} has invalid created_at (expected ISO 8601 datetime)",
+            "Challenge entry has invalid created_at (expected ISO 8601 datetime)",
         )
 
     # updated_at is optional but if present, must be valid datetime
@@ -310,46 +309,9 @@ def _validate_entry(entry: dict, index: int) -> tuple[bool, str | None]:
     if updated_at is not None and (
         not isinstance(updated_at, str) or not _validate_datetime(updated_at)
     ):
-        return False, f"Entry {index + 1} has invalid updated_at"
+        return False, "Challenge entry has invalid updated_at"
 
     return True, None
-
-
-def _validate_entries_json(data: list) -> ValidationResult:
-    """Validate the entries array from the API response.
-
-    Args:
-        data: The parsed JSON array from the API response
-
-    Returns:
-        ValidationResult with validation status and feedback
-    """
-    if len(data) == 0:
-        return ValidationResult(
-            is_valid=False,
-            message="No entries found. Create at least one journal entry first.",
-        )
-
-    for i, entry in enumerate(data):
-        if not isinstance(entry, dict):
-            return ValidationResult(
-                is_valid=False,
-                message=f"Entry {i + 1} is not a valid object.",
-            )
-
-        is_valid, error = _validate_entry(entry, i)
-        if not is_valid:
-            return ValidationResult(
-                is_valid=False,
-                message=error or "Entry validation failed",
-            )
-
-    count = len(data)
-    entry_word = "entry" if count == 1 else "entries"
-    return ValidationResult(
-        is_valid=True,
-        message=f"Deployed API verified! Found {count} valid {entry_word}.",
-    )
 
 
 def _validate_analysis_json(data: Any, entry_id: str) -> ValidationResult:
@@ -367,7 +329,7 @@ def _validate_analysis_json(data: Any, entry_id: str) -> ValidationResult:
         )
 
     sentiment = data.get("sentiment")
-    if sentiment not in _VALID_SENTIMENTS:
+    if not isinstance(sentiment, str) or sentiment not in _VALID_SENTIMENTS:
         return ValidationResult(
             is_valid=False,
             message=("AI analysis sentiment must be positive, negative, or neutral."),
@@ -488,18 +450,34 @@ async def _cleanup_challenge_entry(
     entries_url: str,
     entry_id: str,
 ) -> None:
-    """Best-effort DELETE of the challenge entry. Failures are logged, not raised."""
+    """Report expected DELETE failures without changing the verification outcome."""
+    attributes: dict[str, str | int] = {
+        "verification.operation": "DELETE /entries/{id}",
+    }
     try:
         delete_url = f"{entries_url}/{entry_id}"
-        await _fetch_with_retry(delete_url, method="DELETE")
+        response = await _fetch_with_retry(delete_url, method="DELETE")
     except _SsrfError:
         span = trace.get_current_span()
         span.add_event(
             "deployed_api.ssrf_blocked",
             {"verification.reason": "cleanup_dns_rebinding"},
         )
-    except Exception:
-        pass  # best-effort cleanup
+        attributes["error.type"] = "ssrf_blocked"
+    except httpx.TimeoutException:
+        attributes["error.type"] = "timeout"
+    except httpx.RequestError:
+        attributes["error.type"] = "request_error"
+    except DeployedApiServerError as exc:
+        attributes["error.type"] = "server_error"
+        attributes["http.response.status_code"] = exc.status_code
+    else:
+        if response.status_code in (200, 204, 404):
+            return
+        attributes["error.type"] = "unexpected_status"
+        attributes["http.response.status_code"] = response.status_code
+
+    trace.get_current_span().add_event("deployed_api.cleanup_failed", attributes)
 
 
 async def _post_challenge(
@@ -564,23 +542,19 @@ async def _post_challenge(
         if isinstance(post_data, dict):
             entry_obj = post_data.get("entry", post_data)
             if isinstance(entry_obj, dict):
-                return entry_obj.get("id")
-    except (json.JSONDecodeError, AttributeError):
+                entry_id = entry_obj.get("id")
+                if isinstance(entry_id, str):
+                    return entry_id
+    except (json.JSONDecodeError, UnicodeDecodeError):
         pass
 
     return None
 
 
 async def _verify_challenge(
-    entries_url: str, nonce: str, base_url: str
+    entries_url: str, nonce: str
 ) -> tuple[ValidationResult, str | None]:
-    """GET /entries and verify the challenge nonce appears.
-
-    Returns:
-        (result, discovered_entry_id) — the discovered_entry_id is the ID
-        of the challenge entry found during GET response scanning (used for
-        cleanup when the POST response didn't include one).
-    """
+    """Validate the exact nonce entry and return its ID for analysis and cleanup."""
     try:
         response = await _fetch_with_retry(entries_url)
     except _SsrfError:
@@ -612,7 +586,7 @@ async def _verify_challenge(
 
     try:
         get_data = response.json()
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return (
             ValidationResult(
                 is_valid=False,
@@ -634,16 +608,15 @@ async def _verify_challenge(
             None,
         )
 
-    # Find the challenge entry
-    nonce_found = False
-    discovered_id: str | None = None
-    for entry in entries:
-        if isinstance(entry, dict) and entry.get("work") == nonce:
-            nonce_found = True
-            discovered_id = entry.get("id")
-            break
-
-    if not nonce_found:
+    challenge_entry = next(
+        (
+            entry
+            for entry in entries
+            if isinstance(entry, dict) and entry.get("work") == nonce
+        ),
+        None,
+    )
+    if challenge_entry is None:
         span = trace.get_current_span()
         span.add_event("deployed_api.challenge_failed")
         return (
@@ -656,34 +629,29 @@ async def _verify_challenge(
                     "persists data and GET /entries returns all entries."
                 ),
             ),
-            discovered_id,
+            None,
         )
 
-    # Validate real entries (excluding challenge entries)
-    real_entries = [
-        e
-        for e in entries
-        if isinstance(e, dict)
-        and isinstance(e.get("work"), str)
-        and not e["work"].startswith(_CHALLENGE_PREFIX)
-    ]
-
-    if real_entries:
-        validation = _validate_entries_json(real_entries)
-        if not validation.is_valid:
-            return validation, discovered_id
+    entry_id = challenge_entry.get("id")
+    discovered_id = entry_id if isinstance(entry_id, str) else None
+    is_valid, error = _validate_entry(challenge_entry)
+    if not is_valid:
+        return (
+            ValidationResult(
+                is_valid=False,
+                message=error or "Challenge entry validation failed.",
+            ),
+            discovered_id,
+        )
 
     span = trace.get_current_span()
     span.set_attribute("verification.deployed_api.challenge_verified", True)
 
-    count = len(real_entries)
-    entry_word = "entry" if count == 1 else "entries"
     return (
         ValidationResult(
             is_valid=True,
             message=(
-                f"Deployed API verified! Ownership confirmed via challenge-response. "
-                f"Found {count} valid {entry_word}."
+                "Deployed API verified! Ownership confirmed via challenge-response."
             ),
         ),
         discovered_id,
@@ -709,10 +677,19 @@ async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
         httpx.RequestError,
         DeployedApiServerError,
     ) as exc:
-        return deployed_api_error_to_result(
+        result = deployed_api_error_to_result(
             exc,
             step="POST /entries/{id}/analyze",
         )
+        if isinstance(exc, DeployedApiServerError) and exc.status_code == 501:
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    "POST /entries/{id}/analyze is not implemented. Complete the "
+                    "Journal API AI analysis task and deploy it."
+                ),
+            )
+        return result
 
     if response.status_code == 404:
         return ValidationResult(
@@ -720,14 +697,6 @@ async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
             message=(
                 "POST /entries/{id}/analyze returned 404. Ensure the endpoint "
                 "exists and the challenge entry can be analyzed."
-            ),
-        )
-    if response.status_code == 501:
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                "POST /entries/{id}/analyze is not implemented. Complete the "
-                "Journal API AI analysis task and deploy it."
             ),
         )
     if response.status_code != 200:
@@ -741,7 +710,7 @@ async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
 
     try:
         data = response.json()
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return ValidationResult(
             is_valid=False,
             message="POST /entries/{id}/analyze did not return valid JSON.",
@@ -750,20 +719,7 @@ async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
 
 
 async def validate_deployed_api(base_url: str) -> ValidationResult:
-    """Validate a deployed Journal API via challenge-response.
-
-    Proves the submitter owns and controls the API by:
-    1. POSTing a challenge entry with a unique nonce
-    2. GETting /entries and confirming the nonce appears
-    3. Calling the live AI analysis endpoint for that entry
-    4. DELETEing the challenge entry to clean up
-
-    Args:
-        base_url: The base URL of the deployed API (e.g., https://api.example.com)
-
-    Returns:
-        ValidationResult with validation status and feedback
-    """
+    """Verify ownership, challenge fields, and live AI analysis, then clean up."""
     base_url = _normalize_base_url(base_url)
 
     if not base_url:
@@ -796,9 +752,7 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
             return post_result
         challenge_entry_id = post_result
 
-        verify_result, discovered_id = await _verify_challenge(
-            entries_url, nonce, base_url
-        )
+        verify_result, discovered_id = await _verify_challenge(entries_url, nonce)
         if challenge_entry_id is None:
             challenge_entry_id = discovered_id
         if not verify_result.is_valid:

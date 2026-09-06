@@ -6,7 +6,7 @@ Tests the challenge-response API ownership verification:
 - POST/GET/DELETE flow for ownership proof
 - HTTP request handling (success, errors, timeouts)
 - JSON response parsing and entry validation
-- Circuit breaker behavior
+- Transport retries and safe error diagnostics
 """
 
 import json
@@ -25,7 +25,6 @@ from learn_to_cloud_shared.verification.deployed_api import (
     _normalize_base_url,
     _SsrfError,
     _validate_analysis_json,
-    _validate_entries_json,
     _validate_entry,
     _validate_url_target,
     _verify_analysis,
@@ -83,7 +82,7 @@ class TestValidateEntry:
 
     def test_valid_entry_passes(self):
         """A valid entry should pass validation."""
-        is_valid, error = _validate_entry(self._valid_entry(), 0)
+        is_valid, error = _validate_entry(self._valid_entry())
         assert is_valid is True
         assert error is None
 
@@ -92,7 +91,7 @@ class TestValidateEntry:
         entry = self._valid_entry()
         del entry["work"]
 
-        is_valid, error = _validate_entry(entry, 0)
+        is_valid, error = _validate_entry(entry)
         assert is_valid is False
         assert error is not None
         assert "missing fields" in error.lower()
@@ -103,7 +102,7 @@ class TestValidateEntry:
         entry = self._valid_entry()
         entry["id"] = "not-a-uuid"
 
-        is_valid, error = _validate_entry(entry, 0)
+        is_valid, error = _validate_entry(entry)
         assert is_valid is False
         assert error is not None
         assert "invalid id" in error.lower()
@@ -113,7 +112,7 @@ class TestValidateEntry:
         entry = self._valid_entry()
         entry["work"] = "   "
 
-        is_valid, error = _validate_entry(entry, 0)
+        is_valid, error = _validate_entry(entry)
         assert is_valid is False
         assert error is not None
         assert "cannot be empty" in error.lower()
@@ -123,7 +122,7 @@ class TestValidateEntry:
         entry = self._valid_entry()
         entry["created_at"] = "not-a-date"
 
-        is_valid, error = _validate_entry(entry, 0)
+        is_valid, error = _validate_entry(entry)
         assert is_valid is False
         assert error is not None
         assert "invalid created_at" in error.lower()
@@ -133,51 +132,10 @@ class TestValidateEntry:
         entry = self._valid_entry()
         entry["updated_at"] = "invalid"
 
-        is_valid, error = _validate_entry(entry, 0)
+        is_valid, error = _validate_entry(entry)
         assert is_valid is False
         assert error is not None
         assert "invalid updated_at" in error.lower()
-
-
-class TestValidateEntriesJson:
-    """Tests for entries array validation."""
-
-    def _valid_entry(self) -> dict:
-        """Create a valid journal entry for testing."""
-        return {
-            "id": "12345678-1234-4567-89ab-123456789abc",
-            "work": "Built an API",
-            "struggle": "CORS issues",
-            "intention": "Deploy to cloud",
-            "created_at": "2025-01-25T10:30:00Z",
-        }
-
-    def test_valid_array_passes(self):
-        """Valid array with entries should pass."""
-        result = _validate_entries_json([self._valid_entry()])
-        assert result.is_valid is True
-        assert "1 valid entry" in result.message
-
-    def test_multiple_entries_passes(self):
-        """Multiple valid entries should pass."""
-        entries = [self._valid_entry(), self._valid_entry()]
-        entries[1]["id"] = "87654321-4321-4567-89ab-987654321abc"
-
-        result = _validate_entries_json(entries)
-        assert result.is_valid is True
-        assert "2 valid entries" in result.message
-
-    def test_empty_array_fails(self):
-        """Empty array should fail."""
-        result = _validate_entries_json([])
-        assert result.is_valid is False
-        assert "no entries" in result.message.lower()
-
-    def test_non_object_entry_fails(self):
-        """Non-object entries should fail."""
-        result = _validate_entries_json(["not an object"])
-        assert result.is_valid is False
-        assert "not a valid object" in result.message.lower()
 
 
 class TestValidateAnalysisJson:
@@ -248,24 +206,6 @@ class TestVerifyAnalysis:
         )
 
     @pytest.mark.asyncio
-    async def test_not_implemented_fails(self):
-        response = MagicMock(spec=httpx.Response)
-        response.status_code = 501
-
-        with patch(
-            "learn_to_cloud_shared.verification.deployed_api._fetch_once",
-            autospec=True,
-            return_value=response,
-        ):
-            result = await _verify_analysis(
-                "https://api.example.com",
-                "challenge-id",
-            )
-
-        assert result.is_valid is False
-        assert "not implemented" in result.message.lower()
-
-    @pytest.mark.asyncio
     async def test_timeout_fails(self):
         with patch(
             "learn_to_cloud_shared.verification.deployed_api._fetch_once",
@@ -317,70 +257,6 @@ class TestGenerateChallengeNonce:
         """Each call should produce a different nonce."""
         nonces = {_generate_challenge_nonce() for _ in range(10)}
         assert len(nonces) == 10
-
-
-def _mock_fetch_side_effect(
-    *,
-    nonce: str,
-    post_status: int = 200,
-    post_entry_id: str = "challenge-uuid",
-    get_status: int = 200,
-    get_entries: list | None = None,
-    get_response_format: str = "array",
-):
-    """Build a side_effect callable for _fetch_with_retry that handles POST then GET.
-
-    Args:
-        nonce: The nonce that will be in the POST body (matched dynamically)
-        post_status: HTTP status for the POST response
-        post_entry_id: ID returned for the created challenge entry
-        get_status: HTTP status for the GET response
-        get_entries: Entries to return from GET (nonce entry auto-added)
-        get_response_format: 'array' or 'wrapped'
-    """
-    real_entries = get_entries or []
-
-    async def side_effect(url, *, method="GET", json_body=None):
-        resp = MagicMock(spec=httpx.Response)
-
-        if method == "POST":
-            resp.status_code = post_status
-            # Build the nonce entry from what was posted
-            challenge_entry = {
-                "id": post_entry_id,
-                **(json_body or {}),
-                "created_at": "2026-01-01T00:00:00Z",
-            }
-            resp.json.return_value = {
-                "detail": "Entry created successfully",
-                "entry": challenge_entry,
-            }
-            return resp
-
-        if method == "GET":
-            resp.status_code = get_status
-            # Include the challenge entry (simulating real persistence)
-            challenge_entry = {
-                "id": post_entry_id,
-                "work": json_body["work"] if json_body else nonce,
-                "struggle": "LTC verification challenge",
-                "intention": "Proving API ownership",
-                "created_at": "2026-01-01T00:00:00Z",
-            }
-            # We need to capture the nonce from the POST call
-            all_entries = [*real_entries, challenge_entry]
-            if get_response_format == "wrapped":
-                resp.json.return_value = {
-                    "entries": all_entries,
-                    "count": len(all_entries),
-                }
-            else:
-                resp.json.return_value = all_entries
-            return resp
-
-        return resp
-
-    return side_effect
 
 
 @pytest.mark.unit
@@ -449,7 +325,7 @@ class TestValidateDeployedApi:
                 resp.json.return_value = {
                     "detail": "Entry created successfully",
                     "entry": {
-                        "id": "challenge-id",
+                        "id": "87654321-4321-4567-89ab-987654321abc",
                         "work": nonce,
                         "struggle": json_body["struggle"],
                         "intention": json_body["intention"],
@@ -461,7 +337,7 @@ class TestValidateDeployedApi:
             if method == "GET":
                 # Return the valid entry + challenge entry
                 nonce_entry = {
-                    "id": "challenge-id",
+                    "id": "87654321-4321-4567-89ab-987654321abc",
                     "work": call_log_nonce,
                     "struggle": "LTC verification challenge",
                     "intention": "Proving API ownership",
@@ -502,9 +378,10 @@ class TestValidateDeployedApi:
 
             assert result.is_valid is True
             assert "ownership confirmed" in result.message.lower()
-            assert "1 valid entry" in result.message
+            assert "valid entry" not in result.message
             mock_cleanup.assert_called_once_with(
-                "https://api.example.com/entries", "challenge-id"
+                "https://api.example.com/entries",
+                "87654321-4321-4567-89ab-987654321abc",
             )
 
     @pytest.mark.asyncio
@@ -595,6 +472,16 @@ class TestValidateDeployedApi:
             autospec=True,
         ) as mock_fetch:
             mock_fetch.return_value = mock_response
+
+            result = await validate_deployed_api("https://api.example.com")
+
+        assert result.verification_completed
+        assert result.is_valid is False
+        assert result.message == (
+            "POST /entries returned 422 (validation error). "
+            "Ensure POST /entries accepts {work, struggle, intention}."
+        )
+        mock_fetch.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_nonce_not_found_in_get(self, _mock_ssrf):
@@ -704,13 +591,16 @@ class TestValidateDeployedApi:
                 captured_nonce = json_body["work"]
                 resp.status_code = 200
                 resp.json.return_value = {
-                    "entry": {"id": "cid", "work": captured_nonce}
+                    "entry": {
+                        "id": "87654321-4321-4567-89ab-987654321abc",
+                        "work": captured_nonce,
+                    }
                 }
                 return resp
 
             if method == "GET":
                 nonce_entry = {
-                    "id": "cid",
+                    "id": "87654321-4321-4567-89ab-987654321abc",
                     "work": captured_nonce,
                     "struggle": "LTC verification challenge",
                     "intention": "Proving API ownership",
@@ -764,13 +654,16 @@ class TestValidateDeployedApi:
                 captured_nonce = json_body["work"]
                 resp.status_code = 200
                 resp.json.return_value = {
-                    "entry": {"id": "cid", "work": captured_nonce}
+                    "entry": {
+                        "id": "87654321-4321-4567-89ab-987654321abc",
+                        "work": captured_nonce,
+                    }
                 }
                 return resp
 
             if method == "GET":
                 nonce_entry = {
-                    "id": "cid",
+                    "id": "87654321-4321-4567-89ab-987654321abc",
                     "work": captured_nonce,
                     "struggle": "LTC verification challenge",
                     "intention": "Proving API ownership",

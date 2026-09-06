@@ -401,6 +401,60 @@ failures keep their existing completed learner-failure behavior; transient GHCR
 failures remain incomplete. Response-status telemetry never includes provider
 bodies, headers, tokens, repository links, or learner endpoint URLs.
 
+### Deployed API challenge verification
+
+The Phase 4 deployment check creates a unique nonce-bearing journal entry,
+finds that exact nonce in `GET /entries`, and validates only that entry's UUID v4,
+text, and datetime fields before requesting live AI analysis. Historical entries,
+including malformed objects and previous verification challenges, cannot fail
+this check or substitute for the current nonce. The GET response must still wrap
+the list as `{"entries": [...], "count": N}`; the `count` value is not validated.
+Success confirms ownership and live AI analysis, not historical data quality or
+entry counts. The check remains deterministic and does not request grading.
+
+#### Findings and boundaries (#855)
+
+The [original request boundary][deployed-api-original-http] and
+[ownership workflow][deployed-api-original-workflow] explain the necessary
+complexity: pooled HTTP requests, target and response-peer checks, different
+endpoint contracts, POST-ID precedence with GET-ID fallback, and unconditional
+cleanup when a selected ID is known. These remain together in `deployed_api.py`.
+HTTPS, redirects, base-path normalization, and absent-peer-metadata behavior are
+unchanged. The response-peer check runs after a request; it does not establish
+that all DNS-rebinding side effects are prevented.
+
+The [original historical-entry filter and validation][deployed-api-original-history]
+mixed a deployment probe with a partial stored-data audit. Removing that work
+and its counts narrows the responsibility without requiring more modules.
+Single-entry field rules remain, now applied to the current challenge.
+
+CRUD retains three attempts for the existing transient errors, with no retries
+for 4xx or 429. Potentially billable analysis makes one request with a 30-second
+timeout. A real analysis 501 is handled at the analysis boundary using the
+structured server-error status, so learners are told to implement and deploy the
+AI analysis task while safe `deployed_api.server_error` diagnostics remain.
+Malformed JSON encodings, non-string IDs, and non-string analysis sentiment
+are handled as learner-response problems rather than unexpected worker errors;
+an unusable POST ID can fall back to the GET-discovered ID.
+
+Cleanup is best-effort, not a separate pass/fail gate. The
+[journal-starter DELETE contract][journal-delete-contract] specifies 200 for
+deletion and 404 for an absent entry; both complete cleanup, as does 204 for
+bodyless deletion. Other statuses and expected network or target-check failures
+emit `deployed_api.cleanup_failed` with `verification.operation` set to
+`DELETE /entries/{id}`, an `error.type` category (`timeout`, `request_error`,
+`server_error`, `ssrf_blocked`, or `unexpected_status`), and
+`http.response.status_code` when available. This event never sets span-level
+error attributes or changes the primary verification result. Existing target-block
+events remain. Diagnostics exclude URLs, entry IDs, nonces, bodies, headers, and
+raw exception messages. Programming errors and cancellation propagate instead
+of being silently suppressed.
+
+[deployed-api-original-http]: https://github.com/learntocloud/learn-to-cloud-app/blob/a070cfe9f8537e0a4d475f5933417ed6b9ba13c8/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/deployed_api.py#L111-L249
+[deployed-api-original-workflow]: https://github.com/learntocloud/learn-to-cloud-app/blob/a070cfe9f8537e0a4d475f5933417ed6b9ba13c8/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/deployed_api.py#L423-L828
+[deployed-api-original-history]: https://github.com/learntocloud/learn-to-cloud-app/blob/a070cfe9f8537e0a4d475f5933417ed6b9ba13c8/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/deployed_api.py#L662-L692
+[journal-delete-contract]: https://github.com/learntocloud/journal-starter/blob/f7af5d4a39ee903027a43bf7cdbba43fc65ecb51/tests/test_api.py#L180-L200
+
 ### Authentication and sessions
 
 GitHub OAuth establishes an opaque login cookie, `ltc_session`, backed by
