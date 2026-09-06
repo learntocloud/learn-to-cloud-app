@@ -380,7 +380,7 @@ shared engine has performed this preflight.
 GitHub response classification and telemetry belong to `github_errors.py`;
 deployed-API and GHCR errors stay in their respective integration modules.
 Native HTTPX request failures remain request failures, with no invented status.
-Each integration explicitly selects its retryable errors, never the common base.
+Integrations that retry explicitly select their errors, never the common base.
 
 GitHub network and non-404 HTTP failures leave an attempt incomplete, not failed
 learner work. Failed evidence fetches stop collection and prevent all grading,
@@ -395,59 +395,53 @@ Evidence selection, file caps, truncation, and rubric missing-file rules are
 unchanged; this is not a general guarantee of complete repository evidence.
 
 GitHub API GET/HEAD and GHCR retain three attempts for their existing transient
-errors; raw-file reads make one attempt per file. Learner-API create/list requests
-retain three attempts, while billable AI analysis makes exactly one request.
-Deployed-API failures keep their existing completed learner-failure behavior; transient GHCR
-failures remain incomplete. Response-status telemetry never includes provider
-bodies, headers, tokens, repository links, or learner endpoint URLs.
+errors; raw-file reads make one attempt per file. Learner-API creation and AI
+analysis each make one request, with no automatic retries. Deployed-API failures
+keep their existing completed learner-failure behavior; transient GHCR failures
+remain incomplete. Response-status telemetry never includes provider bodies,
+headers, tokens, repository links, or learner endpoint URLs.
 
-### Deployed API challenge verification
+### Deployed API verification
 
-The Phase 4 deployment check creates a unique nonce-bearing journal entry,
-finds the exact posted `work` text in `GET /entries`, and validates only that
-entry's UUID v4, text, and datetime fields before requesting live AI analysis.
-Historical entries, including malformed objects and previous verification challenges, cannot fail
-this check or substitute for the current nonce. The GET response must still wrap
-the list as `{"entries": [...], "count": N}`; the `count` value is not validated.
-Success confirms ownership and live AI analysis, not historical data quality or
-entry counts. The check remains deterministic and does not request grading.
+The Phase 4 deployment check makes two requests: `POST /entries`, then
+`POST /entries/{id}/analyze`. Creation must return 200 or 201 and a non-empty
+string ID, either in the response object or its `entry` object. Analysis must
+return 200 with the matching `entry_id`, a supported sentiment, a non-empty
+summary, and a non-empty list of topic strings. No GET, listing check, nonce,
+journal-field validation, or historical-data audit is involved.
 
-The verification entry stays in the learner's journal, whether the check succeeds
-or fails. Its `work` text starts with "Nice work getting your Journal API online!"
-and includes the unique attempt marker. The other fields encourage continued
-learning and building. This celebrates progress, not a passing verification
-result. The verifier never deletes or updates entries; each attempt creates a
-new entry, and learners can keep or remove them themselves.
+Each step runs once, including on network errors and 5xx responses. Creation
+failure stops before analysis; a missing ID is reported rather than recovered
+with a GET. Analysis has a 30-second timeout. Feedback identifies the failed
+step, including actionable instructions for an unimplemented analysis endpoint
+(501). Success confirms entry creation and analysis, not ownership or listing
+behavior. The check remains deterministic and does not request grading.
+
+Created entries stay in the learner's journal even if analysis fails. The entry
+says "Nice work getting your Journal API online!" and encourages continued
+learning and building, without claiming verification passed. The verifier never
+deletes or updates entries; learners can keep or remove them themselves.
 
 #### Findings and boundaries (#855)
 
-The [original request boundary][deployed-api-original-http] and
-[ownership workflow][deployed-api-original-workflow] explain the necessary
-complexity: pooled HTTP requests, target and response-peer checks, different
-endpoint contracts, and POST-ID precedence with GET-ID fallback for analysis.
-These remain together in `deployed_api.py`; the former cleanup workflow is
-unnecessary because verification entries are intentionally retained.
-HTTPS, redirects, base-path normalization, and absent-peer-metadata behavior are
-unchanged. The response-peer check runs after a request; it does not establish
-that all DNS-rebinding side effects are prevented.
-
+The [original workflow][deployed-api-original-workflow] combined ownership
+challenges, ID recovery, retries, and deletion with creation and analysis.
 The [original historical-entry filter and validation][deployed-api-original-history]
-mixed a deployment probe with a partial stored-data audit. Removing that work
-and its counts narrows the responsibility without requiring more modules.
-Single-entry field rules remain, now applied to the current challenge.
+also expanded a deployment probe into a partial stored-data audit. None of that
+is required by the two-request flow, so it has been removed rather than split
+into more modules.
 
-Create/list requests retain three attempts for the existing transient errors,
-with no retries for 4xx or 429. Potentially billable analysis makes one request
-with a 30-second timeout. A real analysis 501 is handled at the analysis boundary using the
-structured server-error status, so learners are told to implement and deploy the
-AI analysis task while safe `deployed_api.server_error` diagnostics remain.
-Malformed JSON encodings, non-string IDs, and non-string analysis sentiment
-are handled as learner-response problems rather than unexpected worker errors;
-an unusable POST ID can fall back to the GET-discovered ID.
+The [request boundary][deployed-api-original-http] remains necessary: connection
+pooling, timeouts, HTTPS, disabled redirects, and private-target checks protect
+our server while it requests a learner-supplied URL. Base-path normalization and
+absent-peer-metadata behavior are unchanged. Response-peer inspection occurs
+after a request and cannot undo its side effects.
 
-Existing target-block events remain. Diagnostics exclude URLs, entry IDs,
-nonces, bodies, headers, and raw exception messages. Programming errors and
-cancellation propagate instead of being silently suppressed.
+Safe timeout, server-error, request-error, and target-block diagnostics remain.
+Success records `verification.deployed_api.verified` and
+`verification.deployed_api.ai_verified`; challenge and cleanup diagnostics are
+not emitted. Diagnostics exclude URLs, entry IDs, bodies, headers, and raw
+exception messages. Programming errors and cancellation propagate.
 
 [deployed-api-original-http]: https://github.com/learntocloud/learn-to-cloud-app/blob/a070cfe9f8537e0a4d475f5933417ed6b9ba13c8/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/deployed_api.py#L111-L249
 [deployed-api-original-workflow]: https://github.com/learntocloud/learn-to-cloud-app/blob/a070cfe9f8537e0a4d475f5933417ed6b9ba13c8/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/deployed_api.py#L423-L828

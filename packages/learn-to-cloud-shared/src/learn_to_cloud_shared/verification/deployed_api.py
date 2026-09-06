@@ -1,58 +1,25 @@
-"""Deployed API verification for Phase 4 hands-on validation.
-
-This module validates that users have successfully deployed their Journal API
-by making a live HTTP request to their submitted endpoint.
-
-Verification uses a challenge-response protocol to prove API ownership:
-1. POST a unique challenge entry to /entries
-2. GET /entries and validate only the entry matching the current challenge nonce
-3. POST /entries/{id}/analyze and validate the live AI response
-
-The entry remains as an encouraging milestone, even if verification fails.
-
-The deployed API must:
-- Be publicly accessible via HTTPS
-- Have working create, list, and analyze endpoints
-- Return valid journal entry and AI analysis JSON
-
-SCALABILITY:
-- Retry create/list verification requests with exponential backoff (3 attempts)
-- Send exactly one potentially billable AI analysis request
-- Connection pooling via shared httpx.AsyncClient
-"""
+"""Create a journal entry and analyze it once, leaving the entry for the learner."""
 
 from __future__ import annotations
 
 import asyncio
 import ipaddress
 import json
-import secrets
 import socket
-from datetime import datetime
 from typing import Any
-from urllib.parse import urlparse
-from uuid import UUID
+from urllib.parse import quote, urlparse
 
 import httpx
 from opentelemetry import trace
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential_jitter,
-)
 
 from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.http_client import PooledClient
 from learn_to_cloud_shared.schemas import ValidationResult
-from learn_to_cloud_shared.verification.errors import (
-    UpstreamResponseError,
-    make_retriable,
-)
+from learn_to_cloud_shared.verification.errors import UpstreamResponseError
 
 
 class DeployedApiServerError(UpstreamResponseError):
-    """Raised when the learner's API returns a retriable 5xx response."""
+    """Raised when the learner's API returns a 5xx response."""
 
 
 def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> ValidationResult:
@@ -123,17 +90,6 @@ def _build_deployed_api_client() -> httpx.AsyncClient:
 _pool = PooledClient(_build_deployed_api_client)
 
 
-# Exceptions that should trigger retry
-RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = make_retriable(
-    DeployedApiServerError
-)
-
-# Required fields for a journal entry
-_REQUIRED_FIELDS = {"id", "work", "struggle", "intention", "created_at"}
-
-# String fields with max length constraint (256 chars per journal-starter schema)
-_STRING_FIELDS_WITH_LIMIT = {"work", "struggle", "intention"}
-_MAX_STRING_LENGTH = 256
 _VALID_SENTIMENTS = {"positive", "negative", "neutral"}
 _ANALYSIS_TIMEOUT_SECONDS = 30.0
 
@@ -169,15 +125,7 @@ def _is_private_ip(addr: str) -> bool:
 
 
 async def _validate_url_target(url: str) -> str | None:
-    """Validate that a URL's hostname does not target a private IP address.
-
-    Performs pre-flight DNS resolution to catch obvious SSRF attempts
-    (direct IPs, hostnames resolving to private ranges). A second
-    validation occurs post-connect in ``_check_response_ip`` to close
-    the DNS-rebinding TOCTOU window.
-
-    Returns None if safe, or an error message string.
-    """
+    """Reject private targets before sending requests from our server."""
     parsed = urlparse(url)
     hostname = parsed.hostname
     if not hostname:
@@ -227,11 +175,7 @@ class _SsrfError(Exception):
 
 
 def _check_response_ip(response: httpx.Response) -> None:
-    """Verify the actual connected IP is not private (closes DNS-rebinding gap).
-
-    Raises:
-        _SsrfError: If the connection was made to a private/internal IP.
-    """
+    """Reject a private response peer; this cannot undo the request already sent."""
     stream = response.extensions.get("network_stream")
     if stream is None:
         return
@@ -255,64 +199,6 @@ def _normalize_base_url(url: str) -> str:
     if url.endswith("/entries"):
         url = url[:-8]
     return url
-
-
-def _validate_uuid(value: str) -> bool:
-    """Check if a string is a valid UUID v4."""
-    try:
-        return UUID(value).version == 4
-    except (ValueError, AttributeError, TypeError):
-        return False
-
-
-def _validate_datetime(value: str) -> bool:
-    """Check if a string is a valid ISO 8601 datetime."""
-    try:
-        if value.endswith("Z"):
-            value = value[:-1] + "+00:00"
-        datetime.fromisoformat(value)
-        return True
-    except (ValueError, TypeError):
-        return False
-
-
-def _validate_entry(entry: dict) -> tuple[bool, str | None]:
-    """Validate the current challenge entry's fields."""
-    missing_fields = _REQUIRED_FIELDS - set(entry.keys())
-    if missing_fields:
-        return (
-            False,
-            f"Challenge entry missing fields: {', '.join(sorted(missing_fields))}",
-        )
-
-    if not isinstance(entry.get("id"), str) or not _validate_uuid(entry["id"]):
-        return False, "Challenge entry has invalid id (expected UUID format)"
-
-    for field in _STRING_FIELDS_WITH_LIMIT:
-        value = entry.get(field)
-        if not isinstance(value, str):
-            return False, f"Challenge entry field '{field}' must be a string"
-        if len(value) > _MAX_STRING_LENGTH:
-            return False, f"Challenge entry field '{field}' exceeds max length"
-        if not value.strip():
-            return False, f"Challenge entry field '{field}' cannot be empty"
-
-    # Validate created_at is a datetime
-    created_at = entry.get("created_at")
-    if not isinstance(created_at, str) or not _validate_datetime(created_at):
-        return (
-            False,
-            "Challenge entry has invalid created_at (expected ISO 8601 datetime)",
-        )
-
-    # updated_at is optional but if present, must be valid datetime
-    updated_at = entry.get("updated_at")
-    if updated_at is not None and (
-        not isinstance(updated_at, str) or not _validate_datetime(updated_at)
-    ):
-        return False, "Challenge entry has invalid updated_at"
-
-    return True, None
 
 
 def _validate_analysis_json(data: Any, entry_id: str) -> ValidationResult:
@@ -360,37 +246,13 @@ def _validate_analysis_json(data: Any, entry_id: str) -> ValidationResult:
     )
 
 
-_CHALLENGE_PREFIX = "ltc-verify-"
-
-
-def _generate_challenge_nonce() -> str:
-    """Generate a unique challenge nonce for ownership verification."""
-    return f"{_CHALLENGE_PREFIX}{secrets.token_hex(16)}"
-
-
-def _extract_entries_list(data: Any) -> list | None:
-    """Extract the entries list from a GET /entries response.
-
-    The journal-starter returns: {"entries": [...], "count": N}
-    This is the only format we accept.
-
-    Returns None if the format is unrecognised.
-    """
-    if isinstance(data, dict):
-        entries = data.get("entries")
-        if isinstance(entries, list):
-            return entries
-    return None
-
-
-async def _fetch_once(
+async def _post_once(
     url: str,
     *,
-    method: str = "GET",
     json_body: dict | None = None,
     timeout: float | None = None,
 ) -> httpx.Response:
-    """Make one HTTP request to the deployed API."""
+    """POST once with shared connection limits and response-peer checks."""
     client = await _get_client()
     request_options: dict[str, Any] = {
         "json": json_body,
@@ -398,7 +260,7 @@ async def _fetch_once(
     }
     if timeout is not None:
         request_options["timeout"] = timeout
-    response = await client.request(method, url, **request_options)
+    response = await client.post(url, **request_options)
 
     _check_response_ip(response)
     if response.status_code >= 500:
@@ -409,64 +271,16 @@ async def _fetch_once(
     return response
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential_jitter(initial=0.5, max=10),
-    retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
-    reraise=True,
-)
-async def _fetch_with_retry(
-    url: str,
-    *,
-    method: str = "GET",
-    json_body: dict | None = None,
-    timeout: float | None = None,
-) -> httpx.Response:
-    """Make a retryable HTTP request to the deployed API.
-
-    Args:
-        url: The full URL to request
-        method: HTTP method (GET or POST)
-        json_body: Optional JSON body for POST requests
-        timeout: Optional per-request timeout override
-
-    Returns:
-        The httpx Response object
-
-    Raises:
-        _SsrfError: If the connection resolved to a private IP
-        DeployedApiServerError: If the API returns a 5xx error
-        httpx.RequestError: For connection/network errors
-        httpx.TimeoutException: If the request times out
-    """
-    return await _fetch_once(
-        url,
-        method=method,
-        json_body=json_body,
-        timeout=timeout,
-    )
-
-
-async def _post_challenge(
-    entries_url: str, challenge_work: str
-) -> ValidationResult | str | None:
-    """POST a challenge entry to prove API ownership.
-
-    Returns:
-        ValidationResult if the POST failed (error for user).
-        str if the entry_id was extracted from the response.
-        None if POST succeeded but entry_id couldn't be parsed.
-    """
-    challenge_body = {
-        "work": challenge_work,
+async def _create_entry(entries_url: str) -> ValidationResult | str:
+    """Create an encouraging entry and require its ID for analysis."""
+    entry_body = {
+        "work": "Nice work getting your Journal API online!",
         "struggle": "Every challenge is a chance to learn.",
         "intention": "Keep building, learning, and making progress.",
     }
 
     try:
-        response = await _fetch_with_retry(
-            entries_url, method="POST", json_body=challenge_body
-        )
+        response = await _post_once(entries_url, json_body=entry_body)
     except _SsrfError:
         return ValidationResult(
             is_valid=False,
@@ -503,135 +317,42 @@ async def _post_challenge(
             ),
         )
 
-    # The GET response can supply the ID if POST omits it.
     try:
         post_data = response.json()
-        if isinstance(post_data, dict):
-            entry_obj = post_data.get("entry", post_data)
-            if isinstance(entry_obj, dict):
-                entry_id = entry_obj.get("id")
-                if isinstance(entry_id, str):
-                    return entry_id
     except (json.JSONDecodeError, UnicodeDecodeError):
-        pass
-
-    return None
-
-
-async def _verify_challenge(
-    entries_url: str, challenge_work: str
-) -> tuple[ValidationResult, str | None]:
-    """Validate the exact challenge entry and return its ID for analysis."""
-    try:
-        response = await _fetch_with_retry(entries_url)
-    except _SsrfError:
-        return (
-            ValidationResult(
-                is_valid=False,
-                message="URL must point to a publicly accessible server.",
-            ),
-            None,
-        )
-    except (
-        httpx.TimeoutException,
-        httpx.RequestError,
-        DeployedApiServerError,
-    ) as exc:
-        return deployed_api_error_to_result(exc, step="GET /entries"), None
-
-    if response.status_code != 200:
-        return (
-            ValidationResult(
-                is_valid=False,
-                message=(
-                    f"GET /entries returned status {response.status_code}. "
-                    "Expected 200."
-                ),
-            ),
-            None,
+        return ValidationResult(
+            is_valid=False,
+            message="POST /entries did not return valid JSON.",
         )
 
-    try:
-        get_data = response.json()
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        return (
-            ValidationResult(
-                is_valid=False,
-                message="GET /entries did not return valid JSON.",
-            ),
-            None,
-        )
+    if isinstance(post_data, dict):
+        entry = post_data.get("entry", post_data)
+        if isinstance(entry, dict):
+            entry_id = entry.get("id")
+            if isinstance(entry_id, str) and entry_id.strip():
+                return entry_id
 
-    entries = _extract_entries_list(get_data)
-    if entries is None:
-        return (
-            ValidationResult(
-                is_valid=False,
-                message=(
-                    'GET /entries must return {"entries": [...], "count": N}. '
-                    "See the journal-starter for the expected format."
-                ),
-            ),
-            None,
-        )
-
-    challenge_entry = next(
-        (
-            entry
-            for entry in entries
-            if isinstance(entry, dict) and entry.get("work") == challenge_work
+    return ValidationResult(
+        is_valid=False,
+        message=(
+            "POST /entries must return the created entry with a non-empty string id."
         ),
-        None,
-    )
-    if challenge_entry is None:
-        span = trace.get_current_span()
-        span.add_event("deployed_api.challenge_failed")
-        return (
-            ValidationResult(
-                is_valid=False,
-                message=(
-                    "Ownership verification failed. "
-                    "We posted a challenge entry to your API but could not "
-                    "find it in GET /entries. Make sure your POST /entries "
-                    "persists data and GET /entries returns all entries."
-                ),
-            ),
-            None,
-        )
-
-    entry_id = challenge_entry.get("id")
-    discovered_id = entry_id if isinstance(entry_id, str) else None
-    is_valid, error = _validate_entry(challenge_entry)
-    if not is_valid:
-        return (
-            ValidationResult(
-                is_valid=False,
-                message=error or "Challenge entry validation failed.",
-            ),
-            discovered_id,
-        )
-
-    span = trace.get_current_span()
-    span.set_attribute("verification.deployed_api.challenge_verified", True)
-
-    return (
-        ValidationResult(
-            is_valid=True,
-            message=(
-                "Deployed API verified! Ownership confirmed via challenge-response."
-            ),
-        ),
-        discovered_id,
     )
 
 
 async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
     """Call the deployed AI endpoint and validate its response contract."""
-    analysis_url = f"{base_url}/entries/{entry_id}/analyze"
     try:
-        response = await _fetch_once(
+        encoded_id = quote(entry_id, safe="")
+    except UnicodeEncodeError:
+        return ValidationResult(
+            is_valid=False,
+            message="POST /entries returned an invalid entry ID.",
+        )
+    analysis_url = f"{base_url}/entries/{encoded_id}/analyze"
+    try:
+        response = await _post_once(
             analysis_url,
-            method="POST",
             timeout=_ANALYSIS_TIMEOUT_SECONDS,
         )
     except _SsrfError:
@@ -663,7 +384,7 @@ async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
             is_valid=False,
             message=(
                 "POST /entries/{id}/analyze returned 404. Ensure the endpoint "
-                "exists and the challenge entry can be analyzed."
+                "exists and the created entry can be analyzed."
             ),
         )
     if response.status_code != 200:
@@ -686,7 +407,7 @@ async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
 
 
 async def validate_deployed_api(base_url: str) -> ValidationResult:
-    """Verify ownership, challenge fields, and live AI analysis, leaving the entry."""
+    """Create and analyze one entry, reporting the first failed step."""
     base_url = _normalize_base_url(base_url)
 
     if not base_url:
@@ -709,30 +430,11 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
             message=ssrf_error,
         )
 
-    entries_url = f"{base_url}/entries"
-    challenge_work = (
-        f"Nice work getting your Journal API online! ({_generate_challenge_nonce()})"
-    )
-    post_result = await _post_challenge(entries_url, challenge_work)
+    post_result = await _create_entry(f"{base_url}/entries")
     if isinstance(post_result, ValidationResult):
         return post_result
-    challenge_entry_id = post_result
 
-    verify_result, discovered_id = await _verify_challenge(entries_url, challenge_work)
-    if challenge_entry_id is None:
-        challenge_entry_id = discovered_id
-    if not verify_result.is_valid:
-        return verify_result
-    if not challenge_entry_id:
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                "Ownership was confirmed, but the API did not return the "
-                "challenge entry ID required for AI analysis."
-            ),
-        )
-
-    analysis_result = await _verify_analysis(base_url, challenge_entry_id)
+    analysis_result = await _verify_analysis(base_url, post_result)
     if not analysis_result.is_valid:
         return analysis_result
 
@@ -741,5 +443,5 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
     span.set_attribute("verification.deployed_api.ai_verified", True)
     return ValidationResult(
         is_valid=True,
-        message=f"{verify_result.message} Live AI analysis verified.",
+        message="Deployed API verified! Entry creation and live AI analysis confirmed.",
     )
