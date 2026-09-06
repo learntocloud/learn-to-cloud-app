@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from learn_to_cloud_shared.core.config import clear_settings_cache
+from learn_to_cloud_shared_test_support.settings import clear_settings_cache
 
 from learn_to_cloud.core.templates import _frontend_telemetry_context
 

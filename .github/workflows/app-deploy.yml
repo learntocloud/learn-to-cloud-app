@@ -10,6 +10,7 @@ on:
       - 'packages/learn-to-cloud-shared/**'
       - 'pyproject.toml'
       - 'uv.lock'
+      - '.dockerignore'
       - '.github/workflows/ci.yml'
       - '.github/workflows/infra-deploy.yml'
       - '.github/workflows/app-deploy.yml'
@@ -78,6 +79,7 @@ jobs:
               - 'packages/learn-to-cloud-shared/**'
               - 'pyproject.toml'
               - 'uv.lock'
+              - '.dockerignore'
               - '.github/workflows/app-deploy.yml'
             infra:
               - 'infra/**'
@@ -421,6 +423,7 @@ jobs:
           app-name: ${{ needs.deployment_context.outputs.verification_functions_name }}
           package: apps/verification-functions
           remote-build: false
+          respect-funcignore: true
 
       - name: Deploy to Container App
         env:

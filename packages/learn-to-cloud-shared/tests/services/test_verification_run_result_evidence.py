@@ -5,12 +5,12 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
+from learn_to_cloud_shared_test_support.requirement_factories import (
+    repo_fork_requirement,
+)
 
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.submission_values import submitted_value_from_raw
-from learn_to_cloud_shared.testing.requirement_factories import (
-    repo_fork_requirement,
-)
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
     EvidenceItem,

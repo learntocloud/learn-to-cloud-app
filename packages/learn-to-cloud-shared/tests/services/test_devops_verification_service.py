@@ -9,7 +9,7 @@ from learn_to_cloud_shared.verification.devops_analysis import (
     select_devops_evidence_paths,
     verify_required_devops_files,
 )
-from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+from tests.fakes.repo_files import InMemoryRepoFiles
 
 
 def _complete_tree() -> list[str]:

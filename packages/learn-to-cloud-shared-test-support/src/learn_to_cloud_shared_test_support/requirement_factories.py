@@ -1,25 +1,4 @@
-"""Test factories for hands-on requirements (issue #470).
-
-After the discriminated-union refactor, ``HandsOnRequirement`` is no
-longer a direct constructor -- it's a Pydantic union alias. Tests use
-these per-type factories instead. Each factory generates a fresh UUID
-by default so test assertions don't have to manage one.
-
-Example::
-
-    from learn_to_cloud_shared.testing.requirement_factories import (
-        repo_fork_requirement,
-    )
-
-    req = repo_fork_requirement(
-        slug="my-fork",
-        name="Fork the repo",
-        required_repo="owner/repo",
-    )
-
-For tests that need to dispatch on a ``submission_type`` parameter, use
-``make_requirement`` which picks the right per-type factory.
-"""
+"""Requirement factories with fresh UUIDs for tests across workspace members."""
 
 from __future__ import annotations
 

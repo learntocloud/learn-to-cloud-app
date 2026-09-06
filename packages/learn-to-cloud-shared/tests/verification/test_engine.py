@@ -7,15 +7,15 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from learn_to_cloud_shared_test_support.requirement_factories import (
+    make_requirement,
+    repo_fork_requirement,
+)
 from opentelemetry.trace import Status, StatusCode
 
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.submission_values import submitted_value_from_raw
-from learn_to_cloud_shared.testing.requirement_factories import (
-    make_requirement,
-    repo_fork_requirement,
-)
 from learn_to_cloud_shared.verification import engine as engine_module
 from learn_to_cloud_shared.verification import github_errors
 from learn_to_cloud_shared.verification import repo_files as repo_files_module
@@ -33,7 +33,6 @@ from learn_to_cloud_shared.verification.engine import (
 )
 from learn_to_cloud_shared.verification.repo_files import (
     GitHubRepoFiles,
-    InMemoryRepoFiles,
 )
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
@@ -44,6 +43,7 @@ from learn_to_cloud_shared.verification_workflow import (
     PreparedVerificationAttempt,
 )
 from tests.fakes.github_metadata import InMemoryGitHubMetadata
+from tests.fakes.repo_files import InMemoryRepoFiles
 
 
 @pytest.fixture(autouse=True)
@@ -591,7 +591,7 @@ async def test_ownership_exports_bounded_telemetry(
 
 
 def _journal_job() -> PreparedVerificationAttempt:
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         journal_api_verifier_requirement,
     )
 
@@ -613,11 +613,11 @@ def _journal_job() -> PreparedVerificationAttempt:
 
 @pytest.mark.asyncio
 async def test_journal_profile_records_grading_requests_when_ci_passes(monkeypatch):
-    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
     from learn_to_cloud_shared.verification.tasks.phase3 import (
         JOURNAL_API_FINAL_RUBRIC_TASK,
         JOURNAL_API_IMPORTANT_PATHS,
     )
+    from tests.fakes.repo_files import InMemoryRepoFiles
 
     async def fake_ci(owner, repo, runs=None):
         return ValidationResult(is_valid=True, message="CI is green")
@@ -641,7 +641,7 @@ async def test_journal_profile_records_grading_requests_when_ci_passes(monkeypat
 
 @pytest.mark.asyncio
 async def test_journal_profile_skips_grading_when_ci_fails(monkeypatch):
-    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+    from tests.fakes.repo_files import InMemoryRepoFiles
 
     async def fake_ci(owner, repo, runs=None):
         return ValidationResult(is_valid=False, message="CI is red")
@@ -663,7 +663,7 @@ async def test_journal_profile_skips_grading_when_ci_fails(monkeypatch):
 
 
 def _deployment_job(description: str) -> PreparedVerificationAttempt:
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         deployment_architecture_requirement,
     )
 
@@ -682,10 +682,10 @@ def _deployment_job(description: str) -> PreparedVerificationAttempt:
 
 @pytest.mark.asyncio
 async def test_deployment_profile_bundles_script_and_description():
-    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
     from learn_to_cloud_shared.verification.tasks.phase4 import (
         DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
     )
+    from tests.fakes.repo_files import InMemoryRepoFiles
 
     description = (
         "My two-tier deployment provisions a public API tier and a private "
@@ -709,7 +709,7 @@ async def test_deployment_profile_bundles_script_and_description():
 
 @pytest.mark.asyncio
 async def test_deployment_profile_gate_fails_when_description_too_short():
-    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+    from tests.fakes.repo_files import InMemoryRepoFiles
 
     repo_files = InMemoryRepoFiles({"deploy.sh": "#!/bin/bash\n"})
 
@@ -722,7 +722,7 @@ async def test_deployment_profile_gate_fails_when_description_too_short():
 
 @pytest.mark.asyncio
 async def test_deployment_profile_gate_fails_when_deploy_script_missing():
-    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+    from tests.fakes.repo_files import InMemoryRepoFiles
 
     description = (
         "My two-tier deployment provisions a public API tier and a private "
@@ -745,7 +745,7 @@ async def test_deployment_profile_gate_fails_when_deploy_script_missing():
 
 
 def _deployed_api_job() -> PreparedVerificationAttempt:
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         deployed_api_requirement,
     )
 
@@ -762,7 +762,7 @@ def _deployed_api_job() -> PreparedVerificationAttempt:
 
 
 def _devops_job() -> PreparedVerificationAttempt:
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         devops_analysis_requirement,
     )
 
@@ -813,7 +813,7 @@ async def test_deployed_api_profile_fails_when_probe_fails(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_devops_profile_runs_files_then_ghcr_gates(monkeypatch):
-    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+    from tests.fakes.repo_files import InMemoryRepoFiles
 
     calls: list[str] = []
     files_task = TaskResult(task_name="Files", passed=True, feedback="present")
@@ -923,7 +923,7 @@ async def test_devops_profile_stops_when_ghcr_gate_fails(monkeypatch):
 
 
 def _security_job() -> PreparedVerificationAttempt:
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         security_scanning_requirement,
     )
 
@@ -943,7 +943,7 @@ def _security_job() -> PreparedVerificationAttempt:
 
 
 def _career_job(text: str) -> PreparedVerificationAttempt:
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         career_reflection_requirement,
     )
 
@@ -959,10 +959,10 @@ def _career_job(text: str) -> PreparedVerificationAttempt:
 
 @pytest.mark.asyncio
 async def test_security_profile_records_grading_request_when_gate_passes(monkeypatch):
-    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
     from learn_to_cloud_shared.verification.tasks.phase6 import (
         SECURITY_SCANNING_RUBRIC_TASK,
     )
+    from tests.fakes.repo_files import InMemoryRepoFiles
 
     async def fake_gate(owner, repo):
         return ValidationResult(is_valid=True, message="CodeQL green on main")
@@ -982,7 +982,7 @@ async def test_security_profile_records_grading_request_when_gate_passes(monkeyp
 
 @pytest.mark.asyncio
 async def test_security_profile_skips_grading_when_gate_fails(monkeypatch):
-    from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+    from tests.fakes.repo_files import InMemoryRepoFiles
 
     async def fake_gate(owner, repo):
         return ValidationResult(is_valid=False, message="No CodeQL runs found")
@@ -1273,7 +1273,7 @@ def _phase02_job(requirement, submitted_value, github_username="learner"):
 
 @pytest.mark.asyncio
 async def test_profile_readme_profile_passes_through_validator(monkeypatch):
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         profile_readme_requirement,
     )
 
@@ -1316,7 +1316,7 @@ async def test_repo_fork_profile_passes_through_validator(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_ctf_token_profile_passes_through_validator(monkeypatch):
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         ctf_token_requirement,
     )
 
@@ -1339,7 +1339,7 @@ async def test_ctf_token_profile_passes_through_validator(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_networking_token_profile_passes_through_validator(monkeypatch):
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         networking_token_requirement,
     )
 
@@ -1357,7 +1357,7 @@ async def test_networking_token_profile_passes_through_validator(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_profile_requiring_username_short_circuits_when_missing():
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         ctf_token_requirement,
     )
 

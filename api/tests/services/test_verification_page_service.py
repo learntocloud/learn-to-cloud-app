@@ -19,7 +19,7 @@ from learn_to_cloud_shared.schemas import (
     UserProgress,
     VerificationProgress,
 )
-from learn_to_cloud_shared.testing.requirement_factories import (
+from learn_to_cloud_shared_test_support.requirement_factories import (
     career_reflection_requirement,
     repo_fork_requirement,
 )

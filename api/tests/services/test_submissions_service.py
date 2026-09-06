@@ -41,7 +41,9 @@ def _make_mock_requirement(
     submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
 ) -> HandsOnRequirement:
     """Create a mock requirement for testing."""
-    from learn_to_cloud_shared.testing.requirement_factories import make_requirement
+    from learn_to_cloud_shared_test_support.requirement_factories import (
+        make_requirement,
+    )
 
     return make_requirement(
         submission_type,
@@ -117,7 +119,7 @@ def _build_index(
     requirements with the real factory so the index's type signature stays
     honest.
     """
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         journal_api_verifier_requirement,
     )
 
@@ -853,7 +855,7 @@ class TestRunSubmitSmokeCheck:
 
     def test_pick_smoke_requirement_returns_earliest_phase(self):
         """The canary picks the first requirement of the earliest phase."""
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             journal_api_verifier_requirement,
         )
 

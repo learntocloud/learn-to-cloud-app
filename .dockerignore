@@ -23,6 +23,9 @@
 **/node_modules/
 
 # Test artifacts
+/api/tests/
+/packages/learn-to-cloud-shared/tests/
+/apps/verification-functions/tests/
 **/.pytest_cache/
 **/.coverage
 **/htmlcov/

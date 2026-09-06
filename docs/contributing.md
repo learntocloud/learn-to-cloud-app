@@ -207,6 +207,30 @@ cd packages/learn-to-cloud-shared && uv run pytest tests/
 - Mark tests with `@pytest.mark.unit` or `@pytest.mark.integration`
 - Async fixtures use `@pytest_asyncio.fixture`
 
+### Test-only code
+
+Keep suite-specific fakes under that suite's `tests/fakes/` and fixtures in its
+`conftest.py`. The shared verification tests follow this pattern for repository
+files, branch references, workflow runs, and GitHub metadata. Production modules
+keep the interfaces and real adapters, not their test implementations.
+
+Helpers used by multiple workspace test suites live in
+`packages/learn-to-cloud-shared-test-support`, imported as
+`learn_to_cloud_shared_test_support`. Requirement factories and settings-cache
+reset helpers are shared this way. Each consuming member declares this package
+in its `dev` dependency group, so the normal `uv run pytest tests/` command from
+that member installs it automatically. Production installs and exports use
+`--no-dev`; do not add test support to runtime dependencies or re-export it from
+the application package.
+
+`RepoFiles` is a static interface: its fake accepts the same owner, repository,
+and branch arguments even though it reads one configured snapshot. Keep those
+argument names for keyword-call compatibility. Runtime `isinstance` checks
+against this protocol are not supported.
+
+Deployment integrity commands, authenticated smoke endpoints, and curriculum
+authoring utilities remain operational code even when they also help tests.
+
 ## Dog Food Agent (AI-Powered QA)
 
 The project includes a **dog-food agent** — an AI-powered QA workflow that automatically starts the local API, opens a headless browser, and walks through every page checking for errors, broken UI, and console messages.

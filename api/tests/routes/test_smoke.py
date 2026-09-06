@@ -281,7 +281,7 @@ class TestAuthPageSmoke:
     async def test_typed_verification_submission_routes_bind_forms(
         self, auth_client: AsyncClient
     ):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             career_reflection_requirement,
             ctf_token_requirement,
             profile_readme_requirement,

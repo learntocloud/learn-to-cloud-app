@@ -21,15 +21,15 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
 )
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.submission_values import submitted_value_from_raw
-from learn_to_cloud_shared.testing.requirement_factories import (
-    journal_api_verifier_requirement,
-    repo_fork_requirement,
-)
 from learn_to_cloud_shared.verification_attempt_reconciler import stale_cutoff
 from learn_to_cloud_shared.verification_workflow import (
     GradingDisposition,
     PreparedVerificationAttempt,
     VerificationRunResult,
+)
+from learn_to_cloud_shared_test_support.requirement_factories import (
+    journal_api_verifier_requirement,
+    repo_fork_requirement,
 )
 
 import function_app

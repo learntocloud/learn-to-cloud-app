@@ -4,18 +4,18 @@ from unittest.mock import AsyncMock
 
 import httpx
 import pytest
+from learn_to_cloud_shared_test_support.requirement_factories import (
+    deployment_architecture_requirement,
+)
 
 from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.submission_values import submitted_value_from_raw
-from learn_to_cloud_shared.testing.requirement_factories import (
-    deployment_architecture_requirement,
-)
 from learn_to_cloud_shared.verification.deployment_architecture import (
     collect_deployment_architecture_evidence,
     validate_deployment_architecture,
 )
 from learn_to_cloud_shared.verification.github_errors import GitHubServerError
-from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
+from tests.fakes.repo_files import InMemoryRepoFiles
 
 _TARGET = GitHubRepositoryTarget(owner="alice", repo="journal-starter")
 _DEPLOY_SH = "#!/usr/bin/env bash\naz group create ...\n"

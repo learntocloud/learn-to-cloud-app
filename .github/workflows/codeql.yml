@@ -6,6 +6,7 @@ on:
     paths:
       - 'api/**'
       - 'packages/learn-to-cloud-shared/**'
+      - 'packages/learn-to-cloud-shared-test-support/**'
       - 'scripts/**'
       - '.github/workflows/**'
       - '*.js'
@@ -16,6 +17,7 @@ on:
     paths:
       - 'api/**'
       - 'packages/learn-to-cloud-shared/**'
+      - 'packages/learn-to-cloud-shared-test-support/**'
       - 'scripts/**'
       - '.github/workflows/**'
       - '*.js'

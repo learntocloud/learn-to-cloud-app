@@ -3,6 +3,9 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from learn_to_cloud_shared_test_support.requirement_factories import (
+    journal_api_verifier_requirement,
+)
 
 from learn_to_cloud_shared.requirements import (
     RequirementIndex,
@@ -11,9 +14,6 @@ from learn_to_cloud_shared.requirements import (
     is_phase_verification_locked,
 )
 from learn_to_cloud_shared.schemas import HandsOnRequirement
-from learn_to_cloud_shared.testing.requirement_factories import (
-    journal_api_verifier_requirement,
-)
 
 
 def _make_requirement(slug: str = "req-1") -> HandsOnRequirement:

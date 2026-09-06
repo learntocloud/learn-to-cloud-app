@@ -22,7 +22,7 @@ from learn_to_cloud_shared.schemas import (
     Topic,
     VerificationProgress,
 )
-from learn_to_cloud_shared.testing.requirement_factories import (
+from learn_to_cloud_shared_test_support.requirement_factories import (
     repo_fork_requirement,
 )
 
@@ -431,7 +431,7 @@ class TestFetchPhaseProgress:
     async def test_not_complete_when_verification_pending(self):
         """All steps done but verification pending must not be complete."""
         from learn_to_cloud_shared.schemas import PhaseHandsOnVerificationOverview
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             journal_api_verifier_requirement,
         )
 
@@ -470,7 +470,7 @@ class TestFetchPhaseProgress:
     async def test_is_complete_when_all_done(self):
         """All steps and verification done means both-measures complete."""
         from learn_to_cloud_shared.schemas import PhaseHandsOnVerificationOverview
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             journal_api_verifier_requirement,
         )
 
