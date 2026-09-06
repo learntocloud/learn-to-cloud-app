@@ -2,7 +2,7 @@
 
 Grading rules depend on this small interface (read the file tree, read a
 single file's text) instead of reaching the network directly. Production
-injects :class:`GitHubRepoFiles`; tests inject :class:`InMemoryRepoFiles`.
+injects :class:`GitHubRepoFiles`; tests can inject an in-memory implementation.
 
 Two adapters justify the seam: live GitHub in production, an in-memory
 mapping in tests. Graders accept an optional ``RepoFiles`` and fall back to
@@ -12,7 +12,7 @@ care about the seam keep working while tests can swap in a fake.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Protocol
 
 from opentelemetry import trace
 
@@ -24,7 +24,6 @@ from learn_to_cloud_shared.verification.github_http import (
 )
 
 
-@runtime_checkable
 class RepoFiles(Protocol):
     """Read access to a GitHub repository's files.
 
@@ -71,37 +70,6 @@ class GitHubRepoFiles:
         raise_for_server_error(response)
         response.raise_for_status()
         return response.text
-
-
-class InMemoryRepoFiles:
-    """Test adapter backed by an in-memory mapping of path to content.
-
-    ``files`` maps a repository path to its text. ``tree`` defaults to the
-    keys of ``files`` but can be set explicitly to model files that exist in
-    the tree yet cannot be fetched. Set ``tree_error`` to make ``tree`` raise
-    (for example an ``httpx.HTTPStatusError`` for a missing repository).
-    """
-
-    def __init__(
-        self,
-        files: dict[str, str] | None = None,
-        *,
-        tree: list[str] | None = None,
-        tree_error: Exception | None = None,
-    ) -> None:
-        self._files = dict(files or {})
-        self._tree = list(tree) if tree is not None else list(self._files)
-        self._tree_error = tree_error
-
-    async def tree(self, owner: str, repo: str, branch: str = "main") -> list[str]:
-        if self._tree_error is not None:
-            raise self._tree_error
-        return list(self._tree)
-
-    async def file(
-        self, owner: str, repo: str, path: str, branch: str = "main"
-    ) -> str | None:
-        return self._files.get(path)
 
 
 _DEFAULT_REPO_FILES = GitHubRepoFiles()

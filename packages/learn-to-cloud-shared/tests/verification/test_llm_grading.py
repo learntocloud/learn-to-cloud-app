@@ -31,7 +31,7 @@ from learn_to_cloud_shared.verification_workflow import (
 
 
 def _run_result(is_valid: bool = True) -> VerificationRunResult:
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         security_scanning_requirement,
     )
 
@@ -66,7 +66,7 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
 
 
 def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         journal_api_verifier_requirement,
     )
 
@@ -342,7 +342,7 @@ def _phase7_run_result(
     is_valid: bool = True,
     submitted_text: str = "## Question 0?\n\nMy detailed reflection answer.",
 ) -> VerificationRunResult:
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         career_reflection_requirement,
     )
 

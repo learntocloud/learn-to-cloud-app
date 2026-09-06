@@ -5,8 +5,8 @@ passes when the latest CodeQL run's ``head_sha`` matches the branch HEAD. That
 requires one small question of GitHub: "what commit is at the tip of this
 branch right now?" This interface captures exactly that.
 
-Two adapters justify the seam: :class:`GitHubApiRepoRef` talks to live GitHub
-in production, :class:`InMemoryRepoRef` answers from in-memory data in tests.
+:class:`GitHubApiRepoRef` talks to live GitHub in production; tests can inject
+an in-memory implementation of the same protocol.
 ``verify_codeql_status`` accepts an optional ``RepoRef`` and falls back to
 :func:`default_repo_ref` when none is supplied.
 """
@@ -47,29 +47,6 @@ class GitHubApiRepoRef:
             if isinstance(sha, str):
                 return sha
         return None
-
-
-class InMemoryRepoRef:
-    """Test adapter answering from in-memory data.
-
-    ``sha`` is returned by ``head_sha`` (``None`` models a branch payload with
-    no sha). Set ``error`` to make ``head_sha`` raise (for example an
-    ``httpx.HTTPStatusError`` for a missing repository).
-    """
-
-    def __init__(
-        self,
-        sha: str | None = None,
-        *,
-        error: Exception | None = None,
-    ) -> None:
-        self._sha = sha
-        self._error = error
-
-    async def head_sha(self, owner: str, repo: str, branch: str = "main") -> str | None:
-        if self._error is not None:
-            raise self._error
-        return self._sha
 
 
 _DEFAULT_REPO_REF = GitHubApiRepoRef()

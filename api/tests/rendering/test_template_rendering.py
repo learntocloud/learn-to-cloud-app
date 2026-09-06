@@ -122,7 +122,7 @@ class TestHomePage:
 
 
 def _requirement(slug: str, name: str, description: str = ""):
-    from learn_to_cloud_shared.testing.requirement_factories import (
+    from learn_to_cloud_shared_test_support.requirement_factories import (
         ctf_token_requirement,
     )
 
@@ -478,7 +478,7 @@ class TestPhaseVerificationCardStates:
         assert "Review Phase 1 learning" in html
 
     def test_token_form_uses_configured_length_limits(self):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             ctf_token_requirement,
         )
 
@@ -498,7 +498,7 @@ class TestPhaseVerificationCardStates:
         assert 'spellcheck="false"' in html
 
     def test_deployed_url_form_uses_url_constraints(self):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             deployed_api_requirement,
         )
 
@@ -515,7 +515,7 @@ class TestPhaseVerificationCardStates:
         assert 'autocomplete="url"' in html
 
     def test_reflection_form_constrains_every_answer(self):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             career_reflection_requirement,
         )
 
@@ -605,7 +605,7 @@ class TestPhaseVerificationCardStates:
 
     def test_readonly_derived_url_is_explained(self):
         """The auto-derived, read-only field says why it can't be edited (#701)."""
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             journal_api_verifier_requirement,
         )
 

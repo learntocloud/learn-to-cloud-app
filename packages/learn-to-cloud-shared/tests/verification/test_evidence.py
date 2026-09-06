@@ -16,13 +16,13 @@ from learn_to_cloud_shared.verification.evidence import (
 from learn_to_cloud_shared.verification.github_errors import GitHubServerError
 from learn_to_cloud_shared.verification.repo_files import (
     GitHubRepoFiles,
-    InMemoryRepoFiles,
 )
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidencePolicy,
     FilePresenceGraderConfig,
     VerificationTask,
 )
+from tests.fakes.repo_files import InMemoryRepoFiles
 
 
 def _task(

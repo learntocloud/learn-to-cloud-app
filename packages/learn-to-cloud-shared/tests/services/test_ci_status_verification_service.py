@@ -20,7 +20,7 @@ import pytest
 
 from learn_to_cloud_shared.verification.ci_status import verify_ci_status
 from learn_to_cloud_shared.verification.github_errors import GitHubServerError
-from learn_to_cloud_shared.verification.workflow_runs import InMemoryWorkflowRuns
+from tests.fakes.workflow_runs import InMemoryWorkflowRuns
 
 _TEST_OWNER = "testuser"
 _TEST_REPO = "journal-starter"

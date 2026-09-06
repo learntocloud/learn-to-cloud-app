@@ -18,7 +18,6 @@ import pytest
 from learn_to_cloud_shared.content_catalog import (
     CurriculumCatalog,
     CurriculumCatalogError,
-    clear_catalog_cache,
     get_curriculum_catalog,
     load_curriculum_catalog,
 )
@@ -32,9 +31,9 @@ pytestmark = pytest.mark.unit
 
 @pytest.fixture(autouse=True)
 def _clear_catalog_cache():
-    clear_catalog_cache()
+    get_curriculum_catalog.cache_clear()
     yield
-    clear_catalog_cache()
+    get_curriculum_catalog.cache_clear()
 
 
 @pytest.fixture
@@ -212,7 +211,7 @@ class TestGetCurriculumCatalogSingleton:
 
     def test_clear_cache_forces_reload(self):
         first = get_curriculum_catalog()
-        clear_catalog_cache()
+        get_curriculum_catalog.cache_clear()
         second = get_curriculum_catalog()
         assert first is not second
         assert first == second

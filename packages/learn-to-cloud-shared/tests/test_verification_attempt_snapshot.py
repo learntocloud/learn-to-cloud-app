@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import pytest
-
-from learn_to_cloud_shared.testing.requirement_factories import (
+from learn_to_cloud_shared_test_support.requirement_factories import (
     journal_api_verifier_requirement,
     repo_fork_requirement,
 )
+
 from learn_to_cloud_shared.verification_attempt_snapshot import (
     ATTEMPT_PAYLOAD_VERSION,
     SUPPORTED_PAYLOAD_VERSIONS,

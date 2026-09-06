@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=82.0.1"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["learn_to_cloud_shared_test_support*"]
+
+[project]
+name = "learn-to-cloud-shared-test-support"
+version = "0.1.0"
+description = "Development-only helpers shared by the Learn to Cloud test suites"
+requires-python = ">=3.13,<3.14"
+dependencies = ["learn-to-cloud-shared"]
+
+[tool.uv.sources]
+learn-to-cloud-shared = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "ruff==0.16.5",
+    "ty==0.0.77",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "PLC0415"]

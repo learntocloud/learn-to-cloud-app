@@ -11,7 +11,6 @@ so these tests run without the network.
 
 import pytest
 
-from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
 from learn_to_cloud_shared.verification.security_scanning import (
     collect_security_scanning_evidence,
 )
@@ -19,6 +18,7 @@ from learn_to_cloud_shared.verification.tasks.phase6 import (
     CODEQL_WORKFLOW_PATH,
     SECURITY_SCANNING_RUBRIC_TASK,
 )
+from tests.fakes.repo_files import InMemoryRepoFiles
 
 _TEST_OWNER = "testuser"
 _TEST_REPO = "my-repo"

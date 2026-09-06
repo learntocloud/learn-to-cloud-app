@@ -212,7 +212,9 @@ def _make_requirement(
     submission_type: SubmissionType,
     required_repo: str | None = None,
 ) -> HandsOnRequirement:
-    from learn_to_cloud_shared.testing.requirement_factories import make_requirement
+    from learn_to_cloud_shared_test_support.requirement_factories import (
+        make_requirement,
+    )
 
     return make_requirement(
         submission_type,

@@ -93,9 +93,11 @@ python-platform = "linux"
 
 [tool.uv.sources]
 learn-to-cloud-shared = { workspace = true }
+learn-to-cloud-shared-test-support = { workspace = true }
 
 [dependency-groups]
 dev = [
+    "learn-to-cloud-shared-test-support",
     "faker>=40.15.0",
     "factory-boy>=3.3.0",
     "httpx>=0.28.0",

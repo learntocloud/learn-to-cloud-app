@@ -309,10 +309,3 @@ def get_worker_settings() -> WorkerSettings:
 def get_web_settings() -> WebSettings:
     """Return cached web settings for FastAPI dependency injection."""
     return _load_from_environment(WebSettings)
-
-
-def clear_settings_cache() -> None:
-    """Clear cached settings instances in tests."""
-    get_migration_settings.cache_clear()
-    get_worker_settings.cache_clear()
-    get_web_settings.cache_clear()

@@ -22,8 +22,8 @@ import pytest
 
 from learn_to_cloud_shared.verification.codeql_status import verify_codeql_status
 from learn_to_cloud_shared.verification.github_errors import GitHubServerError
-from learn_to_cloud_shared.verification.repo_ref import InMemoryRepoRef
-from learn_to_cloud_shared.verification.workflow_runs import InMemoryWorkflowRuns
+from tests.fakes.repo_ref import InMemoryRepoRef
+from tests.fakes.workflow_runs import InMemoryWorkflowRuns
 
 _TEST_OWNER = "testuser"
 _TEST_REPO = "journal-starter"

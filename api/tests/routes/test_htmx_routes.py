@@ -219,7 +219,7 @@ class TestHtmxSubmitVerification:
     """
 
     async def test_derived_route_uses_server_built_url(self):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             profile_readme_requirement,
         )
 
@@ -253,7 +253,7 @@ class TestHtmxSubmitVerification:
         )
 
     async def test_derived_route_rejects_spoofed_value(self):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             profile_readme_requirement,
         )
 
@@ -283,7 +283,7 @@ class TestHtmxSubmitVerification:
         mock_submit.assert_not_awaited()
 
     async def test_value_route_passes_only_submitted_value(self):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             ctf_token_requirement,
         )
 
@@ -331,7 +331,7 @@ class TestHtmxSubmitVerification:
         ],
     )
     async def test_value_route_rejects_invalid_form_shapes(self, form_items):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             ctf_token_requirement,
         )
 
@@ -362,7 +362,7 @@ class TestHtmxSubmitVerification:
         mock_submit.assert_not_awaited()
 
     async def test_reflection_route_combines_repeated_answers(self):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             career_reflection_requirement,
         )
 
@@ -745,7 +745,7 @@ class TestHtmxSubmitVerification:
         mock_start.assert_awaited_once_with(attempt_submission.attempt_id)
 
     async def test_deployment_architecture_is_rejected_by_value_route(self):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             deployment_architecture_requirement,
         )
 
@@ -776,7 +776,7 @@ class TestHtmxSubmitVerification:
         mock_create.assert_not_awaited()
 
     async def test_deployment_architecture_is_rejected_by_reflection_route(self):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             deployment_architecture_requirement,
         )
 
@@ -1274,7 +1274,7 @@ class TestCombineReflectionAnswers:
 
     @staticmethod
     def _requirement(min_answer_length: int = 10, question_count: int = 3):
-        from learn_to_cloud_shared.testing.requirement_factories import (
+        from learn_to_cloud_shared_test_support.requirement_factories import (
             career_reflection_requirement,
         )
 

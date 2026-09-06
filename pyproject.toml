@@ -15,6 +15,7 @@ members = [
     "api",
     "apps/verification-functions",
     "packages/learn-to-cloud-shared",
+    "packages/learn-to-cloud-shared-test-support",
 ]
 
 [dependency-groups]

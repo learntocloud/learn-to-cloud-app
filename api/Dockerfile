@@ -19,6 +19,7 @@ ENV UV_COMPILE_BYTECODE=1
 COPY pyproject.toml uv.lock ./
 COPY api/pyproject.toml api/pyproject.toml
 COPY packages/learn-to-cloud-shared/pyproject.toml packages/learn-to-cloud-shared/pyproject.toml
+COPY packages/learn-to-cloud-shared-test-support/pyproject.toml packages/learn-to-cloud-shared-test-support/pyproject.toml
 COPY apps/verification-functions/pyproject.toml apps/verification-functions/pyproject.toml
 
 # Layer 1 (cached): install only the API package's third-party dependency

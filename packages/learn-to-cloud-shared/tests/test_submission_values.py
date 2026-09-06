@@ -1,6 +1,12 @@
 """Tests for typed submitted-value storage helpers."""
 
 import pytest
+from learn_to_cloud_shared_test_support.requirement_factories import (
+    career_reflection_requirement,
+    ctf_token_requirement,
+    deployed_api_requirement,
+    profile_readme_requirement,
+)
 
 from learn_to_cloud_shared.models import SubmissionType, SubmissionValueKind
 from learn_to_cloud_shared.submission_values import (
@@ -11,12 +17,6 @@ from learn_to_cloud_shared.submission_values import (
     submitted_value_from_payload,
     submitted_value_from_raw,
     value_kind_for_submission_type,
-)
-from learn_to_cloud_shared.testing.requirement_factories import (
-    career_reflection_requirement,
-    ctf_token_requirement,
-    deployed_api_requirement,
-    profile_readme_requirement,
 )
 
 

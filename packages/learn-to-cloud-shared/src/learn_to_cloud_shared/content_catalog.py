@@ -270,8 +270,3 @@ def get_curriculum_catalog() -> CurriculumCatalog:
     first request that happens to need it.
     """
     return load_curriculum_catalog()
-
-
-def clear_catalog_cache() -> None:
-    """Clear the cached catalog singleton (useful for testing)."""
-    get_curriculum_catalog.cache_clear()

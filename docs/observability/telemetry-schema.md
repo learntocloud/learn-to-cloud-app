@@ -171,6 +171,10 @@ warning or counter increment. Expected upstream failures use
 `verification.step.result=unavailable` and persist the existing incomplete
 `server_error` outcome, not a learner-failed outcome.
 
+Raw repository-file 404s emit `github.repo_file.fetch_failed` once, without
+attributes. Other raw-file failures propagate to the owning verification step;
+the adapter adds no operational warning or counter increment.
+
 Evidence collection emits fixed events: `llm_rubric_review.repo_tree_error`,
 `llm_rubric_review.repo_file_error`, `security_scanning.repo_file_error`,
 `deployment_architecture.repo_tree_error`, and

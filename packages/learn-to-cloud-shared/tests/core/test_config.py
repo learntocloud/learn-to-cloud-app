@@ -1,6 +1,7 @@
 """Unit tests for composed Settings classes."""
 
 import pytest
+from learn_to_cloud_shared_test_support.settings import clear_settings_cache
 from pydantic import ValidationError
 
 from learn_to_cloud_shared.core.config import (
@@ -17,7 +18,6 @@ from learn_to_cloud_shared.core.config import (
     WebSecurityConfig,
     WebSettings,
     WorkerSettings,
-    clear_settings_cache,
     get_web_settings,
 )
 
