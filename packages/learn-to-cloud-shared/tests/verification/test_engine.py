@@ -484,6 +484,7 @@ async def test_canonical_repository_reaches_ci_evidence_and_prompt(
     ci = AsyncMock(return_value=ValidationResult(is_valid=True, message="CI is green"))
     monkeypatch.setattr(engine_module, "verify_ci_status", ci)
     files = AsyncMock(spec=RepoFiles)
+    files.tree.return_value = list(engine_module.JOURNAL_API_IMPORTANT_PATHS)
     files.file.return_value = "synthetic evidence"
     job = _journal_job()
 
@@ -861,11 +862,11 @@ async def test_devops_profile_runs_files_then_ghcr_gates(monkeypatch):
     assert result.grading_disposition == GradingDisposition.REQUESTED
     assert result.evidence is not None
     assert [item.path for item in result.evidence[0].items] == [
+        ".github/workflows/deploy.yml",
         "Dockerfile",
+        "infra/main.tf",
         "k8s/deployment.yaml",
         "k8s/service.yaml",
-        ".github/workflows/deploy.yml",
-        "infra/main.tf",
     ]
     request = result.grading_requests[0]
     assert request.task.id == "devops-implementation-rubric"
@@ -1054,6 +1055,7 @@ async def test_failed_evidence_read_stops_grading(
     monkeypatch, flow, event, failure, category
 ):
     job, paths = _evidence_flow(flow, monkeypatch)
+    paths = sorted(paths)
     failed_path = paths[0] if flow == "deployment" else paths[1]
     fetched = []
     mapper = Mock(wraps=github_errors.github_error_to_result)
@@ -1128,7 +1130,7 @@ async def test_evidence_boundaries_do_not_swallow_unsupported_errors(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("flow", ["exact", "discovered", "security", "deployment"])
-async def test_missing_optional_evidence_preserves_existing_grading(monkeypatch, flow):
+async def test_selected_evidence_disappearance_blocks_grading(monkeypatch, flow):
     job, paths = _evidence_flow(flow, monkeypatch)
     contents = dict.fromkeys(paths, "evidence")
     missing_path = paths[0] if flow == "deployment" else paths[1]
@@ -1137,10 +1139,11 @@ async def test_missing_optional_evidence_preserves_existing_grading(monkeypatch,
 
     result = await run_verification(job, repo_files=files)
 
-    assert result.validation_result.verification_completed is True
-    assert result.grading_disposition is GradingDisposition.REQUESTED
-    assert result.grading_requests
-    assert missing_path not in [item.path for item in result.evidence[0].items]
+    assert result.validation_result.verification_completed is False
+    assert result.validation_result.error_code == "evidence.changed"
+    assert result.grading_disposition is GradingDisposition.SKIPPED_GATE_FAILED
+    assert result.grading_requests == []
+    assert result.evidence is None
 
 
 @pytest.mark.asyncio
@@ -1220,6 +1223,172 @@ async def test_later_incomplete_step_discards_previously_recorded_grading(monkey
     assert result.grading_requests == []
     assert result.grading_disposition is GradingDisposition.SKIPPED_GATE_FAILED
     build_prompt.assert_not_called()
+
+
+@pytest.mark.parametrize("flow", ["exact", "discovered", "security", "deployment"])
+async def test_all_repository_profiles_block_oversized_evidence(monkeypatch, flow):
+    job, paths = _evidence_flow(flow, monkeypatch)
+    files = dict.fromkeys(paths, "complete")
+    files[paths[0]] = "x" * (51 * 1024)
+    result = await run_verification(job, repo_files=InMemoryRepoFiles(files))
+    assert result.validation_result.error_code == "evidence.item_limit"
+    assert not result.validation_result.is_valid
+    assert not result.validation_result.verification_completed
+    assert result.grading_requests == []
+    assert result.evidence is None
+
+
+async def test_oversized_reflection_is_incomplete_without_any_repository_read():
+    repo = AsyncMock()
+    result = await run_verification(
+        _career_job("🦊" * (20 * 1024 // 4 + 1)),
+        repo_files=repo,
+    )
+    assert result.validation_result.error_code == "evidence.item_limit"
+    assert not result.validation_result.verification_completed
+    assert result.grading_requests == []
+    repo.tree.assert_not_awaited()
+    repo.file.assert_not_awaited()
+
+
+@pytest.mark.parametrize("flow", ["exact", "security"])
+async def test_absent_optional_work_still_prepares_complete_grading(monkeypatch, flow):
+    job, paths = _evidence_flow(flow, monkeypatch)
+    task = (
+        engine_module.JOURNAL_API_FINAL_RUBRIC_TASK
+        if flow == "exact"
+        else engine_module.SECURITY_SCANNING_RUBRIC_TASK
+    )
+    files = {
+        path: "complete" for path in paths if path not in task.evidence.optional_files
+    }
+    result = await run_verification(job, repo_files=InMemoryRepoFiles(files))
+    assert result.validation_result.is_valid
+    assert len(result.grading_requests) == 1
+    prompt = json.loads(result.grading_requests[0].message.split("\n\n", 1)[1])
+    assert prompt["evidence"]["optional_presence"] == dict.fromkeys(
+        task.evidence.optional_files,
+        False,
+    )
+
+
+@pytest.mark.parametrize("completed", [False, True])
+async def test_any_later_failed_gate_discards_earlier_grading(monkeypatch, completed):
+    job, paths = _evidence_flow("exact", monkeypatch)
+    profile = engine_module.profile_for(job.requirement.submission_type)
+    monkeypatch.setattr(
+        engine_module,
+        "profile_for",
+        lambda _: replace(
+            profile,
+            steps=(*profile.steps, _step(CIStatusParams(), "later-gate")),
+        ),
+    )
+    code = "evidence.required_missing" if completed else "evidence.total_limit"
+    monkeypatch.setattr(
+        engine_module,
+        "verify_ci_status",
+        AsyncMock(
+            side_effect=[
+                ValidationResult(is_valid=True, message="First gate passed"),
+                ValidationResult(
+                    is_valid=False,
+                    message="Later gate blocked",
+                    error_code=code,
+                    verification_completed=completed,
+                ),
+            ]
+        ),
+    )
+    build = Mock()
+    monkeypatch.setattr(engine_module, "build_repo_rubric_message", build)
+    result = await run_verification(
+        job,
+        repo_files=InMemoryRepoFiles(dict.fromkeys(paths, "full evidence")),
+    )
+    assert result.validation_result.error_code == code
+    assert result.validation_result.verification_completed == completed
+    assert result.grading_requests == []
+    build.assert_not_called()
+
+
+def test_aggregation_preserves_incomplete_cause_over_later_learner_feedback():
+    incomplete = ValidationResult(
+        is_valid=False,
+        verification_completed=False,
+        message="Evidence could not fit",
+        error_code="evidence.total_limit",
+    )
+    missing = ValidationResult(
+        is_valid=False,
+        message="Missing required work",
+        error_code="evidence.required_missing",
+    )
+    result = engine_module._aggregate(
+        [
+            StepResult(passed=False, stop_on_fail=False, validation_result=incomplete),
+            StepResult(passed=False, validation_result=missing),
+        ]
+    )
+    assert not result.verification_completed
+    assert result.error_code == incomplete.error_code
+    assert result.message == incomplete.message
+
+
+@pytest.mark.parametrize("mutation", ["truncated", "missing", "wrong_task"])
+async def test_engine_rechecks_collector_result_before_recording_grading(
+    monkeypatch, mutation
+):
+    from learn_to_cloud_shared.verification.evidence import apply_evidence_cap
+
+    job = _career_job("Complete reflection")
+    task = engine_module.CAREER_REFLECTION_RUBRIC_TASK
+    bundle = apply_evidence_cap(task, [("career-reflection.md", "Complete reflection")])
+    if mutation == "truncated":
+        bundle = bundle.model_copy(
+            update={
+                "items": [bundle.items[0].model_copy(update={"truncated": True})],
+            }
+        )
+    elif mutation == "missing":
+        bundle = bundle.model_copy(update={"items": []})
+    else:
+        bundle = bundle.model_copy(update={"task_id": "other-task"})
+    monkeypatch.setattr(
+        engine_module, "collect_career_reflection_evidence", lambda *_: bundle
+    )
+    result = await run_verification(job)
+    assert result.validation_result.error_code == "evidence.selection"
+    assert not result.validation_result.verification_completed
+    assert result.grading_requests == []
+    assert result.evidence is None
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        engine_module.LLMRubricReviewParams(
+            task=engine_module.JOURNAL_API_FINAL_RUBRIC_TASK,
+            evidence_paths=engine_module.JOURNAL_API_IMPORTANT_PATHS,
+        ),
+        engine_module.SecurityScanningReviewParams(
+            task=engine_module.SECURITY_SCANNING_RUBRIC_TASK
+        ),
+        engine_module.DeploymentArchitectureReviewParams(
+            task=engine_module.DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK
+        ),
+    ],
+)
+async def test_missing_rubric_repository_is_explicit_incomplete_configuration(params):
+    job = _job()
+    result = await engine_module._run_step(
+        _step(params, "rubric"),
+        StepContext(job=job, repository=None, submitted_value=job.submitted_value),
+    )
+    assert not result.passed
+    assert result.validation_result.error_code == "evidence.configuration"
+    assert not result.validation_result.verification_completed
+    assert result.grading_task is None
 
 
 @pytest.mark.asyncio

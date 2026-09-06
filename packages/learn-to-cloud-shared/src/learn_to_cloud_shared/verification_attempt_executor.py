@@ -38,6 +38,7 @@ from learn_to_cloud_shared.submission_values import (
     submitted_value_from_kind_and_value,
     value_kind_for_submission_type,
 )
+from learn_to_cloud_shared.verification.evidence import EVIDENCE_ERROR_CODES
 from learn_to_cloud_shared.verification.execution import (
     persisted_validation_message,
 )
@@ -58,6 +59,14 @@ logger = logging.getLogger(f"{APP_LOGGER_NAMESPACE}.verification_attempt_executo
 
 _SNAPSHOT_SOURCE_SUBMITTED = "submitted"
 _ORCHESTRATOR_TERMINAL_SOURCE = "orchestrator"
+_VALIDATION_ERROR_CODES = EVIDENCE_ERROR_CODES | {
+    "authentication",
+    "authorization",
+    "client_error",
+    "network",
+    "provider_unavailable",
+    "rate_limit",
+}
 
 
 class AttemptPreparationError(Exception):
@@ -169,7 +178,12 @@ async def finalize_verification_attempt(
     error_code = (
         run_result.llm_error_type
         if run_result.llm_error_type in LLM_ERROR_TYPES
-        else code_for_outcome(outcome)
+        else code_for_outcome(
+            outcome,
+            validation_result.error_code
+            if validation_result.error_code in _VALIDATION_ERROR_CODES
+            else None,
+        )
     )
     validation_message = (
         persisted_validation_message(validation_result.message)

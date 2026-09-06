@@ -910,6 +910,7 @@ class SubmissionData(FrozenModel):
     verification_completed: bool = False
     feedback_json: list[dict] | None = None
     validation_message: str | None = None
+    error_code: str | None = None
     cloud_provider: str | None = None
     created_at: datetime
     updated_at: datetime | None = None
@@ -997,3 +998,4 @@ class ValidationResult(FrozenModel):
     task_results: list[TaskResult] | None = None
     verification_completed: bool = True
     cloud_provider: str | None = None
+    error_code: str | None = None

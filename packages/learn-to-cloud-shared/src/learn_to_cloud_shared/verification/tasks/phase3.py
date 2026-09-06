@@ -11,21 +11,24 @@ from learn_to_cloud_shared.verification.tasks.base import (
 
 PHASE3_FINAL_REQUIREMENT_SLUG = "journal-api-implementation"
 
-JOURNAL_API_IMPORTANT_PATHS = (
+JOURNAL_API_REQUIRED_PATHS = (
     "api/main.py",
     "api/routers/journal_router.py",
     "api/models/entry.py",
     "api/services/entry_service.py",
     "api/services/llm_service.py",
     ".devcontainer/devcontainer.json",
-    "tests/test_journal_router.py",
-    "tests/test_entry_service.py",
-    "tests/test_llm_service.py",
-    "tests/test_main.py",
     ".github/workflows/ci.yml",
-    ".github/workflows/ci.yaml",
     "pyproject.toml",
-    "requirements.txt",
+)
+JOURNAL_API_OPTIONAL_PATHS = (
+    "api/config.py",
+    "api/repositories/interface_repository.py",
+    "api/repositories/postgres_repository.py",
+)
+JOURNAL_API_IMPORTANT_PATHS = (
+    *JOURNAL_API_REQUIRED_PATHS,
+    *JOURNAL_API_OPTIONAL_PATHS,
 )
 
 JOURNAL_API_FINAL_RUBRIC_TASK = VerificationTask(
@@ -127,21 +130,52 @@ JOURNAL_API_FINAL_RUBRIC_TASK = VerificationTask(
     ],
     grading_instructions=[
         "Grade only the supplied repository evidence and deterministic CI result.",
+        "CI evaluates tests; test files are intentionally not supplied.",
+        "Implementations belong in the named starter files. Do not infer behavior "
+        "from uncollected modules or claim whole-repository credential review.",
+        "Named optional support files inform interpretation when present; their "
+        "absence is not a failed required criterion.",
     ],
     evidence=EvidencePolicy(
         source="repo_files",
-        path_patterns=[
-            *JOURNAL_API_IMPORTANT_PATHS,
-            "tests/",
-            ".github/workflows/",
-        ],
+        path_patterns=list(JOURNAL_API_IMPORTANT_PATHS),
+        required_files=list(JOURNAL_API_REQUIRED_PATHS),
+        optional_files=list(JOURNAL_API_OPTIONAL_PATHS),
+        criterion_evidence={
+            "application-logging": ["api/main.py"],
+            "get-entry-endpoint": [
+                "api/routers/journal_router.py",
+                "api/services/entry_service.py",
+            ],
+            "delete-entry-endpoint": [
+                "api/routers/journal_router.py",
+                "api/services/entry_service.py",
+            ],
+            "request-validation": ["api/models/entry.py"],
+            "typed-patch-endpoint": [
+                "api/routers/journal_router.py",
+                "api/models/entry.py",
+            ],
+            "journal-analysis": ["api/services/llm_service.py", "pyproject.toml"],
+            "cloud-cli": [".devcontainer/devcontainer.json"],
+            **{
+                criterion: list(JOURNAL_API_IMPORTANT_PATHS)
+                for criterion in (
+                    "code-organization",
+                    "error-handling",
+                    "credential-safety",
+                    "pythonic-clarity",
+                    "maintainability",
+                )
+            },
+        },
         max_files=12,
         max_file_size_bytes=35 * 1024,
         max_total_bytes=140 * 1024,
     ),
     grader=LLMRubricGraderConfig(
         rubric_id="phase3-journal-api-final-v2",
-        prompt_version="2026-09-02",
+        prompt_version="2026-09-06",
         passing_score=0.8,
         model="gpt-5-mini",
     ),

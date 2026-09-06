@@ -57,6 +57,7 @@ async def _insert_attempt(
     user_id: int = USER_ID,
     feedback_json: list[dict] | None = None,
     validation_message: str | None = None,
+    error_code: str | None = None,
 ) -> UUID:
     attempt_id = attempt_id or uuid4()
     async with session_maker() as db:
@@ -72,6 +73,7 @@ async def _insert_attempt(
             completed_at=completed_at or (utcnow() if outcome is not None else None),
             feedback_json=feedback_json,
             validation_message=validation_message,
+            error_code=error_code,
         )
         if created_at is not None:
             attempt.created_at = created_at
@@ -737,6 +739,7 @@ async def test_list_terminal_history_is_scoped_ordered_paginated_and_safe(
         requirement_uuid=req,
         created_at=now - timedelta(hours=2),
         outcome="server_error",
+        error_code="evidence.total_limit",
     )
     newest_id = await _insert_attempt(
         session_maker,
@@ -783,7 +786,9 @@ async def test_list_terminal_history_is_scoped_ordered_paginated_and_safe(
     assert second_page[0].feedback_json == [{"task_name": "old"}]
     assert second_page[0].validation_message == "Needs work."
     assert not hasattr(second_page[0], "submitted_value")
-    assert not hasattr(second_page[0], "error_code")
+    assert first_page[1].error_code == "evidence.total_limit"
+    assert second_page[0].error_code is None
+    assert not hasattr(second_page[0], "requirement_snapshot")
 
 
 async def test_list_terminal_history_validates_pagination(

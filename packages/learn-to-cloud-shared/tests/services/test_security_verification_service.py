@@ -3,7 +3,7 @@
 The deterministic verdict now lives in the ``codeql_status`` gate (see
 ``test_codeql_status.py``). This module only covers the evidence bundle the
 LLM rubric grades: it gathers the committed CodeQL workflow plus any
-Dependabot config from fixed paths, tolerating missing files.
+Dependabot config from fixed paths. Only Dependabot is optional.
 
 Evidence is supplied through the ``RepoFiles`` seam with an in-memory adapter,
 so these tests run without the network.
@@ -11,6 +11,7 @@ so these tests run without the network.
 
 import pytest
 
+from learn_to_cloud_shared.verification.evidence import EvidenceError
 from learn_to_cloud_shared.verification.security_scanning import (
     collect_security_scanning_evidence,
 )
@@ -57,9 +58,13 @@ class TestCollectSecurityScanningEvidence:
         paths = {item.path for item in bundle.items}
         assert paths == {CODEQL_WORKFLOW_PATH}
 
-    async def test_empty_repo_yields_no_items(self):
+    async def test_missing_codeql_is_a_required_evidence_failure(self):
         repo_files = InMemoryRepoFiles({"README.md": "# project\n"})
-        bundle = await collect_security_scanning_evidence(
-            _TEST_OWNER, _TEST_REPO, repo_files=repo_files
-        )
-        assert bundle.items == []
+        with pytest.raises(EvidenceError) as raised:
+            await collect_security_scanning_evidence(
+                _TEST_OWNER, _TEST_REPO, repo_files=repo_files
+            )
+
+        assert raised.value.code == "evidence.required_missing"
+        assert raised.value.missing == (CODEQL_WORKFLOW_PATH,)
+        assert raised.value.to_validation_result().verification_completed is True

@@ -3,6 +3,12 @@ uuid: 2f9a6c38-28f5-474b-9578-a71734f112b2
 slug: security-scanning
 submission_type: security_scanning
 name: Enable Security Scanning
-description: We'll check the latest CodeQL run for your fork's `main` branch.
+description: >-
+  We'll check the latest CodeQL run for your fork's `main` branch and review the
+  complete `.github/workflows/codeql.yml`. Optional `.github/dependabot.yml`
+  is read in full when present for bonus review; its absence does not block
+  grading. These are the canonical filenames, and other files are not
+  automatically discovered. If an internal evidence limit prevents grading,
+  your work is not failed; report the service issue rather than shrinking it.
 type_config:
   required_repo: learntocloud/journal-starter

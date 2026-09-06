@@ -38,7 +38,7 @@ learning_steps:
   order: 2
   action: 'Build:'
   title: Infrastructure as Code
-  description: Create Terraform configuration files in an `infra/` directory to provision your cloud infrastructure.
+  description: Create Terraform configuration files in an `infra/` directory to provision your cloud infrastructure. Provider-specific filenames and nested modules are supported. The filenames below are examples, not required names.
   checklist:
   - "**Container registry** — e.g., Azure Container Registry"
   - "**Managed Kubernetes cluster** — e.g., AKS"
@@ -132,9 +132,39 @@ learning_steps:
   order: 7
   action: 'Build:'
   title: Required Project Structure
-  description: Your repository must include these directories and files for auto-verification. Steps 1–4 are verified automatically when you submit your repo URL.
+  description: >-
+    Required files are `Dockerfile`, `k8s/deployment.yaml`, and `k8s/service.yaml`.
+    Also include at least one `.yml` or `.yaml` workflow directly in
+    `.github/workflows/` and at least one `.tf` or `.tf.json` Terraform source
+    file anywhere under `infra/`. A README, state file, or unrelated file alone
+    does not satisfy either source requirement. Verification reads all matching
+    workflow and Terraform source files, all `.yaml` and `.yml` files under
+    `k8s/`, and the required files in full. It also reads `.dockerignore` and
+    `k8s/secrets.yaml.example` in full when present; those two are optional
+    evidence, not mandatory verification gates. The tree below is an example:
+    Terraform filenames such as `main.tf` are not universal requirements.
+    Steps 1-4 are verified automatically when you submit your repo URL.
   code: "your-journal-starter/\n  ├── Dockerfile              # Step 1: Container definition\n  ├── .dockerignore            # Step 1: Exclude non-production files from build\n  ├── .github/\n  │   └── workflows/          # Step 3: CI/CD pipeline configs\n  │       └── *.yml\n  ├── infra/                   # Step 2: Terraform IaC configs\n  │   ├── main.tf\n  │   ├── variables.tf\n  │   ├── outputs.tf\n  │   └── providers.tf\n  ├── k8s/                     # Step 4: Kubernetes manifests\n  │   ├── deployment.yaml\n  │   ├── service.yaml\n  │   └── secrets.yaml.example # Example secrets (never commit real values)\n  ├── api/                     # Your FastAPI app code\n  └── README.md                # Step 6: Documentation"
   slug: phase5-topic6-build-required-project-structure
+  tips:
+  - type: important
+    text: >-
+      These roots must contain the deployment you are submitting, not several
+      alternative deployments or unrelated examples. Put non-submitted examples
+      outside the evidence roots. Provider-specific filenames and nested modules
+      inside `infra/` are included; the verifier does not infer which provider
+      folder is active. `.terraform/`, state, plan, tfvars, credential files,
+      README files, and unrelated file types are excluded. Never commit real
+      credentials in source or manifests. External modules, generated artifacts,
+      and scripts outside these roots are not automatically fetched or executed.
+      The published file-type rules are deterministic, not a search for a
+      passing implementation or support for arbitrary repository layouts.
+  - type: note
+    text: >-
+      All selected evidence is reviewed together in full. If internal limits
+      prevent this, verification is incomplete and your work has not been
+      judged as failed. Report the service issue; retrying unchanged may not
+      help, and you should not shrink or split otherwise valid work.
 
 - uuid: 1a7cde59-eecf-4078-ab74-d9a2a54f4351
   order: 8

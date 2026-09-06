@@ -19,7 +19,10 @@ from learn_to_cloud.rendering.page_content import (
     COMMUNITY_LINKS,
     HELP_LINKS,
 )
-from learn_to_cloud.rendering.requirement_cards import build_requirement_card_context
+from learn_to_cloud.rendering.requirement_cards import (
+    UnavailableCardContext,
+    build_requirement_card_context,
+)
 from learn_to_cloud.services.verification_page_service import (
     VerificationAttemptHistoryItem,
 )
@@ -803,7 +806,10 @@ def test_phase_verification_renders_paginated_safe_attempt_history():
     "cause",
     [None, "GitHub API error (401). Try again later.", "<script>unsafe</script>"],
 )
-def test_incomplete_history_and_current_card_share_safe_explanation(cause):
+@pytest.mark.parametrize(
+    "error_code", [None, "evidence.total_limit", "evidence.changed", "unknown"]
+)
+def test_incomplete_history_and_current_card_share_safe_explanation(cause, error_code):
     requirement = _requirement("journal-api", "Journal API")
     item = VerificationAttemptHistoryItem(
         id=uuid4(),
@@ -813,11 +819,14 @@ def test_incomplete_history_and_current_card_share_safe_explanation(cause):
         feedback_tasks=[],
         feedback_passed=0,
         completed_at=None,
+        error_code=error_code,
     )
     card = build_requirement_card_context(
         requirement=requirement,
         github_username="alice",
-        submission=_submission(is_validated=False, validation_message=cause),
+        submission=_submission(is_validated=False, validation_message=cause).model_copy(
+            update={"error_code": error_code}
+        ),
     )
     html = _render(
         "pages/verification_phase.html",
@@ -844,6 +853,15 @@ def test_incomplete_history_and_current_card_share_safe_explanation(cause):
     assert html.count("Report this issue") == 2
     assert "Needs work" not in html
     assert "<script>unsafe</script>" not in html
+    assert isinstance(card, UnavailableCardContext)
+    assert card.message == item.display_message
+    if error_code == "evidence.total_limit":
+        assert html.count("Retrying unchanged work may not help.") == 2
+        assert "You can try again." not in html
+    elif error_code == "evidence.changed":
+        assert html.count("after the repository stops changing.") == 2
+    else:
+        assert html.count("You can try again.") == 2
     if cause == "<script>unsafe</script>":
         assert html.count("&lt;script&gt;unsafe&lt;/script&gt;") == 2
     elif cause:

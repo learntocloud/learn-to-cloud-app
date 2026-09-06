@@ -9,7 +9,7 @@ import logging
 import os
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import Enum
 from uuid import UUID
@@ -33,6 +33,11 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
 from learn_to_cloud_shared.verification.engine import run_verification
+from learn_to_cloud_shared.verification.evidence import (
+    EVIDENCE_ERROR_CODES,
+    EvidenceError,
+)
+from learn_to_cloud_shared.verification.grading_requests import validate_grading_request
 from learn_to_cloud_shared.verification.llm_grading import (
     LLMGradingDecisionPayload,
     LLMGradingRequest,
@@ -188,9 +193,9 @@ def _activity_payloads(value: object) -> list[dict[str, object]]:
     return [_activity_payload(item) for item in value]
 
 
-def _safe_llm_error_type(value: object) -> str:
-    """Return a whitelisted LLM error category."""
-    if isinstance(value, str) and value in LLM_ERROR_TYPES:
+def _safe_grading_error_type(value: object) -> str:
+    """Return a bounded grader or evidence-preparation error category."""
+    if isinstance(value, str) and value in LLM_ERROR_TYPES | EVIDENCE_ERROR_CODES:
         return value
     return "llm.unknown"
 
@@ -259,7 +264,15 @@ def _llm_grading_step(
     """
     llm_requests: Sequence[object] = []
     if isinstance(run_result, Mapping):
-        value = _activity_payload(run_result).get("grading_requests")
+        payload = _activity_payload(run_result)
+        validation = payload.get("validation_result")
+        if (
+            not isinstance(validation, Mapping)
+            or validation.get("is_valid") is not True
+            or validation.get("verification_completed", True) is not True
+        ):
+            return run_result
+        value = payload.get("grading_requests")
         if isinstance(value, list):
             llm_requests = value
     if not llm_requests:
@@ -288,7 +301,7 @@ def _llm_grading_step(
         result_payload = _activity_payload(grading_result)
         technical_outcome = result_payload.get("outcome")
         if technical_outcome != LLM_OUTCOME_SUCCESS:
-            error_type = _safe_llm_error_type(result_payload.get("error_type"))
+            error_type = _safe_grading_error_type(result_payload.get("error_type"))
             return (
                 yield context.call_activity(
                     "llm_grading_failed",
@@ -347,7 +360,18 @@ async def run_llm_grading(
     """Call Foundry for one LLM grading request and return durable-safe JSON."""
     with _attached_invocation_context(context):
         data = _activity_payload(request_payload)
-        request = LLMGradingRequest.model_validate(_activity_payload(data["request"]))
+        try:
+            request = LLMGradingRequest.model_validate(
+                _activity_payload(data["request"])
+            )
+            validate_grading_request(request)
+        except EvidenceError as exc:
+            return {"outcome": LLM_OUTCOME_ERROR, "error_type": exc.code}
+        except (KeyError, TypeError, ValueError):
+            return {
+                "outcome": LLM_OUTCOME_ERROR,
+                "error_type": "evidence.selection",
+            }
         try:
             decision = await grade_evidence(request.message)
             validate_llm_grading_decision(
@@ -405,12 +429,17 @@ async def llm_grading_failed(
     """Convert LLM grader errors into a persisted server-error result."""
     with _attached_invocation_context(context):
         data = _activity_payload(payload)
-        error_type = _safe_llm_error_type(data.get("error_type"))
+        error_type = _safe_grading_error_type(data.get("error_type"))
         technical_outcome = data.get("outcome")
         run_result_payload = VerificationRunResult.from_payload(
             _activity_payload(data["run_result"])
         )
-        if technical_outcome == LLM_OUTCOME_CONTENT_FILTERED:
+        if error_type in EVIDENCE_ERROR_CODES:
+            run_result = replace(
+                run_result_payload.without_transport_data(),
+                validation_result=EvidenceError(error_type).to_validation_result(),
+            )
+        elif technical_outcome == LLM_OUTCOME_CONTENT_FILTERED:
             run_result = llm_grading_content_filtered_result(run_result_payload)
         else:
             logger.error(

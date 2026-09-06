@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "7749e3cefd5b7b6b120ca2ec03b8209e9fe870a38f0d885ec61fef8b7a178d68",
-  "curriculum_version": 13,
+  "content_hash": "aead7334178038a58e0f38395978bfa38fc16e0d250191d5a46072b3042ec257",
+  "curriculum_version": 14,
   "phases": [
     {
       "capstone": null,
@@ -1972,7 +1972,7 @@
         ],
         "requirements": [
           {
-            "description": "We'll review the latest code on your fork's `main` branch.",
+            "description": "We'll review your fork's `main` branch using the complete `api/main.py`, `api/routers/journal_router.py`, `api/models/entry.py`, `api/services/entry_service.py`, `api/services/llm_service.py`, `.devcontainer/devcontainer.json`, `.github/workflows/ci.yml`, and `pyproject.toml`. These canonical files are required. When present, we also read `api/config.py`, `api/repositories/interface_repository.py`, and `api/repositories/postgres_repository.py`. Keep assignment implementations in the named starter files; other modules are not automatically discovered. CI evaluates tests; test files are not sent to the AI reviewer. An internal evidence limit leaves verification incomplete, not failed; report the issue rather than shrinking valid work.",
             "name": "Verify Journal API Implementation",
             "slug": "journal-api-implementation",
             "submission_type": "journal_api_verifier",
@@ -2526,7 +2526,16 @@
               "options": [],
               "order": 1,
               "slug": "phase3-topic5-practice-journal-starter-repository",
-              "tips": [],
+              "tips": [
+                {
+                  "text": "Keep assignment implementations in the named starter files. Verification reads the complete `api/main.py`, `api/routers/journal_router.py`, `api/models/entry.py`, `api/services/entry_service.py`, `api/services/llm_service.py`, `.devcontainer/devcontainer.json`, `.github/workflows/ci.yml`, and `pyproject.toml`; all eight are required. The canonical filenames are `ci.yml` and `pyproject.toml`, not `ci.yaml` or `requirements.txt`. When present, `api/config.py`, `api/repositories/interface_repository.py`, and `api/repositories/postgres_repository.py` are also read in full. Tests are evaluated by CI and are not sent to the AI reviewer; no new test filenames are required. Other modules are not automatically discovered, so this is not a whole-repository review or credential scan.",
+                  "type": "important"
+                },
+                {
+                  "text": "If the verifier cannot assemble all selected evidence within its internal limits, your work is not graded as failed. Report the service issue; do not shrink or split otherwise valid work to fit the verifier.",
+                  "type": "note"
+                }
+              ],
               "title": "Journal Starter Repository",
               "url": "https://github.com/learntocloud/journal-starter",
               "uuid": "29ca368b-cd6e-4145-bb59-c395775b45b5"
@@ -3644,7 +3653,7 @@
         ],
         "requirements": [
           {
-            "description": "We'll review the DevOps implementation on your fork's `main` branch.",
+            "description": "We'll review your fork's `main` branch. Required evidence is `Dockerfile`, `k8s/deployment.yaml`, `k8s/service.yaml`, at least one `.yml` or `.yaml` workflow directly in `.github/workflows/`, and at least one `.tf` or `.tf.json` file under `infra/`. All matching workflow and Terraform source files, including nested Terraform modules, and all `.yaml` or `.yml` files under `k8s/` are read in full. `.dockerignore` and `k8s/secrets.yaml.example` are also read when present but are optional. Use these roots only for the submitted deployment, not alternative examples. Terraform filenames such as `main.tf` are examples, not requirements. `.terraform/`, state, plan, tfvars, credentials, README, and unrelated files are excluded. External modules and scripts outside these roots are not automatically fetched or executed. Internal evidence limits leave work ungraded, not failed; report the issue rather than shrinking valid work.",
             "name": "Complete the DevOps Capstone",
             "slug": "devops-implementation",
             "submission_type": "devops_analysis",
@@ -4851,7 +4860,7 @@
                 "**Run `database_setup.sql`** against your PostgreSQL instance after provisioning"
               ],
               "code": null,
-              "description": "Create Terraform configuration files in an `infra/` directory to provision your cloud infrastructure.",
+              "description": "Create Terraform configuration files in an `infra/` directory to provision your cloud infrastructure. Provider-specific filenames and nested modules are supported. The filenames below are examples, not required names.",
               "done_when": "`terraform apply` completes, all resources exist, and you can connect to the database.",
               "options": [],
               "order": 2,
@@ -4970,12 +4979,21 @@
               "action": "build",
               "checklist": [],
               "code": "your-journal-starter/\n  \u251c\u2500\u2500 Dockerfile              # Step 1: Container definition\n  \u251c\u2500\u2500 .dockerignore            # Step 1: Exclude non-production files from build\n  \u251c\u2500\u2500 .github/\n  \u2502   \u2514\u2500\u2500 workflows/          # Step 3: CI/CD pipeline configs\n  \u2502       \u2514\u2500\u2500 *.yml\n  \u251c\u2500\u2500 infra/                   # Step 2: Terraform IaC configs\n  \u2502   \u251c\u2500\u2500 main.tf\n  \u2502   \u251c\u2500\u2500 variables.tf\n  \u2502   \u251c\u2500\u2500 outputs.tf\n  \u2502   \u2514\u2500\u2500 providers.tf\n  \u251c\u2500\u2500 k8s/                     # Step 4: Kubernetes manifests\n  \u2502   \u251c\u2500\u2500 deployment.yaml\n  \u2502   \u251c\u2500\u2500 service.yaml\n  \u2502   \u2514\u2500\u2500 secrets.yaml.example # Example secrets (never commit real values)\n  \u251c\u2500\u2500 api/                     # Your FastAPI app code\n  \u2514\u2500\u2500 README.md                # Step 6: Documentation",
-              "description": "Your repository must include these directories and files for auto-verification. Steps 1\u20134 are verified automatically when you submit your repo URL.",
+              "description": "Required files are `Dockerfile`, `k8s/deployment.yaml`, and `k8s/service.yaml`. Also include at least one `.yml` or `.yaml` workflow directly in `.github/workflows/` and at least one `.tf` or `.tf.json` Terraform source file anywhere under `infra/`. A README, state file, or unrelated file alone does not satisfy either source requirement. Verification reads all matching workflow and Terraform source files, all `.yaml` and `.yml` files under `k8s/`, and the required files in full. It also reads `.dockerignore` and `k8s/secrets.yaml.example` in full when present; those two are optional evidence, not mandatory verification gates. The tree below is an example: Terraform filenames such as `main.tf` are not universal requirements. Steps 1-4 are verified automatically when you submit your repo URL.",
               "done_when": null,
               "options": [],
               "order": 7,
               "slug": "phase5-topic6-build-required-project-structure",
-              "tips": [],
+              "tips": [
+                {
+                  "text": "These roots must contain the deployment you are submitting, not several alternative deployments or unrelated examples. Put non-submitted examples outside the evidence roots. Provider-specific filenames and nested modules inside `infra/` are included; the verifier does not infer which provider folder is active. `.terraform/`, state, plan, tfvars, credential files, README files, and unrelated file types are excluded. Never commit real credentials in source or manifests. External modules, generated artifacts, and scripts outside these roots are not automatically fetched or executed. The published file-type rules are deterministic, not a search for a passing implementation or support for arbitrary repository layouts.",
+                  "type": "important"
+                },
+                {
+                  "text": "All selected evidence is reviewed together in full. If internal limits prevent this, verification is incomplete and your work has not been judged as failed. Report the service issue; retrying unchanged may not help, and you should not shrink or split otherwise valid work.",
+                  "type": "note"
+                }
+              ],
               "title": "Required Project Structure",
               "url": null,
               "uuid": "e080abdc-bf94-4e6b-a78e-33294ef28595"
@@ -5055,7 +5073,7 @@
         ],
         "requirements": [
           {
-            "description": "We'll check the latest CodeQL run for your fork's `main` branch.",
+            "description": "We'll check the latest CodeQL run for your fork's `main` branch and review the complete `.github/workflows/codeql.yml`. Optional `.github/dependabot.yml` is read in full when present for bonus review; its absence does not block grading. These are the canonical filenames, and other files are not automatically discovered. If an internal evidence limit prevents grading, your work is not failed; report the service issue rather than shrinking it.",
             "name": "Enable Security Scanning",
             "slug": "security-scanning",
             "submission_type": "security_scanning",
@@ -5836,7 +5854,12 @@
               "options": [],
               "order": 7,
               "slug": "phase6-capstone-practice-enable-security-scanning-on",
-              "tips": [],
+              "tips": [
+                {
+                  "text": "Verification reads the full `.github/workflows/codeql.yml`. Optional Dependabot configuration must use `.github/dependabot.yml` to be included for bonus review; `.github/dependabot.yaml` is not collected. Absence of Dependabot configuration does not block grading. If it is present, its full content is included, never silently dropped to fit an internal limit. Other files are not automatically discovered. If internal limits prevent complete evidence collection, your work remains ungraded; report the service issue rather than shrinking valid work.",
+                  "type": "note"
+                }
+              ],
               "title": "Enable security scanning on your repository",
               "url": "https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/configuring-advanced-setup-for-code-scanning",
               "uuid": "e2b8c099-6322-446d-9118-a1406c1ad6b8"
@@ -5898,7 +5921,7 @@
         ],
         "requirements": [
           {
-            "description": "Answer all three questions thoughtfully and in your own words.",
+            "description": "Answer all three questions thoughtfully and in your own words. The reviewer receives your complete submitted text; no GitHub files are read. If internal evidence limits prevent grading, verification remains incomplete, not failed. Report the service issue rather than shrinking or splitting valid answers.",
             "name": "Reflect on Your Job-Search Readiness",
             "slug": "career-reflection",
             "submission_type": "career_reflection",
@@ -6326,7 +6349,12 @@
               "options": [],
               "order": 3,
               "slug": "phase7-capstone-practice-complete-the-reflection",
-              "tips": [],
+              "tips": [
+                {
+                  "text": "The reviewer receives your complete submitted text, not a shortened excerpt. No GitHub files are read for this reflection. If an internal evidence limit prevents grading, your work has not been judged as failed. Report the service issue rather than shrinking or splitting valid answers; retrying unchanged may not help.",
+                  "type": "note"
+                }
+              ],
               "title": "Submit your readiness reflection",
               "url": null,
               "uuid": "a68f4251-0e15-4e40-a51e-3e9b328437f6"

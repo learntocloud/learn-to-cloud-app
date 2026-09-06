@@ -98,6 +98,7 @@ class AttemptCardProjection:
     completed_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    error_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +111,7 @@ class AttemptHistoryProjection:
     feedback_json: list[dict] | None
     validation_message: str | None
     completed_at: datetime | None
+    error_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -647,6 +649,7 @@ class VerificationAttemptRepository:
                 VerificationAttempt.outcome,
                 VerificationAttempt.feedback_json,
                 VerificationAttempt.validation_message,
+                VerificationAttempt.error_code,
                 VerificationAttempt.completed_at,
                 VerificationAttempt.created_at,
                 VerificationAttempt.updated_at,
@@ -672,6 +675,7 @@ class VerificationAttemptRepository:
                 outcome=row.outcome,
                 feedback_json=row.feedback_json,
                 validation_message=row.validation_message,
+                error_code=row.error_code,
                 completed_at=row.completed_at,
                 created_at=row.created_at,
                 updated_at=row.updated_at,
@@ -704,6 +708,7 @@ class VerificationAttemptRepository:
                 VerificationAttempt.outcome,
                 VerificationAttempt.feedback_json,
                 VerificationAttempt.validation_message,
+                VerificationAttempt.error_code,
                 VerificationAttempt.completed_at,
             )
             .where(
@@ -725,6 +730,7 @@ class VerificationAttemptRepository:
                 outcome=row.outcome,
                 feedback_json=row.feedback_json,
                 validation_message=row.validation_message,
+                error_code=row.error_code,
                 completed_at=row.completed_at,
             )
             for row in result.all()

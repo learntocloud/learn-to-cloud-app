@@ -3,6 +3,17 @@ uuid: d6201101-8873-447a-957a-0e5773627618
 slug: journal-api-implementation
 submission_type: journal_api_verifier
 name: Verify Journal API Implementation
-description: We'll review the latest code on your fork's `main` branch.
+description: >-
+  We'll review your fork's `main` branch using the complete `api/main.py`,
+  `api/routers/journal_router.py`, `api/models/entry.py`,
+  `api/services/entry_service.py`, `api/services/llm_service.py`,
+  `.devcontainer/devcontainer.json`, `.github/workflows/ci.yml`, and
+  `pyproject.toml`. These canonical files are required. When present, we also
+  read `api/config.py`, `api/repositories/interface_repository.py`, and
+  `api/repositories/postgres_repository.py`. Keep assignment implementations
+  in the named starter files; other modules are not automatically discovered.
+  CI evaluates tests; test files are not sent to the AI reviewer. An internal
+  evidence limit leaves verification incomplete, not failed; report the issue
+  rather than shrinking valid work.
 type_config:
   required_repo: learntocloud/journal-starter

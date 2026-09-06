@@ -3,7 +3,11 @@ uuid: f0779139-1c79-4e33-b90e-b4c73e66ec62
 slug: career-reflection
 submission_type: career_reflection
 name: Reflect on Your Job-Search Readiness
-description: Answer all three questions thoughtfully and in your own words.
+description: >-
+  Answer all three questions thoughtfully and in your own words. The reviewer
+  receives your complete submitted text; no GitHub files are read. If internal
+  evidence limits prevent grading, verification remains incomplete, not failed.
+  Report the service issue rather than shrinking or splitting valid answers.
 type_config:
   min_answer_length: 200
   questions:

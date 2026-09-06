@@ -122,6 +122,43 @@ Do not ask learners to change their work to fix application credentials, bypass
 ownership checks, or sign in again as a general outage fix. Historical attempts
 without a specific saved cause do not establish which dependency failed.
 
+## Incomplete grading evidence
+
+Inspect `verification.error.code` on `verification.attempt.completed`, the
+associated `verification.step`, and `verification.evidence.assembled`.
+An incomplete result has no learner rubric score and does not count as a failed
+learner attempt. Prior completions remain intact.
+
+| Code | Investigation and recovery |
+| --- | --- |
+| `evidence.required_missing` | Completed learner feedback, not a service outage. Check the published required paths/source groups; a README or state file is not Terraform/workflow source. |
+| `evidence.changed` | A selected known-present file disappeared. Retry after the repository stops changing; do not label this initial absence. |
+| `evidence.file_limit` | Compare selected file count with the task's bound. All selected optional evidence counts too. |
+| `evidence.item_limit` | A complete item exceeds its UTF-8 byte bound. Do not truncate the item. |
+| `evidence.total_limit` | Complete selected content exceeds the bundle bound. Do not drop optional files or split the rubric into partial grades. |
+| `evidence.selection` | Investigate contract mismatch, invalid/restored packets, or incomplete discovery; no partial packet may be graded. |
+| `evidence.configuration` | Investigate the registered task policy, configured evidence requirements, and repository target. |
+
+Budget, selection, and configuration failures require service attention.
+Retrying unchanged work may not help. Do not ask learners to shrink valid
+submissions or delete valid optional bonus evidence. Use bounded counts/bytes
+to investigate the configured contract and prompt resource needs before changing
+limits; do not raise caps merely to pass a fixture. GitHub retrieval failures
+keep their upstream categories, and a truncated tree must never establish a
+missing-file decision. Provider context rejection remains an incomplete service
+result, not permission to grade partial evidence.
+
+The evidence event contains only `evidence.outcome`, `evidence.reason`,
+`evidence.selected_count`, `evidence.collected_count`, and `evidence.total_bytes`.
+Outcomes are `complete`, `required_missing`, `retrieval_failed`, or `incomplete`;
+reasons are `complete`, `retrieval`, or the seven `evidence.*` codes above.
+Correlate with the existing bounded task/check IDs on `verification.step`, not
+new evidence dimensions. Do not copy source, submitted text, hashes, repository
+URLs, arbitrary paths, or learner identities into telemetry or incident notes.
+Old attempts without a saved bounded cause do not prove which limit was hit.
+Recovery does not authorize historical regrading, production data changes, new
+alert thresholds, or automatic learner retries.
+
 ## Session lifecycle and rejected OAuth identity
 
 `auth.session.rejected` records bounded `auth.session.reason` values. Expiry,

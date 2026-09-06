@@ -181,18 +181,18 @@ class TestCollectDeploymentArchitectureEvidence:
         assert script_item.content == _DEPLOY_SH
 
     @pytest.mark.asyncio
-    async def test_includes_description_even_when_script_missing(self):
+    async def test_missing_script_never_returns_partial_bundle(self):
+        from learn_to_cloud_shared.verification.evidence import EvidenceError
+
         repo_files = InMemoryRepoFiles({})
 
-        bundle = await collect_deployment_architecture_evidence(
-            "alice",
-            "journal-starter",
-            _LONG_DESCRIPTION,
-            repo_files=repo_files,
-        )
-
-        paths = [item.path for item in bundle.items]
-        assert paths == ["architecture-description.md"]
+        with pytest.raises(EvidenceError, match="evidence.required_missing"):
+            await collect_deployment_architecture_evidence(
+                "alice",
+                "journal-starter",
+                _LONG_DESCRIPTION,
+                repo_files=repo_files,
+            )
 
 
 @pytest.mark.unit

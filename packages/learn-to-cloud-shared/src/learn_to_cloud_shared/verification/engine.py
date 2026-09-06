@@ -45,14 +45,17 @@ from learn_to_cloud_shared.verification.codeql_status import verify_codeql_statu
 from learn_to_cloud_shared.verification.deployed_api import validate_deployed_api
 from learn_to_cloud_shared.verification.deployment_architecture import (
     collect_deployment_architecture_evidence,
+    deployment_architecture_task,
     validate_deployment_architecture,
 )
 from learn_to_cloud_shared.verification.devops_analysis import (
     verify_required_devops_files,
 )
 from learn_to_cloud_shared.verification.evidence import (
+    EvidenceError,
     collect_repo_file_evidence,
-    select_repo_paths,
+    record_evidence_decision,
+    validate_evidence_bundle,
 )
 from learn_to_cloud_shared.verification.ghcr import verify_public_ghcr_image
 from learn_to_cloud_shared.verification.github_errors import (
@@ -376,6 +379,8 @@ async def _check_github_ci_passing(
             validation_result=ValidationResult(
                 is_valid=False,
                 message="Requirement configuration error: missing required_repo",
+                verification_completed=False,
+                error_code="evidence.configuration",
                 username_match=True,
                 repo_exists=False,
             ),
@@ -402,42 +407,37 @@ async def _check_llm_rubric_review(
     assert isinstance(params, LLMRubricReviewParams)
     target = context.repository
     if target is None:
-        return StepResult(passed=True, stop_on_fail=False)
+        raise EvidenceError("evidence.configuration")
     repo_files = context.repo_files or default_repo_files()
     event = "llm_rubric_review.repo_file_error"
     try:
-        paths = list(params.evidence_paths)
         if params.discover_paths:
             event = "llm_rubric_review.repo_tree_error"
             all_files = await repo_files.tree(target.owner, target.repo)
-            paths = select_repo_paths(
-                all_files,
-                params.task.evidence.path_patterns,
-                max_files=params.task.evidence.max_files,
-            )
             event = "llm_rubric_review.repo_file_error"
-        bundle = await collect_repo_file_evidence(
-            repo_files,
-            target.owner,
-            target.repo,
-            paths,
-            params.task,
-        )
+            bundle = await collect_repo_file_evidence(
+                repo_files,
+                target.owner,
+                target.repo,
+                [],
+                params.task,
+                inventory=all_files,
+            )
+        else:
+            bundle = await collect_repo_file_evidence(
+                repo_files,
+                target.owner,
+                target.repo,
+                list(params.evidence_paths),
+                params.task,
+            )
     except (GitHubServerError, httpx.HTTPStatusError, httpx.RequestError) as exc:
+        if event == "llm_rubric_review.repo_tree_error":
+            record_evidence_decision("retrieval")
         return StepResult(
             passed=False,
             stop_on_fail=True,
             validation_result=github_error_to_result(exc, event=event),
-        )
-    if params.discover_paths and not bundle.items:
-        return StepResult(
-            passed=False,
-            stop_on_fail=True,
-            validation_result=ValidationResult(
-                is_valid=False,
-                message="Could not collect repository evidence for automated review.",
-                verification_completed=False,
-            ),
         )
     return StepResult(
         passed=True,
@@ -478,6 +478,8 @@ async def _check_devops_required_files(
             validation_result=ValidationResult(
                 is_valid=False,
                 message="Requirement configuration error: missing required_repo",
+                verification_completed=False,
+                error_code="evidence.configuration",
                 username_match=True,
                 repo_exists=False,
             ),
@@ -508,6 +510,8 @@ async def _check_public_ghcr_image(
             validation_result=ValidationResult(
                 is_valid=False,
                 message="Requirement configuration error: missing required_repo",
+                verification_completed=False,
+                error_code="evidence.configuration",
                 username_match=True,
                 repo_exists=False,
             ),
@@ -534,6 +538,8 @@ async def _check_codeql_status(
             validation_result=ValidationResult(
                 is_valid=False,
                 message="Requirement configuration error: missing required_repo",
+                verification_completed=False,
+                error_code="evidence.configuration",
                 username_match=True,
                 repo_exists=False,
             ),
@@ -555,7 +561,7 @@ async def _check_security_scanning_review(
     assert isinstance(params, SecurityScanningReviewParams)
     target = context.repository
     if target is None:
-        return StepResult(passed=True, stop_on_fail=False)
+        raise EvidenceError("evidence.configuration")
     repo_files = context.repo_files or default_repo_files()
     try:
         bundle = await collect_security_scanning_evidence(
@@ -743,10 +749,13 @@ async def _check_deployment_architecture_review(
     assert isinstance(params, DeploymentArchitectureReviewParams)
     target = context.repository
     if target is None:
-        return StepResult(passed=True, stop_on_fail=False)
+        raise EvidenceError("evidence.configuration")
     deploy_script_path = getattr(
-        context.job.requirement.type_config, "deploy_script_path", "deploy.sh"
+        context.job.requirement.type_config, "deploy_script_path", None
     )
+    if deploy_script_path is None:
+        raise EvidenceError("evidence.configuration")
+    task = deployment_architecture_task(params.task, deploy_script_path)
     submitted_value = context.submitted_value
     if not isinstance(submitted_value, TextValue):
         raise TypeError("Deployment architecture review requires a text value")
@@ -755,7 +764,7 @@ async def _check_deployment_architecture_review(
             target.owner,
             target.repo,
             submitted_value.text,
-            params.task,
+            task,
             deploy_script_path=deploy_script_path,
             repo_files=context.repo_files or default_repo_files(),
         )
@@ -771,7 +780,7 @@ async def _check_deployment_architecture_review(
         passed=True,
         stop_on_fail=False,
         evidence=[bundle],
-        grading_task=params.task,
+        grading_task=task,
     )
 
 
@@ -1004,9 +1013,22 @@ def _aggregate(step_results: list[StepResult]) -> ValidationResult:
         if result.validation_result is not None
     ]
     if len(authoritative_results) == 1:
-        return authoritative_results[0]
+        result = authoritative_results[0]
+        if result.is_valid and any(not step.passed for step in step_results):
+            return result.model_copy(update={"is_valid": False})
+        return result
     if authoritative_results:
-        decisive_result = authoritative_results[-1]
+        incomplete_results = [
+            result
+            for result in authoritative_results
+            if not result.verification_completed
+        ]
+        failed_results = [
+            result for result in authoritative_results if not result.is_valid
+        ]
+        decisive_result = (
+            incomplete_results or failed_results or authoritative_results
+        )[-1]
         task_results = [
             task_result
             for validation_result in authoritative_results
@@ -1022,7 +1044,8 @@ def _aggregate(step_results: list[StepResult]) -> ValidationResult:
 
         return decisive_result.model_copy(
             update={
-                "is_valid": all(result.is_valid for result in authoritative_results),
+                "is_valid": all(result.is_valid for result in authoritative_results)
+                and all(result.passed for result in step_results),
                 "username_match": latest_value("username_match"),
                 "repo_exists": latest_value("repo_exists"),
                 "task_results": task_results or None,
@@ -1030,6 +1053,7 @@ def _aggregate(step_results: list[StepResult]) -> ValidationResult:
                     result.verification_completed for result in authoritative_results
                 ),
                 "cloud_provider": latest_value("cloud_provider"),
+                "error_code": decisive_result.error_code or latest_value("error_code"),
             }
         )
 
@@ -1063,13 +1087,20 @@ def _grading_requests_for(
     A task whose evidence source is ``submitted_text`` grades free text with no
     repository (Phase 7); every other task requires a repository target.
     """
-    if not deterministic_result.verification_completed:
+    if (
+        not deterministic_result.verification_completed
+        or not deterministic_result.is_valid
+        or any(not result.passed for result in step_results)
+    ):
         return []
     requests: list[LLMGradingRequest] = []
     for result in step_results:
         task = result.grading_task
         if task is None:
             continue
+        if len(result.evidence) != 1:
+            raise EvidenceError("evidence.selection")
+        validate_evidence_bundle(task, result.evidence[0])
         evidence = result.evidence[0].model_dump(mode="json") if result.evidence else {}
         allowed_evidence_refs = [
             str(item["path"])
@@ -1091,9 +1122,7 @@ def _grading_requests_for(
             )
         else:
             if target is None:
-                raise ValueError(
-                    f"Rubric task {task.id!r} requires a GitHub repository target"
-                )
+                raise EvidenceError("evidence.configuration")
             message = build_repo_rubric_message(
                 requirement_slug=job.requirement.slug,
                 requirement_name=job.requirement.name,
@@ -1126,7 +1155,7 @@ def _grading_disposition_for(
         return GradingDisposition.NOT_REQUIRED
     if grading_requests:
         return GradingDisposition.REQUESTED
-    if any(not result.passed and result.stop_on_fail for result in step_results):
+    if any(not result.passed for result in step_results):
         return GradingDisposition.SKIPPED_GATE_FAILED
     raise ValueError("Rubric profile completed without a grading request")
 
@@ -1154,6 +1183,18 @@ async def _run_step(step: Step, context: StepContext) -> StepResult:
     ) as span:
         try:
             result = await check_for(step.params)(context, step.params)
+            if result.grading_task is not None:
+                if len(result.evidence) != 1:
+                    raise EvidenceError("evidence.selection")
+                validate_evidence_bundle(result.grading_task, result.evidence[0])
+        except EvidenceError as exc:
+            if not exc.recorded:
+                record_evidence_decision(exc.code)
+            result = StepResult(
+                passed=False,
+                stop_on_fail=True,
+                validation_result=exc.to_validation_result(),
+            )
         except Exception as exc:
             span.set_attribute("verification.step.result", "error")
             span.set_attribute("error.type", type(exc).__name__)
@@ -1263,9 +1304,20 @@ async def run_verification(
             break
 
     deterministic_result = _aggregate(step_results)
-    grading_requests = _grading_requests_for(
-        job, target, deterministic_result, step_results
-    )
+    try:
+        grading_requests = _grading_requests_for(
+            job, target, deterministic_result, step_results
+        )
+    except EvidenceError as exc:
+        record_evidence_decision(exc.code)
+        deterministic_result = exc.to_validation_result()
+        grading_requests = []
+        step_results.append(
+            StepResult(
+                passed=False,
+                validation_result=deterministic_result,
+            )
+        )
     grading_disposition = _grading_disposition_for(
         profile, step_results, grading_requests
     )

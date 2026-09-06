@@ -19,6 +19,7 @@ from learn_to_cloud_shared.verification_workflow import (
     GradingDisposition,
     PreparedVerificationAttempt,
     VerificationRunResult,
+    outcome_for_validation,
 )
 
 
@@ -41,6 +42,50 @@ def _run_result(evidence) -> VerificationRunResult:
 
 @pytest.mark.unit
 class TestVerificationRunResultEvidence:
+    @pytest.mark.parametrize("is_valid", [False, True])
+    def test_incomplete_result_never_counts_as_completed(self, is_valid) -> None:
+        assert (
+            outcome_for_validation(
+                ValidationResult(
+                    is_valid=is_valid,
+                    verification_completed=False,
+                    message="Verification did not finish.",
+                    error_code="evidence.selection",
+                )
+            )
+            == "server_error"
+        )
+
+    def test_evidence_error_survives_transport_and_stripping(self) -> None:
+        result = VerificationRunResult(
+            attempt=_run_result(None).attempt,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message="Evidence could not be assembled.",
+                verification_completed=False,
+                error_code="evidence.total_limit",
+            ),
+            evidence=[EvidenceBundle(task_id="t1", source="repo_files")],
+            grading_requests=[],
+        )
+
+        restored = VerificationRunResult.from_payload(result.to_payload())
+        stripped = restored.without_transport_data()
+
+        assert stripped.validation_result.error_code == "evidence.total_limit"
+        assert stripped.validation_result.verification_completed is False
+        assert stripped.evidence is None
+        assert stripped.grading_requests is None
+
+    def test_historical_result_without_error_code_still_loads(self) -> None:
+        payload = _run_result(None).to_payload()
+        payload["validation_result"].pop("error_code")
+
+        restored = VerificationRunResult.from_payload(payload)
+
+        assert restored.validation_result.error_code is None
+        assert restored.validation_result.is_valid is True
+
     def test_defaults_to_none(self) -> None:
         result = VerificationRunResult(
             attempt=_run_result(None).attempt,

@@ -29,8 +29,6 @@ from learn_to_cloud_shared.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
 )
 
-# Fixed paths graded by the rubric: the committed CodeQL workflow plus optional
-# Dependabot config. Missing files are skipped by ``collect_repo_file_evidence``.
 SECURITY_SCANNING_EVIDENCE_PATHS = [CODEQL_WORKFLOW_PATH, *DEPENDABOT_CONFIG_PATHS]
 
 
@@ -43,8 +41,8 @@ async def collect_security_scanning_evidence(
     """Collect bounded Phase 6 repository evidence for rubric grading.
 
     Fetches the fixed CodeQL workflow (``.github/workflows/codeql.yml``) and
-    any Dependabot config from the default branch. Files that do not exist are
-    skipped, so a repo without Dependabot simply yields the workflow alone.
+    canonical optional Dependabot config from the default branch. Every selected
+    file must fit in full; absent Dependabot is not a failed requirement.
     """
     repo_files = repo_files or default_repo_files()
     return await collect_repo_file_evidence(

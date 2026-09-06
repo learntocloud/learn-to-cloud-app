@@ -18,6 +18,7 @@ class InMemoryRepoFiles:
         self._files = dict(files or {})
         self._tree = list(tree) if tree is not None else list(self._files)
         self._tree_error = tree_error
+        self.file_reads: list[str] = []
 
     async def tree(self, owner: str, repo: str, branch: str = "main") -> list[str]:
         if self._tree_error is not None:
@@ -27,4 +28,5 @@ class InMemoryRepoFiles:
     async def file(
         self, owner: str, repo: str, path: str, branch: str = "main"
     ) -> str | None:
+        self.file_reads.append(path)
         return self._files.get(path)

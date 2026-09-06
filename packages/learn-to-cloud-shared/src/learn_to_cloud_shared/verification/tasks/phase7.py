@@ -68,16 +68,28 @@ CAREER_REFLECTION_RUBRIC_TASK = VerificationTask(
             ),
         ),
     ],
-    grading_instructions=["Grade only the submitted reflection text provided."],
+    grading_instructions=["Grade only the full submitted reflection text provided."],
     evidence=EvidencePolicy(
         source="submitted_text",
+        required_files=["career-reflection.md"],
+        criterion_evidence={
+            criterion: ["career-reflection.md"]
+            for criterion in (
+                "complete-responses",
+                "personal-specificity",
+                "behavioral-example",
+                "target-role",
+                "project-interest",
+                "original-submission",
+            )
+        },
         max_files=1,
         max_file_size_bytes=20 * 1024,
         max_total_bytes=20 * 1024,
     ),
     grader=LLMRubricGraderConfig(
         rubric_id="phase7-career-reflection-v2",
-        prompt_version="2026-09-02",
+        prompt_version="2026-09-06",
         passing_score=0.6,
         model="gpt-5-mini",
     ),

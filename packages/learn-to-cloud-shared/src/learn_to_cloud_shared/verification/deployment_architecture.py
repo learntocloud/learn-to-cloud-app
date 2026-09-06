@@ -10,13 +10,16 @@ description aligns with what the script actually provisions.
 
 from __future__ import annotations
 
-from hashlib import sha256
-
 import httpx
 
 from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
-from learn_to_cloud_shared.verification.evidence import truncate_to_bytes
+from learn_to_cloud_shared.verification.evidence import (
+    EvidenceError,
+    apply_evidence_cap,
+    record_evidence_decision,
+    validate_evidence_policy,
+)
 from learn_to_cloud_shared.verification.github_errors import (
     GitHubServerError,
     github_error_to_result,
@@ -24,7 +27,6 @@ from learn_to_cloud_shared.verification.github_errors import (
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
-    EvidenceItem,
     VerificationTask,
 )
 from learn_to_cloud_shared.verification.tasks.phase4 import (
@@ -64,17 +66,27 @@ async def validate_deployment_architecture(
     """
     cfg = _deployment_architecture_config(requirement)
     if cfg is None or target is None:
+        record_evidence_decision("evidence.configuration")
         return ValidationResult(
             is_valid=False,
             message=(
                 "Requirement configuration error: missing deployment "
                 "architecture config or required_repo."
             ),
-            verification_completed=True,
+            verification_completed=False,
+            error_code="evidence.configuration",
         )
 
     min_length: int = getattr(cfg, "min_answer_length", 200)
     deploy_script_path: str = getattr(cfg, "deploy_script_path", "deploy.sh")
+    try:
+        deployment_architecture_task(
+            DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
+            deploy_script_path,
+        )
+    except EvidenceError as exc:
+        record_evidence_decision(exc.code)
+        return exc.to_validation_result()
 
     stripped = description.strip()
     if len(stripped) < min_length:
@@ -90,7 +102,11 @@ async def validate_deployment_architecture(
     repo_files = repo_files or default_repo_files()
     try:
         file_paths = await repo_files.tree(target.owner, target.repo)
+    except EvidenceError as exc:
+        record_evidence_decision(exc.code)
+        return exc.to_validation_result()
     except (GitHubServerError, httpx.HTTPStatusError, httpx.RequestError) as exc:
+        record_evidence_decision("retrieval")
         if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 404:
             return ValidationResult(
                 is_valid=False,
@@ -106,6 +122,7 @@ async def validate_deployment_architecture(
         )
 
     if deploy_script_path not in file_paths:
+        record_evidence_decision("evidence.required_missing")
         other_scripts = _top_level_shell_scripts(file_paths)
         if other_scripts:
             found = ", ".join(other_scripts)
@@ -122,6 +139,7 @@ async def validate_deployment_architecture(
             is_valid=False,
             message=f"Could not find '{deploy_script_path}' in your repository.{hint}",
             verification_completed=True,
+            error_code="evidence.required_missing",
         )
 
     return ValidationResult(
@@ -140,42 +158,63 @@ async def collect_deployment_architecture_evidence(
 ) -> EvidenceBundle:
     """Bundle the deploy script and the architecture description for grading."""
     repo_files = repo_files or default_repo_files()
-    items: list[EvidenceItem] = []
-    total_bytes = 0
-
-    script_content = await repo_files.file(owner, repo, deploy_script_path)
-    if script_content is not None:
-        items.append(
-            _bounded_item(
-                deploy_script_path, script_content, task.evidence.max_file_size_bytes
+    task = deployment_architecture_task(task, deploy_script_path)
+    try:
+        if task.evidence.max_files < 2:
+            raise EvidenceError("evidence.file_limit")
+        inventory = await repo_files.tree(owner, repo)
+        if deploy_script_path not in inventory:
+            raise EvidenceError(
+                "evidence.required_missing", missing=[deploy_script_path]
             )
+        script_content = await repo_files.file(owner, repo, deploy_script_path)
+        if script_content is None:
+            raise EvidenceError("evidence.changed")
+    except (
+        EvidenceError,
+        GitHubServerError,
+        httpx.HTTPStatusError,
+        httpx.RequestError,
+    ) as exc:
+        record_evidence_decision(
+            exc.code if isinstance(exc, EvidenceError) else "retrieval",
+            selected_count=2,
         )
-        total_bytes += len(items[-1].content.encode("utf-8"))
-
-    description_item = _bounded_item(
-        _DESCRIPTION_EVIDENCE_PATH, description, task.evidence.max_file_size_bytes
-    )
-    items.append(description_item)
-    total_bytes += len(description_item.content.encode("utf-8"))
-
-    return EvidenceBundle(
-        task_id=task.id,
-        source=task.evidence.source,
-        items=items,
-        total_bytes=total_bytes,
+        if isinstance(exc, EvidenceError):
+            exc.recorded = True
+        raise
+    return apply_evidence_cap(
+        task,
+        [
+            (deploy_script_path, script_content),
+            (_DESCRIPTION_EVIDENCE_PATH, description),
+        ],
     )
 
 
-def _bounded_item(path: str, content: str, max_bytes: int) -> EvidenceItem:
-    encoded = content.encode("utf-8")
-    truncated = False
-    if len(encoded) > max_bytes:
-        content = truncate_to_bytes(content, max_bytes)
-        encoded = content.encode("utf-8")
-        truncated = True
-    return EvidenceItem(
-        path=path,
-        content=content,
-        sha256=sha256(encoded).hexdigest(),
-        truncated=truncated,
+def deployment_architecture_task(
+    task: VerificationTask,
+    deploy_script_path: str,
+) -> VerificationTask:
+    """Resolve the configured script without broadening the evidence contract."""
+    required = task.evidence.required_files
+    if (
+        required
+        not in (
+            ["deploy.sh", _DESCRIPTION_EVIDENCE_PATH],
+            [deploy_script_path, _DESCRIPTION_EVIDENCE_PATH],
+        )
+        or task.evidence.source != "repo_files"
+    ):
+        raise EvidenceError("evidence.configuration")
+    policy = task.evidence.model_copy(
+        update={
+            "required_files": [deploy_script_path, _DESCRIPTION_EVIDENCE_PATH],
+            "criterion_evidence": {
+                criterion: [deploy_script_path, _DESCRIPTION_EVIDENCE_PATH]
+                for criterion in task.evidence.criterion_evidence
+            },
+        }
     )
+    validate_evidence_policy(policy)
+    return task.model_copy(update={"evidence": policy})
