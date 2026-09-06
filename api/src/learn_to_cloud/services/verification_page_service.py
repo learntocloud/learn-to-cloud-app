@@ -24,13 +24,15 @@ from learn_to_cloud_shared.schemas import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud.rendering.context import (
+from learn_to_cloud.rendering.feedback import (
     FeedbackTaskContext,
+    feedback_tasks_and_passed,
+    incomplete_verification_message,
+)
+from learn_to_cloud.rendering.requirement_cards import (
     RequirementCardContext,
     build_checking_requirement_card_context,
     build_requirement_card_context,
-    feedback_tasks_and_passed,
-    incomplete_verification_message,
 )
 from learn_to_cloud.services.progress_service import (
     fetch_phase_progress,

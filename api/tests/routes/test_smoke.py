@@ -402,9 +402,9 @@ class TestAuthPageSmoke:
         )
         from learn_to_cloud_shared.schemas import SubmissionData
 
-        from learn_to_cloud.rendering.context import (
+        from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
+        from learn_to_cloud.rendering.requirement_cards import (
             build_requirement_card_context,
-            feedback_tasks_and_passed,
         )
 
         phase = next(

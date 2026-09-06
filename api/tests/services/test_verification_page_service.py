@@ -24,7 +24,7 @@ from learn_to_cloud_shared_test_support.requirement_factories import (
     repo_fork_requirement,
 )
 
-from learn_to_cloud.rendering.context import CheckingCardContext
+from learn_to_cloud.rendering.requirement_cards import CheckingCardContext
 from learn_to_cloud.services.verification_page_service import (
     VerificationAttemptHistoryItem,
     get_phase_verification_workspace,

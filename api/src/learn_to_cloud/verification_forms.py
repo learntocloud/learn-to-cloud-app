@@ -1,14 +1,12 @@
-"""Typed request and rendering models for verification forms."""
+"""Verification submission validation, input shapes, actions, and shared limits."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated
 
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import (
-    CareerReflectionQuestion,
     CareerReflectionRequirement,
 )
 from learn_to_cloud_shared.submission_values import MAX_TEXT_LENGTH
@@ -63,82 +61,6 @@ def verification_submit_action(
     if shape is None:
         return None
     return f"/htmx/verifications/{requirement_slug}/submit/{shape.value}"
-
-
-@dataclass(frozen=True, slots=True)
-class DerivedFormContext:
-    """Rendering data for a server-derived URL form."""
-
-    action: str
-    url: str
-    kind: Literal["derived"] = field(init=False, default="derived")
-    template: str = field(
-        init=False,
-        default="partials/verification_forms/derived.html",
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class TokenFormContext:
-    """Rendering data for a completion-token form."""
-
-    action: str
-    placeholder: str
-    min_length: int
-    max_length: int
-    kind: Literal["token"] = field(init=False, default="token")
-    template: str = field(
-        init=False,
-        default="partials/verification_forms/token.html",
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class DeployedUrlFormContext:
-    """Rendering data for a deployed-URL form."""
-
-    action: str
-    placeholder: str
-    min_length: int
-    max_length: int
-    value: str
-    kind: Literal["deployed_url"] = field(init=False, default="deployed_url")
-    template: str = field(
-        init=False,
-        default="partials/verification_forms/deployed_url.html",
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class ReflectionFormContext:
-    """Rendering data for a career-reflection form."""
-
-    action: str
-    questions: tuple[CareerReflectionQuestion, ...]
-    min_answer_length: int
-    max_answer_length: int
-    kind: Literal["reflection"] = field(init=False, default="reflection")
-    template: str = field(
-        init=False,
-        default="partials/verification_forms/reflection.html",
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class UnsupportedFormContext:
-    """Rendering data for a known requirement without an active form."""
-
-    message: str
-    kind: Literal["unsupported"] = field(init=False, default="unsupported")
-
-
-type VerificationFormContext = (
-    DerivedFormContext
-    | TokenFormContext
-    | DeployedUrlFormContext
-    | ReflectionFormContext
-    | UnsupportedFormContext
-)
 
 
 class DerivedVerificationForm(BaseModel):
