@@ -304,6 +304,27 @@ Routes (HTTP) → Services (Business Logic) → Repositories (Database)
 - **Services** contain business rules — no HTTP knowledge
 - **Repositories** execute queries — return ORM models or primitives
 
+### Repository verification ownership
+
+The worker calls `run_verification` in the shared verification engine for every
+assignment. Before repository-based checks run, one shared preflight compares
+GitHub's repository `owner.id` with the trusted numeric learner ID loaded from
+the attempt. It uses the attempt's saved username, not a browser-supplied owner
+ID or a separate current-username lookup.
+
+Wrong ownership, a missing repository, or a private repository stops grading
+with learner-facing feedback. If the learner changed their GitHub username,
+they should sign out, sign in again, and submit a new attempt. GitHub access,
+rate-limit, network, and malformed-response failures leave verification
+incomplete rather than failing the assignment.
+
+A valid same-owner redirect supplies one canonical execution target to the
+existing checks, evidence collectors, and rubric prompt. Original submitted
+values and historical completions remain unchanged. Ownership is checked once
+before verification, not continuously; this does not provide an atomic GitHub
+snapshot or commit-consistent evidence. Direct checker helpers assume the
+shared engine has performed this preflight.
+
 ### Authentication and sessions
 
 GitHub OAuth establishes an opaque login cookie, `ltc_session`, backed by

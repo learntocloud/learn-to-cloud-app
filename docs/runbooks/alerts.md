@@ -79,6 +79,20 @@ exception or disable the alert. If a
 dependency is transiently unavailable, restore that dependency and confirm the
 exact exception alert returns to a healthy state.
 
+## Repository ownership verification
+
+For repository checks, inspect the `github_repository_ownership` verification
+step. A `failed` result means wrong ownership or a missing/private repository,
+not a GitHub outage. A learner who changed their username can sign out, sign in
+again, and submit a new attempt; reauthentication does not fix a repository
+owned by someone else.
+
+An `unavailable` result leaves the attempt incomplete. Correlate
+`github.ownership.api_error` or `github.ownership.invalid_metadata` with bounded
+HTTP status/error categories and dependency failures. Do not bypass ownership
+to work around an outage or copy identity values, repository links, tokens, or
+provider response bodies into incident notes.
+
 ## Session lifecycle and rejected OAuth identity
 
 `auth.session.rejected` records bounded `auth.session.reason` values. Expiry,

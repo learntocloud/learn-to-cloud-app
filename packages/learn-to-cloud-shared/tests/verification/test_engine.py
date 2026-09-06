@@ -1,13 +1,18 @@
 """Tests for the declarative verification engine."""
 
+import json
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import httpx
 import pytest
 from opentelemetry.trace import Status, StatusCode
 
+from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.submission_values import submitted_value_from_raw
 from learn_to_cloud_shared.testing.requirement_factories import (
+    make_requirement,
     repo_fork_requirement,
 )
 from learn_to_cloud_shared.verification import engine as engine_module
@@ -20,8 +25,9 @@ from learn_to_cloud_shared.verification.engine import (
     VerificationProfile,
     check_for,
     register_check,
-    run_profile,
+    run_verification,
 )
+from learn_to_cloud_shared.verification.github_metadata import InMemoryGitHubMetadata
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
     EvidenceItem,
@@ -30,6 +36,31 @@ from learn_to_cloud_shared.verification_workflow import (
     GradingDisposition,
     PreparedVerificationAttempt,
 )
+
+
+@pytest.fixture(autouse=True)
+def repository_metadata(monkeypatch):
+    metadata = InMemoryGitHubMetadata(
+        repos={
+            f"learner/{name}": {
+                "owner": {"id": 1, "login": "learner"},
+                "name": name,
+                "private": False,
+            }
+            for name in (
+                "learner",
+                "test-repo",
+                "journal-starter",
+                "devops-repo",
+                "sec-repo",
+            )
+        }
+    )
+    monkeypatch.setattr(
+        "learn_to_cloud_shared.verification.repository_ownership.default_github_metadata",
+        lambda: metadata,
+    )
+    return metadata
 
 
 class PassingCheckParams(CheckParams):
@@ -119,7 +150,7 @@ def _profile(*steps: Step) -> VerificationProfile:
 
 
 @pytest.mark.asyncio
-async def test_run_profile_uses_declared_steps(monkeypatch):
+async def test_run_verification_uses_declared_steps(monkeypatch):
     bundle = EvidenceBundle(
         task_id="gate",
         source="repo_files",
@@ -142,15 +173,20 @@ async def test_run_profile_uses_declared_steps(monkeypatch):
     tracer = _Tracer()
     monkeypatch.setattr(engine_module, "_tracer", tracer)
 
-    result = await run_profile(_job())
+    result = await run_verification(_job())
 
     assert result.validation_result.is_valid is True
     assert result.validation_result.task_results == [
         TaskResult(task_name="Gate", passed=True, feedback="ok")
     ]
     assert result.evidence == [bundle]
-    assert len(tracer.spans) == 1
-    name, span, options = tracer.spans[0]
+    assert len(tracer.spans) == 2
+    _, ownership_span, _ = tracer.spans[0]
+    assert ownership_span.attributes == {
+        "verification.check.name": "github_repository_ownership",
+        "verification.step.result": "passed",
+    }
+    name, span, options = tracer.spans[-1]
     assert name == "verification.step"
     assert span.attributes == {
         "verification.check.name": "test_gate_pass",
@@ -176,9 +212,9 @@ async def test_step_span_records_error_type_without_exception_details(monkeypatc
     monkeypatch.setattr(engine_module, "_tracer", tracer)
 
     with pytest.raises(RuntimeError, match="sensitive failure details"):
-        await run_profile(_job())
+        await run_verification(_job())
 
-    _, span, _ = tracer.spans[0]
+    _, span, _ = tracer.spans[-1]
     assert span.attributes == {
         "verification.check.name": "exploding",
         "verification.task.id": "explode",
@@ -212,7 +248,7 @@ async def test_failed_gate_short_circuits(monkeypatch):
         ),
     )
 
-    result = await run_profile(_job())
+    result = await run_verification(_job())
 
     assert ran == ["first"]
     assert result.validation_result.is_valid is False
@@ -241,7 +277,7 @@ async def test_stop_on_fail_false_continues(monkeypatch):
         ),
     )
 
-    result = await run_profile(_job())
+    result = await run_verification(_job())
 
     assert ran == ["soft", "after"]
     assert result.validation_result.is_valid is False
@@ -328,7 +364,7 @@ async def test_later_step_sees_prior_evidence(monkeypatch):
         ),
     )
 
-    await run_profile(_job())
+    await run_verification(_job())
 
     assert seen == [1]
 
@@ -337,7 +373,7 @@ async def test_later_step_sees_prior_evidence(monkeypatch):
 async def test_unregistered_type_returns_unknown_result(monkeypatch):
     monkeypatch.setattr(engine_module, "profile_for", lambda _t: None)
 
-    result = await run_profile(_job())
+    result = await run_verification(_job())
 
     assert result.validation_result.is_valid is False
     assert "Unknown submission type" in result.validation_result.message
@@ -358,6 +394,184 @@ def test_register_check_rejects_duplicates():
 def test_check_for_unknown_raises():
     with pytest.raises(KeyError):
         check_for(UnknownCheckParams())
+
+
+_REPOSITORY_TYPES = {
+    SubmissionType.PROFILE_README,
+    SubmissionType.REPO_FORK,
+    SubmissionType.JOURNAL_API_VERIFIER,
+    SubmissionType.DEPLOYMENT_ARCHITECTURE,
+    SubmissionType.DEVOPS_ANALYSIS,
+    SubmissionType.SECURITY_SCANNING,
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("submission_type", list(SubmissionType))
+async def test_shared_preflight_covers_only_repository_assignments(
+    monkeypatch, repository_metadata, submission_type
+):
+    job = _job(make_requirement(submission_type))
+    lookup = AsyncMock(
+        return_value={
+            "owner": {"id": 99, "login": "someone-else"},
+            "name": "repo",
+            "private": False,
+        }
+    )
+    monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
+    step = AsyncMock(
+        return_value=StepResult(
+            passed=False,
+            validation_result=ValidationResult(is_valid=False, message="existing gate"),
+        )
+    )
+    monkeypatch.setattr(engine_module, "_run_step", step)
+
+    result = await run_verification(job)
+
+    if submission_type in _REPOSITORY_TYPES:
+        assert job.target is not None
+        lookup.assert_awaited_once_with(job.target.owner, job.target.repo)
+        step.assert_not_awaited()
+        assert result.validation_result.username_match is False
+        assert "must belong" in result.validation_result.message
+    else:
+        lookup.assert_not_awaited()
+        step.assert_awaited_once()
+        assert result.validation_result.message == "existing gate"
+    assert result.grading_requests == []
+    assert result.evidence is None
+    assert result.grading_disposition == (
+        GradingDisposition.NOT_REQUIRED
+        if submission_type
+        in {
+            SubmissionType.PROFILE_README,
+            SubmissionType.REPO_FORK,
+            SubmissionType.CTF_TOKEN,
+            SubmissionType.NETWORKING_TOKEN,
+            SubmissionType.DEPLOYED_API,
+        }
+        else GradingDisposition.SKIPPED_GATE_FAILED
+    )
+
+
+@pytest.mark.asyncio
+async def test_canonical_repository_reaches_ci_evidence_and_prompt(
+    monkeypatch, repository_metadata
+):
+    from learn_to_cloud_shared.verification.repo_files import RepoFiles
+
+    lookup = AsyncMock(
+        return_value={
+            "owner": {"id": 1, "login": "new-name"},
+            "name": "moved-repo",
+            "private": False,
+        }
+    )
+    monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
+    ci = AsyncMock(return_value=ValidationResult(is_valid=True, message="CI is green"))
+    monkeypatch.setattr(engine_module, "verify_ci_status", ci)
+    files = AsyncMock(spec=RepoFiles)
+    files.file.return_value = "synthetic evidence"
+    job = _journal_job()
+
+    result = await run_verification(job, repo_files=files)
+
+    lookup.assert_awaited_once_with("learner", "journal-starter")
+    ci.assert_awaited_once_with("new-name", "moved-repo")
+    assert files.file.await_count > 0
+    assert all(
+        call.args[:2] == ("new-name", "moved-repo")
+        for call in files.file.await_args_list
+    )
+    assert result.grading_requests
+    prompt = json.loads(result.grading_requests[0].message.split("\n\n", 1)[1])
+    assert prompt["repository"] == {"owner": "new-name", "name": "moved-repo"}
+    assert result.attempt is job
+    assert result.attempt.github_username == "learner"
+    assert result.validation_result.message == "CI is green"
+    assert result.validation_result.task_results is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scenario", ["passed", "failed", "unavailable", "malformed"])
+async def test_ownership_exports_bounded_telemetry(
+    monkeypatch, repository_metadata, caplog, scenario
+):
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    monkeypatch.setattr(engine_module, "_tracer", provider.get_tracer("ownership-test"))
+    response = httpx.Response(
+        403,
+        request=httpx.Request(
+            "GET", "https://api.github.com/repos/private-name/private-repo"
+        ),
+        headers={"retry-after": "120"},
+    )
+    lookup = AsyncMock(
+        return_value={
+            "owner": {
+                "id": 1 if scenario == "passed" else 987654321,
+                "login": "private-name",
+            },
+            "name": "private-repo",
+            "private": False,
+        }
+    )
+    if scenario == "unavailable":
+        lookup.side_effect = httpx.HTTPStatusError(
+            "private-provider-body private-token",
+            request=response.request,
+            response=response,
+        )
+    elif scenario == "malformed":
+        lookup.return_value = {"owner": "private-provider-body"}
+    monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
+    monkeypatch.setattr(
+        engine_module,
+        "_run_step",
+        AsyncMock(
+            return_value=StepResult(
+                passed=True,
+                validation_result=ValidationResult(is_valid=True, message="unchanged"),
+            )
+        ),
+    )
+    try:
+        result = await run_verification(_job())
+        (span,) = exporter.get_finished_spans()
+        expected = "unavailable" if scenario == "malformed" else scenario
+        assert span.name == "verification.step"
+        assert (
+            span.attributes["verification.check.name"] == "github_repository_ownership"
+        )
+        assert span.attributes["verification.step.result"] == expected
+        assert span.status.status_code is (
+            StatusCode.ERROR if expected == "unavailable" else StatusCode.UNSET
+        )
+        assert result.validation_result.verification_completed == (
+            expected != "unavailable"
+        )
+        exported = span.to_json() + caplog.text
+        for sentinel in (
+            "private-name",
+            "private-repo",
+            "987654321",
+            "private-provider-body",
+            "private-token",
+        ):
+            assert sentinel not in exported
+        assert not any(event.name == "exception" for event in span.events)
+    finally:
+        provider.shutdown()
 
 
 # ---------------------------------------------------------------------------
@@ -402,7 +616,7 @@ async def test_journal_profile_records_grading_requests_when_ci_passes(monkeypat
         {path: f"content of {path}" for path in JOURNAL_API_IMPORTANT_PATHS}
     )
 
-    result = await run_profile(_journal_job(), repo_files=repo_files)
+    result = await run_verification(_journal_job(), repo_files=repo_files)
 
     assert result.validation_result.is_valid is True
     assert result.evidence is not None and len(result.evidence) == 1
@@ -423,7 +637,7 @@ async def test_journal_profile_skips_grading_when_ci_fails(monkeypatch):
 
     monkeypatch.setattr(engine_module, "verify_ci_status", fake_ci)
 
-    result = await run_profile(_journal_job(), repo_files=InMemoryRepoFiles({}))
+    result = await run_verification(_journal_job(), repo_files=InMemoryRepoFiles({}))
 
     assert result.validation_result.is_valid is False
     assert result.validation_result.message == "CI is red"
@@ -471,7 +685,7 @@ async def test_deployment_profile_bundles_script_and_description():
     )
     repo_files = InMemoryRepoFiles({"deploy.sh": "#!/bin/bash\naz group create\n"})
 
-    result = await run_profile(_deployment_job(description), repo_files=repo_files)
+    result = await run_verification(_deployment_job(description), repo_files=repo_files)
 
     assert result.validation_result.is_valid is True
     assert result.grading_requests is not None
@@ -488,7 +702,7 @@ async def test_deployment_profile_gate_fails_when_description_too_short():
 
     repo_files = InMemoryRepoFiles({"deploy.sh": "#!/bin/bash\n"})
 
-    result = await run_profile(_deployment_job("too short"), repo_files=repo_files)
+    result = await run_verification(_deployment_job("too short"), repo_files=repo_files)
 
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
@@ -508,7 +722,7 @@ async def test_deployment_profile_gate_fails_when_deploy_script_missing():
     )
     repo_files = InMemoryRepoFiles({"README.md": "no script here"})
 
-    result = await run_profile(_deployment_job(description), repo_files=repo_files)
+    result = await run_verification(_deployment_job(description), repo_files=repo_files)
 
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
@@ -564,7 +778,7 @@ async def test_deployed_api_profile_passes_through_deterministic_result(monkeypa
 
     monkeypatch.setattr(engine_module, "validate_deployed_api", fake_validate)
 
-    result = await run_profile(_deployed_api_job())
+    result = await run_verification(_deployed_api_job())
 
     assert result.validation_result.is_valid is True
     assert result.validation_result.message == "API is healthy"
@@ -580,7 +794,7 @@ async def test_deployed_api_profile_fails_when_probe_fails(monkeypatch):
 
     monkeypatch.setattr(engine_module, "validate_deployed_api", fake_validate)
 
-    result = await run_profile(_deployed_api_job())
+    result = await run_verification(_deployed_api_job())
 
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
@@ -625,7 +839,7 @@ async def test_devops_profile_runs_files_then_ghcr_gates(monkeypatch):
             "k8s/service.yaml": "kind: Service",
         }
     )
-    result = await run_profile(_devops_job(), repo_files=repo_files)
+    result = await run_verification(_devops_job(), repo_files=repo_files)
 
     assert calls == ["files", "image"]
     assert result.validation_result.is_valid is True
@@ -663,7 +877,7 @@ async def test_devops_profile_skips_ghcr_when_files_gate_fails(monkeypatch):
     monkeypatch.setattr(engine_module, "verify_required_devops_files", fake_files)
     monkeypatch.setattr(engine_module, "verify_public_ghcr_image", fake_image)
 
-    result = await run_profile(_devops_job())
+    result = await run_verification(_devops_job())
 
     assert calls == ["files"]
     assert result.validation_result.is_valid is False
@@ -683,7 +897,7 @@ async def test_devops_profile_stops_when_ghcr_gate_fails(monkeypatch):
     monkeypatch.setattr(engine_module, "verify_required_devops_files", fake_files)
     monkeypatch.setattr(engine_module, "verify_public_ghcr_image", fake_image)
 
-    result = await run_profile(_devops_job())
+    result = await run_verification(_devops_job())
 
     assert result.validation_result.is_valid is False
     assert result.validation_result.message == "Image is private"
@@ -747,7 +961,7 @@ async def test_security_profile_records_grading_request_when_gate_passes(monkeyp
         {".github/workflows/codeql.yml": "name: CodeQL\non: [push]\n"}
     )
 
-    result = await run_profile(_security_job(), repo_files=repo_files)
+    result = await run_verification(_security_job(), repo_files=repo_files)
 
     assert result.validation_result.is_valid is True
     assert result.grading_requests is not None
@@ -764,7 +978,7 @@ async def test_security_profile_skips_grading_when_gate_fails(monkeypatch):
 
     monkeypatch.setattr(engine_module, "verify_codeql_status", fake_gate)
 
-    result = await run_profile(_security_job(), repo_files=InMemoryRepoFiles({}))
+    result = await run_verification(_security_job(), repo_files=InMemoryRepoFiles({}))
 
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
@@ -778,7 +992,7 @@ async def test_career_profile_records_text_grading_request_when_gate_passes():
     )
 
     text = "A specific, first-person reflection on my target role and projects."
-    result = await run_profile(_career_job(text))
+    result = await run_verification(_career_job(text))
 
     assert result.validation_result.is_valid is True
     assert result.grading_requests is not None
@@ -797,7 +1011,7 @@ async def test_career_profile_skips_grading_when_gate_fails(monkeypatch):
     monkeypatch.setattr(engine_module, "validate_career_reflection", fake_gate)
     text = "A specific, first-person reflection on my target role and projects."
 
-    result = await run_profile(_career_job(text))
+    result = await run_verification(_career_job(text))
 
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
@@ -837,7 +1051,7 @@ async def test_profile_readme_profile_passes_through_validator(monkeypatch):
         profile_readme_requirement(),
         "https://github.com/learner/learner",
     )
-    result = await run_profile(job)
+    result = await run_verification(job)
 
     assert result.validation_result is sentinel
     assert result.grading_requests == []
@@ -857,7 +1071,7 @@ async def test_repo_fork_profile_passes_through_validator(monkeypatch):
         repo_fork_requirement(),
         "https://github.com/learner/test-repo",
     )
-    result = await run_profile(job)
+    result = await run_verification(job)
 
     assert result.validation_result is sentinel
     assert result.grading_requests == []
@@ -879,7 +1093,7 @@ async def test_ctf_token_profile_passes_through_validator(monkeypatch):
     monkeypatch.setattr(engine_module, "verify_ctf_token", fake_ctf)
 
     job = _phase02_job(ctf_token_requirement(), "the-token")
-    result = await run_profile(job)
+    result = await run_verification(job)
 
     assert result.validation_result.is_valid is True
     assert result.grading_requests == []
@@ -898,7 +1112,7 @@ async def test_networking_token_profile_passes_through_validator(monkeypatch):
     monkeypatch.setattr(engine_module, "verify_networking_token", fake_net)
 
     job = _phase02_job(networking_token_requirement(), "bad-token")
-    result = await run_profile(job)
+    result = await run_verification(job)
 
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
@@ -911,7 +1125,7 @@ async def test_profile_requiring_username_short_circuits_when_missing():
     )
 
     job = _phase02_job(ctf_token_requirement(), "the-token", github_username=None)
-    result = await run_profile(job)
+    result = await run_verification(job)
 
     assert result.validation_result.is_valid is False
     assert result.validation_result.username_match is False
