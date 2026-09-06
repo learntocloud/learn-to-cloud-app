@@ -46,7 +46,6 @@ _ALLOWED_APPLICATION_ATTRIBUTES = {
     "verification.attempt.id",
     "verification.check.name",
     "verification.deployed_api.ai_verified",
-    "verification.deployed_api.challenge_verified",
     "verification.deployed_api.verified",
     "verification.durable.status",
     "verification.error.code",

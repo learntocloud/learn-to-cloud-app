@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "84d8eed265980201f5b195242b85f8d3fac3d1a311f59b15fc1895807053db6d",
-  "curriculum_version": 11,
+  "content_hash": "7749e3cefd5b7b6b120ca2ec03b8209e9fe870a38f0d885ec61fef8b7a178d68",
+  "curriculum_version": 13,
   "phases": [
     {
       "capstone": null,
@@ -3586,8 +3586,8 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Submit the HTTPS base URL. The verifier creates a unique challenge entry, confirms it appears in `GET /entries`, calls its live AI analysis endpoint, validates the response schema, and deletes the challenge entry.",
-              "done_when": "The verifier confirms API ownership and reports that live AI analysis passed.",
+              "description": "Submit the HTTPS base URL. The verifier posts a journal entry recording your verification submission, uses the returned entry ID to call its live AI analysis endpoint, and checks the analysis response. Both requests run once without automatic retries. The entry stays in your journal; no listing or deletion is performed.",
+              "done_when": "The verifier reports that entry creation and live AI analysis passed.",
               "options": [],
               "order": 6,
               "slug": "phase4-topic9-practice-verify-submit-deployment",

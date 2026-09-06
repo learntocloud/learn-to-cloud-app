@@ -8,7 +8,7 @@ Runs inside the Durable Function verify step. Submodules:
     token_base        - HMAC token verification for CTF + Networking Lab
     devops_analysis   - DevOps artifact analysis
     security_scanning - Dependabot + CodeQL verification
-    deployed_api      - Live API challenge-response testing
+    deployed_api      - Live journal creation and AI analysis
     errors            - Verification error types and error-to-result mappers
     tasks/            - Task definitions per phase
 """

@@ -36,7 +36,6 @@ def test_make_retriable_preserves_explicit_network_types():
     ("module", "own_error"),
     [
         (github_http, GitHubServerError),
-        (deployed_api, deployed_api.DeployedApiServerError),
         (ghcr, ghcr._GhcrServerError),
     ],
 )
@@ -54,3 +53,12 @@ def test_retry_policies_do_not_include_base_or_other_integrations(module, own_er
         assert isinstance(
             other("response", status_code=503), module.RETRIABLE_EXCEPTIONS
         ) == (other is own_error)
+
+
+def test_deployed_api_retains_its_distinct_public_error_type():
+    error = deployed_api.DeployedApiServerError("Server returned 503", status_code=503)
+
+    assert deployed_api.DeployedApiServerError.__bases__ == (UpstreamResponseError,)
+    assert error.status_code == 503
+    assert error.retry_after is None
+    assert not isinstance(error, (GitHubServerError, ghcr._GhcrServerError))

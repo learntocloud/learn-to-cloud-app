@@ -380,7 +380,7 @@ shared engine has performed this preflight.
 GitHub response classification and telemetry belong to `github_errors.py`;
 deployed-API and GHCR errors stay in their respective integration modules.
 Native HTTPX request failures remain request failures, with no invented status.
-Each integration explicitly selects its retryable errors, never the common base.
+Integrations that retry explicitly select their errors, never the common base.
 
 GitHub network and non-404 HTTP failures leave an attempt incomplete, not failed
 learner work. Failed evidence fetches stop collection and prevent all grading,
@@ -395,11 +395,58 @@ Evidence selection, file caps, truncation, and rubric missing-file rules are
 unchanged; this is not a general guarantee of complete repository evidence.
 
 GitHub API GET/HEAD and GHCR retain three attempts for their existing transient
-errors; raw-file reads make one attempt per file. Learner-API CRUD requests retain
-three attempts, while billable AI analysis makes exactly one request. Deployed-API
-failures keep their existing completed learner-failure behavior; transient GHCR
-failures remain incomplete. Response-status telemetry never includes provider
-bodies, headers, tokens, repository links, or learner endpoint URLs.
+errors; raw-file reads make one attempt per file. Learner-API creation and AI
+analysis each make one request, with no automatic retries. Deployed-API failures
+keep their existing completed learner-failure behavior; transient GHCR failures
+remain incomplete. Response-status telemetry never includes provider bodies,
+headers, tokens, repository links, or learner endpoint URLs.
+
+### Deployed API verification
+
+The Phase 4 deployment check makes two requests: `POST /entries`, then
+`POST /entries/{id}/analyze`. Creation must return 200 or 201 and a non-empty
+string ID, either in the response object or its `entry` object. Analysis must
+return 200 with the matching `entry_id`, a supported sentiment, a non-empty
+summary, and a non-empty list of topic strings. No GET, listing check, nonce,
+journal-field validation, or historical-data audit is involved.
+
+Each step runs once, including on network errors and 5xx responses. Creation
+failure stops before analysis; a missing ID is reported rather than recovered
+with a GET. Analysis has a 30-second timeout. Feedback identifies the failed
+step, including actionable instructions for an unimplemented analysis endpoint
+(501). Success confirms entry creation and analysis, not ownership or listing
+behavior. The check remains deterministic and does not request grading.
+
+Created entries stay in the learner's journal even if analysis fails. The entry
+records "Submitted deployed API for verification.", describes checking entry
+creation and AI analysis, and sets the intention to review the result and address
+reported issues. It does not claim verification passed. The verifier never
+deletes or updates entries; learners can keep or remove them themselves.
+
+#### Findings and boundaries (#855)
+
+The [original workflow][deployed-api-original-workflow] combined ownership
+challenges, ID recovery, retries, and deletion with creation and analysis.
+The [original historical-entry filter and validation][deployed-api-original-history]
+also expanded a deployment probe into a partial stored-data audit. None of that
+is required by the two-request flow, so it has been removed rather than split
+into more modules.
+
+The [request boundary][deployed-api-original-http] remains necessary: connection
+pooling, timeouts, HTTPS, disabled redirects, and private-target checks protect
+our server while it requests a learner-supplied URL. Base-path normalization and
+absent-peer-metadata behavior are unchanged. Response-peer inspection occurs
+after a request and cannot undo its side effects.
+
+Safe timeout, server-error, request-error, and target-block diagnostics remain.
+Success records `verification.deployed_api.verified` and
+`verification.deployed_api.ai_verified`; challenge and cleanup diagnostics are
+not emitted. Diagnostics exclude URLs, entry IDs, bodies, headers, and raw
+exception messages. Programming errors and cancellation propagate.
+
+[deployed-api-original-http]: https://github.com/learntocloud/learn-to-cloud-app/blob/a070cfe9f8537e0a4d475f5933417ed6b9ba13c8/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/deployed_api.py#L111-L249
+[deployed-api-original-workflow]: https://github.com/learntocloud/learn-to-cloud-app/blob/a070cfe9f8537e0a4d475f5933417ed6b9ba13c8/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/deployed_api.py#L423-L828
+[deployed-api-original-history]: https://github.com/learntocloud/learn-to-cloud-app/blob/a070cfe9f8537e0a4d475f5933417ed6b9ba13c8/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/deployed_api.py#L662-L692
 
 ### Authentication and sessions
 
