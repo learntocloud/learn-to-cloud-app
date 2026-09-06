@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import httpx
@@ -25,6 +26,7 @@ class JournalApi:
         self.span = MagicMock()
         self.responses = {}
         self.current_changes = {}
+        self.work_transform = None
         self.missing_fields = ()
         self.historical = []
         self.include_current = True
@@ -32,10 +34,8 @@ class JournalApi:
 
     def handle(self, request):
         self.requests.append(request)
-        if request.method == "DELETE":
-            operation = "delete"
-            response = httpx.Response(200, json={"detail": "Entry deleted"})
-        elif request.url.path.endswith("/analyze"):
+        assert request.method in {"GET", "POST"}
+        if request.url.path.endswith("/analyze"):
             operation = "analyze"
             response = httpx.Response(
                 200,
@@ -58,6 +58,8 @@ class JournalApi:
             assert request.method == "GET"
             operation = "list"
             current = {**self.challenge, **self.current_changes}
+            if self.work_transform is not None:
+                current["work"] = self.work_transform(current["work"])
             for field in self.missing_fields:
                 current.pop(field)
             entries = [*self.historical]
@@ -96,7 +98,9 @@ class JournalApi:
 
 @pytest.fixture
 def journal():
-    return JournalApi()
+    api = JournalApi()
+    yield api
+    assert all(request.method != "DELETE" for request in api.requests)
 
 
 @pytest.mark.parametrize(
@@ -120,18 +124,20 @@ async def test_current_challenge_alone_verifies_full_request_contract(
         ("POST", f"{base_path}/entries"),
         ("GET", f"{base_path}/entries"),
         ("POST", f"{base_path}/entries/{_CHALLENGE_ID}/analyze"),
-        ("DELETE", f"{base_path}/entries/{_CHALLENGE_ID}"),
     ]
-    create, listing, analysis, delete = journal.requests
+    create, listing, analysis = journal.requests
     body = json.loads(create.content)
     assert body == {
         "work": journal.challenge["work"],
-        "struggle": "LTC verification challenge",
-        "intention": "Proving API ownership",
+        "struggle": "Every challenge is a chance to learn.",
+        "intention": "Keep building, learning, and making progress.",
     }
-    assert body["work"].startswith("ltc-verify-")
-    assert len(body["work"]) == len("ltc-verify-") + 32
-    assert all(request.content == b"" for request in (listing, analysis, delete))
+    assert re.fullmatch(
+        r"Nice work getting your Journal API online! \(ltc-verify-[0-9a-f]{32}\)",
+        body["work"],
+    )
+    assert all(0 < len(value) <= 256 for value in body.values())
+    assert all(request.content == b"" for request in (listing, analysis))
     assert all(
         request.headers["Accept"] == "application/json" for request in journal.requests
     )
@@ -176,7 +182,7 @@ async def test_malformed_historical_entries_are_not_validated(journal):
     assert result.verification_completed
     assert result.is_valid
     assert result.message == _SUCCESS_MESSAGE
-    assert len(journal.requests) == 4
+    assert len(journal.requests) == 3
 
 
 @pytest.mark.parametrize("previous_challenge", [False, True])
@@ -188,9 +194,12 @@ async def test_historical_entries_cannot_replace_current_nonce(
         journal.historical = [
             {
                 "id": _POST_ID,
-                "work": "ltc-verify-previous-attempt",
-                "struggle": "LTC verification challenge",
-                "intention": "Proving API ownership",
+                "work": (
+                    "Nice work getting your Journal API online! "
+                    "(ltc-verify-00000000000000000000000000000000)"
+                ),
+                "struggle": "Every challenge is a chance to learn.",
+                "intention": "Keep building, learning, and making progress.",
                 "created_at": "2026-01-01T00:00:00Z",
             }
         ]
@@ -200,8 +209,45 @@ async def test_historical_entries_cannot_replace_current_nonce(
     assert result.verification_completed
     assert not result.is_valid
     assert "Ownership verification failed" in result.message
-    assert [request.method for request in journal.requests] == ["POST", "GET", "DELETE"]
-    assert journal.requests[-1].url.path == f"/entries/{_CHALLENGE_ID}"
+    assert [request.method for request in journal.requests] == ["POST", "GET"]
+    journal.span.add_event.assert_called_once_with("deployed_api.challenge_failed")
+
+
+async def test_retained_friendly_entry_cannot_verify_a_later_attempt(journal):
+    first_result = await journal.run()
+    assert first_result.is_valid
+    retained_entry = dict(journal.challenge)
+    journal.historical = [retained_entry]
+    journal.include_current = False
+    journal.requests.clear()
+
+    result = await journal.run()
+
+    assert journal.challenge["work"] != retained_entry["work"]
+    assert result.verification_completed
+    assert not result.is_valid
+    assert "Ownership verification failed" in result.message
+    assert [request.method for request in journal.requests] == ["POST", "GET"]
+    assert journal.historical == [retained_entry]
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        pytest.param(lambda work: work.split("(")[1][:-1], id="nonce-only"),
+        pytest.param(lambda work: f"Extra text {work}", id="prepended-text"),
+        pytest.param(lambda work: f"{work} Extra text", id="appended-text"),
+    ],
+)
+async def test_challenge_matching_requires_exact_friendly_work(journal, transform):
+    journal.work_transform = transform
+
+    result = await journal.run()
+
+    assert result.verification_completed
+    assert not result.is_valid
+    assert "Ownership verification failed" in result.message
+    assert [request.method for request in journal.requests] == ["POST", "GET"]
     journal.span.add_event.assert_called_once_with("deployed_api.challenge_failed")
 
 
@@ -221,7 +267,7 @@ async def test_historical_entries_cannot_replace_current_nonce(
         ("updated_at", [], "invalid updated_at"),
     ],
 )
-async def test_invalid_current_fields_fail_before_analysis_with_cleanup(
+async def test_invalid_current_fields_fail_without_analysis_or_deletion(
     journal, field, value, message
 ):
     journal.current_changes[field] = value
@@ -232,13 +278,12 @@ async def test_invalid_current_fields_fail_before_analysis_with_cleanup(
     assert not result.is_valid
     assert result.message.startswith("Challenge entry")
     assert message in result.message
-    assert [request.method for request in journal.requests] == ["POST", "GET", "DELETE"]
-    assert journal.requests[-1].url.path == f"/entries/{_CHALLENGE_ID}"
+    assert [request.method for request in journal.requests] == ["POST", "GET"]
 
 
 @pytest.mark.parametrize("field", ["id", "struggle", "intention", "created_at"])
 @pytest.mark.parametrize("post_has_id", [False, True])
-async def test_missing_current_fields_retain_any_known_cleanup_id(
+async def test_missing_current_fields_fail_regardless_of_post_id(
     journal, field, post_has_id
 ):
     journal.missing_fields = (field,)
@@ -250,16 +295,12 @@ async def test_missing_current_fields_retain_any_known_cleanup_id(
     assert result.verification_completed
     assert not result.is_valid
     assert result.message == f"Challenge entry missing fields: {field}"
-    expected_methods = ["POST", "GET"]
-    if post_has_id or field != "id":
-        expected_methods.append("DELETE")
-        assert journal.requests[-1].url.path == f"/entries/{_CHALLENGE_ID}"
-    assert [request.method for request in journal.requests] == expected_methods
+    assert [request.method for request in journal.requests] == ["POST", "GET"]
 
 
 @pytest.mark.parametrize("invalid_id", [None, 123, [], {}, ["not-an-id"]])
 @pytest.mark.parametrize("post_has_id", [False, True])
-async def test_nonstring_get_ids_never_become_cleanup_paths(
+async def test_nonstring_get_ids_fail_without_analysis_or_deletion(
     journal, invalid_id, post_has_id
 ):
     journal.current_changes["id"] = invalid_id
@@ -271,14 +312,10 @@ async def test_nonstring_get_ids_never_become_cleanup_paths(
     assert result.verification_completed
     assert not result.is_valid
     assert result.message == "Challenge entry has invalid id (expected UUID format)"
-    assert [request.method for request in journal.requests] == (
-        ["POST", "GET", "DELETE"] if post_has_id else ["POST", "GET"]
-    )
-    if post_has_id:
-        assert journal.requests[-1].url.path == f"/entries/{_CHALLENGE_ID}"
+    assert [request.method for request in journal.requests] == ["POST", "GET"]
 
 
-async def test_invalid_string_get_id_is_available_for_cleanup(journal):
+async def test_invalid_string_get_id_without_post_id_is_completed_failure(journal):
     journal.responses["create"] = httpx.Response(201, json={})
     journal.current_changes["id"] = "invalid-uuid"
 
@@ -287,8 +324,7 @@ async def test_invalid_string_get_id_is_available_for_cleanup(journal):
     assert result.verification_completed
     assert not result.is_valid
     assert "invalid id" in result.message
-    assert [request.method for request in journal.requests] == ["POST", "GET", "DELETE"]
-    assert journal.requests[-1].url.path == "/entries/invalid-uuid"
+    assert [request.method for request in journal.requests] == ["POST", "GET"]
 
 
 @pytest.mark.parametrize(
@@ -311,7 +347,7 @@ async def test_missing_or_nonstring_post_id_falls_back_to_get(journal, post_body
     assert result.verification_completed
     assert result.is_valid
     assert journal.requests[2].url.path == f"/entries/{_CHALLENGE_ID}/analyze"
-    assert journal.requests[3].url.path == f"/entries/{_CHALLENGE_ID}"
+    assert len(journal.requests) == 3
 
 
 @pytest.mark.parametrize("wrapped", [False, True])
@@ -326,12 +362,12 @@ async def test_post_id_takes_precedence_over_discovered_get_id(journal, wrapped)
     assert result.verification_completed
     assert result.is_valid
     assert journal.requests[2].url.path == f"/entries/{_POST_ID}/analyze"
-    assert journal.requests[3].url.path == f"/entries/{_POST_ID}"
+    assert len(journal.requests) == 3
 
 
 @pytest.mark.parametrize("content", [b"not-json", b"\xff"])
 @pytest.mark.parametrize("operation", ["create", "list", "analyze"])
-async def test_malformed_response_json_completes_and_cleans_up(
+async def test_malformed_response_json_completes_without_deleting_entry(
     journal, operation, content
 ):
     journal.responses[operation] = httpx.Response(200, content=content)
@@ -345,11 +381,7 @@ async def test_malformed_response_json_completes_and_cleans_up(
     expected_methods = ["POST", "GET"]
     if operation != "list":
         expected_methods.append("POST")
-    assert [request.method for request in journal.requests] == [
-        *expected_methods,
-        "DELETE",
-    ]
-    assert journal.requests[-1].url.path == f"/entries/{_CHALLENGE_ID}"
+    assert [request.method for request in journal.requests] == expected_methods
 
 
 @pytest.mark.parametrize(
@@ -363,7 +395,7 @@ async def test_malformed_get_envelope_fails_before_analysis(journal, envelope):
     assert result.verification_completed
     assert not result.is_valid
     assert 'must return {"entries": [...], "count": N}' in result.message
-    assert [request.method for request in journal.requests] == ["POST", "GET", "DELETE"]
+    assert [request.method for request in journal.requests] == ["POST", "GET"]
 
 
 @pytest.mark.parametrize("sentiment", [None, 123, [], {}])
@@ -387,7 +419,6 @@ async def test_nonstring_analysis_sentiment_is_completed_failure(journal, sentim
         "POST",
         "GET",
         "POST",
-        "DELETE",
     ]
 
 
@@ -400,7 +431,7 @@ async def test_nonstring_analysis_sentiment_is_completed_failure(journal, sentim
         (httpx.ConnectError, "request_error", None),
     ],
 )
-async def test_analysis_failure_is_not_retried_and_cleanup_preserves_diagnostics(
+async def test_analysis_failure_preserves_entry_and_safe_diagnostics_without_retry(
     journal, failure, category, status
 ):
     journal.responses["analyze"] = (
@@ -422,7 +453,6 @@ async def test_analysis_failure_is_not_retried_and_cleanup_preserves_diagnostics
         "POST",
         "GET",
         "POST",
-        "DELETE",
     ]
     assert journal.requests[2].extensions["timeout"]["read"] == 30.0
     attributes = {
@@ -438,105 +468,39 @@ async def test_analysis_failure_is_not_retried_and_cleanup_preserves_diagnostics
     assert "private learner" not in result.message
     assert "private learner" not in str(journal.span.mock_calls)
     assert "learner.example" not in str(journal.span.mock_calls)
+    assert journal.challenge["work"] not in str(journal.span.mock_calls)
 
 
-@pytest.mark.parametrize("status", [200, 204, 404])
-async def test_completed_or_already_absent_cleanup_is_not_a_failure(journal, status):
-    journal.responses["delete"] = httpx.Response(status)
-
-    result = await journal.run()
-
-    assert result.is_valid
-    assert result.verification_completed
-    assert len(journal.requests) == 4
-    journal.span.add_event.assert_not_called()
-
-
-@pytest.mark.parametrize("primary_success", [False, True])
-@pytest.mark.parametrize(
-    ("failure", "category", "attempts"),
-    [
-        (202, "unexpected_status", 1),
-        (301, "unexpected_status", 1),
-        (400, "unexpected_status", 1),
-        (401, "unexpected_status", 1),
-        (403, "unexpected_status", 1),
-        (429, "unexpected_status", 1),
-        (500, "server_error", 3),
-        (httpx.ReadTimeout, "timeout", 3),
-        (httpx.ConnectError, "request_error", 3),
-        ("ssrf", "ssrf_blocked", 1),
-    ],
-)
-async def test_expected_cleanup_failures_do_not_replace_primary_result(
-    journal, primary_success, failure, category, attempts
-):
-    if not primary_success:
-        journal.responses["analyze"] = httpx.Response(200, json={})
-    if failure == "ssrf":
-        stream = MagicMock()
-        stream.get_extra_info.return_value = ("10.0.0.1", 443)
-        journal.responses["delete"] = httpx.Response(
-            200, extensions={"network_stream": stream}
-        )
-    elif isinstance(failure, int):
-        journal.responses["delete"] = httpx.Response(
-            failure,
-            text="private learner details",
-            headers={"Location": "https://private.example", "X-Secret": "secret"},
-        )
-    else:
-        journal.responses["delete"] = failure("private learner details")
-
-    result = await journal.run()
-
-    assert result.verification_completed
-    assert result.is_valid is primary_success
-    assert result.message == (
-        _SUCCESS_MESSAGE
-        if primary_success
-        else "AI analysis returned an unexpected entry_id."
+@pytest.mark.parametrize("operation", ["create", "list", "analyze"])
+async def test_private_response_peer_fails_without_deleting_entry(journal, operation):
+    stream = MagicMock()
+    stream.get_extra_info.return_value = ("10.0.0.1", 443)
+    journal.responses[operation] = httpx.Response(
+        200, extensions={"network_stream": stream}
     )
-    deletes = [request for request in journal.requests if request.method == "DELETE"]
-    assert len(deletes) == attempts
-    assert all(request.url.path == f"/entries/{_CHALLENGE_ID}" for request in deletes)
-    attributes = {
-        "verification.operation": "DELETE /entries/{id}",
-        "error.type": category,
+
+    result = await journal.run()
+
+    assert result.verification_completed
+    assert not result.is_valid
+    assert result.message == "URL must point to a publicly accessible server."
+    expected_methods = {
+        "create": ["POST"],
+        "list": ["POST", "GET"],
+        "analyze": ["POST", "GET", "POST"],
     }
-    if isinstance(failure, int):
-        attributes["http.response.status_code"] = failure
-    cleanup_events = [
-        event
-        for event in journal.span.add_event.call_args_list
-        if event.args[0] == "deployed_api.cleanup_failed"
-    ]
-    assert cleanup_events == [call("deployed_api.cleanup_failed", attributes)]
-    if failure == "ssrf":
-        journal.span.add_event.assert_any_call(
-            "deployed_api.ssrf_blocked",
-            {"verification.reason": "cleanup_dns_rebinding"},
-        )
-    assert all(
-        attribute.args[0].startswith("verification.deployed_api.")
-        for attribute in journal.span.set_attribute.call_args_list
+    assert [request.method for request in journal.requests] == (
+        expected_methods[operation]
     )
-    journal.span.set_status.assert_not_called()
-    journal.span.record_exception.assert_not_called()
-    diagnostics = str(journal.span.mock_calls)
-    for private_value in (
-        "private learner",
-        "learner.example",
-        "private.example",
-        "secret",
-        journal.challenge["work"],
-    ):
-        assert private_value not in diagnostics
+    journal.span.add_event.assert_called_once_with(
+        "deployed_api.ssrf_blocked", {"verification.reason": "dns_rebinding"}
+    )
+    assert "10.0.0.1" not in str(journal.span.mock_calls)
 
 
-@pytest.mark.parametrize("operation", ["create", "list", "analyze", "delete"])
+@pytest.mark.parametrize("operation", ["create", "list", "analyze"])
 @pytest.mark.parametrize("error_type", [ValueError, TypeError, asyncio.CancelledError])
-async def test_unexpected_errors_and_cancellation_propagate(
+async def test_unexpected_errors_and_cancellation_propagate_without_deletion(
     journal, operation, error_type
 ):
     error = error_type("unexpected failure")
@@ -546,15 +510,15 @@ async def test_unexpected_errors_and_cancellation_propagate(
         await journal.run()
 
     assert raised.value is error
-    if operation == "create":
-        assert [request.method for request in journal.requests] == ["POST"]
-    else:
-        assert journal.requests[-1].method == "DELETE"
-        assert journal.requests[-1].url.path == f"/entries/{_CHALLENGE_ID}"
-    assert not any(
-        event.args[0] == "deployed_api.cleanup_failed"
-        for event in journal.span.add_event.call_args_list
+    expected_methods = {
+        "create": ["POST"],
+        "list": ["POST", "GET"],
+        "analyze": ["POST", "GET", "POST"],
+    }
+    assert [request.method for request in journal.requests] == (
+        expected_methods[operation]
     )
+    journal.span.add_event.assert_not_called()
 
 
 @pytest.mark.parametrize(

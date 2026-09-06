@@ -7,15 +7,16 @@ Verification uses a challenge-response protocol to prove API ownership:
 1. POST a unique challenge entry to /entries
 2. GET /entries and validate only the entry matching the current challenge nonce
 3. POST /entries/{id}/analyze and validate the live AI response
-4. DELETE the challenge entry to clean up
+
+The entry remains as an encouraging milestone, even if verification fails.
 
 The deployed API must:
 - Be publicly accessible via HTTPS
-- Have working create, list, and analyze endpoints; deletion is best-effort
+- Have working create, list, and analyze endpoints
 - Return valid journal entry and AI analysis JSON
 
 SCALABILITY:
-- Retry CRUD verification requests with exponential backoff (3 attempts)
+- Retry create/list verification requests with exponential backoff (3 attempts)
 - Send exactly one potentially billable AI analysis request
 - Connection pooling via shared httpx.AsyncClient
 """
@@ -425,7 +426,7 @@ async def _fetch_with_retry(
 
     Args:
         url: The full URL to request
-        method: HTTP method (GET, POST, DELETE)
+        method: HTTP method (GET or POST)
         json_body: Optional JSON body for POST requests
         timeout: Optional per-request timeout override
 
@@ -446,42 +447,8 @@ async def _fetch_with_retry(
     )
 
 
-async def _cleanup_challenge_entry(
-    entries_url: str,
-    entry_id: str,
-) -> None:
-    """Report expected DELETE failures without changing the verification outcome."""
-    attributes: dict[str, str | int] = {
-        "verification.operation": "DELETE /entries/{id}",
-    }
-    try:
-        delete_url = f"{entries_url}/{entry_id}"
-        response = await _fetch_with_retry(delete_url, method="DELETE")
-    except _SsrfError:
-        span = trace.get_current_span()
-        span.add_event(
-            "deployed_api.ssrf_blocked",
-            {"verification.reason": "cleanup_dns_rebinding"},
-        )
-        attributes["error.type"] = "ssrf_blocked"
-    except httpx.TimeoutException:
-        attributes["error.type"] = "timeout"
-    except httpx.RequestError:
-        attributes["error.type"] = "request_error"
-    except DeployedApiServerError as exc:
-        attributes["error.type"] = "server_error"
-        attributes["http.response.status_code"] = exc.status_code
-    else:
-        if response.status_code in (200, 204, 404):
-            return
-        attributes["error.type"] = "unexpected_status"
-        attributes["http.response.status_code"] = response.status_code
-
-    trace.get_current_span().add_event("deployed_api.cleanup_failed", attributes)
-
-
 async def _post_challenge(
-    entries_url: str, nonce: str
+    entries_url: str, challenge_work: str
 ) -> ValidationResult | str | None:
     """POST a challenge entry to prove API ownership.
 
@@ -491,9 +458,9 @@ async def _post_challenge(
         None if POST succeeded but entry_id couldn't be parsed.
     """
     challenge_body = {
-        "work": nonce,
-        "struggle": "LTC verification challenge",
-        "intention": "Proving API ownership",
+        "work": challenge_work,
+        "struggle": "Every challenge is a chance to learn.",
+        "intention": "Keep building, learning, and making progress.",
     }
 
     try:
@@ -536,7 +503,7 @@ async def _post_challenge(
             ),
         )
 
-    # Best-effort extraction of entry ID for cleanup
+    # The GET response can supply the ID if POST omits it.
     try:
         post_data = response.json()
         if isinstance(post_data, dict):
@@ -552,9 +519,9 @@ async def _post_challenge(
 
 
 async def _verify_challenge(
-    entries_url: str, nonce: str
+    entries_url: str, challenge_work: str
 ) -> tuple[ValidationResult, str | None]:
-    """Validate the exact nonce entry and return its ID for analysis and cleanup."""
+    """Validate the exact challenge entry and return its ID for analysis."""
     try:
         response = await _fetch_with_retry(entries_url)
     except _SsrfError:
@@ -612,7 +579,7 @@ async def _verify_challenge(
         (
             entry
             for entry in entries
-            if isinstance(entry, dict) and entry.get("work") == nonce
+            if isinstance(entry, dict) and entry.get("work") == challenge_work
         ),
         None,
     )
@@ -719,7 +686,7 @@ async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
 
 
 async def validate_deployed_api(base_url: str) -> ValidationResult:
-    """Verify ownership, challenge fields, and live AI analysis, then clean up."""
+    """Verify ownership, challenge fields, and live AI analysis, leaving the entry."""
     base_url = _normalize_base_url(base_url)
 
     if not base_url:
@@ -743,40 +710,36 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
         )
 
     entries_url = f"{base_url}/entries"
-    nonce = _generate_challenge_nonce()
-    challenge_entry_id: str | None = None
+    challenge_work = (
+        f"Nice work getting your Journal API online! ({_generate_challenge_nonce()})"
+    )
+    post_result = await _post_challenge(entries_url, challenge_work)
+    if isinstance(post_result, ValidationResult):
+        return post_result
+    challenge_entry_id = post_result
 
-    try:
-        post_result = await _post_challenge(entries_url, nonce)
-        if isinstance(post_result, ValidationResult):
-            return post_result
-        challenge_entry_id = post_result
-
-        verify_result, discovered_id = await _verify_challenge(entries_url, nonce)
-        if challenge_entry_id is None:
-            challenge_entry_id = discovered_id
-        if not verify_result.is_valid:
-            return verify_result
-        if not challenge_entry_id:
-            return ValidationResult(
-                is_valid=False,
-                message=(
-                    "Ownership was confirmed, but the API did not return the "
-                    "challenge entry ID required for AI analysis."
-                ),
-            )
-
-        analysis_result = await _verify_analysis(base_url, challenge_entry_id)
-        if not analysis_result.is_valid:
-            return analysis_result
-
-        span = trace.get_current_span()
-        span.set_attribute("verification.deployed_api.verified", True)
-        span.set_attribute("verification.deployed_api.ai_verified", True)
+    verify_result, discovered_id = await _verify_challenge(entries_url, challenge_work)
+    if challenge_entry_id is None:
+        challenge_entry_id = discovered_id
+    if not verify_result.is_valid:
+        return verify_result
+    if not challenge_entry_id:
         return ValidationResult(
-            is_valid=True,
-            message=f"{verify_result.message} Live AI analysis verified.",
+            is_valid=False,
+            message=(
+                "Ownership was confirmed, but the API did not return the "
+                "challenge entry ID required for AI analysis."
+            ),
         )
-    finally:
-        if challenge_entry_id:
-            await _cleanup_challenge_entry(entries_url, challenge_entry_id)
+
+    analysis_result = await _verify_analysis(base_url, challenge_entry_id)
+    if not analysis_result.is_valid:
+        return analysis_result
+
+    span = trace.get_current_span()
+    span.set_attribute("verification.deployed_api.verified", True)
+    span.set_attribute("verification.deployed_api.ai_verified", True)
+    return ValidationResult(
+        is_valid=True,
+        message=f"{verify_result.message} Live AI analysis verified.",
+    )

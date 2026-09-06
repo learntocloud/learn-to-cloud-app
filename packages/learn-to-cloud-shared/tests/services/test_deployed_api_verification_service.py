@@ -3,13 +3,12 @@
 Tests the challenge-response API ownership verification:
 - URL normalization and validation
 - Challenge nonce generation
-- POST/GET/DELETE flow for ownership proof
+- POST/GET flow for ownership proof
 - HTTP request handling (success, errors, timeouts)
 - JSON response parsing and entry validation
 - Transport retries and safe error diagnostics
 """
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -268,24 +267,6 @@ class TestGenerateChallengeNonce:
 class TestValidateDeployedApi:
     """Tests for the challenge-response validation function."""
 
-    @pytest.fixture(autouse=True)
-    def _stub_live_analysis(self, monkeypatch):
-        async def valid_analysis(_base_url: str, entry_id: str):
-            return _validate_analysis_json(
-                {
-                    "entry_id": entry_id,
-                    "sentiment": "neutral",
-                    "summary": "The deployed AI endpoint returned a valid result.",
-                    "topics": ["verification"],
-                },
-                entry_id,
-            )
-
-        monkeypatch.setattr(
-            "learn_to_cloud_shared.verification.deployed_api._verify_analysis",
-            valid_analysis,
-        )
-
     @pytest.mark.asyncio
     async def test_empty_url_fails(self, _mock_ssrf):
         """Empty URL should fail."""
@@ -299,90 +280,6 @@ class TestValidateDeployedApi:
         result = await validate_deployed_api("not-a-url")
         assert result.is_valid is False
         assert "valid HTTP(S) URL" in result.message
-
-    @pytest.mark.asyncio
-    async def test_successful_challenge_response(self, _mock_ssrf):
-        """Full POST-GET-DELETE flow should verify ownership."""
-        valid_entry = {
-            "id": "12345678-1234-4567-89ab-123456789abc",
-            "work": "Built an API",
-            "struggle": "CORS issues",
-            "intention": "Deploy to cloud",
-            "created_at": "2025-01-25T10:30:00Z",
-        }
-
-        # Track calls to distinguish POST vs GET
-        call_log = []
-
-        async def mock_fetch(url, *, method="GET", json_body=None):
-            call_log.append(method)
-            resp = MagicMock(spec=httpx.Response)
-
-            if method == "POST":
-                assert json_body is not None
-                resp.status_code = 200
-                nonce = json_body["work"]
-                resp.json.return_value = {
-                    "detail": "Entry created successfully",
-                    "entry": {
-                        "id": "87654321-4321-4567-89ab-987654321abc",
-                        "work": nonce,
-                        "struggle": json_body["struggle"],
-                        "intention": json_body["intention"],
-                        "created_at": "2026-01-01T00:00:00Z",
-                    },
-                }
-                return resp
-
-            if method == "GET":
-                # Return the valid entry + challenge entry
-                nonce_entry = {
-                    "id": "87654321-4321-4567-89ab-987654321abc",
-                    "work": call_log_nonce,
-                    "struggle": "LTC verification challenge",
-                    "intention": "Proving API ownership",
-                    "created_at": "2026-01-01T00:00:00Z",
-                }
-                all_entries = [valid_entry, nonce_entry]
-                resp.status_code = 200
-                resp.json.return_value = {
-                    "entries": all_entries,
-                    "count": len(all_entries),
-                }
-                return resp
-
-            return resp
-
-        # We need to capture the nonce from the POST call
-        call_log_nonce = None
-        original_mock_fetch = mock_fetch
-
-        async def capturing_mock_fetch(url, *, method="GET", json_body=None):
-            nonlocal call_log_nonce
-            if method == "POST" and json_body:
-                call_log_nonce = json_body["work"]
-            return await original_mock_fetch(url, method=method, json_body=json_body)
-
-        with (
-            patch(
-                "learn_to_cloud_shared.verification.deployed_api._fetch_with_retry",
-                autospec=True,
-                side_effect=capturing_mock_fetch,
-            ),
-            patch(
-                "learn_to_cloud_shared.verification.deployed_api._cleanup_challenge_entry",
-                autospec=True,
-            ) as mock_cleanup,
-        ):
-            result = await validate_deployed_api("https://api.example.com")
-
-            assert result.is_valid is True
-            assert "ownership confirmed" in result.message.lower()
-            assert "valid entry" not in result.message
-            mock_cleanup.assert_called_once_with(
-                "https://api.example.com/entries",
-                "87654321-4321-4567-89ab-987654321abc",
-            )
 
     @pytest.mark.asyncio
     async def test_post_timeout_error(self, _mock_ssrf):
@@ -482,220 +379,6 @@ class TestValidateDeployedApi:
             "Ensure POST /entries accepts {work, struggle, intention}."
         )
         mock_fetch.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_nonce_not_found_in_get(self, _mock_ssrf):
-        """If nonce is not in GET response, ownership verification fails."""
-        post_response = MagicMock(spec=httpx.Response)
-        post_response.status_code = 200
-        post_response.json.return_value = {
-            "entry": {"id": "challenge-id", "work": "ltc-verify-abc"}
-        }
-
-        get_response = MagicMock(spec=httpx.Response)
-        get_response.status_code = 200
-        # Return entries that don't contain the nonce (wrapped format)
-        get_response.json.return_value = {
-            "entries": [
-                {
-                    "id": "12345678-1234-4567-89ab-123456789abc",
-                    "work": "Some real work",
-                    "struggle": "stuff",
-                    "intention": "things",
-                    "created_at": "2025-01-01T00:00:00Z",
-                }
-            ],
-            "count": 1,
-        }
-
-        call_count = 0
-
-        async def mock_fetch(url, *, method="GET", json_body=None):
-            nonlocal call_count
-            call_count += 1
-            if method == "POST":
-                return post_response
-            return get_response
-
-        with (
-            patch(
-                "learn_to_cloud_shared.verification.deployed_api._fetch_with_retry",
-                autospec=True,
-                side_effect=mock_fetch,
-            ),
-            patch(
-                "learn_to_cloud_shared.verification.deployed_api._cleanup_challenge_entry",
-                autospec=True,
-            ),
-        ):
-            result = await validate_deployed_api("https://api.example.com")
-
-            assert result.is_valid is False
-            assert "ownership verification failed" in result.message.lower()
-
-    @pytest.mark.asyncio
-    async def test_get_returns_invalid_json(self, _mock_ssrf):
-        """Non-JSON GET response should fail after POST succeeds."""
-        post_response = MagicMock(spec=httpx.Response)
-        post_response.status_code = 200
-        post_response.json.return_value = {"entry": {"id": "cid"}}
-
-        get_response = MagicMock(spec=httpx.Response)
-        get_response.status_code = 200
-        get_response.json.side_effect = json.JSONDecodeError("Invalid", "", 0)
-
-        call_count = 0
-
-        async def mock_fetch(url, *, method="GET", json_body=None):
-            nonlocal call_count
-            call_count += 1
-            if method == "POST":
-                return post_response
-            return get_response
-
-        with (
-            patch(
-                "learn_to_cloud_shared.verification.deployed_api._fetch_with_retry",
-                autospec=True,
-                side_effect=mock_fetch,
-            ),
-            patch(
-                "learn_to_cloud_shared.verification.deployed_api._cleanup_challenge_entry",
-                autospec=True,
-            ),
-        ):
-            result = await validate_deployed_api("https://api.example.com")
-
-            assert result.is_valid is False
-            assert "valid JSON" in result.message
-
-    @pytest.mark.asyncio
-    async def test_wrapped_response_format(self, _mock_ssrf):
-        """API returning {"entries": [...], "count": N} should also work."""
-        valid_entry = {
-            "id": "12345678-1234-4567-89ab-123456789abc",
-            "work": "Built an API",
-            "struggle": "CORS issues",
-            "intention": "Deploy to cloud",
-            "created_at": "2025-01-25T10:30:00Z",
-        }
-
-        captured_nonce = None
-
-        async def mock_fetch(url, *, method="GET", json_body=None):
-            nonlocal captured_nonce
-            resp = MagicMock(spec=httpx.Response)
-
-            if method == "POST":
-                assert json_body is not None
-                captured_nonce = json_body["work"]
-                resp.status_code = 200
-                resp.json.return_value = {
-                    "entry": {
-                        "id": "87654321-4321-4567-89ab-987654321abc",
-                        "work": captured_nonce,
-                    }
-                }
-                return resp
-
-            if method == "GET":
-                nonce_entry = {
-                    "id": "87654321-4321-4567-89ab-987654321abc",
-                    "work": captured_nonce,
-                    "struggle": "LTC verification challenge",
-                    "intention": "Proving API ownership",
-                    "created_at": "2026-01-01T00:00:00Z",
-                }
-                resp.status_code = 200
-                all_entries = [valid_entry, nonce_entry]
-                resp.json.return_value = {
-                    "entries": all_entries,
-                    "count": len(all_entries),
-                }
-                return resp
-
-            return resp
-
-        with (
-            patch(
-                "learn_to_cloud_shared.verification.deployed_api._fetch_with_retry",
-                autospec=True,
-                side_effect=mock_fetch,
-            ),
-            patch(
-                "learn_to_cloud_shared.verification.deployed_api._cleanup_challenge_entry",
-                autospec=True,
-            ),
-        ):
-            result = await validate_deployed_api("https://api.example.com")
-
-            assert result.is_valid is True
-            assert "ownership confirmed" in result.message.lower()
-
-    @pytest.mark.asyncio
-    async def test_url_with_entries_suffix_normalized(self, _mock_ssrf):
-        """URL ending in /entries should be normalized."""
-        captured_nonce = None
-
-        valid_entry = {
-            "id": "12345678-1234-4567-89ab-123456789abc",
-            "work": "Built an API",
-            "struggle": "CORS issues",
-            "intention": "Deploy to cloud",
-            "created_at": "2025-01-25T10:30:00Z",
-        }
-
-        async def mock_fetch(url, *, method="GET", json_body=None):
-            nonlocal captured_nonce
-            resp = MagicMock(spec=httpx.Response)
-
-            if method == "POST":
-                assert json_body is not None
-                captured_nonce = json_body["work"]
-                resp.status_code = 200
-                resp.json.return_value = {
-                    "entry": {
-                        "id": "87654321-4321-4567-89ab-987654321abc",
-                        "work": captured_nonce,
-                    }
-                }
-                return resp
-
-            if method == "GET":
-                nonce_entry = {
-                    "id": "87654321-4321-4567-89ab-987654321abc",
-                    "work": captured_nonce,
-                    "struggle": "LTC verification challenge",
-                    "intention": "Proving API ownership",
-                    "created_at": "2026-01-01T00:00:00Z",
-                }
-                all_entries = [valid_entry, nonce_entry]
-                resp.status_code = 200
-                resp.json.return_value = {
-                    "entries": all_entries,
-                    "count": len(all_entries),
-                }
-                return resp
-
-            return resp
-
-        with (
-            patch(
-                "learn_to_cloud_shared.verification.deployed_api._fetch_with_retry",
-                autospec=True,
-                side_effect=mock_fetch,
-            ) as mock,
-            patch(
-                "learn_to_cloud_shared.verification.deployed_api._cleanup_challenge_entry",
-                autospec=True,
-            ),
-        ):
-            result = await validate_deployed_api("https://api.example.com/entries")
-
-            # Should call /entries (not /entries/entries)
-            for call in mock.call_args_list:
-                assert "/entries/entries" not in call.args[0]
-            assert result.is_valid is True
 
 
 @pytest.mark.unit
@@ -894,7 +577,7 @@ class TestCheckResponseIp:
 
 
 @pytest.mark.parametrize("status", [500, 503])
-@pytest.mark.parametrize("method", ["GET", "POST", "DELETE"])
+@pytest.mark.parametrize("method", ["GET", "POST"])
 async def test_crud_exhaustion_retains_safe_status_after_three_requests(status, method):
     requests = []
     span = MagicMock()
