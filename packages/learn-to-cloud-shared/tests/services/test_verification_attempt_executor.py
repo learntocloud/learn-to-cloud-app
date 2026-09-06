@@ -1,8 +1,10 @@
 """Integration tests for verification-attempt execution."""
 
 import logging
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -13,6 +15,11 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
 )
 from learn_to_cloud_shared.schemas import CriterionResult, TaskResult, ValidationResult
 from learn_to_cloud_shared.submission_values import value_kind_for_submission_type
+from learn_to_cloud_shared.verification.github_errors import (
+    GitHubServerError,
+    github_error_to_result,
+)
+from learn_to_cloud_shared.verification.repo_files import GitHubRepoFiles
 from learn_to_cloud_shared.verification_attempt_executor import (
     AttemptNotRunnableError,
     finalize_verification_attempt,
@@ -24,7 +31,10 @@ from learn_to_cloud_shared.verification_attempt_snapshot import (
     build_requirement_snapshot,
     compute_snapshot_hash,
 )
-from learn_to_cloud_shared.verification_workflow import VerificationRunResult
+from learn_to_cloud_shared.verification_workflow import (
+    VERIFICATION_INCOMPLETE_ERROR_CODE,
+    VerificationRunResult,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -190,6 +200,60 @@ async def test_finalize_persists_structured_criterion_feedback(
     criterion = stored.feedback_json[0]["criterion_results"][0]
     assert criterion["criterion_id"] == "application-logging"
     assert criterion["evidence_refs"] == ["api/main.py"]
+
+
+async def test_failed_github_fetch_persists_incomplete_without_completion(
+    session_maker: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempt = await _create_attempt(session_maker)
+    preparation = await prepare_verification_attempt(
+        attempt.id, session_maker=session_maker
+    )
+    transport = httpx.MockTransport(
+        lambda _: httpx.Response(503, text="private upstream details")
+    )
+    async with httpx.AsyncClient(transport=transport) as client:
+        monkeypatch.setattr(
+            "learn_to_cloud_shared.verification.repo_files.get_github_client",
+            AsyncMock(return_value=client),
+        )
+        with pytest.raises(GitHubServerError) as raised:
+            await GitHubRepoFiles().file("octocat", "repo", "README.md")
+    validation = github_error_to_result(
+        raised.value, event="llm_rubric_review.repo_file_error"
+    )
+    run_result = VerificationRunResult(
+        attempt=preparation.attempt,
+        validation_result=validation,
+        grading_requests=[],
+    )
+    restored = VerificationRunResult.from_payload(run_result.to_payload())
+
+    finalized = await finalize_verification_attempt(
+        restored, session_maker=session_maker
+    )
+    repeated = await finalize_verification_attempt(
+        restored, session_maker=session_maker
+    )
+
+    assert finalized.won is True
+    assert repeated.won is False
+    assert finalized.state.outcome == "server_error"
+    assert finalized.state.error_code == VERIFICATION_INCOMPLETE_ERROR_CODE
+    assert finalized.state.validation_message == (
+        "GitHub API error (503). Try again later."
+    )
+    async with session_maker() as db:
+        stored = await db.get(VerificationAttempt, attempt.id)
+        completions = await VerificationAttemptRepository(db).list_phase_completions(
+            {1: 1}, {attempt.requirement_uuid: 1}
+        )
+    assert stored is not None
+    assert stored.outcome == "server_error"
+    assert stored.completed_at is not None
+    assert stored.feedback_json is None
+    assert (1, attempt.user_id) not in completions
 
 
 async def test_terminalize_records_cancelled_outcome(

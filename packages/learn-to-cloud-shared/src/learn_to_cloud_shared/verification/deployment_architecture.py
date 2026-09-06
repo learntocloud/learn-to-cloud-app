@@ -17,6 +17,10 @@ import httpx
 from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
 from learn_to_cloud_shared.verification.evidence import truncate_to_bytes
+from learn_to_cloud_shared.verification.github_errors import (
+    GitHubServerError,
+    github_error_to_result,
+)
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
@@ -56,8 +60,7 @@ async def validate_deployment_architecture(
     Confirms the description meets the configured minimum length and that the
     deploy script exists in the learner's fork before handing the real
     judgement to the LLM rubric grader. Missing script or repo yields an
-    actionable failure; transient GitHub errors bubble up so the engine
-    records them as operational failures.
+    actionable failure; GitHub failures leave verification incomplete.
     """
     cfg = _deployment_architecture_config(requirement)
     if cfg is None or target is None:
@@ -87,8 +90,8 @@ async def validate_deployment_architecture(
     repo_files = repo_files or default_repo_files()
     try:
         file_paths = await repo_files.tree(target.owner, target.repo)
-    except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == 404:
+    except (GitHubServerError, httpx.HTTPStatusError, httpx.RequestError) as exc:
+        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 404:
             return ValidationResult(
                 is_valid=False,
                 message=(
@@ -98,7 +101,9 @@ async def validate_deployment_architecture(
                 verification_completed=True,
                 repo_exists=False,
             )
-        raise
+        return github_error_to_result(
+            exc, event="deployment_architecture.repo_tree_error"
+        )
 
     if deploy_script_path not in file_paths:
         other_scripts = _top_level_shell_scripts(file_paths)

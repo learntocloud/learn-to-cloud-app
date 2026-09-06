@@ -309,11 +309,17 @@ def build_phase_topics(phase: Phase, detail: PhaseProgress) -> list[dict[str, An
     return topics
 
 
-_PERSISTED_SERVICE_ERROR_MESSAGE = (
-    "The verification service couldn't finish checking this attempt because of "
-    "a problem on our side, not something you did. You can try again. If it keeps "
-    "failing, report the issue."
-)
+def incomplete_verification_message(cause: str | None) -> str:
+    """Explain an incomplete outcome alongside its saved learner-safe cause."""
+    explanation = (
+        "Verification stopped before it could finish. "
+        "Your work was not judged to have failed."
+    )
+    recovery = (
+        "You can try again. If this keeps happening, report the issue. "
+        "You do not need to change your work to fix a verification-service problem."
+    )
+    return " ".join(part for part in (explanation, cause, recovery) if part)
 
 
 @dataclass(frozen=True, slots=True)
@@ -692,7 +698,7 @@ def build_requirement_card_context(
         feedback_tasks=tasks,
         feedback_passed=passed,
         verification_form=verification_form,
-        message=_PERSISTED_SERVICE_ERROR_MESSAGE,
+        message=incomplete_verification_message(submission.validation_message),
     )
 
 
@@ -751,7 +757,7 @@ def build_unavailable_requirement_card_context(
             github_username,
             None,
         ),
-        message=message,
+        message=incomplete_verification_message(message),
     )
 
 

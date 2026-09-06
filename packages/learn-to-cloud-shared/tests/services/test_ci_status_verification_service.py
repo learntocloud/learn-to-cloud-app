@@ -19,7 +19,7 @@ import httpx
 import pytest
 
 from learn_to_cloud_shared.verification.ci_status import verify_ci_status
-from learn_to_cloud_shared.verification.errors import GitHubServerError
+from learn_to_cloud_shared.verification.github_errors import GitHubServerError
 from learn_to_cloud_shared.verification.workflow_runs import InMemoryWorkflowRuns
 
 _TEST_OWNER = "testuser"
@@ -133,7 +133,9 @@ class TestCiStatusErrorHandling:
     """Tests for GitHub API error handling."""
 
     async def test_github_server_error(self):
-        runs = InMemoryWorkflowRuns(error=GitHubServerError("GitHub returned 500"))
+        runs = InMemoryWorkflowRuns(
+            error=GitHubServerError("GitHub returned 500", status_code=500)
+        )
         result = await verify_ci_status(_TEST_OWNER, _TEST_REPO, runs)
         assert not result.is_valid
         assert result.verification_completed is False

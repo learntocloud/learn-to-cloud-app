@@ -8,7 +8,7 @@ import pytest
 
 from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.schemas import ValidationResult
-from learn_to_cloud_shared.verification.errors import GitHubServerError
+from learn_to_cloud_shared.verification.github_errors import GitHubServerError
 from learn_to_cloud_shared.verification.github_metadata import (
     GitHubApiMetadata,
 )
@@ -149,7 +149,7 @@ async def test_provider_errors_do_not_fail_the_assignment(status, caplog):
     [
         httpx.ConnectError("private-network-details"),
         httpx.ReadTimeout("private-timeout-details"),
-        GitHubServerError("private-server-details"),
+        GitHubServerError("private-server-details", status_code=503),
         JSONDecodeError("private-json-details", "", 0),
         UnicodeDecodeError("utf-8", b"\xff", 0, 1, "private-decode-details"),
     ],

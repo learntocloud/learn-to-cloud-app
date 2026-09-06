@@ -27,7 +27,8 @@ from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.github_client import (
     get_github_client as _get_github_client,
 )
-from learn_to_cloud_shared.verification.errors import GitHubServerError, make_retriable
+from learn_to_cloud_shared.verification.errors import make_retriable
+from learn_to_cloud_shared.verification.github_errors import GitHubServerError
 
 # Exceptions that should trigger retry.
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = make_retriable(GitHubServerError)
@@ -63,10 +64,14 @@ def get_github_headers() -> dict[str, str]:
 def raise_for_server_error(response: httpx.Response) -> None:
     """Map a 5xx or 429 response to the retriable :class:`GitHubServerError`."""
     if response.status_code >= 500:
-        raise GitHubServerError(f"GitHub returned {response.status_code}")
+        raise GitHubServerError(
+            f"GitHub returned {response.status_code}", status_code=response.status_code
+        )
     if response.status_code == 429:
         retry_after = _parse_retry_after(response.headers.get("Retry-After"))
-        raise GitHubServerError("GitHub rate limited (429)", retry_after=retry_after)
+        raise GitHubServerError(
+            "GitHub rate limited (429)", status_code=429, retry_after=retry_after
+        )
 
 
 @retry(
@@ -112,4 +117,6 @@ async def github_head_status(url: str) -> int:
     client = await _get_github_client()
     response = await client.head(url)
     raise_for_server_error(response)
+    if response.status_code != 404:
+        response.raise_for_status()
     return response.status_code

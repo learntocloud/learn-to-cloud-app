@@ -1,79 +1,56 @@
-"""Tests for bounded verification error telemetry."""
-
-from unittest.mock import MagicMock, patch
+"""Provider-independent error data does not imply retry policy."""
 
 import httpx
 import pytest
 
-from learn_to_cloud_shared.verification.errors import github_error_to_result
+from learn_to_cloud_shared.verification import deployed_api, ghcr, github_http
+from learn_to_cloud_shared.verification.errors import (
+    BASE_RETRIABLE,
+    UpstreamResponseError,
+    make_retriable,
+)
+from learn_to_cloud_shared.verification.github_errors import GitHubServerError
 
 
-def _status_error(
-    status: int,
-    *,
-    headers: dict[str, str] | None = None,
-) -> httpx.HTTPStatusError:
-    request = httpx.Request("GET", "https://api.github.com/resource")
-    response = httpx.Response(status, headers=headers, request=request)
-    return httpx.HTTPStatusError("failed", request=request, response=response)
+def test_response_error_retains_only_safe_response_data():
+    error = UpstreamResponseError("Unavailable", status_code=503, retry_after=2.5)
+    assert str(error) == "Unavailable"
+    assert vars(error) == {"status_code": 503, "retry_after": 2.5}
+    assert UpstreamResponseError("Unavailable", status_code=500).retry_after is None
+
+
+def test_response_status_is_required_and_keyword_only():
+    with pytest.raises(TypeError):
+        UpstreamResponseError("Unavailable")
+    with pytest.raises(TypeError):
+        UpstreamResponseError("Unavailable", 500)
+
+
+def test_make_retriable_preserves_explicit_network_types():
+    assert BASE_RETRIABLE == (httpx.RequestError, httpx.TimeoutException)
+    assert make_retriable() == BASE_RETRIABLE
+    assert make_retriable(GitHubServerError) == (*BASE_RETRIABLE, GitHubServerError)
 
 
 @pytest.mark.parametrize(
-    ("error", "expected"),
+    ("module", "own_error"),
     [
-        (_status_error(401), "authentication"),
-        (_status_error(403), "authorization"),
-        (_status_error(403, headers={"X-RateLimit-Remaining": "0"}), "rate_limit"),
-        (_status_error(403, headers={"Retry-After": "60"}), "rate_limit"),
-        (_status_error(429), "rate_limit"),
-        (_status_error(503), "provider_unavailable"),
-        (_status_error(422), "client_error"),
+        (github_http, GitHubServerError),
+        (deployed_api, deployed_api.DeployedApiServerError),
+        (ghcr, ghcr._GhcrServerError),
     ],
 )
-def test_github_http_error_metric_uses_bounded_category(error, expected):
-    counter = MagicMock()
-    with patch(
-        "learn_to_cloud_shared.verification.errors._GITHUB_API_ERROR_COUNTER",
-        counter,
-    ):
-        github_error_to_result(error, event="github.request.failed")
-
-    counter.add.assert_called_once_with(1, {"error.type": expected})
-
-
-def test_github_network_error_metric_uses_bounded_category():
-    counter = MagicMock()
-    request = httpx.Request("GET", "https://api.github.com/resource")
-    error = httpx.ConnectError("sensitive network detail", request=request)
-    with patch(
-        "learn_to_cloud_shared.verification.errors._GITHUB_API_ERROR_COUNTER",
-        counter,
-    ):
-        github_error_to_result(error, event="github.request.failed")
-
-    counter.add.assert_called_once_with(1, {"error.type": "network"})
-
-
-@pytest.mark.parametrize(
-    "message",
-    [
-        "You have exceeded a secondary rate limit.",
-        "You have triggered an abuse detection mechanism.",
-    ],
-)
-def test_github_403_body_can_identify_rate_limit(message):
-    request = httpx.Request("GET", "https://api.github.com/resource")
-    response = httpx.Response(
-        403,
-        json={"message": message},
-        request=request,
+def test_retry_policies_do_not_include_base_or_other_integrations(module, own_error):
+    assert own_error.__bases__ == (UpstreamResponseError,)
+    assert module.RETRIABLE_EXCEPTIONS == make_retriable(own_error)
+    assert not isinstance(
+        UpstreamResponseError("response", status_code=503), module.RETRIABLE_EXCEPTIONS
     )
-    error = httpx.HTTPStatusError("failed", request=request, response=response)
-    counter = MagicMock()
-    with patch(
-        "learn_to_cloud_shared.verification.errors._GITHUB_API_ERROR_COUNTER",
-        counter,
+    for other in (
+        GitHubServerError,
+        deployed_api.DeployedApiServerError,
+        ghcr._GhcrServerError,
     ):
-        github_error_to_result(error, event="github.request.failed")
-
-    counter.add.assert_called_once_with(1, {"error.type": "rate_limit"})
+        assert isinstance(
+            other("response", status_code=503), module.RETRIABLE_EXCEPTIONS
+        ) == (other is own_error)

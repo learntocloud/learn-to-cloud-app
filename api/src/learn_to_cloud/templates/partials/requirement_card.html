@@ -7,7 +7,7 @@
         {% if card.kind == 'passed' %}
         {{ status_pill("Verified", "success") }}
         {% elif card.kind == 'unavailable' %}
-        {{ status_pill("Service unavailable", "warning") }}
+        {{ status_pill("Verification incomplete", "warning") }}
         {% elif card.kind == 'failed' %}
         {{ status_pill("Needs work", "error") }}
         {% elif card.kind == 'checking' %}

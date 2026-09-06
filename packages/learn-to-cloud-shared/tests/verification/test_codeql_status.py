@@ -21,7 +21,7 @@ import httpx
 import pytest
 
 from learn_to_cloud_shared.verification.codeql_status import verify_codeql_status
-from learn_to_cloud_shared.verification.errors import GitHubServerError
+from learn_to_cloud_shared.verification.github_errors import GitHubServerError
 from learn_to_cloud_shared.verification.repo_ref import InMemoryRepoRef
 from learn_to_cloud_shared.verification.workflow_runs import InMemoryWorkflowRuns
 
@@ -132,7 +132,9 @@ class TestCodeQLStatusErrorHandling:
     """Tests for GitHub API error handling."""
 
     async def test_runs_server_error(self):
-        runs = InMemoryWorkflowRuns(error=GitHubServerError("GitHub returned 500"))
+        runs = InMemoryWorkflowRuns(
+            error=GitHubServerError("GitHub returned 500", status_code=500)
+        )
         result = await verify_codeql_status(
             _TEST_OWNER, _TEST_REPO, runs, InMemoryRepoRef(_HEAD)
         )

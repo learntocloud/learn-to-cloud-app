@@ -325,6 +325,34 @@ before verification, not continuously; this does not provide an atomic GitHub
 snapshot or commit-consistent evidence. Direct checker helpers assume the
 shared engine has performed this preflight.
 
+### Verification errors and incomplete attempts
+
+`verification/errors.py` owns only shared retry primitives and the data-only
+`UpstreamResponseError` (safe message, response status, optional retry delay).
+GitHub response classification and telemetry belong to `github_errors.py`;
+deployed-API and GHCR errors stay in their respective integration modules.
+Native HTTPX request failures remain request failures, with no invented status.
+Each integration explicitly selects its retryable errors, never the common base.
+
+GitHub network and non-404 HTTP failures leave an attempt incomplete, not failed
+learner work. Failed evidence fetches stop collection and prevent all grading,
+including tasks collected earlier in the run. History and current cards retain
+the saved safe cause, explain that the work was not judged to have failed, and
+provide retry and issue-reporting guidance. Old rows without a cause use an
+outcome-based explanation rather than assuming an outage.
+
+A GitHub 404 keeps its existing missing/private-resource meaning. Optional
+missing files may still be skipped, and existing missing-work gates still apply.
+Evidence selection, file caps, truncation, and rubric missing-file rules are
+unchanged; this is not a general guarantee of complete repository evidence.
+
+GitHub API GET/HEAD and GHCR retain three attempts for their existing transient
+errors; raw-file reads make one attempt per file. Learner-API CRUD requests retain
+three attempts, while billable AI analysis makes exactly one request. Deployed-API
+failures keep their existing completed learner-failure behavior; transient GHCR
+failures remain incomplete. Response-status telemetry never includes provider
+bodies, headers, tokens, repository links, or learner endpoint URLs.
+
 ### Authentication and sessions
 
 GitHub OAuth establishes an opaque login cookie, `ltc_session`, backed by

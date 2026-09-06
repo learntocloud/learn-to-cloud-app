@@ -26,9 +26,64 @@ from learn_to_cloud_shared.testing.requirement_factories import (
 
 from learn_to_cloud.rendering.context import CheckingCardContext
 from learn_to_cloud.services.verification_page_service import (
+    VerificationAttemptHistoryItem,
     get_phase_verification_workspace,
     get_verifications_overview,
 )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "cause",
+    [
+        None,
+        "Verification failed before recording a result.",
+        "GitHub API error (503). Try again later.",
+        "GitHub API error (401). Try again later.",
+        "Network error connecting to GitHub. Try again later.",
+    ],
+)
+def test_incomplete_history_explains_outcome_and_preserves_safe_cause(cause):
+    item = VerificationAttemptHistoryItem(
+        id=uuid4(),
+        requirement=repo_fork_requirement(),
+        outcome="server_error",
+        validation_message=cause,
+        feedback_tasks=[],
+        feedback_passed=0,
+        completed_at=None,
+    )
+
+    assert item.status_label == "Verification incomplete"
+    assert item.status_variant == "warning"
+    assert item.display_message is not None
+    assert "Your work was not judged to have failed." in item.display_message
+    assert "report the issue" in item.display_message
+    if cause:
+        assert cause in item.display_message
+    else:
+        assert "GitHub" not in item.display_message
+        assert "temporary" not in item.display_message
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("outcome", "label"),
+    [("failed", "Needs work"), ("succeeded", "Verified"), ("cancelled", "Cancelled")],
+)
+def test_other_history_outcomes_keep_their_message(outcome, label):
+    item = VerificationAttemptHistoryItem(
+        id=uuid4(),
+        requirement=repo_fork_requirement(),
+        outcome=outcome,
+        validation_message="Saved outcome message.",
+        feedback_tasks=[],
+        feedback_passed=0,
+        completed_at=None,
+    )
+
+    assert item.status_label == label
+    assert item.display_message == "Saved outcome message."
 
 
 def _phase_overview(order: int) -> PhaseOverview:

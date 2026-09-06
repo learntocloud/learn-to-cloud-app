@@ -19,6 +19,7 @@ from learn_to_cloud_shared.models import VerificationAttemptOutcome
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptStatusRow,
 )
+from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.submission_values import submitted_value_from_raw
 from learn_to_cloud_shared.testing.requirement_factories import (
     journal_api_verifier_requirement,
@@ -26,7 +27,9 @@ from learn_to_cloud_shared.testing.requirement_factories import (
 )
 from learn_to_cloud_shared.verification_attempt_reconciler import stale_cutoff
 from learn_to_cloud_shared.verification_workflow import (
+    GradingDisposition,
     PreparedVerificationAttempt,
+    VerificationRunResult,
 )
 
 import function_app
@@ -144,6 +147,47 @@ def _make_responder(
 
 
 class TestAttemptOrchestration:
+    def test_incomplete_evidence_run_finalizes_without_any_grading_activity(self):
+        prepared_payload = _prepared_payload(
+            journal_api_verifier_requirement(slug="journal"),
+            "https://github.com/alice/journal",
+        )
+        prepared = PreparedVerificationAttempt.from_payload(prepared_payload)
+        run_payload = VerificationRunResult(
+            attempt=prepared,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message="GitHub API error (503). Try again later.",
+                verification_completed=False,
+            ),
+            grading_requests=[],
+            grading_disposition=GradingDisposition.SKIPPED_GATE_FAILED,
+        ).to_payload()
+        ctx = _FakeOrchestrationContext({"attempt_id": str(prepared.id)})
+        terminal = {"attempt_id": str(prepared.id), "outcome": "server_error"}
+
+        def responder(call):
+            if call.name == "prepare_verification_attempt":
+                return {"attempt": prepared_payload}
+            if call.name == "execute_requirement_verification":
+                return run_payload
+            if call.name == "finalize_verification_attempt":
+                assert call.payload is run_payload
+                restored = VerificationRunResult.from_payload(call.payload)
+                assert restored.validation_result.verification_completed is False
+                assert restored.grading_requests == []
+                return terminal
+            raise AssertionError(f"Unexpected grading or error activity: {call.name}")
+
+        calls, result = _drive(function_app._run_attempt_orchestration(ctx), responder)
+
+        assert _sequence(calls) == [
+            ("activity_with_retry", "prepare_verification_attempt"),
+            ("activity_with_retry", "execute_requirement_verification"),
+            ("activity_with_retry", "finalize_verification_attempt"),
+        ]
+        assert result == terminal
+
     def test_non_llm_sequence(self) -> None:
         payload = _prepared_payload(
             repo_fork_requirement(slug="fork", required_repo="owner/repo"),
