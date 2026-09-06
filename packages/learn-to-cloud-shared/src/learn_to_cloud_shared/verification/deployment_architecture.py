@@ -14,7 +14,7 @@ from hashlib import sha256
 
 import httpx
 
-from learn_to_cloud_shared.github_target import GitHubTarget
+from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
 from learn_to_cloud_shared.verification.evidence import truncate_to_bytes
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
@@ -48,7 +48,7 @@ def _top_level_shell_scripts(file_paths: list[str]) -> list[str]:
 async def validate_deployment_architecture(
     requirement: HandsOnRequirement,
     description: str,
-    target: GitHubTarget | None,
+    target: GitHubRepositoryTarget | None,
     repo_files: RepoFiles | None = None,
 ) -> ValidationResult:
     """Deterministic gate for the deployment architecture submission.
@@ -60,7 +60,7 @@ async def validate_deployment_architecture(
     records them as operational failures.
     """
     cfg = _deployment_architecture_config(requirement)
-    if cfg is None or target is None or not target.repo:
+    if cfg is None or target is None:
         return ValidationResult(
             is_valid=False,
             message=(

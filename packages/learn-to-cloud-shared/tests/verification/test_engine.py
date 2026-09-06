@@ -27,7 +27,6 @@ from learn_to_cloud_shared.verification.engine import (
     register_check,
     run_verification,
 )
-from learn_to_cloud_shared.verification.github_metadata import InMemoryGitHubMetadata
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
     EvidenceItem,
@@ -36,6 +35,7 @@ from learn_to_cloud_shared.verification_workflow import (
     GradingDisposition,
     PreparedVerificationAttempt,
 )
+from tests.fakes.github_metadata import InMemoryGitHubMetadata
 
 
 @pytest.fixture(autouse=True)
@@ -57,7 +57,7 @@ def repository_metadata(monkeypatch):
         }
     )
     monkeypatch.setattr(
-        "learn_to_cloud_shared.verification.repository_ownership.default_github_metadata",
+        "learn_to_cloud_shared.verification.repository_ownership.GitHubApiMetadata",
         lambda: metadata,
     )
     return metadata
@@ -435,7 +435,10 @@ async def test_shared_preflight_covers_only_repository_assignments(
         lookup.assert_awaited_once_with(job.target.owner, job.target.repo)
         step.assert_not_awaited()
         assert result.validation_result.username_match is False
-        assert "must belong" in result.validation_result.message
+        assert (
+            "Use the required repository under the GitHub account you signed in with."
+            in result.validation_result.message
+        )
     else:
         lookup.assert_not_awaited()
         step.assert_awaited_once()

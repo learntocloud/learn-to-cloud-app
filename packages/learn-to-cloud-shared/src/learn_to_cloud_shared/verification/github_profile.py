@@ -1,7 +1,7 @@
 """GitHub-specific validation for hands-on verification.
 
 Validates the learner's profile README repository and repo forks. Each
-validator receives the ``GitHubTarget`` constructed from the learner's username
+validator receives the repository target constructed from the learner's username
 plus the requirement (see ``submission_derivation``), so it checks existence and
 fork lineage without parsing a URL back into an identity.
 
@@ -15,15 +15,15 @@ from __future__ import annotations
 import httpx
 from opentelemetry import trace
 
-from learn_to_cloud_shared.github_target import GitHubTarget
+from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification.errors import github_error_to_result
 from learn_to_cloud_shared.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
 )
 from learn_to_cloud_shared.verification.github_metadata import (
+    GitHubApiMetadata,
     GitHubMetadata,
-    default_github_metadata,
 )
 
 __all__ = [
@@ -31,7 +31,6 @@ __all__ = [
     "RETRIABLE_EXCEPTIONS",
     "check_github_url_exists",
     "check_repo_is_fork_of",
-    "default_github_metadata",
     "validate_profile_readme",
     "validate_repo_fork",
 ]
@@ -50,7 +49,7 @@ async def check_github_url_exists(
 
     RETRY: 3 attempts with exponential backoff + jitter for transient failures.
     """
-    metadata = metadata or default_github_metadata()
+    metadata = metadata or GitHubApiMetadata()
     try:
         exists = await metadata.url_exists(url)
         return ValidationResult(
@@ -100,7 +99,7 @@ async def check_repo_is_fork_of(
 
     RETRY: 3 attempts with exponential backoff + jitter for transient failures.
     """
-    metadata = metadata or default_github_metadata()
+    metadata = metadata or GitHubApiMetadata()
     try:
         repo_data = await metadata.repo_metadata(username, repo_name)
         if repo_data is None:
@@ -149,7 +148,7 @@ async def check_repo_is_fork_of(
 
 
 async def validate_profile_readme(
-    target: GitHubTarget,
+    target: GitHubRepositoryTarget,
     metadata: GitHubMetadata | None = None,
 ) -> ValidationResult:
     """Confirm the learner's profile README repository exists.
@@ -175,7 +174,7 @@ async def validate_profile_readme(
 
 
 async def validate_repo_fork(
-    target: GitHubTarget,
+    target: GitHubRepositoryTarget,
     metadata: GitHubMetadata | None = None,
 ) -> ValidationResult:
     """Confirm the learner's repository is a fork of the required upstream.
@@ -184,7 +183,7 @@ async def validate_repo_fork(
     descend from (``target.forked_from``) are both known by construction, so
     this only verifies the fork lineage against GitHub.
     """
-    if not target.repo or not target.forked_from:
+    if not target.forked_from:
         return ValidationResult(
             is_valid=False,
             message="Requirement configuration error: missing required_repo",

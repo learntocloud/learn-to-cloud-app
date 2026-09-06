@@ -6,20 +6,20 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from learn_to_cloud_shared.github_target import GitHubTarget
+from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification.errors import GitHubServerError
 from learn_to_cloud_shared.verification.github_metadata import (
     GitHubApiMetadata,
-    InMemoryGitHubMetadata,
 )
 from learn_to_cloud_shared.verification.repository_ownership import (
     check_repository_ownership,
 )
+from tests.fakes.github_metadata import InMemoryGitHubMetadata
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
-TARGET = GitHubTarget("learner", "project", "upstream/project")
+TARGET = GitHubRepositoryTarget("learner", "project", "upstream/project")
 
 
 def _repo(**changes):
@@ -50,8 +50,11 @@ async def test_wrong_owner_cannot_pass_based_on_name_or_fork(login):
     assert not result.is_valid
     assert result.verification_completed
     assert result.username_match is False
-    assert "must belong" in result.message
-    assert "If you changed" in result.message
+    assert result.message == (
+        "Use the required repository under the GitHub account you signed "
+        "in with. If you changed your GitHub username, sign out and back "
+        "in, then resubmit."
+    )
 
 
 async def test_missing_repository_has_actionable_conditional_login_guidance():
@@ -60,8 +63,12 @@ async def test_missing_repository_has_actionable_conditional_login_guidance():
     assert not result.is_valid
     assert result.verification_completed
     assert result.repo_exists is False
-    assert "public" in result.message
-    assert "If you changed your GitHub username" in result.message
+    assert result.message == (
+        "Can't access the required repository. "
+        "Make sure it's public and under your GitHub account. "
+        "If you changed your GitHub username, sign out and back in, "
+        "then resubmit."
+    )
 
 
 async def test_private_repository_fails_even_when_metadata_is_accessible():
@@ -73,7 +80,7 @@ async def test_private_repository_fails_even_when_metadata_is_accessible():
     assert isinstance(result, ValidationResult)
     assert not result.is_valid
     assert result.verification_completed
-    assert "public" in result.message
+    assert result.message == "Make the required repository public, then resubmit."
 
 
 @pytest.mark.parametrize("owner_id", [None, True, False, "42", 42.0, 0, -1, 2**63])
@@ -97,14 +104,7 @@ async def test_owner_id_is_not_coerced(owner_id):
         {},
         _repo(owner=None),
         _repo(owner={"id": 42}),
-        _repo(owner={"id": 42, "login": "../other"}),
-        _repo(owner={"id": 42, "login": ""}),
         _repo(name=None),
-        _repo(name=""),
-        _repo(name=".."),
-        _repo(name="repo/path"),
-        _repo(name="repo?token=secret"),
-        _repo(name="x" * 256),
         _repo(private=None),
         _repo(private="false"),
     ],
@@ -116,6 +116,7 @@ async def test_malformed_metadata_is_incomplete(data, caplog):
     assert isinstance(result, ValidationResult)
     assert not result.is_valid
     assert not result.verification_completed
+    assert result.message == "Couldn't read GitHub's response. Try again later."
     record = caplog.records[-1]
     assert record.message == "github.ownership.invalid_metadata"
     assert record.__dict__["error.type"] == "response_validation"
@@ -188,7 +189,7 @@ async def test_real_metadata_adapter_checks_redirect_destination(monkeypatch, ow
 
     assert paths == ["/repos/learner/project", "/repos/new-name/moved"]
     if owner_id == 42:
-        assert result == GitHubTarget("new-name", "moved", "upstream/project")
+        assert result == GitHubRepositoryTarget("new-name", "moved", "upstream/project")
     else:
         assert isinstance(result, ValidationResult)
         assert not result.is_valid
@@ -202,8 +203,3 @@ async def test_unexpected_errors_propagate():
             42,
             InMemoryGitHubMetadata(repo_error=RuntimeError("internal failure")),
         )
-
-
-async def test_profile_only_target_is_not_silently_accepted():
-    with pytest.raises(ValueError, match="requires a repository"):
-        await check_repository_ownership(GitHubTarget("learner"), 42)

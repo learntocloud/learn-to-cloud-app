@@ -1,10 +1,8 @@
-"""Server-side construction of GitHub identity and submission values.
+"""Server-side construction of GitHub repository targets and submission values.
 
-Every repo- or profile-based verification is a pure function of two atoms:
-the authenticated learner's ``github_username`` and the requirement's
-``required_repo``. ``build_target`` constructs the ``GitHubTarget`` those
-atoms describe; the pipeline reads it everywhere instead of parsing a URL
-back into an identity.
+``build_target`` constructs a repository target from the authenticated learner's
+``github_username`` and the requirement, including profile README repositories.
+The pipeline reads it instead of parsing a URL back into a repository.
 
 ``derive_submission_value`` constructs only server-derived GitHub URL values.
 Learner-controlled values are validated separately at their HTTP boundary.
@@ -12,7 +10,7 @@ Learner-controlled values are validated separately at their HTTP boundary.
 
 from __future__ import annotations
 
-from learn_to_cloud_shared.github_target import GitHubTarget
+from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import HandsOnRequirement
 from learn_to_cloud_shared.submission_values import GitHubUrlValue
@@ -77,13 +75,14 @@ def _required_repo(requirement: HandsOnRequirement) -> str | None:
 def build_target(
     requirement: HandsOnRequirement,
     github_username: str | None,
-) -> GitHubTarget | None:
-    """Construct the GitHub identity a requirement verifies against.
+) -> GitHubRepositoryTarget | None:
+    """Construct the GitHub repository a requirement verifies against.
 
     Returns ``None`` for free-form types (tokens, deployed API, career
     reflection) that reference no GitHub location, and when ``github_username``
-    is missing so no identity can be built. Profile types yield a profile
-    target; repo types yield the learner's fork of ``required_repo``.
+    is missing so no target can be built. Profile README requirements target
+    ``username/username``; fork requirements target ``required_repo``'s name
+    under the learner's account.
 
     Raises ``ValueError`` if a repo-target requirement is missing a valid
     ``required_repo``.
@@ -94,7 +93,7 @@ def build_target(
     sub_type = requirement.submission_type
 
     if sub_type == SubmissionType.PROFILE_README:
-        return GitHubTarget(owner=github_username, repo=github_username)
+        return GitHubRepositoryTarget(owner=github_username, repo=github_username)
 
     if sub_type in _REPO_TARGET_TYPES:
         required_repo = _required_repo(requirement)
@@ -103,7 +102,9 @@ def build_target(
                 f"Requirement {requirement.slug!r} is missing required_repo"
             )
         fork = fork_name_from_required_repo(required_repo)
-        return GitHubTarget(owner=github_username, repo=fork, forked_from=required_repo)
+        return GitHubRepositoryTarget(
+            owner=github_username, repo=fork, forked_from=required_repo
+        )
 
     return None
 

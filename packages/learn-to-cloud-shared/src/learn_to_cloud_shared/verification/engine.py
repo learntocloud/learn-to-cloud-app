@@ -27,7 +27,7 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from pydantic import Field, model_validator
 
-from learn_to_cloud_shared.github_target import GitHubTarget
+from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import FrozenModel, TaskResult, ValidationResult
 from learn_to_cloud_shared.submission_values import (
@@ -306,7 +306,7 @@ class StepContext:
     """Everything a check may read. Carries runtime clients, so not a model."""
 
     job: PreparedVerificationAttempt
-    repository: GitHubTarget | None
+    repository: GitHubRepositoryTarget | None
     submitted_value: SubmittedValue
     evidence_so_far: tuple[EvidenceBundle, ...] = ()
     repo_files: RepoFiles | None = None
@@ -367,7 +367,7 @@ async def _check_github_ci_passing(
 ) -> StepResult:
     """Gate on a green CI run on the fork's ``main`` branch."""
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(
             passed=False,
             stop_on_fail=True,
@@ -399,7 +399,7 @@ async def _check_llm_rubric_review(
     """
     assert isinstance(params, LLMRubricReviewParams)
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(passed=True, stop_on_fail=False)
     repo_files = context.repo_files or default_repo_files()
     if params.discover_paths:
@@ -472,7 +472,7 @@ async def _check_devops_required_files(
 ) -> StepResult:
     """Gate on the prescribed Phase 5 repository paths."""
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(
             passed=False,
             stop_on_fail=True,
@@ -528,7 +528,7 @@ async def _check_codeql_status(
 ) -> StepResult:
     """Deterministic Phase 6 gate: CodeQL green on the fork's current main HEAD."""
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(
             passed=False,
             stop_on_fail=True,
@@ -555,7 +555,7 @@ async def _check_security_scanning_review(
     """Bundle the fork's security-scanning config files for rubric grading."""
     assert isinstance(params, SecurityScanningReviewParams)
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(passed=True, stop_on_fail=False)
     repo_files = context.repo_files or default_repo_files()
     bundle = await collect_security_scanning_evidence(
@@ -734,7 +734,7 @@ async def _check_deployment_architecture_review(
     """
     assert isinstance(params, DeploymentArchitectureReviewParams)
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(passed=True, stop_on_fail=False)
     deploy_script_path = getattr(
         context.job.requirement.type_config, "deploy_script_path", "deploy.sh"
@@ -1033,7 +1033,7 @@ def _aggregate(step_results: list[StepResult]) -> ValidationResult:
 
 def _grading_requests_for(
     job: PreparedVerificationAttempt,
-    target: GitHubTarget | None,
+    target: GitHubRepositoryTarget | None,
     deterministic_result: ValidationResult,
     step_results: list[StepResult],
 ) -> list[LLMGradingRequest]:
@@ -1071,7 +1071,7 @@ def _grading_requests_for(
                 evidence=evidence,
             )
         else:
-            if target is None or not target.repo:
+            if target is None:
                 raise ValueError(
                     f"Rubric task {task.id!r} requires a GitHub repository target"
                 )
@@ -1193,7 +1193,7 @@ async def run_verification(
         )
 
     target = job.target
-    if target is not None and target.is_repo:
+    if target is not None:
         with _tracer.start_as_current_span(
             "verification.step",
             attributes={"verification.check.name": "github_repository_ownership"},

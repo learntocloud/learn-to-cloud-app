@@ -16,17 +16,17 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from learn_to_cloud_shared.github_target import GitHubTarget
+from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.verification.errors import GitHubServerError
 from learn_to_cloud_shared.verification.github_http import (
     _parse_retry_after,
     get_github_headers,
 )
-from learn_to_cloud_shared.verification.github_metadata import InMemoryGitHubMetadata
 from learn_to_cloud_shared.verification.github_profile import (
     validate_profile_readme,
     validate_repo_fork,
 )
+from tests.fakes.github_metadata import InMemoryGitHubMetadata
 
 # ---------------------------------------------------------------------------
 # _parse_retry_after
@@ -91,14 +91,14 @@ class TestGetGitHubHeaders:
 class TestValidateProfileReadme:
     @pytest.mark.asyncio
     async def test_readme_exists_succeeds(self):
-        target = GitHubTarget(owner="testuser", repo="testuser")
+        target = GitHubRepositoryTarget(owner="testuser", repo="testuser")
         metadata = InMemoryGitHubMetadata(existing_urls={target.url})
         result = await validate_profile_readme(target, metadata)
         assert result.is_valid is True
 
     @pytest.mark.asyncio
     async def test_readme_not_found_fails(self):
-        target = GitHubTarget(owner="testuser", repo="testuser")
+        target = GitHubRepositoryTarget(owner="testuser", repo="testuser")
         metadata = InMemoryGitHubMetadata(existing_urls=set())
         result = await validate_profile_readme(target, metadata)
         assert result.is_valid is False
@@ -109,15 +109,19 @@ class TestValidateProfileReadme:
 # ---------------------------------------------------------------------------
 
 
-def _fork_target() -> GitHubTarget:
-    return GitHubTarget(owner="testuser", repo="repo", forked_from="learntocloud/repo")
+def _fork_target() -> GitHubRepositoryTarget:
+    return GitHubRepositoryTarget(
+        owner="testuser", repo="repo", forked_from="learntocloud/repo"
+    )
 
 
 @pytest.mark.unit
 class TestValidateRepoFork:
     @pytest.mark.asyncio
     async def test_missing_forked_from_fails(self):
-        result = await validate_repo_fork(GitHubTarget(owner="testuser", repo="repo"))
+        result = await validate_repo_fork(
+            GitHubRepositoryTarget(owner="testuser", repo="repo")
+        )
         assert result.is_valid is False
         assert "required_repo" in result.message
 
