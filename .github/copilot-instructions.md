@@ -16,17 +16,6 @@ Workflow:
 4. Open a Pull Request to merge into `main`
 5. Never force-push to `main`, alert user if some git error occurs
 
-## Stacked PRs
-
-Use stacked PRs only when a large, tightly-coupled change benefits from staged review. Use the `gh-stack` extension and its skill at `.agents/skills/gh-stack/SKILL.md` for stack mechanics.
-
-Repository policy:
-
-1. Independent work gets a standalone branch from `main`; only stack work that genuinely depends on the layer below it.
-2. Prefer **Squash and merge** so each PR lands as one commit.
-3. Identify deployment boundaries before merging. Merge only through the highest layer that can deploy safely, wait for that deployment when required, then merge the remaining layer.
-
-
 ## Code Comments and Docstrings
 
 Keep docstrings short and useful. One line is enough for most functions.
@@ -42,27 +31,6 @@ Keep docstrings short and useful. One line is enough for most functions.
 - Don't add `# noqa`, `# type: ignore`, `try/except: pass`, or rule exclusions to make CI green. Same applies to inserting "make the warning happy" code that wouldn't otherwise belong.
 - If a real fix would require a bigger refactor, don't quietly patch around the symptom instead. Tell the user and let them choose.
 
-## Authentication
-
-- Use `CurrentUser` / `OptionalCurrentUser` when a route needs only `AuthenticatedUser` identity (`.user_id`, `.github_username`). Use `CurrentAccount` / `OptionalCurrentAccount` when it needs the loaded `User` account (`.id`, profile fields), including account-aware pages and rendering. Required aliases protect routes; optional aliases allow anonymous requests.
-- All four aliases share the cached account resolver and one session lookup/touch per request. Treat the account as a read-only loaded snapshot after the auth transaction closes: no lazy loading or writes through it. Pass accounts explicitly to helpers/templates, never retrieve them from `request.state`; do not add ID-only dependencies or duplicate account queries.
-- Keep identity loading separate from navigation. Page routers use `LoginRedirectRoute`; API and HTMX endpoints retain 401 responses. Do not infer this policy from URL prefixes or `Accept`.
-- Authentication uses opaque PostgreSQL-backed sessions, not identity fields in the OAuth cookie. Logout revokes the current session; Sign out everywhere revokes all current account sessions. Commit before clearing cookies or reporting success.
-- Keep expected auth responses in request telemetry, without logging identities, cookies, or tokens.
-- Follow [Authentication and sessions](../docs/contributing.md#authentication-and-sessions) for the complete contract and test boundaries.
-
-## Docker in WSL
-
-- **Before saying Docker is unavailable, run the preflight check:**
-  `scripts/check-docker.sh`. It confirms the Docker CLI is installed and can
-  reach the daemon, and it prints clear next steps if it cannot. Do not
-  stop a task with "Docker is not available here" without running this first.
-- If the preflight fails under WSL, make sure Docker Desktop is running and WSL
-  integration is enabled for the current distribution.
-- Local processes reach Compose services through their published loopback ports,
-  such as PostgreSQL at `127.0.0.1:55432`. Compose services reach each other by
-  service name, such as `db:5432`.
-
 ## Quality Gates
 
 `uv run poe check` must pass before pushing, no exceptions. Run it after every batch of edits, not just at the end. See the `validate` and `ship-it` skills for the exact commands and steps.
@@ -77,7 +45,8 @@ Keep docstrings short and useful. One line is enough for most functions.
 
 ## Pull Request Descriptions
 
-- Write PR descriptions in plain language that a learner can understand.
+- Write PR descriptions in plain language.
+- Concisely describe the change, why it is needed, and what effect it has.
 - Lead with what changes, why it is needed, and what effect it has.
 - Avoid unexplained jargon. If a technical term is necessary, define it immediately with a concrete explanation.
 - Describe rollout states plainly. For example, say "the alert is evaluated but sends no notifications" instead of relying on "shadow mode."
