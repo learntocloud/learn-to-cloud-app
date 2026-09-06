@@ -39,6 +39,21 @@ Step and requirement UUIDs intentionally have no foreign keys to curriculum
 tables. Current progress intersects stored UUIDs with the active catalog, so
 retired content stops counting without deleting learner history.
 
+## Repository-based verification
+
+One shared ownership check runs before profile README (Phase 0), repository
+forks (Phases 1/2), Journal API (Phase 3), deployment architecture (Phase 4),
+DevOps (Phase 5), and security scanning (Phase 6) checks. The public repository
+must belong to the signed-in learner's numeric GitHub ID. Existing fork, CI,
+file, deployment-description, GHCR, CodeQL, and rubric requirements still apply.
+
+Verification uses the saved GitHub username. If a username change causes an
+ownership or repository-not-found failure, sign out, sign in again, and submit
+a new attempt. GitHub service failures leave verification incomplete.
+Token-only, deployed-API URL, and career-reflection checks do not perform this
+repository lookup. Existing completions and stored submission links are not
+rewritten.
+
 ## Editing curriculum
 
 1. Edit the YAML files.

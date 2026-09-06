@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from learn_to_cloud_shared.github_target import GitHubTarget
+from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.submission_values import submitted_value_from_raw
 from learn_to_cloud_shared.testing.requirement_factories import (
     deployment_architecture_requirement,
@@ -14,7 +14,7 @@ from learn_to_cloud_shared.verification.deployment_architecture import (
 )
 from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
 
-_TARGET = GitHubTarget(owner="alice", repo="journal-starter")
+_TARGET = GitHubRepositoryTarget(owner="alice", repo="journal-starter")
 _DEPLOY_SH = "#!/usr/bin/env bash\naz group create ...\n"
 _LONG_DESCRIPTION = (
     "My deployment provisions a public API tier behind a load balancer and a "

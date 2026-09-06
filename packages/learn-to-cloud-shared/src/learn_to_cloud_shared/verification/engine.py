@@ -3,7 +3,7 @@
 Plain shared-package code (no Durable imports) that the Durable activities
 call. A submission type maps to a :class:`VerificationProfile`: an ordered
 list of :class:`Step`s whose typed params select a registered **check**.
-:func:`run_profile` looks up the profile, runs its steps in order,
+:func:`run_verification` looks up the profile, runs its steps in order,
 short-circuits on a failed gate, accumulates
 :class:`EvidenceBundle`s, and produces one aggregate ``ValidationResult``.
 
@@ -27,7 +27,7 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from pydantic import Field, model_validator
 
-from learn_to_cloud_shared.github_target import GitHubTarget
+from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import FrozenModel, TaskResult, ValidationResult
 from learn_to_cloud_shared.submission_values import (
@@ -67,6 +67,9 @@ from learn_to_cloud_shared.verification.grading_requests import (
     build_text_rubric_message,
 )
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
+from learn_to_cloud_shared.verification.repository_ownership import (
+    check_repository_ownership,
+)
 from learn_to_cloud_shared.verification.security_scanning import (
     collect_security_scanning_evidence,
 )
@@ -303,7 +306,7 @@ class StepContext:
     """Everything a check may read. Carries runtime clients, so not a model."""
 
     job: PreparedVerificationAttempt
-    repository: GitHubTarget | None
+    repository: GitHubRepositoryTarget | None
     submitted_value: SubmittedValue
     evidence_so_far: tuple[EvidenceBundle, ...] = ()
     repo_files: RepoFiles | None = None
@@ -315,7 +318,7 @@ class VerificationProfile:
 
     An ordered list of :class:`Step`s plus the terminal LLM step's rubric and
     optional persona. ``requires_username`` guards types whose steps need the
-    learner's GitHub username; :func:`run_profile` short-circuits when it is
+    learner's GitHub username; :func:`run_verification` short-circuits when it is
     missing.
     """
 
@@ -364,7 +367,7 @@ async def _check_github_ci_passing(
 ) -> StepResult:
     """Gate on a green CI run on the fork's ``main`` branch."""
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(
             passed=False,
             stop_on_fail=True,
@@ -396,7 +399,7 @@ async def _check_llm_rubric_review(
     """
     assert isinstance(params, LLMRubricReviewParams)
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(passed=True, stop_on_fail=False)
     repo_files = context.repo_files or default_repo_files()
     if params.discover_paths:
@@ -469,7 +472,7 @@ async def _check_devops_required_files(
 ) -> StepResult:
     """Gate on the prescribed Phase 5 repository paths."""
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(
             passed=False,
             stop_on_fail=True,
@@ -525,7 +528,7 @@ async def _check_codeql_status(
 ) -> StepResult:
     """Deterministic Phase 6 gate: CodeQL green on the fork's current main HEAD."""
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(
             passed=False,
             stop_on_fail=True,
@@ -552,7 +555,7 @@ async def _check_security_scanning_review(
     """Bundle the fork's security-scanning config files for rubric grading."""
     assert isinstance(params, SecurityScanningReviewParams)
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(passed=True, stop_on_fail=False)
     repo_files = context.repo_files or default_repo_files()
     bundle = await collect_security_scanning_evidence(
@@ -731,7 +734,7 @@ async def _check_deployment_architecture_review(
     """
     assert isinstance(params, DeploymentArchitectureReviewParams)
     target = context.repository
-    if target is None or not target.repo:
+    if target is None:
         return StepResult(passed=True, stop_on_fail=False)
     deploy_script_path = getattr(
         context.job.requirement.type_config, "deploy_script_path", "deploy.sh"
@@ -1030,6 +1033,7 @@ def _aggregate(step_results: list[StepResult]) -> ValidationResult:
 
 def _grading_requests_for(
     job: PreparedVerificationAttempt,
+    target: GitHubRepositoryTarget | None,
     deterministic_result: ValidationResult,
     step_results: list[StepResult],
 ) -> list[LLMGradingRequest]:
@@ -1042,7 +1046,6 @@ def _grading_requests_for(
     A task whose evidence source is ``submitted_text`` grades free text with no
     repository (Phase 7); every other task requires a repository target.
     """
-    target = job.target
     requests: list[LLMGradingRequest] = []
     for result in step_results:
         task = result.grading_task
@@ -1068,7 +1071,7 @@ def _grading_requests_for(
                 evidence=evidence,
             )
         else:
-            if target is None or not target.repo:
+            if target is None:
                 raise ValueError(
                     f"Rubric task {task.id!r} requires a GitHub repository target"
                 )
@@ -1145,12 +1148,12 @@ async def _run_step(step: Step, context: StepContext) -> StepResult:
         return result
 
 
-async def run_profile(
+async def run_verification(
     job: PreparedVerificationAttempt,
     *,
     repo_files: RepoFiles | None = None,
 ) -> VerificationRunResult:
-    """Run a submission type's profile and return the aggregate result.
+    """Check repository ownership, then run the assignment's verification steps.
 
     Steps run in order; a failed gate with ``stop_on_fail`` short-circuits the
     rest. Evidence bundles accumulate across steps, are visible to later steps
@@ -1189,10 +1192,39 @@ async def run_profile(
             grading_disposition=GradingDisposition.SKIPPED_MISSING_USERNAME,
         )
 
+    target = job.target
+    if target is not None:
+        with _tracer.start_as_current_span(
+            "verification.step",
+            attributes={"verification.check.name": "github_repository_ownership"},
+            record_exception=False,
+            set_status_on_exception=False,
+        ) as span:
+            ownership = await check_repository_ownership(target, job.user_id)
+            if isinstance(ownership, ValidationResult):
+                span.set_attribute(
+                    "verification.step.result",
+                    "failed" if ownership.verification_completed else "unavailable",
+                )
+                if not ownership.verification_completed:
+                    span.set_status(Status(StatusCode.ERROR))
+                return VerificationRunResult(
+                    attempt=job,
+                    validation_result=ownership,
+                    grading_requests=[],
+                    grading_disposition=(
+                        GradingDisposition.SKIPPED_GATE_FAILED
+                        if profile.rubric is not None
+                        else GradingDisposition.NOT_REQUIRED
+                    ),
+                )
+            span.set_attribute("verification.step.result", "passed")
+            target = ownership
+
     steps = _steps_for(profile)
     context = StepContext(
         job=job,
-        repository=job.target,
+        repository=target,
         submitted_value=job.submitted_value,
         repo_files=repo_files,
     )
@@ -1212,7 +1244,9 @@ async def run_profile(
             break
 
     deterministic_result = _aggregate(step_results)
-    grading_requests = _grading_requests_for(job, deterministic_result, step_results)
+    grading_requests = _grading_requests_for(
+        job, target, deterministic_result, step_results
+    )
     grading_disposition = _grading_disposition_for(
         profile, step_results, grading_requests
     )

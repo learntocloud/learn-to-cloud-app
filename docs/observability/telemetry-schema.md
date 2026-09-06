@@ -144,6 +144,15 @@ alert notifications, and must not be added to general request spans.
 | `deployed_api.verified` | `verification.deployed_api.verified` | Core API contract passed | Boolean | Learner activity | Rename |
 | `deployed_api.ai_verified` | `verification.deployed_api.ai_verified` | AI endpoint contract passed | Boolean | Learner activity | Rename |
 
+The shared repository ownership preflight emits a `verification.step` span with
+`verification.check.name=github_repository_ownership`. Its result is `passed`,
+`failed` for wrong ownership or a missing/private repository, or `unavailable`
+when GitHub cannot establish ownership. It is not an extra graded task.
+`github.ownership.api_error` uses the existing bounded HTTP/error fields;
+`github.ownership.invalid_metadata` uses `error.type=response_validation`.
+Neither event nor the span includes account IDs, names, repository URLs, or
+provider response bodies.
+
 ### Reconciler summary attributes
 
 | Current attribute | Canonical attribute | Purpose | Cardinality | Class | Decision |

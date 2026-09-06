@@ -32,7 +32,7 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptTerminalState,
     VerificationAttemptRepository,
 )
-from learn_to_cloud_shared.verification.engine import run_profile
+from learn_to_cloud_shared.verification.engine import run_verification
 from learn_to_cloud_shared.verification.llm_grading import (
     LLMGradingDecisionPayload,
     LLMGradingRequest,
@@ -319,7 +319,7 @@ async def execute_requirement_verification(
         prepared_attempt = PreparedVerificationAttempt.from_payload(
             _activity_payload(job_payload)
         )
-        run_result = await run_profile(prepared_attempt)
+        run_result = await run_verification(prepared_attempt)
         return run_result.to_payload()
 
 

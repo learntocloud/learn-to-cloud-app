@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from uuid import UUID
 
-from learn_to_cloud_shared.github_target import GitHubTarget
+from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
     HandsOnRequirementAdapter,
@@ -73,7 +73,7 @@ class PreparedVerificationAttempt:
         }
 
     @property
-    def target(self) -> GitHubTarget | None:
+    def target(self) -> GitHubRepositoryTarget | None:
         return build_target(self.requirement, self.github_username)
 
     @classmethod
