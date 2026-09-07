@@ -4,12 +4,7 @@ slug: journal-api-implementation
 submission_type: journal_api_verifier
 name: Verify Journal API Implementation
 description: >-
-  In your public fork, open Actions > Verify capstone > Run workflow and select
-  `main`. The latest `.github/workflows/verify-capstone.yml` run must succeed
-  for your current `main` commit before you submit. Rerun it after every new
-  commit. Ordinary CI does not run all exercises and is not enough to pass.
-  The app checks this workflow result, not your source code with an AI reviewer.
-  Live AI verification and running your cloud CLI remain local responsibilities;
-  this offline workflow does not verify them.
+  Checks that `verify-capstone.yml` passed for the latest commit on your public
+  fork's `main` branch.
 type_config:
   required_repo: learntocloud/journal-starter

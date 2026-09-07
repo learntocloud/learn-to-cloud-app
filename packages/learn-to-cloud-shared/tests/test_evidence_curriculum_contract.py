@@ -96,15 +96,19 @@ def test_capstone_workflow_and_local_responsibilities_are_published() -> None:
     topic = catalog.topics_by_phase_and_slug[("phase3", "build-the-app")]
     assert str(journal.uuid) == "d6201101-8873-447a-957a-0e5773627618"
     assert journal.submission_type == "journal_api_verifier"
-    for text in (journal.description, topic.model_dump_json()):
-        assert f".github/workflows/{CAPSTONE_WORKFLOW_FILE}" in text
-        assert "current `main` commit" in text
-        assert "Rerun" in text
-        assert "Ordinary CI" in text
-        assert "local responsibilities" in text
-        assert "offline workflow does not verify them" in text
-        assert "canonical" not in text
-        assert "evidence limit" not in text
+    assert f"`{CAPSTONE_WORKFLOW_FILE}`" in journal.description
+    assert "latest commit" in journal.description
+    assert "`main` branch" in journal.description
+    text = topic.model_dump_json()
+    assert f".github/workflows/{CAPSTONE_WORKFLOW_FILE}" in text
+    assert "current `main` commit" in text
+    assert "Rerun" in text
+    assert "Ordinary CI" in text
+    assert "local responsibilities" in text
+    assert "offline workflow does not verify them" in text
+    for published in (journal.description, text):
+        assert "canonical" not in published
+        assert "evidence limit" not in published
     genai = catalog.topics_by_phase_and_slug[("phase3", "genai-apis")]
     assert genai.learning_steps[-1].url == (
         "https://github.com/learntocloud/journal-starter/blob/main/docs/08-ai-setup.md"
