@@ -26,6 +26,7 @@ from pathlib import Path
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirementAdapter,
     Phase,
+    StepAction,
     Topic,
 )
 
@@ -44,9 +45,25 @@ def _write_schema(path: Path, schema: dict) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _topic_authoring_schema() -> dict:
+    """Adapt the runtime Topic schema to the authored YAML format."""
+    schema = Topic.model_json_schema()
+
+    schema["properties"].pop("order")
+    schema["required"].remove("order")
+    schema["additionalProperties"] = False
+
+    action_schema = schema["$defs"]["StepAction"]
+    action_schema["enum"] = [
+        *(action.value for action in StepAction),
+        *(f"{action.label}:" for action in StepAction),
+    ]
+    return schema
+
+
 def main() -> int:
     phase_schema = Phase.model_json_schema()
-    topic_schema = Topic.model_json_schema()
+    topic_schema = _topic_authoring_schema()
     requirement_schema = HandsOnRequirementAdapter.json_schema()
 
     phase_path = SCHEMAS_DIR / "phase.schema.json"

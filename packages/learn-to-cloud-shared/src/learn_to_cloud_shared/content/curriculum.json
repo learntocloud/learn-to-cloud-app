@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "af14ca68e69e89286c6b6ba90f870a094cdb9cee90ee90de68e2ad3a707a97dd",
-  "curriculum_version": 16,
+  "content_hash": "ee366fc84ea29957c5ed57f9331f2c00a35b973690c14f532c8d0f6be7a1a597",
+  "curriculum_version": 17,
   "phases": [
     {
       "capstone": null,
@@ -3901,14 +3901,14 @@
             {
               "action": "practice",
               "checklist": [],
-              "code": "name: CI\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build-and-test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      \n      - name: Set up Python\n        uses: actions/setup-python@v5\n        with:\n          python-version: '3.11'\n      \n      - name: Install dependencies\n        run: pip install -r requirements.txt\n      \n      - name: Run tests\n        run: pytest",
-              "description": "Create a workflow file in .github/workflows/ that automatically builds your application and runs tests on every push to the main branch. Here's a starter template:",
+              "code": null,
+              "description": "The Journal Starter already includes `.github/workflows/ci.yml`. Review its triggers, jobs, service container, and test commands so you understand how it validates pushes and pull requests. Use this existing workflow as the foundation for the Docker image build and deployment steps that follow; do not create a separate CI workflow.",
               "done_when": null,
               "options": [],
               "order": 3,
               "slug": "phase5-topic2-practice-create-a-github-actions",
               "tips": [],
-              "title": "Create a GitHub Actions workflow that builds and tests your app",
+              "title": "Review the existing GitHub Actions workflow",
               "url": null,
               "uuid": "c4826180-0c6a-4927-b530-2408d494451e"
             },
