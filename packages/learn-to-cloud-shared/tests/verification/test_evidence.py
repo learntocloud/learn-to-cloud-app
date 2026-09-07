@@ -7,6 +7,7 @@ import pytest
 
 from learn_to_cloud_shared.verification import repo_files as repo_files_module
 from learn_to_cloud_shared.verification.evidence import (
+    EvidenceError,
     apply_evidence_cap,
     collect_repo_file_evidence,
     collect_repo_pattern_evidence,
@@ -48,39 +49,33 @@ def _task(
     )
 
 
-def test_apply_evidence_cap_deduplicates_paths():
-    bundle = apply_evidence_cap(
-        _task(),
-        [("a.txt", "one"), ("a.txt", "two"), ("b.txt", "three")],
-    )
-    assert [item.path for item in bundle.items] == ["a.txt", "b.txt"]
-    assert bundle.items[0].content == "one"
+def test_apply_evidence_cap_rejects_duplicate_paths():
+    with pytest.raises(EvidenceError, match="evidence.selection"):
+        apply_evidence_cap(
+            _task(),
+            [("a.txt", "one"), ("a.txt", "two"), ("b.txt", "three")],
+        )
 
 
 def test_apply_evidence_cap_limits_file_count():
-    bundle = apply_evidence_cap(
-        _task(max_files=2),
-        [("a", "1"), ("b", "2"), ("c", "3")],
-    )
-    assert [item.path for item in bundle.items] == ["a", "b"]
+    with pytest.raises(EvidenceError, match="evidence.file_limit"):
+        apply_evidence_cap(
+            _task(max_files=2),
+            [("a", "1"), ("b", "2"), ("c", "3")],
+        )
 
 
-def test_apply_evidence_cap_truncates_large_file():
-    bundle = apply_evidence_cap(
-        _task(max_file_size_bytes=100),
-        [("big.txt", "x" * 500)],
-    )
-    assert bundle.items[0].truncated is True
-    assert len(bundle.items[0].content.encode("utf-8")) <= 100
+def test_apply_evidence_cap_rejects_large_file():
+    with pytest.raises(EvidenceError, match="evidence.item_limit"):
+        apply_evidence_cap(_task(max_file_size_bytes=100), [("big.txt", "x" * 500)])
 
 
 def test_apply_evidence_cap_stops_at_total_budget():
-    bundle = apply_evidence_cap(
-        _task(max_total_bytes=10),
-        [("a", "xxxxx"), ("b", "yyyyy"), ("c", "zzzzz")],
-    )
-    assert [item.path for item in bundle.items] == ["a", "b"]
-    assert bundle.total_bytes == 10
+    with pytest.raises(EvidenceError, match="evidence.total_limit"):
+        apply_evidence_cap(
+            _task(max_total_bytes=10),
+            [("a", "xxxxx"), ("b", "yyyyy"), ("c", "zzzzz")],
+        )
 
 
 def test_apply_evidence_cap_sets_source_and_task_id():
@@ -97,40 +92,29 @@ def test_collect_submitted_text_evidence_is_passthrough():
 
 
 @pytest.mark.asyncio
-async def test_collect_repo_file_evidence_skips_missing_and_caps():
+async def test_collect_repo_file_evidence_checks_selected_count_before_reading():
     repo_files = InMemoryRepoFiles({"present.txt": "here", "second.txt": "also"})
-    bundle = await collect_repo_file_evidence(
-        repo_files,
-        "owner",
-        "repo",
-        ["present.txt", "missing.txt", "second.txt"],
-        _task(max_files=1),
-    )
-    assert [item.path for item in bundle.items] == ["present.txt"]
-    assert bundle.source == "repo_files"
+    with pytest.raises(EvidenceError, match="evidence.file_limit"):
+        await collect_repo_file_evidence(
+            repo_files,
+            "owner",
+            "repo",
+            ["present.txt", "missing.txt", "second.txt"],
+            _task(max_files=1),
+        )
 
 
-def test_select_repo_paths_prioritizes_exact_paths_before_directories():
-    selected = select_repo_paths(
-        [
-            "infra/z.tf",
-            ".github/workflows/ci.yml",
-            "Dockerfile",
-            "infra/a.tf",
-        ],
-        ["Dockerfile", ".github/workflows/", "infra/"],
-        max_files=3,
-    )
-
-    assert selected == [
-        "Dockerfile",
-        ".github/workflows/ci.yml",
-        "infra/a.tf",
-    ]
+def test_select_repo_paths_never_slices_the_selection():
+    with pytest.raises(EvidenceError, match="evidence.file_limit"):
+        select_repo_paths(
+            ["infra/z.tf", ".github/workflows/ci.yml", "Dockerfile", "infra/a.tf"],
+            ["Dockerfile", ".github/workflows/", "infra/"],
+            max_files=3,
+        )
 
 
 @pytest.mark.asyncio
-async def test_collect_repo_pattern_evidence_preserves_paths_and_caps():
+async def test_collect_repo_pattern_evidence_preserves_all_paths():
     repo_files = InMemoryRepoFiles(
         {
             "Dockerfile": "FROM python",
@@ -142,11 +126,19 @@ async def test_collect_repo_pattern_evidence_preserves_paths_and_caps():
         repo_files,
         "owner",
         "repo",
-        _task(max_files=2, path_patterns=["Dockerfile", "infra/"]),
+        _task(max_files=3, path_patterns=["Dockerfile", "infra/"]),
     )
 
-    assert [item.path for item in bundle.items] == ["Dockerfile", "infra/a.tf"]
-    assert [item.content for item in bundle.items] == ["FROM python", "resource a"]
+    assert [item.path for item in bundle.items] == [
+        "Dockerfile",
+        "infra/a.tf",
+        "infra/b.tf",
+    ]
+    assert [item.content for item in bundle.items] == [
+        "FROM python",
+        "resource a",
+        "resource b",
+    ]
 
 
 @pytest.mark.asyncio
@@ -204,13 +196,17 @@ async def test_failed_later_file_never_returns_partial_evidence(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("discovered", [False, True])
-async def test_missing_later_file_still_returns_available_evidence(discovered):
+async def test_disappearing_file_never_returns_partial_evidence(discovered):
     files = InMemoryRepoFiles({"a": "first", "c": "third"}, tree=["a", "b", "c"])
     task = _task(path_patterns=["a", "b", "c"])
-    if discovered:
-        bundle = await collect_repo_pattern_evidence(files, "owner", "repo", task)
-    else:
-        bundle = await collect_repo_file_evidence(
-            files, "owner", "repo", ["a", "b", "c"], task
-        )
-    assert [item.path for item in bundle.items] == ["a", "c"]
+    with pytest.raises(EvidenceError, match="evidence.changed"):
+        if discovered:
+            await collect_repo_pattern_evidence(files, "owner", "repo", task)
+        else:
+            await collect_repo_file_evidence(
+                files,
+                "owner",
+                "repo",
+                ["a", "b", "c"],
+                task,
+            )

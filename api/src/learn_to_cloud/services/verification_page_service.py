@@ -119,6 +119,7 @@ class VerificationAttemptHistoryItem:
     feedback_tasks: list[FeedbackTaskContext]
     feedback_passed: int
     completed_at: datetime | None
+    error_code: str | None = None
 
     @property
     def status_label(self) -> str:
@@ -131,7 +132,9 @@ class VerificationAttemptHistoryItem:
     @property
     def display_message(self) -> str | None:
         if self.outcome == "server_error":
-            return incomplete_verification_message(self.validation_message)
+            return incomplete_verification_message(
+                self.validation_message, self.error_code
+            )
         return self.validation_message
 
 
@@ -298,7 +301,10 @@ async def get_phase_verification_workspace(
 
         feedback_tasks: list[FeedbackTaskContext] = []
         feedback_passed = 0
-        if requirement.submission_type != SubmissionType.CAREER_REFLECTION:
+        if (
+            requirement.submission_type != SubmissionType.CAREER_REFLECTION
+            and attempt.outcome != "server_error"
+        ):
             feedback_context = feedback_context_from_json(attempt.feedback_json)
             feedback_tasks, feedback_passed = feedback_tasks_and_passed(
                 feedback_context
@@ -312,6 +318,7 @@ async def get_phase_verification_workspace(
                 feedback_tasks=feedback_tasks,
                 feedback_passed=feedback_passed,
                 completed_at=attempt.completed_at,
+                error_code=attempt.error_code,
             )
         )
 

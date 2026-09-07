@@ -150,6 +150,7 @@ def _make_submission(
     is_validated: bool,
     verification_completed: bool = False,
     validation_message: str | None = None,
+    error_code: str | None = None,
     submitted_value: str = "https://github.com/alice/repo",
 ):
     from datetime import UTC, datetime
@@ -162,12 +163,58 @@ def _make_submission(
         is_validated=is_validated,
         verification_completed=verification_completed,
         validation_message=validation_message,
+        error_code=error_code,
         created_at=datetime(2024, 1, 1, tzinfo=UTC),
     )
 
 
 @pytest.mark.unit
 class TestBuildRequirementCardContextCardState:
+    def test_required_evidence_absence_is_actionable_learner_failure(self):
+        ctx = build_requirement_card_context(
+            requirement=_make_requirement(SubmissionType.CTF_TOKEN),
+            github_username="alice",
+            submission=_make_submission(
+                is_validated=False,
+                verification_completed=True,
+                error_code="evidence.required_missing",
+                validation_message="Add the required pyproject.toml.",
+            ),
+        )
+
+        assert isinstance(ctx, FailedCardContext)
+        assert ctx.error_code == "evidence.required_missing"
+        assert ctx.error_message == "Add the required pyproject.toml."
+
+    def test_evidence_failure_exposes_code_without_partial_feedback(self):
+        from learn_to_cloud.rendering.feedback import FeedbackTaskContext
+
+        ctx = build_requirement_card_context(
+            requirement=_make_requirement(SubmissionType.CTF_TOKEN),
+            github_username="alice",
+            submission=_make_submission(
+                is_validated=False,
+                error_code="evidence.total_limit",
+                validation_message="The evidence could not be collected.",
+            ),
+            feedback_tasks=[
+                FeedbackTaskContext(
+                    name="Partial review",
+                    passed=False,
+                    message="Incomplete feedback must not appear",
+                    next_steps="",
+                    criteria=(),
+                )
+            ],
+            feedback_passed=1,
+        )
+
+        assert isinstance(ctx, UnavailableCardContext)
+        assert ctx.error_code == "evidence.total_limit"
+        assert "Retrying unchanged work may not help." in ctx.message
+        assert ctx.feedback_tasks == []
+        assert ctx.feedback_passed == 0
+
     def test_validated_submission_does_not_prepare_a_resubmission_form(self):
         with patch(
             "learn_to_cloud.rendering.verification_forms.derive_submission_value",

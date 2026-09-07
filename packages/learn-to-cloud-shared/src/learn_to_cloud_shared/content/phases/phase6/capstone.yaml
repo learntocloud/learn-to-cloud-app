@@ -109,6 +109,17 @@ learning_steps:
   - "**Review findings**: triage any critical or high severity [code scanning alerts](https://docs.github.com/en/code-security/code-scanning/managing-code-scanning-alerts/about-code-scanning-alerts)"
   done_when: The CodeQL workflow is committed as `.github/workflows/codeql.yml`, targets Python, and its latest run is green on your `main` branch.
   slug: phase6-capstone-practice-enable-security-scanning-on
+  tips:
+  - type: note
+    text: >-
+      Verification reads the full `.github/workflows/codeql.yml`. Optional
+      Dependabot configuration must use `.github/dependabot.yml` to be included
+      for bonus review; `.github/dependabot.yaml` is not collected. Absence of
+      Dependabot configuration does not block grading. If it is present, its
+      full content is included, never silently dropped to fit an internal
+      limit. Other files are not automatically discovered. If internal limits
+      prevent complete evidence collection, your work remains ungraded; report
+      the service issue rather than shrinking valid work.
 
 - uuid: 831a7907-14bc-4a99-b03d-d7dc1fc4d742
   order: 8

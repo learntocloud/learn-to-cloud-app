@@ -171,11 +171,11 @@ class VerificationRunResult:
 
 
 def outcome_for_validation(validation_result: ValidationResult) -> str:
+    if not validation_result.verification_completed:
+        return OUTCOME_SERVER_ERROR
     if validation_result.is_valid:
         return OUTCOME_SUCCEEDED
-    if validation_result.verification_completed:
-        return OUTCOME_FAILED
-    return OUTCOME_SERVER_ERROR
+    return OUTCOME_FAILED
 
 
 def code_for_outcome(outcome: str, fallback: str | None = None) -> str:

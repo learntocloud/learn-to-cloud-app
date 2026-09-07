@@ -17,6 +17,7 @@ from typing import Protocol
 from opentelemetry import trace
 
 from learn_to_cloud_shared.core.github_client import get_github_client
+from learn_to_cloud_shared.verification.evidence import EvidenceError
 from learn_to_cloud_shared.verification.github_http import (
     get_github_headers,
     github_api_get,
@@ -49,6 +50,8 @@ class GitHubRepoFiles:
         url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/{branch}"
         response = await github_api_get(url, params={"recursive": 1})
         tree_data = response.json()
+        if tree_data.get("truncated"):
+            raise EvidenceError("evidence.selection")
         return [
             item["path"]
             for item in tree_data.get("tree", [])

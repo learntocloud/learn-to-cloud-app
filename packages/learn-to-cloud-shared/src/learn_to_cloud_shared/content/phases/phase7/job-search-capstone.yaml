@@ -66,6 +66,14 @@ learning_steps:
   - "**Describe a project you love.** The one from your uniqueness statement that you're genuinely excited to talk about"
   done_when: You've submitted the career reflection and it has been graded as passing.
   slug: phase7-capstone-practice-complete-the-reflection
+  tips:
+  - type: note
+    text: >-
+      The reviewer receives your complete submitted text, not a shortened
+      excerpt. No GitHub files are read for this reflection. If an internal
+      evidence limit prevents grading, your work has not been judged as failed.
+      Report the service issue rather than shrinking or splitting valid answers;
+      retrying unchanged may not help.
 - uuid: 1e8433f7-1833-47a2-bb01-ff65fe444735
   order: 4
   action: 'Reflect:'

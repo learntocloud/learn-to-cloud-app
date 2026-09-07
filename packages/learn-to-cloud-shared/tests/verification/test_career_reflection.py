@@ -6,6 +6,7 @@ from learn_to_cloud_shared.verification.career_reflection import (
     collect_career_reflection_evidence,
     validate_career_reflection,
 )
+from learn_to_cloud_shared.verification.evidence import EvidenceError
 from learn_to_cloud_shared.verification.tasks import CAREER_REFLECTION_RUBRIC_TASK
 
 
@@ -39,13 +40,8 @@ def test_collect_evidence_wraps_submitted_text():
 
 
 @pytest.mark.unit
-def test_collect_evidence_truncates_oversized_text():
+def test_collect_evidence_rejects_oversized_text():
     text = "x" * (CAREER_REFLECTION_RUBRIC_TASK.evidence.max_file_size_bytes + 500)
 
-    bundle = collect_career_reflection_evidence(text, CAREER_REFLECTION_RUBRIC_TASK)
-
-    assert bundle.items[0].truncated is True
-    assert (
-        len(bundle.items[0].content.encode("utf-8"))
-        <= CAREER_REFLECTION_RUBRIC_TASK.evidence.max_file_size_bytes
-    )
+    with pytest.raises(EvidenceError, match="evidence.item_limit"):
+        collect_career_reflection_evidence(text, CAREER_REFLECTION_RUBRIC_TASK)

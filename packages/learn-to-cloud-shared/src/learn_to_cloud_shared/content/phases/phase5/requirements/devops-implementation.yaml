@@ -3,6 +3,19 @@ uuid: 623a87ae-156f-42da-a83c-09241d523e00
 slug: devops-implementation
 submission_type: devops_analysis
 name: Complete the DevOps Capstone
-description: We'll review the DevOps implementation on your fork's `main` branch.
+description: >-
+  We'll review your fork's `main` branch. Required evidence is `Dockerfile`,
+  `k8s/deployment.yaml`, `k8s/service.yaml`, at least one `.yml` or `.yaml`
+  workflow directly in `.github/workflows/`, and at least one `.tf` or
+  `.tf.json` file under `infra/`. All matching workflow and Terraform source
+  files, including nested Terraform modules, and all `.yaml` or `.yml` files
+  under `k8s/` are read in full. `.dockerignore` and
+  `k8s/secrets.yaml.example` are also read when present but are optional.
+  Use these roots only for the submitted deployment, not alternative examples.
+  Terraform filenames such as `main.tf` are examples, not requirements.
+  `.terraform/`, state, plan, tfvars, credentials, README, and unrelated files
+  are excluded. External modules and scripts outside these roots are not
+  automatically fetched or executed. Internal evidence limits leave work
+  ungraded, not failed; report the issue rather than shrinking valid work.
 type_config:
   required_repo: learntocloud/journal-starter

@@ -17,7 +17,7 @@ from learn_to_cloud_shared.verification.tasks.base import (
 
 PHASE6_REQUIREMENT_SLUG = "security-scanning"
 CODEQL_WORKFLOW_PATH = ".github/workflows/codeql.yml"
-DEPENDABOT_CONFIG_PATHS = (".github/dependabot.yml", ".github/dependabot.yaml")
+DEPENDABOT_CONFIG_PATHS = (".github/dependabot.yml",)
 
 SECURITY_SCANNING_RUBRIC_TASK = VerificationTask(
     id="security-scanning-rubric",
@@ -68,6 +68,8 @@ SECURITY_SCANNING_RUBRIC_TASK = VerificationTask(
     ],
     grading_instructions=[
         "Grade only the repository evidence provided.",
+        "Dependabot is optional bonus work. Its absence must not fail "
+        "a required criterion.",
         (
             "Do not re-grade whether a scan ran or passed because a separate "
             "deterministic gate proves that."
@@ -76,12 +78,26 @@ SECURITY_SCANNING_RUBRIC_TASK = VerificationTask(
     evidence=EvidencePolicy(
         source="repo_files",
         path_patterns=[CODEQL_WORKFLOW_PATH, *DEPENDABOT_CONFIG_PATHS],
+        required_files=[CODEQL_WORKFLOW_PATH],
+        optional_files=list(DEPENDABOT_CONFIG_PATHS),
+        criterion_evidence={
+            **{
+                criterion: [CODEQL_WORKFLOW_PATH]
+                for criterion in (
+                    "python-analysis",
+                    "workflow-triggers",
+                    "query-suite",
+                    "pinned-actions",
+                )
+            },
+            "dependabot": list(DEPENDABOT_CONFIG_PATHS),
+        },
         max_files=3,
         max_total_bytes=75 * 1024,
     ),
     grader=LLMRubricGraderConfig(
         rubric_id="phase6-security-scanning-v3",
-        prompt_version="2026-09-02",
+        prompt_version="2026-09-06",
         passing_score=0.75,
         model="gpt-5-mini",
     ),

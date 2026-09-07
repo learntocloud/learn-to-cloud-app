@@ -8,7 +8,9 @@ Durable client and status are faked -- no live Azure calls.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Generator
+from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -21,6 +23,14 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
 )
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.submission_values import submitted_value_from_raw
+from learn_to_cloud_shared.verification.evidence import apply_evidence_cap
+from learn_to_cloud_shared.verification.grading_requests import (
+    LLMGradingRequest,
+    build_text_rubric_message,
+)
+from learn_to_cloud_shared.verification.tasks.phase7 import (
+    CAREER_REFLECTION_RUBRIC_TASK,
+)
 from learn_to_cloud_shared.verification_attempt_reconciler import stale_cutoff
 from learn_to_cloud_shared.verification_workflow import (
     GradingDisposition,
@@ -77,6 +87,103 @@ class _Raise:
 Responder = Callable[[_RecordedCall], object]
 
 
+def _reflection_request() -> LLMGradingRequest:
+    task = CAREER_REFLECTION_RUBRIC_TASK
+    bundle = apply_evidence_cap(task, [("career-reflection.md", "Complete text 雲")])
+    return LLMGradingRequest(
+        task=task,
+        message=build_text_rubric_message(
+            requirement_slug="reflection",
+            requirement_name="Reflection",
+            deterministic_result=ValidationResult(is_valid=True, message="Complete"),
+            task=task,
+            evidence=bundle.model_dump(mode="json"),
+        ),
+        thread_id="attempt-reflection",
+        allowed_evidence_refs=["career-reflection.md"],
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("corruption", ["truncated", "failed", "incomplete", "invalid"])
+async def test_restored_evidence_is_checked_before_provider_call(corruption):
+    request = _reflection_request()
+    prefix, raw = request.message.split("\n\n", 1)
+    message = json.loads(raw)
+    if corruption == "truncated":
+        message["evidence"]["items"][0]["truncated"] = True
+    elif corruption == "failed":
+        message["deterministic_result"]["is_valid"] = False
+    elif corruption == "incomplete":
+        message["deterministic_result"]["verification_completed"] = False
+    request_payload = request.model_dump(mode="json")
+    request_payload["message"] = f"{prefix}\n\n{json.dumps(message)}"
+    if corruption == "invalid":
+        request_payload = {}
+    provider = AsyncMock()
+    with (
+        patch("function_app._attached_invocation_context", return_value=nullcontext()),
+        patch("function_app.grade_evidence", provider),
+    ):
+        result = await function_app.run_llm_grading({"request": request_payload}, None)
+
+    assert result == {"outcome": "error", "error_type": "evidence.selection"}
+    provider.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("historical", [False, True])
+async def test_complete_restored_request_reaches_provider(historical):
+    request = _reflection_request()
+    prefix, raw = request.message.split("\n\n", 1)
+    message = json.loads(raw)
+    if historical:
+        message["task"].pop("evidence_contract")
+        message["deterministic_result"].pop("error_code")
+    request_payload = request.model_dump(mode="json")
+    request_payload["message"] = f"{prefix}\n\n{json.dumps(message)}"
+    provider = AsyncMock(side_effect=function_app.ContentFilteredError())
+    with (
+        patch("function_app._attached_invocation_context", return_value=nullcontext()),
+        patch("function_app.grade_evidence", provider),
+    ):
+        result = await function_app.run_llm_grading({"request": request_payload}, None)
+
+    assert result == {"outcome": "content_filtered"}
+    provider.assert_awaited_once_with(request_payload["message"])
+
+
+@pytest.mark.asyncio
+async def test_restored_evidence_failure_keeps_code_and_drops_transport():
+    prepared_payload = _prepared_payload(
+        journal_api_verifier_requirement(slug="journal"),
+        "https://github.com/alice/journal",
+    )
+    run_result = VerificationRunResult(
+        attempt=PreparedVerificationAttempt.from_payload(prepared_payload),
+        validation_result=ValidationResult(is_valid=True, message="Complete"),
+        grading_requests=[_reflection_request()],
+    )
+    with patch("function_app._attached_invocation_context", return_value=nullcontext()):
+        payload = await function_app.llm_grading_failed(
+            {
+                "run_result": run_result.to_payload(),
+                "outcome": "error",
+                "error_type": "evidence.selection",
+            },
+            None,
+        )
+    restored = VerificationRunResult.from_payload(payload)
+
+    assert restored.validation_result.error_code == "evidence.selection"
+    assert restored.validation_result.is_valid is False
+    assert restored.validation_result.verification_completed is False
+    assert restored.validation_result.task_results is None
+    assert restored.llm_error_type is None
+    assert restored.evidence is None
+    assert restored.grading_requests is None
+
+
 def _drive(
     gen: Generator[_RecordedCall, object, object],
     responder: Responder,
@@ -129,7 +236,10 @@ def _make_responder(
             return {"attempt": prepared_payload}
         if name == "execute_requirement_verification":
             if recorded_requests is not None:
-                return {"status": "verified", "grading_requests": recorded_requests}
+                return {
+                    "validation_result": {"is_valid": True},
+                    "grading_requests": recorded_requests,
+                }
             return {"status": "verified"}
         if name == "ensure_grading_config":
             return {"valid": True, "missing_vars": []}
@@ -147,6 +257,44 @@ def _make_responder(
 
 
 class TestAttemptOrchestration:
+    @pytest.mark.parametrize(
+        "validation",
+        [
+            {"is_valid": False, "verification_completed": False},
+            {"is_valid": False, "verification_completed": True},
+            {"is_valid": True, "verification_completed": False},
+            {"is_valid": False},
+            None,
+        ],
+    )
+    def test_stale_requests_cannot_grade_blocked_evidence(self, validation):
+        prepared_payload = _prepared_payload(
+            journal_api_verifier_requirement(slug="journal"),
+            "https://github.com/alice/journal",
+        )
+        run_payload = {
+            "validation_result": validation,
+            "grading_requests": [{"message": "stale evidence must not be graded"}],
+        }
+        ctx = _FakeOrchestrationContext({"attempt_id": prepared_payload["id"]})
+
+        def responder(call):
+            if call.name == "prepare_verification_attempt":
+                return {"attempt": prepared_payload}
+            if call.name == "execute_requirement_verification":
+                return run_payload
+            if call.name == "finalize_verification_attempt":
+                assert call.payload is run_payload
+                return {"outcome": "server_error"}
+            raise AssertionError(f"Unexpected grading activity: {call.name}")
+
+        calls, _ = _drive(function_app._run_attempt_orchestration(ctx), responder)
+        assert _sequence(calls) == [
+            ("activity_with_retry", "prepare_verification_attempt"),
+            ("activity_with_retry", "execute_requirement_verification"),
+            ("activity_with_retry", "finalize_verification_attempt"),
+        ]
+
     def test_incomplete_evidence_run_finalizes_without_any_grading_activity(self):
         prepared_payload = _prepared_payload(
             journal_api_verifier_requirement(slug="journal"),
@@ -222,7 +370,10 @@ class TestAttemptOrchestration:
         assert calls[3].payload == {"request": {"task": "a"}}
         assert result == {"attempt_id": "a-1", "outcome": "succeeded"}
 
-    def test_llm_error_uses_safe_durable_payload_without_outer_retry(self) -> None:
+    @pytest.mark.parametrize("error_type", ["llm.rate_limit", "evidence.selection"])
+    def test_llm_error_uses_safe_durable_payload_without_outer_retry(
+        self, error_type
+    ) -> None:
         payload = _prepared_payload(
             journal_api_verifier_requirement(slug="journal"),
             "https://github.com/alice/journal",
@@ -239,7 +390,7 @@ class TestAttemptOrchestration:
             if call.name == "ensure_grading_config":
                 return {"valid": True, "missing_vars": []}
             if call.name == "run_llm_grading":
-                return {"outcome": "error", "error_type": "llm.rate_limit"}
+                return {"outcome": "error", "error_type": error_type}
             if call.name == "llm_grading_failed":
                 return {"status": "unavailable"}
             raise AssertionError(call.name)
@@ -248,7 +399,10 @@ class TestAttemptOrchestration:
             function_app._llm_grading_step(
                 ctx,
                 outcome,
-                {"grading_requests": [{"task": "a"}]},
+                {
+                    "validation_result": {"is_valid": True},
+                    "grading_requests": [{"task": "a"}],
+                },
             ),
             responder,
         )
@@ -259,8 +413,11 @@ class TestAttemptOrchestration:
             ("activity", "llm_grading_failed"),
         ]
         assert calls[-1].payload == {
-            "run_result": {"grading_requests": [{"task": "a"}]},
-            "error_type": "llm.rate_limit",
+            "run_result": {
+                "validation_result": {"is_valid": True},
+                "grading_requests": [{"task": "a"}],
+            },
+            "error_type": error_type,
             "outcome": "error",
         }
 
@@ -290,7 +447,10 @@ class TestAttemptOrchestration:
             function_app._llm_grading_step(
                 ctx,
                 outcome,
-                {"grading_requests": [{"task": "a"}]},
+                {
+                    "validation_result": {"is_valid": True},
+                    "grading_requests": [{"task": "a"}],
+                },
             ),
             responder,
         )
@@ -327,7 +487,10 @@ class TestAttemptOrchestration:
             function_app._llm_grading_step(
                 ctx,
                 outcome,
-                {"grading_requests": [{"task": "a"}]},
+                {
+                    "validation_result": {"is_valid": True},
+                    "grading_requests": [{"task": "a"}],
+                },
             ),
             responder,
         )

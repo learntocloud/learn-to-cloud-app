@@ -9,6 +9,7 @@ from learn_to_cloud_shared.verification.devops_analysis import (
     select_devops_evidence_paths,
     verify_required_devops_files,
 )
+from learn_to_cloud_shared.verification.evidence import EvidenceError
 from tests.fakes.repo_files import InMemoryRepoFiles
 
 
@@ -48,7 +49,7 @@ def test_required_files_report_every_missing_path():
 
 
 @pytest.mark.unit
-def test_required_paths_are_case_insensitive():
+def test_required_paths_match_published_case_sensitive_names():
     files = [
         "dockerfile",
         ".GITHUB/WORKFLOWS/CI.YML",
@@ -57,11 +58,11 @@ def test_required_paths_are_case_insensitive():
         "K8S/SERVICE.YAML",
     ]
 
-    assert missing_required_devops_paths(files) == []
+    assert len(missing_required_devops_paths(files)) == 5
 
 
 @pytest.mark.unit
-def test_evidence_selection_prioritizes_exact_critical_files():
+def test_evidence_selection_never_drops_necessary_source_to_fit():
     files = [
         *[f".github/workflows/generated-{index}.yml" for index in range(20)],
         *[f"infra/module-{index}.tf" for index in range(20)],
@@ -72,16 +73,8 @@ def test_evidence_selection_prioritizes_exact_critical_files():
         "k8s/secrets.yaml.example",
     ]
 
-    selected = select_devops_evidence_paths(files, max_files=8)
-
-    assert selected[:5] == [
-        "Dockerfile",
-        ".dockerignore",
-        "k8s/deployment.yaml",
-        "k8s/service.yaml",
-        "k8s/secrets.yaml.example",
-    ]
-    assert len(selected) == 8
+    with pytest.raises(EvidenceError, match="evidence.file_limit"):
+        select_devops_evidence_paths(files, max_files=8)
 
 
 @pytest.mark.unit
@@ -92,13 +85,17 @@ def test_evidence_selection_is_deterministic_and_deduplicated():
         "infra/a.tf",
         "k8s/deployment.yaml",
         "k8s/deployment.yaml",
+        "k8s/service.yaml",
+        ".github/workflows/deploy.yml",
     ]
 
     assert select_devops_evidence_paths(files) == [
+        ".github/workflows/deploy.yml",
         "Dockerfile",
-        "k8s/deployment.yaml",
         "infra/a.tf",
         "infra/z.tf",
+        "k8s/deployment.yaml",
+        "k8s/service.yaml",
     ]
 
 

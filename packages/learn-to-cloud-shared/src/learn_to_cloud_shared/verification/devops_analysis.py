@@ -6,32 +6,29 @@ import httpx
 from opentelemetry import trace
 
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
-from learn_to_cloud_shared.verification.evidence import select_repo_paths
+from learn_to_cloud_shared.verification.evidence import (
+    EvidenceError,
+    missing_required_evidence,
+    record_evidence_decision,
+    resolve_evidence_selection,
+)
 from learn_to_cloud_shared.verification.github_errors import github_error_to_result
 from learn_to_cloud_shared.verification.github_http import RETRIABLE_EXCEPTIONS
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.tasks.phase5 import (
-    PHASE5_EVIDENCE_PATH_PATTERNS,
+    DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
     PHASE5_MAX_EVIDENCE_FILES,
-    PHASE5_REQUIRED_PATHS,
 )
 
 _FILES_TASK_NAME = "Required DevOps Files"
 
 
 def missing_required_devops_paths(all_files: list[str]) -> list[str]:
-    """Return required exact paths or directory prefixes absent from the tree."""
-    normalized = {path.casefold() for path in all_files}
-    missing: list[str] = []
-    for required in PHASE5_REQUIRED_PATHS:
-        normalized_required = required.casefold()
-        if required.endswith("/"):
-            present = any(path.startswith(normalized_required) for path in normalized)
-        else:
-            present = normalized_required in normalized
-        if not present:
-            missing.append(required)
-    return missing
+    """Use the same typed source requirements as evidence collection."""
+    return missing_required_evidence(
+        all_files,
+        DEVOPS_IMPLEMENTATION_RUBRIC_TASK.evidence,
+    )
 
 
 def select_devops_evidence_paths(
@@ -39,29 +36,30 @@ def select_devops_evidence_paths(
     *,
     max_files: int = PHASE5_MAX_EVIDENCE_FILES,
 ) -> list[str]:
-    """Select bounded DevOps files, prioritizing prescribed exact paths."""
-    return select_repo_paths(
-        all_files,
-        PHASE5_EVIDENCE_PATH_PATTERNS,
-        max_files=max_files,
-    )
+    """Select all matching source or report the service's file limit."""
+    selection = resolve_evidence_selection(all_files, DEVOPS_IMPLEMENTATION_RUBRIC_TASK)
+    if len(selection.paths) > max_files:
+        raise EvidenceError("evidence.file_limit")
+    return selection.paths
 
 
 def check_required_devops_files(all_files: list[str]) -> ValidationResult:
     """Build the authoritative required-files gate result."""
     missing = missing_required_devops_paths(all_files)
     if missing:
+        record_evidence_decision("evidence.required_missing")
         missing_text = ", ".join(missing)
         return ValidationResult(
             is_valid=False,
             message="Required DevOps files are missing.",
+            error_code="evidence.required_missing",
             task_results=[
                 TaskResult(
                     task_name=_FILES_TASK_NAME,
                     passed=False,
                     feedback=f"Missing required path(s): {missing_text}.",
                     next_steps=(
-                        "Add the missing files or directories to your "
+                        "Add the missing named files or matching source files to your "
                         "journal-starter repository, then submit again."
                     ),
                 )
@@ -94,7 +92,11 @@ async def verify_required_devops_files(
     span = trace.get_current_span()
     try:
         all_files = await repo_files.tree(owner, repo)
+    except EvidenceError as exc:
+        record_evidence_decision(exc.code)
+        return exc.to_validation_result()
     except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
+        record_evidence_decision("retrieval")
         return github_error_to_result(
             exc,
             event="devops_analysis.repo_tree_error",

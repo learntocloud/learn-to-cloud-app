@@ -8,7 +8,9 @@ from typing import Literal
 from urllib.parse import quote, urlparse
 
 
-def incomplete_verification_message(cause: str | None) -> str:
+def incomplete_verification_message(
+    cause: str | None, error_code: str | None = None
+) -> str:
     """Explain an incomplete outcome alongside its saved learner-safe cause."""
     explanation = (
         "Verification stopped before it could finish. "
@@ -18,6 +20,38 @@ def incomplete_verification_message(cause: str | None) -> str:
         "You can try again. If this keeps happening, report the issue. "
         "You do not need to change your work to fix a verification-service problem."
     )
+    if error_code in {
+        "evidence.file_limit",
+        "evidence.item_limit",
+        "evidence.total_limit",
+        "evidence.selection",
+        "evidence.configuration",
+    }:
+        recovery = (
+            "The verifier could not assemble the required evidence. "
+            "Retrying unchanged work may not help. Please report the issue "
+            "because the verification service needs attention. "
+            "You do not need to shrink or split your work."
+        )
+    elif error_code == "evidence.changed":
+        recovery = (
+            "The repository changed while evidence was being collected. "
+            "Try again later, after the repository stops changing. "
+            "If this keeps happening, report the issue."
+        )
+    elif error_code in {
+        "authentication",
+        "authorization",
+        "client_error",
+        "network",
+        "provider_unavailable",
+        "rate_limit",
+    }:
+        recovery = (
+            "The verifier could not retrieve the required evidence. "
+            "Try again later. If this keeps happening, report the issue. "
+            "You do not need to change your work to fix a verification-service problem."
+        )
     return " ".join(part for part in (explanation, cause, recovery) if part)
 
 

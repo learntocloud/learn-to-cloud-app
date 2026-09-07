@@ -35,12 +35,25 @@ class RubricCriterion(FrozenModel):
     kind: RubricCriterionKind = "required"
 
 
+class EvidenceDirectoryRule(FrozenModel):
+    """A published source group, never repository-wide discovery."""
+
+    root: str
+    suffixes: tuple[str, ...]
+    recursive: bool = True
+    required: bool = False
+    excluded_directories: tuple[str, ...] = ()
+
+
 class EvidencePolicy(FrozenModel):
     """Evidence allowed for one verification task."""
 
     source: EvidenceSource
     path_patterns: list[str] = Field(default_factory=list)
     required_files: list[str] = Field(default_factory=list)
+    optional_files: list[str] = Field(default_factory=list)
+    directory_rules: list[EvidenceDirectoryRule] = Field(default_factory=list)
+    criterion_evidence: dict[str, list[str]] = Field(default_factory=dict)
     max_files: int = 10
     max_file_size_bytes: int = 50 * 1024
     max_total_bytes: int = 200 * 1024
@@ -63,6 +76,8 @@ class EvidenceBundle(FrozenModel):
     source: EvidenceSource
     items: list[EvidenceItem] = Field(default_factory=list)
     total_bytes: int = 0
+    selected_paths: list[str] | None = None
+    optional_presence: dict[str, bool] = Field(default_factory=dict)
 
 
 class FilePresenceGraderConfig(FrozenModel):

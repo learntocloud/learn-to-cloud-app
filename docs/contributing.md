@@ -389,10 +389,11 @@ the saved safe cause, explain that the work was not judged to have failed, and
 provide retry and issue-reporting guidance. Old rows without a cause use an
 outcome-based explanation rather than assuming an outage.
 
-A GitHub 404 keeps its existing missing/private-resource meaning. Optional
-missing files may still be skipped, and existing missing-work gates still apply.
-Evidence selection, file caps, truncation, and rubric missing-file rules are
-unchanged; this is not a general guarantee of complete repository evidence.
+A GitHub 404 before presence is established retains its missing/private-resource
+meaning. Proven missing required work is completed learner feedback; optional
+files proven absent are allowed. A selected file disappearing after discovery
+instead leaves verification incomplete. Truncated GitHub trees cannot establish
+absence or complete selection.
 
 GitHub API GET/HEAD and GHCR retain three attempts for their existing transient
 errors; raw-file reads make one attempt per file. Learner-API creation and AI
@@ -400,6 +401,78 @@ analysis each make one request, with no automatic retries. Deployed-API failures
 keep their existing completed learner-failure behavior; transient GHCR failures
 remain incomplete. Response-status telemetry never includes provider bodies,
 headers, tokens, repository links, or learner endpoint URLs.
+
+### Complete grading evidence
+
+Each rubric receives one complete, bounded packet for its published submission
+contract. `EvidencePolicy` owns required paths, optional named files, source
+directory rules, and limits. All selected files, including present optional
+bonus evidence, are collected in full or no grading request is made. Selection
+never drops files by sort order or priority, truncates content, summarizes code,
+or chases imports. Tests remain CI's responsibility, not Phase 3 LLM evidence.
+The final prompt boundary validates task/source identity, selected paths,
+required groups, optional presence, full-content hashes, counts, byte totals,
+and truncation flags, including restored packets.
+
+| Phase | Evidence contract | Files / item / total limits |
+| --- | --- | --- |
+| 3 | Required: `api/main.py`, `api/routers/journal_router.py`, `api/models/entry.py`, `api/services/entry_service.py`, `api/services/llm_service.py`, `.devcontainer/devcontainer.json`, `.github/workflows/ci.yml`, `pyproject.toml`. Optional: `api/config.py`, `api/repositories/interface_repository.py`, `api/repositories/postgres_repository.py`. | 12 / 35 KiB / 140 KiB |
+| 4 (registered legacy profile only) | Full configured deployment script (default `deploy.sh`) and full architecture description; retain the minimum-description gate. This is not an active curriculum assignment. | 2 / 30 KiB / 60 KiB |
+| 5 | Required: `Dockerfile`, `k8s/deployment.yaml`, `k8s/service.yaml`, at least one direct `.github/workflows/` `.yml`/`.yaml`, and at least one `infra/` `.tf`/`.tf.json`. Collect all matching workflow/Terraform source and all `k8s/` `.yml`/`.yaml`; optional `.dockerignore` and `k8s/secrets.yaml.example`. | 24 / 50 KiB / 200 KiB |
+| 6 | Required `.github/workflows/codeql.yml`; optional `.github/dependabot.yml` for bonus review. | 3 / 50 KiB / 75 KiB |
+| 7 | Complete submitted text as `career-reflection.md`, preserving the empty-text gate; no GitHub reads. | 1 / 20 KiB / 20 KiB |
+
+Phase 3 uses canonical `ci.yml` and `pyproject.toml`, not alternate filenames.
+Supporting files aid interpretation but do not authorize inference about
+uncollected code or a whole-repository credential review. Phase 5 roots contain
+the submitted deployment, not alternate deployments: all matching provider
+files and nested modules inside `infra/` are included. `main.tf` is an example,
+not a requirement. `.terraform/`, state, plans, tfvars, credentials, READMEs,
+and unrelated types are excluded. External modules, generated artifacts, and
+scripts outside the roots are not automatically fetched or executed.
+Completeness is relative to this documented contract, not arbitrary layouts
+or a commit-atomic snapshot.
+
+Evidence failures use existing `verification_attempts.error_code`; no new
+outcome, schema migration, or historical rewrite is needed. Closed reasons:
+
+| Reason | Outcome and recovery |
+| --- | --- |
+| `evidence.required_missing` | Completed learner failure naming the published missing work; no LLM call. |
+| `evidence.changed` | Incomplete retrieval/state change; retry later or after the repository stops changing. |
+| `evidence.file_limit` | Selected file count exceeds the service limit. |
+| `evidence.item_limit` | One complete item's UTF-8 bytes exceed the service limit. |
+| `evidence.total_limit` | Combined complete UTF-8 content exceeds the service limit. |
+| `evidence.selection` | The packet cannot satisfy its resolved evidence contract. |
+| `evidence.configuration` | Missing target or contradictory evidence configuration. |
+
+Budget, selection, and configuration failures are non-counting service errors:
+the work was not judged, and unchanged retries may not help. Learners should
+report the issue, not shrink or split valid work. Cards and history use the
+persisted bounded cause, never message parsing, and show no partial rubric
+score or failed-rubric badge. Unknown historical codes retain the generic
+incomplete explanation. Existing upstream and LLM error categories and
+precedence remain intact.
+
+Evidence assembly emits one `verification.evidence.assembled` event per decision
+with exactly these attributes:
+
+| Attribute | Allowed values |
+| --- | --- |
+| `evidence.outcome` | `complete`, `required_missing`, `retrieval_failed`, `incomplete` |
+| `evidence.reason` | `complete`, `retrieval`, or one of the seven `evidence.*` reasons above |
+| `evidence.selected_count` | Numeric count of selected items |
+| `evidence.collected_count` | Numeric count of fully collected items |
+| `evidence.total_bytes` | Numeric total of collected UTF-8 content bytes |
+
+It supplements `verification.step`
+and the canonical `verification.attempt.completed` event's
+`verification.error.code`; it is not a second attempt-completion event.
+Evidence telemetry must never include code, submitted text, content hashes,
+repository URLs, arbitrary paths, or learner identities. Do not add attempt
+IDs or learner data as metric dimensions. Existing attempt correlation is
+unchanged. See the [alert runbook](runbooks/alerts.md#incomplete-grading-evidence)
+for recovery; no automatic retries or historical regrading are implied.
 
 ### Deployed API verification
 

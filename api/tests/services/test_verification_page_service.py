@@ -249,7 +249,10 @@ async def test_phase_workspace_preserves_active_attempt_polling_state():
 
 
 @pytest.mark.unit
-async def test_phase_workspace_maps_safe_history_and_suppresses_reflection_feedback():
+@pytest.mark.parametrize("outcome", ["failed", "server_error"])
+async def test_phase_workspace_maps_safe_history_and_suppresses_reflection_feedback(
+    outcome,
+):
     repository_requirement = repo_fork_requirement(slug="verify-repository")
     reflection_requirement = career_reflection_requirement(slug="career-reflection")
     phase = Phase(
@@ -266,7 +269,7 @@ async def test_phase_workspace_maps_safe_history_and_suppresses_reflection_feedb
     repository_attempt = AttemptHistoryProjection(
         id=uuid4(),
         requirement_uuid=repository_requirement.uuid,
-        outcome="failed",
+        outcome=outcome,
         feedback_json=[
             {
                 "task_name": "Repository",
@@ -277,6 +280,7 @@ async def test_phase_workspace_maps_safe_history_and_suppresses_reflection_feedb
         ],
         validation_message="Repository evidence is incomplete.",
         completed_at=completed_at,
+        error_code="evidence.total_limit" if outcome == "server_error" else None,
     )
     reflection_attempt = AttemptHistoryProjection(
         id=uuid4(),
@@ -336,9 +340,18 @@ async def test_phase_workspace_maps_safe_history_and_suppresses_reflection_feedb
     assert result.history.has_next is True
     assert len(result.history.items) == 10
     first = result.history.items[0]
-    assert first.status_label == "Needs work"
-    assert first.status_variant == "error"
-    assert first.feedback_tasks[0].message == "Add the required file."
+    if outcome == "server_error":
+        assert first.status_label == "Verification incomplete"
+        assert first.status_variant == "warning"
+        assert first.error_code == "evidence.total_limit"
+        assert first.display_message is not None
+        assert "Retrying unchanged work may not help." in first.display_message
+        assert first.feedback_tasks == []
+        assert first.feedback_passed == 0
+    else:
+        assert first.status_label == "Needs work"
+        assert first.status_variant == "error"
+        assert first.feedback_tasks[0].message == "Add the required file."
     assert first.completed_at == completed_at
     reflection = result.history.items[1]
     assert reflection.feedback_tasks == []

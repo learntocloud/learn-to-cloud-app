@@ -90,4 +90,5 @@ def github_error_to_result(e: Exception, *, event: str) -> ValidationResult:
             else "Could not reach GitHub. Please try again later."
         ),
         verification_completed=False,
+        error_code=error_type,
     )

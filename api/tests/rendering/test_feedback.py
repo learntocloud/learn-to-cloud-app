@@ -7,10 +7,67 @@ from learn_to_cloud.rendering.feedback import (
     FeedbackEvidenceContext,
     FeedbackTaskContext,
     feedback_tasks_and_passed,
+    incomplete_verification_message,
     prepare_card_feedback,
 )
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.mark.parametrize(
+    "error_code",
+    [
+        "evidence.file_limit",
+        "evidence.item_limit",
+        "evidence.total_limit",
+        "evidence.selection",
+        "evidence.configuration",
+    ],
+)
+def test_evidence_service_failure_needs_service_attention(error_code):
+    message = incomplete_verification_message("Saved safe cause.", error_code)
+
+    assert "Your work was not judged" in message
+    assert "Saved safe cause." in message
+    assert "Retrying unchanged work may not help." in message
+    assert "Please report the issue" in message
+    assert "You do not need to shrink or split your work." in message
+    assert "You can try again." not in message
+
+
+def test_changed_evidence_recommends_stable_repository_retry():
+    message = incomplete_verification_message(None, "evidence.changed")
+
+    assert "Your work was not judged" in message
+    assert "after the repository stops changing" in message
+    assert "report the issue" in message
+
+
+@pytest.mark.parametrize(
+    "error_code",
+    [
+        "authentication",
+        "authorization",
+        "client_error",
+        "network",
+        "provider_unavailable",
+        "rate_limit",
+    ],
+)
+def test_retrieval_failure_recommends_retry_later(error_code):
+    message = incomplete_verification_message(None, error_code)
+
+    assert "Your work was not judged" in message
+    assert "Try again later." in message
+    assert "You do not need to change your work" in message
+
+
+@pytest.mark.parametrize("error_code", [None, "historical.unknown"])
+def test_unknown_codes_keep_generic_recovery_without_parsing_cause(error_code):
+    message = incomplete_verification_message("evidence.total_limit", error_code)
+
+    assert "You can try again." in message
+    assert "Retrying unchanged" not in message
 
 
 @pytest.mark.parametrize("feedback", [None, {}, {"tasks": None}, {"tasks": "invalid"}])

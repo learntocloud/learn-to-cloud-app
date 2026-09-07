@@ -25,6 +25,26 @@ learning_steps:
   url: https://github.com/learntocloud/journal-starter
   description: "Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API. For the AI analysis task, pass the mocked unit tests and run `uv run python -m scripts.verify_llm` against your live model endpoint. If you need a quick refresher on GitHub workflows, complete a GitHub Skills course at https://learn.github.com/skills and use Git command references at https://github.com/git-guides/git-overview. Important: Follow the development workflow — create a feature branch for each task, run the tests, then open a Pull Request to merge into main. Verification reads your fork once your work is merged to main, so you don't submit anything per PR."
   slug: phase3-topic5-practice-journal-starter-repository
+  tips:
+  - type: important
+    text: >-
+      Keep assignment implementations in the named starter files. Verification
+      reads the complete `api/main.py`, `api/routers/journal_router.py`,
+      `api/models/entry.py`, `api/services/entry_service.py`,
+      `api/services/llm_service.py`, `.devcontainer/devcontainer.json`,
+      `.github/workflows/ci.yml`, and `pyproject.toml`; all eight are required.
+      The canonical filenames are `ci.yml` and `pyproject.toml`, not `ci.yaml`
+      or `requirements.txt`. When present, `api/config.py`,
+      `api/repositories/interface_repository.py`, and
+      `api/repositories/postgres_repository.py` are also read in full.
+      Tests are evaluated by CI and are not sent to the AI reviewer; no new
+      test filenames are required. Other modules are not automatically
+      discovered, so this is not a whole-repository review or credential scan.
+  - type: note
+    text: >-
+      If the verifier cannot assemble all selected evidence within its internal
+      limits, your work is not graded as failed. Report the service issue;
+      do not shrink or split otherwise valid work to fit the verifier.
 - uuid: 0f5b41ca-70f1-43f3-a1d2-f6396f00f1c3
   order: 2
   action: 'Reflect:'

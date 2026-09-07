@@ -84,6 +84,7 @@ class FailedCardContext(_RequirementCardBase):
 
     verification_form: VerificationFormContext
     error_message: str
+    error_code: str | None = None
     kind: Literal["failed"] = field(init=False, default="failed")
 
 
@@ -93,6 +94,7 @@ class UnavailableCardContext(_RequirementCardBase):
 
     verification_form: VerificationFormContext
     message: str
+    error_code: str | None = None
     kind: Literal["unavailable"] = field(init=False, default="unavailable")
 
 
@@ -171,13 +173,17 @@ def build_requirement_card_context(
             error_message=(
                 submission.validation_message or "Verification did not pass."
             ),
+            error_code=submission.error_code,
         )
     return UnavailableCardContext(
         requirement=requirement,
-        feedback_tasks=tasks,
-        feedback_passed=passed,
+        feedback_tasks=[],
+        feedback_passed=0,
         verification_form=verification_form,
-        message=incomplete_verification_message(submission.validation_message),
+        message=incomplete_verification_message(
+            submission.validation_message, submission.error_code
+        ),
+        error_code=submission.error_code,
     )
 
 

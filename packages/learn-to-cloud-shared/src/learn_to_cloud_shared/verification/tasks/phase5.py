@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from learn_to_cloud_shared.verification.tasks.base import (
+    EvidenceDirectoryRule,
     EvidencePolicy,
     LLMRubricGraderConfig,
     RubricCriterion,
@@ -19,7 +20,6 @@ PHASE5_REQUIRED_PATHS = (
     "k8s/service.yaml",
 )
 
-# Exact paths lead so critical files survive the combined evidence cap.
 PHASE5_EVIDENCE_PATH_PATTERNS = (
     "Dockerfile",
     ".dockerignore",
@@ -30,6 +30,22 @@ PHASE5_EVIDENCE_PATH_PATTERNS = (
     "infra/",
     "k8s/",
 )
+
+PHASE5_DIRECTORY_RULES = [
+    EvidenceDirectoryRule(
+        root=".github/workflows/",
+        suffixes=(".yml", ".yaml"),
+        recursive=False,
+        required=True,
+    ),
+    EvidenceDirectoryRule(
+        root="infra/",
+        suffixes=(".tf", ".tf.json"),
+        required=True,
+        excluded_directories=(".terraform",),
+    ),
+    EvidenceDirectoryRule(root="k8s/", suffixes=(".yaml", ".yml")),
+]
 
 PHASE5_MAX_EVIDENCE_FILES = 24
 PHASE5_MAX_FILE_SIZE_BYTES = 50 * 1024
@@ -105,20 +121,40 @@ DEVOPS_IMPLEMENTATION_RUBRIC_TASK = VerificationTask(
         ),
         (
             "Accept equivalent valid cloud-provider syntax and file organization "
-            "when the evidence satisfies the same operational requirements."
+            "within the published source roots. They contain the submitted "
+            "deployment, not unrelated examples or alternative deployments. "
+            "Do not infer an active provider folder."
         ),
+        "Only direct .yml/.yaml workflows, recursive infra/ .tf/.tf.json sources "
+        "(excluding .terraform/), and recursive k8s/ .yaml/.yml sources are "
+        "discovered. External modules, scripts and generated artifacts are not "
+        "fetched or executed; do not invent their behavior.",
+        ".dockerignore and k8s/secrets.yaml.example are optional evidence, "
+        "not additional required work.",
     ],
     evidence=EvidencePolicy(
         source="repo_files",
         path_patterns=list(PHASE5_EVIDENCE_PATH_PATTERNS),
-        required_files=list(PHASE5_REQUIRED_PATHS),
+        required_files=[
+            path for path in PHASE5_REQUIRED_PATHS if not path.endswith("/")
+        ],
+        optional_files=[".dockerignore", "k8s/secrets.yaml.example"],
+        directory_rules=PHASE5_DIRECTORY_RULES,
+        criterion_evidence={
+            "container-image": ["Dockerfile", ".dockerignore"],
+            "delivery-workflow": [".github/workflows/"],
+            "cloud-infrastructure": ["infra/"],
+            "kubernetes-runtime": ["k8s/", "k8s/secrets.yaml.example"],
+            "delivery-coherence": list(PHASE5_EVIDENCE_PATH_PATTERNS),
+            "deployable-configuration": list(PHASE5_EVIDENCE_PATH_PATTERNS),
+        },
         max_files=PHASE5_MAX_EVIDENCE_FILES,
         max_file_size_bytes=PHASE5_MAX_FILE_SIZE_BYTES,
         max_total_bytes=PHASE5_MAX_TOTAL_CONTENT_BYTES,
     ),
     grader=LLMRubricGraderConfig(
         rubric_id="phase5-devops-implementation-v2",
-        prompt_version="2026-09-02",
+        prompt_version="2026-09-06",
         passing_score=0.8,
         model="gpt-5-mini",
     ),

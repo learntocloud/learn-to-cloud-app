@@ -28,7 +28,7 @@ DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK = VerificationTask(
             id="implementation-alignment",
             label="Architecture matches the deployment",
             instruction=(
-                "The architecture description matches what deploy.sh actually "
+                "The architecture description matches what the deployment script "
                 "provisions and does not claim unsupported resources or controls."
             ),
         ),
@@ -36,7 +36,7 @@ DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK = VerificationTask(
             id="two-tier-architecture",
             label="Two-tier architecture",
             instruction=(
-                "deploy.sh provisions a public API tier and a separate private "
+                "The deployment script provisions a public API tier and a private "
                 "database tier."
             ),
         ),
@@ -66,17 +66,29 @@ DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK = VerificationTask(
         ),
     ],
     grading_instructions=[
-        "Grade only the supplied deploy.sh and architecture description.",
+        "Grade only the full configured script and architecture description. "
+        "Script dependencies are not discovered; do not infer their behavior.",
     ],
     evidence=EvidencePolicy(
         source="repo_files",
+        required_files=["deploy.sh", "architecture-description.md"],
+        criterion_evidence={
+            criterion: ["deploy.sh", "architecture-description.md"]
+            for criterion in (
+                "implementation-alignment",
+                "two-tier-architecture",
+                "security-controls",
+                "design-specificity",
+                "substantive-submission",
+            )
+        },
         max_files=2,
         max_file_size_bytes=30 * 1024,
         max_total_bytes=60 * 1024,
     ),
     grader=LLMRubricGraderConfig(
         rubric_id="phase4-deployment-architecture-v2",
-        prompt_version="2026-09-02",
+        prompt_version="2026-09-06",
         passing_score=0.7,
         model="gpt-5-mini",
     ),

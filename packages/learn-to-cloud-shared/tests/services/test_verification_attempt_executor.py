@@ -9,17 +9,28 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
-from learn_to_cloud_shared.models import SubmissionValueKind, User, VerificationAttempt
+from learn_to_cloud_shared.models import (
+    SubmissionValueKind,
+    User,
+    VerificationAttempt,
+    utcnow,
+)
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
 from learn_to_cloud_shared.schemas import CriterionResult, TaskResult, ValidationResult
 from learn_to_cloud_shared.submission_values import value_kind_for_submission_type
+from learn_to_cloud_shared.verification.execution import attempt_to_submission_data
 from learn_to_cloud_shared.verification.github_errors import (
     GitHubServerError,
     github_error_to_result,
 )
+from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud_shared.verification.repo_files import GitHubRepoFiles
+from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle, EvidenceItem
+from learn_to_cloud_shared.verification.tasks.phase3 import (
+    JOURNAL_API_FINAL_RUBRIC_TASK,
+)
 from learn_to_cloud_shared.verification_attempt_executor import (
     AttemptNotRunnableError,
     finalize_verification_attempt,
@@ -32,7 +43,6 @@ from learn_to_cloud_shared.verification_attempt_snapshot import (
     compute_snapshot_hash,
 )
 from learn_to_cloud_shared.verification_workflow import (
-    VERIFICATION_INCOMPLETE_ERROR_CODE,
     VerificationRunResult,
 )
 
@@ -240,7 +250,7 @@ async def test_failed_github_fetch_persists_incomplete_without_completion(
     assert finalized.won is True
     assert repeated.won is False
     assert finalized.state.outcome == "server_error"
-    assert finalized.state.error_code == VERIFICATION_INCOMPLETE_ERROR_CODE
+    assert finalized.state.error_code == "provider_unavailable"
     assert finalized.state.validation_message == (
         "GitHub API error (503). Try again later."
     )
@@ -290,6 +300,7 @@ async def test_finalize_persists_only_safe_llm_error_category(
                 "Please submit again later."
             ),
             verification_completed=False,
+            error_code="evidence.total_limit",
         ),
         llm_error_type="llm.provider_unavailable",
     )
@@ -300,3 +311,197 @@ async def test_finalize_persists_only_safe_llm_error_category(
 
     assert result.state.error_code == "llm.provider_unavailable"
     assert "provider" not in (result.state.validation_message or "").lower()
+
+
+@pytest.mark.parametrize(
+    ("error_code", "completed", "expected_code"),
+    [
+        ("evidence.required_missing", True, "evidence.required_missing"),
+        ("evidence.changed", False, "evidence.changed"),
+        ("evidence.file_limit", False, "evidence.file_limit"),
+        ("evidence.item_limit", False, "evidence.item_limit"),
+        ("evidence.total_limit", False, "evidence.total_limit"),
+        ("evidence.selection", False, "evidence.selection"),
+        ("evidence.configuration", False, "evidence.configuration"),
+        ("authentication", False, "authentication"),
+        ("authorization", False, "authorization"),
+        ("client_error", False, "client_error"),
+        ("network", False, "network"),
+        ("provider_unavailable", False, "provider_unavailable"),
+        ("rate_limit", False, "rate_limit"),
+        ("private-code https://secret.example/path", False, "verification_incomplete"),
+    ],
+)
+async def test_evidence_codes_persist_through_terminal_projections(
+    session_maker: async_sessionmaker[AsyncSession],
+    caplog: pytest.LogCaptureFixture,
+    error_code: str,
+    completed: bool,
+    expected_code: str,
+) -> None:
+    attempt = await _create_attempt(session_maker)
+    preparation = await prepare_verification_attempt(
+        attempt.id, session_maker=session_maker
+    )
+    run_result = VerificationRunResult(
+        attempt=preparation.attempt,
+        validation_result=ValidationResult(
+            is_valid=False,
+            message="The required evidence could not be collected.",
+            verification_completed=completed,
+            error_code=error_code,
+        ),
+        grading_requests=[],
+        llm_error_type="not-an-allowed-llm-category",
+    )
+    restored = VerificationRunResult.from_payload(run_result.to_payload())
+
+    with caplog.at_level(
+        logging.INFO, logger="learn_to_cloud.verification_attempt_executor"
+    ):
+        result = await finalize_verification_attempt(
+            restored, session_maker=session_maker
+        )
+        repeated = await finalize_verification_attempt(
+            VerificationRunResult(
+                attempt=preparation.attempt,
+                validation_result=ValidationResult(is_valid=True, message="Stale"),
+            ),
+            session_maker=session_maker,
+        )
+
+    assert result.won is True
+    assert repeated.won is False
+    assert repeated.state.error_code == expected_code
+    assert result.state.error_code == expected_code
+    assert result.state.outcome == ("failed" if completed else "server_error")
+    async with session_maker() as db:
+        repo = VerificationAttemptRepository(db)
+        cards = await repo.get_latest_terminal_for_requirements(
+            attempt.user_id, [attempt.requirement_uuid]
+        )
+        history = await repo.list_terminal_history_for_requirements(
+            attempt.user_id, [attempt.requirement_uuid], limit=10
+        )
+        completions = await repo.list_phase_completions(
+            {1: 1}, {attempt.requirement_uuid: 1}
+        )
+    submission = attempt_to_submission_data(cards[0])
+    assert cards[0].error_code == history[0].error_code == expected_code
+    assert submission.error_code == expected_code
+    assert submission.verification_completed is completed
+    assert not submission.is_validated
+    assert (1, attempt.user_id) not in completions
+    assert history[0].feedback_json is None
+    records = [
+        record
+        for record in caplog.records
+        if record.message == "verification.attempt.completed"
+    ]
+    assert len(records) == 1
+    assert records[0].__dict__["verification.error.code"] == expected_code
+    assert "private-code" not in str(records[0].__dict__)
+
+
+async def test_incomplete_evidence_does_not_remove_previous_completion(
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    attempt = await _create_attempt(session_maker)
+    preparation = await prepare_verification_attempt(
+        attempt.id, session_maker=session_maker
+    )
+    async with session_maker() as db:
+        db.add(
+            VerificationAttempt(
+                id=uuid4(),
+                user_id=attempt.user_id,
+                requirement_uuid=attempt.requirement_uuid,
+                snapshot_source="reconstructed",
+                submission_value_kind=attempt.submission_value_kind,
+                submitted_value="previous completion",
+                outcome="succeeded",
+                completed_at=utcnow(),
+            )
+        )
+        await db.commit()
+
+    await finalize_verification_attempt(
+        VerificationRunResult(
+            attempt=preparation.attempt,
+            validation_result=ValidationResult(
+                is_valid=False,
+                message="Evidence exceeds the service budget.",
+                verification_completed=False,
+                error_code="evidence.total_limit",
+            ),
+        ),
+        session_maker=session_maker,
+    )
+
+    async with session_maker() as db:
+        repo = VerificationAttemptRepository(db)
+        completions = await repo.list_phase_completions(
+            {1: 1}, {attempt.requirement_uuid: 1}
+        )
+        succeeded = await repo.count_succeeded_for_requirements(
+            attempt.user_id, [attempt.requirement_uuid]
+        )
+    assert (1, attempt.user_id) in completions
+    assert succeeded == 1
+
+
+async def test_incomplete_finalization_drops_private_evidence_and_stale_prompt(
+    session_maker: async_sessionmaker[AsyncSession],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    attempt = await _create_attempt(session_maker)
+    preparation = await prepare_verification_attempt(
+        attempt.id, session_maker=session_maker
+    )
+    private = "private-evidence-sentinel-https://private.example/repository"
+    run_result = VerificationRunResult(
+        attempt=preparation.attempt,
+        validation_result=ValidationResult(
+            is_valid=False,
+            message="The verifier could not assemble the required evidence.",
+            verification_completed=False,
+            error_code="evidence.selection",
+        ),
+        evidence=[
+            EvidenceBundle(
+                task_id=JOURNAL_API_FINAL_RUBRIC_TASK.id,
+                source="repo_files",
+                items=[
+                    EvidenceItem(
+                        path="private-evidence-path",
+                        content=private,
+                        sha256="private-content-hash",
+                    )
+                ],
+                total_bytes=len(private.encode()),
+            )
+        ],
+        grading_requests=[
+            LLMGradingRequest(
+                task=JOURNAL_API_FINAL_RUBRIC_TASK,
+                message=private,
+                thread_id="private-evidence-thread",
+            )
+        ],
+    )
+    with caplog.at_level(
+        logging.INFO, logger="learn_to_cloud.verification_attempt_executor"
+    ):
+        await finalize_verification_attempt(
+            VerificationRunResult.from_payload(run_result.to_payload()),
+            session_maker=session_maker,
+        )
+
+    async with session_maker() as db:
+        stored = await db.get(VerificationAttempt, attempt.id)
+    assert stored is not None
+    assert stored.feedback_json is None
+    assert stored.error_code == "evidence.selection"
+    assert "private-evidence" not in str(vars(stored))
+    assert "private-content-hash" not in str(vars(stored))
+    assert "private-evidence" not in str([vars(record) for record in caplog.records])
