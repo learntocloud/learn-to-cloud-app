@@ -1,153 +1,221 @@
-"""Tests for CI status verification service.
+"""The capstone gate requires a successful manual run on current main."""
 
-Tests cover:
-- CI workflow not found (404)
-- No runs on main
-- Run still in progress
-- Run succeeded
-- Run failed
-- GitHub API errors
-
-URL validation and ownership checks are exercised by the engine gate tests.
-
-These tests inject an :class:`InMemoryWorkflowRuns` adapter instead of
-patching internals, so they exercise the real ``verify_ci_status`` logic
-through the ``WorkflowRuns`` seam.
-"""
+from json import JSONDecodeError
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
 
 from learn_to_cloud_shared.verification.ci_status import verify_ci_status
 from learn_to_cloud_shared.verification.github_errors import GitHubServerError
-from tests.fakes.workflow_runs import InMemoryWorkflowRuns
+from learn_to_cloud_shared.verification.repo_ref import GitHubApiRepoRef, RepoRef
+from learn_to_cloud_shared.verification.workflow_runs import (
+    GitHubApiWorkflowRuns,
+    WorkflowRuns,
+)
 
-_TEST_OWNER = "testuser"
-_TEST_REPO = "journal-starter"
+pytestmark = pytest.mark.unit
+SHA = "a" * 40
+RUN_URL = "https://github.com/testuser/journal-starter/actions/runs/789"
 
 
-# =============================================================================
-# CI Workflow Status
-# =============================================================================
-
-
-@pytest.mark.unit
-class TestCiStatusCheck:
-    """Tests for the GitHub Actions workflow status check."""
-
-    async def test_workflow_not_found_returns_helpful_message(self):
-        response = httpx.Response(404, request=httpx.Request("GET", "https://test"))
-        runs = InMemoryWorkflowRuns(
-            error=httpx.HTTPStatusError(
-                "Not Found", request=response.request, response=response
-            )
-        )
-        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO, runs)
-        assert not result.is_valid
-        assert "CI workflow not found" in result.message
-        assert "ci.yml" in result.message
-
-    async def test_no_runs_on_main(self):
-        runs = InMemoryWorkflowRuns(run=None)
-        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO, runs)
-        assert not result.is_valid
-        assert "No CI runs found" in result.message
-
-    async def test_run_in_progress(self):
-        runs = InMemoryWorkflowRuns(
-            {
-                "status": "in_progress",
-                "conclusion": None,
-                "run_number": 5,
-                "html_url": "https://github.com/testuser/journal-starter/actions/runs/123",
-            }
-        )
-        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO, runs)
-        assert not result.is_valid
-        assert "still" in result.message
-        assert "#5" in result.message
-
-    async def test_run_queued(self):
-        runs = InMemoryWorkflowRuns(
-            {
-                "status": "queued",
-                "conclusion": None,
-                "run_number": 3,
-                "html_url": "https://github.com/testuser/journal-starter/actions/runs/456",
-            }
-        )
-        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO, runs)
-        assert not result.is_valid
-        assert "#3" in result.message
-
-    async def test_run_succeeded(self):
-        runs = InMemoryWorkflowRuns(
-            {
+@pytest.fixture
+def runs():
+    return AsyncMock(
+        spec=WorkflowRuns,
+        latest_run=AsyncMock(
+            return_value={
+                "id": 789,
+                "run_number": 10,
+                "head_branch": "main",
+                "head_sha": SHA,
+                "event": "workflow_dispatch",
                 "status": "completed",
                 "conclusion": "success",
-                "run_number": 10,
-                "html_url": "https://github.com/testuser/journal-starter/actions/runs/789",
             }
-        )
-        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO, runs)
-        assert result.is_valid
-        assert "#10" in result.message
-        assert "passing" in result.message.lower()
-
-    async def test_run_failed(self):
-        run_url = "https://github.com/testuser/journal-starter/actions/runs/999"
-        runs = InMemoryWorkflowRuns(
-            {
-                "status": "completed",
-                "conclusion": "failure",
-                "run_number": 7,
-                "html_url": run_url,
-            }
-        )
-        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO, runs)
-        assert not result.is_valid
-        assert "failure" in result.message
-        assert run_url in result.message
-
-    async def test_run_cancelled(self):
-        runs = InMemoryWorkflowRuns(
-            {
-                "status": "completed",
-                "conclusion": "cancelled",
-                "run_number": 4,
-                "html_url": "https://github.com/testuser/journal-starter/actions/runs/111",
-            }
-        )
-        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO, runs)
-        assert not result.is_valid
-        assert "cancelled" in result.message
+        ),
+    )
 
 
-# =============================================================================
-# GitHub API Error Handling
-# =============================================================================
+@pytest.fixture
+def ref():
+    return AsyncMock(spec=RepoRef, head_sha=AsyncMock(return_value=SHA))
 
 
-@pytest.mark.unit
-class TestCiStatusErrorHandling:
-    """Tests for GitHub API error handling."""
+async def test_capstone_passes_only_on_current_commit(runs, ref):
+    result = await verify_ci_status("testuser", "journal-starter", runs, ref)
 
-    async def test_github_server_error(self):
-        runs = InMemoryWorkflowRuns(
-            error=GitHubServerError("GitHub returned 500", status_code=500)
-        )
-        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO, runs)
-        assert not result.is_valid
-        assert result.verification_completed is False
+    runs.latest_run.assert_awaited_once_with(
+        "testuser", "journal-starter", "verify-capstone.yml"
+    )
+    ref.head_sha.assert_awaited_once_with("testuser", "journal-starter")
+    assert result.is_valid and result.verification_completed
+    assert len(result.task_results) == 1
+    assert result.task_results[0].passed
+    assert SHA in result.task_results[0].feedback
+    assert RUN_URL in result.task_results[0].feedback
+    assert not result.task_results[0].criterion_results
 
-    async def test_transient_failure(self):
-        runs = InMemoryWorkflowRuns(error=httpx.ConnectError("connection refused"))
-        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO, runs)
-        assert not result.is_valid
-        assert result.verification_completed is False
 
-    async def test_request_timeout(self):
-        runs = InMemoryWorkflowRuns(error=httpx.TimeoutException("timed out"))
-        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO, runs)
-        assert not result.is_valid
-        assert result.verification_completed is False
+async def test_no_runs_requires_manual_dispatch(runs, ref):
+    runs.latest_run.return_value = None
+    result = await verify_ci_status("testuser", "journal-starter", runs, ref)
+    assert not result.is_valid
+    assert "No Verify capstone runs" in result.message
+    assert "Run workflow" in result.message
+    ref.head_sha.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "status", ["queued", "in_progress", "waiting", "pending", "requested"]
+)
+async def test_pending_run_does_not_accept_earlier_success(runs, ref, status):
+    runs.latest_run.return_value.update(status=status, conclusion=None)
+    result = await verify_ci_status("testuser", "journal-starter", runs, ref)
+    assert not result.is_valid
+    assert status in result.message
+    assert RUN_URL in result.message
+    assert runs.latest_run.await_count == 1
+    ref.head_sha.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "conclusion",
+    ["failure", "cancelled", "skipped", "timed_out", "action_required", "neutral"],
+)
+async def test_unsuccessful_run_does_not_accept_earlier_success(runs, ref, conclusion):
+    runs.latest_run.return_value["conclusion"] = conclusion
+    result = await verify_ci_status("testuser", "journal-starter", runs, ref)
+    assert not result.is_valid
+    assert conclusion in result.message
+    assert RUN_URL in result.message
+    assert "Run workflow" in result.message
+    assert runs.latest_run.await_count == 1
+    ref.head_sha.assert_not_awaited()
+
+
+async def test_success_on_old_commit_requires_rerun(runs, ref):
+    ref.head_sha.return_value = "b" * 40
+    result = await verify_ci_status("testuser", "journal-starter", runs, ref)
+    assert not result.is_valid
+    assert "Rerun Verify capstone" in result.message
+    assert result.task_results is None
+
+
+@pytest.mark.parametrize(
+    ("field", "value"), [("head_branch", "feature"), ("event", "push")]
+)
+async def test_wrong_invocation_does_not_pass(runs, ref, field, value):
+    runs.latest_run.return_value[field] = value
+    result = await verify_ci_status("testuser", "journal-starter", runs, ref)
+    assert not result.is_valid
+    assert "manually on main" in result.message
+    ref.head_sha.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["id", "run_number", "head_branch", "event", "head_sha", "status", "conclusion"],
+)
+async def test_missing_metadata_is_unavailable(runs, ref, caplog, field):
+    del runs.latest_run.return_value[field]
+    result = await verify_ci_status("testuser", "journal-starter", runs, ref)
+    assert not result.is_valid and not result.verification_completed
+    assert "capstone.invalid_metadata" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("id", True),
+        ("id", 0),
+        ("head_sha", "private-invalid-sha"),
+        ("status", "unknown"),
+        ("conclusion", None),
+    ],
+)
+async def test_invalid_metadata_is_unavailable(runs, ref, caplog, field, value):
+    runs.latest_run.return_value[field] = value
+    result = await verify_ci_status("testuser", "journal-starter", runs, ref)
+    assert not result.is_valid and not result.verification_completed
+    assert "private-invalid-sha" not in caplog.text + result.message
+
+
+@pytest.mark.parametrize("sha", [None, "", "not-a-sha"])
+async def test_missing_or_invalid_main_sha_is_unavailable(runs, ref, sha):
+    ref.head_sha.return_value = sha
+    result = await verify_ci_status("testuser", "journal-starter", runs, ref)
+    assert not result.is_valid and not result.verification_completed
+
+
+def _http_error(status):
+    response = httpx.Response(status, request=httpx.Request("GET", "https://test"))
+    return httpx.HTTPStatusError(
+        "private response", request=response.request, response=response
+    )
+
+
+@pytest.mark.parametrize("source", ["workflow", "branch"])
+async def test_missing_resource_explains_required_action(runs, ref, source):
+    lookup = runs.latest_run if source == "workflow" else ref.head_sha
+    lookup.side_effect = _http_error(404)
+    result = await verify_ci_status("testuser", "journal-starter", runs, ref)
+    assert not result.is_valid and result.verification_completed
+    if source == "workflow":
+        assert "verify-capstone.yml" in result.message
+        assert "Sync your fork" in result.message
+        assert "enable GitHub Actions" in result.message
+    else:
+        assert "main branch" in result.message
+
+
+@pytest.mark.parametrize("source", ["workflow", "branch"])
+@pytest.mark.parametrize(
+    "error",
+    [
+        _http_error(401),
+        _http_error(403),
+        GitHubServerError("private response", status_code=429),
+        GitHubServerError("private response", status_code=503),
+        httpx.ConnectError("private response"),
+        httpx.ReadTimeout("private response"),
+        JSONDecodeError("private response", "", 0),
+    ],
+)
+async def test_provider_errors_are_unavailable(runs, ref, source, error):
+    lookup = runs.latest_run if source == "workflow" else ref.head_sha
+    lookup.side_effect = error
+    result = await verify_ci_status("testuser", "journal-starter", runs, ref)
+    assert not result.is_valid and not result.verification_completed
+    assert "private response" not in result.message
+
+
+@pytest.mark.parametrize("source", ["workflow", "branch"])
+async def test_programming_errors_propagate(runs, ref, source):
+    lookup = runs.latest_run if source == "workflow" else ref.head_sha
+    lookup.side_effect = RuntimeError("bug")
+    with pytest.raises(RuntimeError, match="bug"):
+        await verify_ci_status("testuser", "journal-starter", runs, ref)
+
+
+@pytest.mark.parametrize("payload", [[], None, {}, {"workflow_runs": [None]}])
+async def test_malformed_workflow_response_is_unavailable(monkeypatch, ref, payload):
+    monkeypatch.setattr(
+        "learn_to_cloud_shared.verification.workflow_runs.github_api_get",
+        AsyncMock(return_value=httpx.Response(200, json=payload)),
+    )
+    result = await verify_ci_status(
+        "testuser", "journal-starter", GitHubApiWorkflowRuns(), ref
+    )
+    assert not result.is_valid and not result.verification_completed
+
+
+async def test_malformed_branch_response_is_unavailable(monkeypatch, runs):
+    monkeypatch.setattr(
+        "learn_to_cloud_shared.verification.repo_ref.github_api_get",
+        AsyncMock(return_value=httpx.Response(200, json=[])),
+    )
+    result = await verify_ci_status(
+        "testuser", "journal-starter", runs, GitHubApiRepoRef()
+    )
+    assert not result.is_valid and not result.verification_completed

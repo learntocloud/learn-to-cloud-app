@@ -18,7 +18,6 @@ from learn_to_cloud_shared.verification.llm_grading import (
     validate_llm_grading_decision,
 )
 from learn_to_cloud_shared.verification.tasks import (
-    PHASE3_LLM_TASKS,
     PHASE5_LLM_TASKS,
     PHASE6_LLM_TASKS,
     PHASE7_LLM_TASKS,
@@ -65,15 +64,15 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
     )
 
 
-def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
+def _phase5_run_result(is_valid: bool = True) -> VerificationRunResult:
     from learn_to_cloud_shared_test_support.requirement_factories import (
-        journal_api_verifier_requirement,
+        devops_analysis_requirement,
     )
 
-    requirement = journal_api_verifier_requirement(
-        slug="journal-api-implementation",
-        name="Verify Journal API Implementation",
-        description="Verify that CI tests pass on the fork's main branch.",
+    requirement = devops_analysis_requirement(
+        slug="devops-implementation",
+        name="Verify DevOps Implementation",
+        description="Verify the delivery implementation.",
         required_repo="learntocloud/journal-starter",
     )
     return VerificationRunResult(
@@ -88,7 +87,7 @@ def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
         ),
         validation_result=ValidationResult(
             is_valid=is_valid,
-            message="CI tests are passing on main.",
+            message="Required files and public image are present.",
         ),
     )
 
@@ -137,9 +136,9 @@ def test_apply_llm_grading_decisions_appends_feedback_when_passed():
 
 
 @pytest.mark.unit
-def test_apply_phase3_llm_decision_appends_feedback_when_passed():
-    run_result = _phase3_run_result()
-    task = PHASE3_LLM_TASKS[0]
+def test_apply_holistic_llm_decision_appends_feedback_when_passed():
+    run_result = _phase5_run_result()
+    task = PHASE5_LLM_TASKS[0]
 
     updated = apply_llm_grading_decisions(
         run_result,
@@ -150,11 +149,11 @@ def test_apply_phase3_llm_decision_appends_feedback_when_passed():
                     passed=True,
                     score=0.91,
                     confidence=0.86,
-                    feedback="The final Journal API implementation is maintainable.",
-                    evidence_refs=["api/routers/journal_router.py"],
+                    feedback="The delivery implementation is maintainable.",
+                    evidence_refs=["Dockerfile"],
                     criterion_results=_criterion_results(
                         task,
-                        evidence_ref="api/routers/journal_router.py",
+                        evidence_ref="Dockerfile",
                     ),
                 ),
             )
@@ -164,7 +163,7 @@ def test_apply_phase3_llm_decision_appends_feedback_when_passed():
     assert updated.validation_result.is_valid is True
     assert updated.validation_result.task_results is not None
     assert updated.validation_result.task_results[-1].task_name == (
-        "Journal API Final Rubric Review"
+        "DevOps Implementation Review"
     )
     assert updated.validation_result.task_results[-1].criterion_results[0].label
     assert (
@@ -175,17 +174,17 @@ def test_apply_phase3_llm_decision_appends_feedback_when_passed():
 
 @pytest.mark.unit
 def test_validate_llm_decision_requires_exact_criteria_and_known_evidence():
-    task = PHASE3_LLM_TASKS[0]
+    task = PHASE5_LLM_TASKS[0]
     decision = LLMGradingDecision(
         passed=True,
         score=0.95,
         confidence=0.9,
         feedback="The rubric is satisfied.",
-        evidence_refs=["api/main.py"],
-        criterion_results=_criterion_results(task, evidence_ref="api/main.py"),
+        evidence_refs=["Dockerfile"],
+        criterion_results=_criterion_results(task, evidence_ref="Dockerfile"),
     )
 
-    validate_llm_grading_decision(task, decision, ["api/main.py"])
+    validate_llm_grading_decision(task, decision, ["Dockerfile"])
 
     invalid = decision.model_copy(
         update={
@@ -198,50 +197,50 @@ def test_validate_llm_decision_requires_exact_criteria_and_known_evidence():
         }
     )
     with pytest.raises(ValueError, match="unknown evidence"):
-        validate_llm_grading_decision(task, invalid, ["api/main.py"])
+        validate_llm_grading_decision(task, invalid, ["Dockerfile"])
 
 
 @pytest.mark.unit
 def test_validate_llm_decision_rejects_missing_criteria():
-    task = PHASE3_LLM_TASKS[0]
+    task = PHASE5_LLM_TASKS[0]
     decision = LLMGradingDecision(
         passed=False,
         score=0.2,
         confidence=0.9,
         feedback="The rubric is incomplete.",
         next_steps="Complete the missing work.",
-        criterion_results=_criterion_results(task, evidence_ref="api/main.py")[:-1],
+        criterion_results=_criterion_results(task, evidence_ref="Dockerfile")[:-1],
     )
 
     with pytest.raises(ValueError, match="configured rubric"):
-        validate_llm_grading_decision(task, decision, ["api/main.py"])
+        validate_llm_grading_decision(task, decision, ["Dockerfile"])
 
 
 @pytest.mark.unit
 def test_validate_llm_decision_requires_required_remediation():
-    task = PHASE3_LLM_TASKS[0]
-    results = _criterion_results(task, evidence_ref="api/main.py")
+    task = PHASE5_LLM_TASKS[0]
+    results = _criterion_results(task, evidence_ref="Dockerfile")
     results[0] = results[0].model_copy(update={"status": "not_met", "next_steps": ""})
     decision = LLMGradingDecision(
         passed=False,
         score=0.7,
         confidence=0.9,
-        feedback="Logging is missing.",
+        feedback="Container configuration is missing.",
         criterion_results=results,
     )
 
     with pytest.raises(ValueError, match="need remediation"):
-        validate_llm_grading_decision(task, decision, ["api/main.py"])
+        validate_llm_grading_decision(task, decision, ["Dockerfile"])
 
 
 @pytest.mark.unit
 def test_validate_llm_decision_rejects_passing_with_unmet_required_criterion():
-    task = PHASE3_LLM_TASKS[0]
-    results = _criterion_results(task, evidence_ref="api/main.py")
+    task = PHASE5_LLM_TASKS[0]
+    results = _criterion_results(task, evidence_ref="Dockerfile")
     results[0] = results[0].model_copy(
         update={
             "status": "not_met",
-            "next_steps": "Configure application logging.",
+            "next_steps": "Configure the application container.",
         }
     )
     decision = LLMGradingDecision(
@@ -253,7 +252,7 @@ def test_validate_llm_decision_rejects_passing_with_unmet_required_criterion():
     )
 
     with pytest.raises(ValueError, match="passing decision"):
-        validate_llm_grading_decision(task, decision, ["api/main.py"])
+        validate_llm_grading_decision(task, decision, ["Dockerfile"])
 
 
 @pytest.mark.unit

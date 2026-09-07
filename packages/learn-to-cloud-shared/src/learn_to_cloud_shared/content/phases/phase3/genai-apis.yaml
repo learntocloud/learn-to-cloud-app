@@ -46,6 +46,6 @@ learning_steps:
   order: 5
   action: 'Practice:'
   title: Apply the workflow to the Journal API
-  url: https://github.com/learntocloud/journal-starter#task-4-setup
+  url: https://github.com/learntocloud/journal-starter/blob/main/docs/08-ai-setup.md
   description: Configure `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` in the Journal Starter's git-ignored `.env` file. Pass the mocked unit tests, then run `uv run python -m scripts.verify_llm` and confirm your live provider returns a valid `AnalysisResponse`.
   slug: phase3-topic4-practice-apply-journal-api

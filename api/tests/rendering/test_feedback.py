@@ -10,8 +10,35 @@ from learn_to_cloud.rendering.feedback import (
     incomplete_verification_message,
     prepare_card_feedback,
 )
+from learn_to_cloud.services.submissions_service import feedback_context_from_json
 
 pytestmark = pytest.mark.unit
+
+
+def test_capstone_feedback_preserves_run_and_commit_without_rubric_criteria():
+    sha = "a" * 40
+    run_url = "https://github.com/learner/journal-starter/actions/runs/789"
+    context = feedback_context_from_json(
+        [
+            {
+                "task_name": "Verify capstone",
+                "passed": True,
+                "feedback": f"Full capstone verification passed for {sha}. {run_url}",
+                "next_steps": "",
+                "criterion_results": [],
+            }
+        ]
+    )
+    tasks, passed = feedback_tasks_and_passed(context)
+    tasks, passed = prepare_card_feedback(
+        tasks, passed, "https://github.com/learner/journal-starter"
+    )
+    assert passed == 1
+    assert len(tasks) == 1
+    assert tasks[0].name == "Verify capstone"
+    assert sha in tasks[0].message
+    assert run_url in tasks[0].message
+    assert tasks[0].criteria == ()
 
 
 @pytest.mark.parametrize(

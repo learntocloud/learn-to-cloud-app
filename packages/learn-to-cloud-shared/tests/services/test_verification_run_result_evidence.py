@@ -122,12 +122,12 @@ class TestVerificationRunResultEvidence:
 
 def _grading_request():
     from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
-    from learn_to_cloud_shared.verification.tasks.phase3 import (
-        JOURNAL_API_FINAL_RUBRIC_TASK,
+    from learn_to_cloud_shared.verification.tasks.phase5 import (
+        DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
     )
 
     return LLMGradingRequest(
-        task=JOURNAL_API_FINAL_RUBRIC_TASK,
+        task=DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
         message="grade this",
         thread_id="job-task",
     )

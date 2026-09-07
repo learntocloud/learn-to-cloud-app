@@ -83,10 +83,6 @@ from learn_to_cloud_shared.verification.tasks.base import (
     LLMRubricGraderConfig,
     VerificationTask,
 )
-from learn_to_cloud_shared.verification.tasks.phase3 import (
-    JOURNAL_API_FINAL_RUBRIC_TASK,
-    JOURNAL_API_IMPORTANT_PATHS,
-)
 from learn_to_cloud_shared.verification.tasks.phase4 import (
     DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
 )
@@ -370,7 +366,7 @@ async def _check_github_ci_passing(
     context: StepContext,
     params: CheckParams,
 ) -> StepResult:
-    """Gate on a green CI run on the fork's ``main`` branch."""
+    """Gate on full capstone verification for the fork's current main commit."""
     target = context.repository
     if target is None:
         return StepResult(
@@ -806,9 +802,6 @@ def profile_for(submission_type: SubmissionType) -> VerificationProfile | None:
     return _PROFILE_REGISTRY.get(submission_type)
 
 
-_JOURNAL_API_RUBRIC = JOURNAL_API_FINAL_RUBRIC_TASK.grader
-assert isinstance(_JOURNAL_API_RUBRIC, LLMRubricGraderConfig)
-
 _JOURNAL_API_PROFILE = VerificationProfile(
     requires_username=True,
     steps=(
@@ -816,15 +809,7 @@ _JOURNAL_API_PROFILE = VerificationProfile(
             params=CIStatusParams(),
             task_id="journal-api-implementation-ci",
         ),
-        Step(
-            params=LLMRubricReviewParams(
-                task=JOURNAL_API_FINAL_RUBRIC_TASK,
-                evidence_paths=JOURNAL_API_IMPORTANT_PATHS,
-            ),
-            task_id=JOURNAL_API_FINAL_RUBRIC_TASK.id,
-        ),
     ),
-    rubric=_JOURNAL_API_RUBRIC,
 )
 
 register_profile(SubmissionType.JOURNAL_API_VERIFIER, _JOURNAL_API_PROFILE)

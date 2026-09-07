@@ -1,7 +1,7 @@
 """The WorkflowRuns seam: read access to a repository's CI workflow runs.
 
-Phase 3 grading trusts the test suite that ships with the upstream starter
-repository: a green GitHub Actions run on ``main`` is the acceptance gate.
+Phase 3 trusts the full capstone workflow supplied by the upstream starter,
+not ordinary CI. Callers decide which workflow and commit satisfy their gate.
 The only question asked of GitHub is "what is the most recent run of this
 workflow on this branch?" This small interface captures exactly that.
 
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
+from learn_to_cloud_shared.schemas import FrozenModel
 from learn_to_cloud_shared.verification.github_http import github_api_get
 
 
@@ -33,6 +34,10 @@ class WorkflowRuns(Protocol):
     ) -> dict[str, Any] | None: ...
 
 
+class _WorkflowRunsResponse(FrozenModel):
+    workflow_runs: list[dict[str, Any]]
+
+
 class GitHubApiWorkflowRuns:
     """Production adapter backed by the GitHub HTTP API."""
 
@@ -46,7 +51,9 @@ class GitHubApiWorkflowRuns:
         )
         params: dict[str, str | int] = {"branch": branch, "per_page": 1}
         response = await github_api_get(url, params=params)
-        runs: list[dict[str, Any]] = response.json().get("workflow_runs", [])
+        runs = _WorkflowRunsResponse.model_validate(
+            response.json(), strict=True
+        ).workflow_runs
         return runs[0] if runs else None
 
 

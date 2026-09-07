@@ -462,13 +462,14 @@ async def test_shared_preflight_covers_only_repository_assignments(
             SubmissionType.CTF_TOKEN,
             SubmissionType.NETWORKING_TOKEN,
             SubmissionType.DEPLOYED_API,
+            SubmissionType.JOURNAL_API_VERIFIER,
         }
         else GradingDisposition.SKIPPED_GATE_FAILED
     )
 
 
 @pytest.mark.asyncio
-async def test_canonical_repository_reaches_ci_evidence_and_prompt(
+async def test_canonical_repository_reaches_capstone_without_source_reads(
     monkeypatch, repository_metadata
 ):
     from learn_to_cloud_shared.verification.repo_files import RepoFiles
@@ -484,22 +485,15 @@ async def test_canonical_repository_reaches_ci_evidence_and_prompt(
     ci = AsyncMock(return_value=ValidationResult(is_valid=True, message="CI is green"))
     monkeypatch.setattr(engine_module, "verify_ci_status", ci)
     files = AsyncMock(spec=RepoFiles)
-    files.tree.return_value = list(engine_module.JOURNAL_API_IMPORTANT_PATHS)
-    files.file.return_value = "synthetic evidence"
     job = _journal_job()
 
     result = await run_verification(job, repo_files=files)
 
     lookup.assert_awaited_once_with("learner", "journal-starter")
     ci.assert_awaited_once_with("new-name", "moved-repo")
-    assert files.file.await_count > 0
-    assert all(
-        call.args[:2] == ("new-name", "moved-repo")
-        for call in files.file.await_args_list
-    )
-    assert result.grading_requests
-    prompt = json.loads(result.grading_requests[0].message.split("\n\n", 1)[1])
-    assert prompt["repository"] == {"owner": "new-name", "name": "moved-repo"}
+    files.file.assert_not_awaited()
+    files.tree.assert_not_awaited()
+    assert not result.grading_requests
     assert result.attempt is job
     assert result.attempt.github_username == "learner"
     assert result.validation_result.message == "CI is green"
@@ -587,7 +581,7 @@ async def test_ownership_exports_bounded_telemetry(
 
 
 # ---------------------------------------------------------------------------
-# Phase 3 journal API profile: CI gate + rubric review + grading requests.
+# Phase 3 journal API profile: current-commit capstone workflow gate.
 # ---------------------------------------------------------------------------
 
 
@@ -613,48 +607,29 @@ def _journal_job() -> PreparedVerificationAttempt:
 
 
 @pytest.mark.asyncio
-async def test_journal_profile_records_grading_requests_when_ci_passes(monkeypatch):
-    from learn_to_cloud_shared.verification.tasks.phase3 import (
-        JOURNAL_API_FINAL_RUBRIC_TASK,
-        JOURNAL_API_IMPORTANT_PATHS,
+@pytest.mark.parametrize(
+    ("passed", "completed"), [(True, True), (False, True), (False, False)]
+)
+async def test_journal_profile_never_collects_source_or_requests_grading(
+    monkeypatch, passed, completed
+):
+    gate_result = ValidationResult(
+        is_valid=passed, verification_completed=completed, message="Capstone result"
     )
-    from tests.fakes.repo_files import InMemoryRepoFiles
-
-    async def fake_ci(owner, repo, runs=None):
-        return ValidationResult(is_valid=True, message="CI is green")
-
-    monkeypatch.setattr(engine_module, "verify_ci_status", fake_ci)
-    repo_files = InMemoryRepoFiles(
-        {path: f"content of {path}" for path in JOURNAL_API_IMPORTANT_PATHS}
-    )
-
-    result = await run_verification(_journal_job(), repo_files=repo_files)
-
-    assert result.validation_result.is_valid is True
-    assert result.evidence is not None and len(result.evidence) == 1
-    assert result.grading_requests is not None
-    assert len(result.grading_requests) == 1
-    assert result.grading_disposition == GradingDisposition.REQUESTED
-    request = result.grading_requests[0]
-    assert request.task.id == JOURNAL_API_FINAL_RUBRIC_TASK.id
-    assert "journal-api-implementation" in request.message
-
-
-@pytest.mark.asyncio
-async def test_journal_profile_skips_grading_when_ci_fails(monkeypatch):
-    from tests.fakes.repo_files import InMemoryRepoFiles
-
-    async def fake_ci(owner, repo, runs=None):
-        return ValidationResult(is_valid=False, message="CI is red")
-
-    monkeypatch.setattr(engine_module, "verify_ci_status", fake_ci)
-
-    result = await run_verification(_journal_job(), repo_files=InMemoryRepoFiles({}))
-
-    assert result.validation_result.is_valid is False
-    assert result.validation_result.message == "CI is red"
+    gate = AsyncMock(return_value=gate_result)
+    monkeypatch.setattr(engine_module, "verify_ci_status", gate)
+    files = AsyncMock()
+    job = _journal_job()
+    profile = engine_module.profile_for(job.requirement.submission_type)
+    assert len(profile.steps) == 1
+    assert profile.rubric is None
+    result = await run_verification(job, repo_files=files)
+    gate.assert_awaited_once_with("learner", "journal-starter")
+    files.tree.assert_not_awaited()
+    files.file.assert_not_awaited()
+    assert result.validation_result == gate_result
     assert result.grading_requests == []
-    assert result.grading_disposition == GradingDisposition.SKIPPED_GATE_FAILED
+    assert result.grading_disposition == GradingDisposition.NOT_REQUIRED
     assert result.evidence is None
 
 
@@ -1009,11 +984,25 @@ def _evidence_flow(flow, monkeypatch):
         engine_module, "verify_public_ghcr_image", AsyncMock(return_value=passing)
     )
     if flow == "exact":
-        from learn_to_cloud_shared.verification.tasks.phase3 import (
-            JOURNAL_API_IMPORTANT_PATHS,
+        task = engine_module.SECURITY_SCANNING_RUBRIC_TASK
+        paths = [*task.evidence.required_files, *task.evidence.optional_files]
+        profile = engine_module.VerificationProfile(
+            requires_username=True,
+            steps=(
+                _step(CIStatusParams(), "first-gate"),
+                _step(
+                    engine_module.LLMRubricReviewParams(
+                        task=task, evidence_paths=tuple(paths)
+                    ),
+                    task.id,
+                ),
+            ),
+            rubric=task.grader,
         )
-
-        return _journal_job(), list(JOURNAL_API_IMPORTANT_PATHS)
+        monkeypatch.setitem(
+            engine_module._PROFILE_REGISTRY, SubmissionType.SECURITY_SCANNING, profile
+        )
+        return _security_job(), paths
     if flow == "discovered":
         return _devops_job(), [
             "Dockerfile",
@@ -1254,11 +1243,7 @@ async def test_oversized_reflection_is_incomplete_without_any_repository_read():
 @pytest.mark.parametrize("flow", ["exact", "security"])
 async def test_absent_optional_work_still_prepares_complete_grading(monkeypatch, flow):
     job, paths = _evidence_flow(flow, monkeypatch)
-    task = (
-        engine_module.JOURNAL_API_FINAL_RUBRIC_TASK
-        if flow == "exact"
-        else engine_module.SECURITY_SCANNING_RUBRIC_TASK
-    )
+    task = engine_module.SECURITY_SCANNING_RUBRIC_TASK
     files = {
         path: "complete" for path in paths if path not in task.evidence.optional_files
     }
@@ -1368,8 +1353,8 @@ async def test_engine_rechecks_collector_result_before_recording_grading(
     "params",
     [
         engine_module.LLMRubricReviewParams(
-            task=engine_module.JOURNAL_API_FINAL_RUBRIC_TASK,
-            evidence_paths=engine_module.JOURNAL_API_IMPORTANT_PATHS,
+            task=engine_module.SECURITY_SCANNING_RUBRIC_TASK,
+            evidence_paths=(".github/workflows/codeql.yml", ".github/dependabot.yml"),
         ),
         engine_module.SecurityScanningReviewParams(
             task=engine_module.SECURITY_SCANNING_RUBRIC_TASK

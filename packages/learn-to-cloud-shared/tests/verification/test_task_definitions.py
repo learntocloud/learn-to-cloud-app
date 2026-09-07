@@ -4,7 +4,6 @@ import pytest
 
 from learn_to_cloud_shared.verification.graders import grade_file_presence_task
 from learn_to_cloud_shared.verification.tasks import (
-    PHASE3_LLM_TASKS,
     PHASE5_LLM_TASKS,
     PHASE6_LLM_TASKS,
     PHASE7_LLM_TASKS,
@@ -15,9 +14,6 @@ from learn_to_cloud_shared.verification.tasks.base import (
     LLMRubricGraderConfig,
     VerificationTask,
     require_llm_rubric_grader,
-)
-from learn_to_cloud_shared.verification.tasks.phase3 import (
-    PHASE3_FINAL_REQUIREMENT_SLUG,
 )
 from learn_to_cloud_shared.verification.tasks.phase5 import (
     PHASE5_EVIDENCE_PATH_PATTERNS,
@@ -44,22 +40,6 @@ def test_phase5_repository_contract_is_stable():
         "k8s/service.yaml",
         "k8s/secrets.yaml.example",
     )
-
-
-@pytest.mark.unit
-def test_phase3_llm_tasks_use_rubric_graders():
-    assert [task.id for task in PHASE3_LLM_TASKS] == [
-        "journal-api-implementation-rubric"
-    ]
-    task = PHASE3_LLM_TASKS[0]
-
-    assert task.phase_id == 3
-    assert task.requirement_slug == PHASE3_FINAL_REQUIREMENT_SLUG
-    assert task.evidence.source == "repo_files"
-    assert len({criterion.id for criterion in task.criteria}) == len(task.criteria)
-    assert any(criterion.kind == "quality" for criterion in task.criteria)
-    assert task.grading_instructions
-    assert isinstance(require_llm_rubric_grader(task), LLMRubricGraderConfig)
 
 
 @pytest.mark.unit

@@ -3,10 +3,8 @@
 import pytest
 
 from learn_to_cloud_shared.content_catalog import load_curriculum_catalog
+from learn_to_cloud_shared.verification.ci_status import CAPSTONE_WORKFLOW_FILE
 from learn_to_cloud_shared.verification.tasks import VerificationTask
-from learn_to_cloud_shared.verification.tasks.phase3 import (
-    JOURNAL_API_FINAL_RUBRIC_TASK,
-)
 from learn_to_cloud_shared.verification.tasks.phase5 import (
     DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
 )
@@ -23,25 +21,6 @@ pytestmark = pytest.mark.unit
 @pytest.mark.parametrize(
     ("task", "topic_slug", "required", "optional"),
     [
-        (
-            JOURNAL_API_FINAL_RUBRIC_TASK,
-            "build-the-app",
-            {
-                "api/main.py",
-                "api/routers/journal_router.py",
-                "api/models/entry.py",
-                "api/services/entry_service.py",
-                "api/services/llm_service.py",
-                ".devcontainer/devcontainer.json",
-                ".github/workflows/ci.yml",
-                "pyproject.toml",
-            },
-            {
-                "api/config.py",
-                "api/repositories/interface_repository.py",
-                "api/repositories/postgres_repository.py",
-            },
-        ),
         (
             DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
             "capstone",
@@ -111,12 +90,30 @@ def test_published_source_rules_and_boundaries() -> None:
     assert rules["k8s/"].recursive
 
 
-def test_complete_text_and_ci_boundaries_are_published() -> None:
+def test_capstone_workflow_and_local_responsibilities_are_published() -> None:
     catalog = load_curriculum_catalog()
     journal = catalog.requirements_by_slug["journal-api-implementation"]
+    topic = catalog.topics_by_phase_and_slug[("phase3", "build-the-app")]
+    assert str(journal.uuid) == "d6201101-8873-447a-957a-0e5773627618"
+    assert journal.submission_type == "journal_api_verifier"
+    for text in (journal.description, topic.model_dump_json()):
+        assert f".github/workflows/{CAPSTONE_WORKFLOW_FILE}" in text
+        assert "current `main` commit" in text
+        assert "Rerun" in text
+        assert "Ordinary CI" in text
+        assert "local responsibilities" in text
+        assert "offline workflow does not verify them" in text
+        assert "canonical" not in text
+        assert "evidence limit" not in text
+    genai = catalog.topics_by_phase_and_slug[("phase3", "genai-apis")]
+    assert genai.learning_steps[-1].url == (
+        "https://github.com/learntocloud/journal-starter/blob/main/docs/08-ai-setup.md"
+    )
+
+
+def test_complete_text_boundaries_are_published() -> None:
+    catalog = load_curriculum_catalog()
     reflection = catalog.requirements_by_slug["career-reflection"]
-    assert "CI evaluates tests" in journal.description
-    assert "test files are not sent" in journal.description
     assert "complete submitted text" in reflection.description
     assert "no GitHub files are read" in reflection.description
     assert CAREER_REFLECTION_RUBRIC_TASK.evidence.required_files == [
