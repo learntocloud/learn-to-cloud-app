@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "aead7334178038a58e0f38395978bfa38fc16e0d250191d5a46072b3042ec257",
-  "curriculum_version": 14,
+  "content_hash": "af14ca68e69e89286c6b6ba90f870a094cdb9cee90ee90de68e2ad3a707a97dd",
+  "curriculum_version": 16,
   "phases": [
     {
       "capstone": null,
@@ -1972,7 +1972,7 @@
         ],
         "requirements": [
           {
-            "description": "We'll review your fork's `main` branch using the complete `api/main.py`, `api/routers/journal_router.py`, `api/models/entry.py`, `api/services/entry_service.py`, `api/services/llm_service.py`, `.devcontainer/devcontainer.json`, `.github/workflows/ci.yml`, and `pyproject.toml`. These canonical files are required. When present, we also read `api/config.py`, `api/repositories/interface_repository.py`, and `api/repositories/postgres_repository.py`. Keep assignment implementations in the named starter files; other modules are not automatically discovered. CI evaluates tests; test files are not sent to the AI reviewer. An internal evidence limit leaves verification incomplete, not failed; report the issue rather than shrinking valid work.",
+            "description": "Checks that `verify-capstone.yml` passed for the latest commit on your public fork's `main` branch.",
             "name": "Verify Journal API Implementation",
             "slug": "journal-api-implementation",
             "submission_type": "journal_api_verifier",
@@ -2483,7 +2483,7 @@
               "slug": "phase3-topic4-practice-apply-journal-api",
               "tips": [],
               "title": "Apply the workflow to the Journal API",
-              "url": "https://github.com/learntocloud/journal-starter#task-4-setup",
+              "url": "https://github.com/learntocloud/journal-starter/blob/main/docs/08-ai-setup.md",
               "uuid": "4e4b6e66-ddea-4c46-b34d-dc864ce66349"
             }
           ],
@@ -2521,18 +2521,18 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API. For the AI analysis task, pass the mocked unit tests and run `uv run python -m scripts.verify_llm` against your live model endpoint. If you need a quick refresher on GitHub workflows, complete a GitHub Skills course at https://learn.github.com/skills and use Git command references at https://github.com/git-guides/git-overview. Important: Follow the development workflow \u2014 create a feature branch for each task, run the tests, then open a Pull Request to merge into main. Verification reads your fork once your work is merged to main, so you don't submit anything per PR.",
+              "description": "Fork the Journal Starter and follow the chapters linked from its README in order. Create a feature branch for each task, run the tests, then open a pull request within your fork and merge into main. You don't submit anything to this app per PR. Follow https://github.com/learntocloud/journal-starter/blob/main/docs/10-finish.md to finish: run the live AI verification with `uv run python -m scripts.verify_llm`, confirm your cloud CLI runs locally, then run Verify capstone on GitHub before submitting here. If you need a refresher on GitHub workflows, use https://learn.github.com/skills and https://github.com/git-guides/git-overview.",
               "done_when": null,
               "options": [],
               "order": 1,
               "slug": "phase3-topic5-practice-journal-starter-repository",
               "tips": [
                 {
-                  "text": "Keep assignment implementations in the named starter files. Verification reads the complete `api/main.py`, `api/routers/journal_router.py`, `api/models/entry.py`, `api/services/entry_service.py`, `api/services/llm_service.py`, `.devcontainer/devcontainer.json`, `.github/workflows/ci.yml`, and `pyproject.toml`; all eight are required. The canonical filenames are `ci.yml` and `pyproject.toml`, not `ci.yaml` or `requirements.txt`. When present, `api/config.py`, `api/repositories/interface_repository.py`, and `api/repositories/postgres_repository.py` are also read in full. Tests are evaluated by CI and are not sent to the AI reviewer; no new test filenames are required. Other modules are not automatically discovered, so this is not a whole-repository review or credential scan.",
+                  "text": "Open Actions > Verify capstone > Run workflow and select `main`. The latest `.github/workflows/verify-capstone.yml` run must succeed for your current `main` commit. Rerun it after every new commit before submitting. Ordinary CI runs code quality and starter safeguards, not all exercises, so a green CI badge is not enough to pass.",
                   "type": "important"
                 },
                 {
-                  "text": "If the verifier cannot assemble all selected evidence within its internal limits, your work is not graded as failed. Report the service issue; do not shrink or split otherwise valid work to fit the verifier.",
+                  "text": "The app trusts the supplied capstone workflow and tests; do not weaken them to make your work pass. It does not collect your source code for an AI review or perform a whole-repository credential scan. Live AI verification and running your cloud CLI remain local responsibilities; the offline workflow does not verify them. Keep credentials out of Git.",
                   "type": "note"
                 }
               ],

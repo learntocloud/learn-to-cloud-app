@@ -38,6 +38,7 @@ from learn_to_cloud_shared.verification_workflow import (
     VerificationRunResult,
 )
 from learn_to_cloud_shared_test_support.requirement_factories import (
+    devops_analysis_requirement,
     journal_api_verifier_requirement,
     repo_fork_requirement,
 )
@@ -156,7 +157,7 @@ async def test_complete_restored_request_reaches_provider(historical):
 @pytest.mark.asyncio
 async def test_restored_evidence_failure_keeps_code_and_drops_transport():
     prepared_payload = _prepared_payload(
-        journal_api_verifier_requirement(slug="journal"),
+        devops_analysis_requirement(slug="devops"),
         "https://github.com/alice/journal",
     )
     run_result = VerificationRunResult(
@@ -269,7 +270,7 @@ class TestAttemptOrchestration:
     )
     def test_stale_requests_cannot_grade_blocked_evidence(self, validation):
         prepared_payload = _prepared_payload(
-            journal_api_verifier_requirement(slug="journal"),
+            devops_analysis_requirement(slug="devops"),
             "https://github.com/alice/journal",
         )
         run_payload = {
@@ -297,7 +298,7 @@ class TestAttemptOrchestration:
 
     def test_incomplete_evidence_run_finalizes_without_any_grading_activity(self):
         prepared_payload = _prepared_payload(
-            journal_api_verifier_requirement(slug="journal"),
+            devops_analysis_requirement(slug="devops"),
             "https://github.com/alice/journal",
         )
         prepared = PreparedVerificationAttempt.from_payload(prepared_payload)
@@ -336,9 +337,18 @@ class TestAttemptOrchestration:
         ]
         assert result == terminal
 
-    def test_non_llm_sequence(self) -> None:
-        payload = _prepared_payload(
+    @pytest.mark.parametrize(
+        "requirement",
+        [
             repo_fork_requirement(slug="fork", required_repo="owner/repo"),
+            journal_api_verifier_requirement(
+                slug="journal-api-implementation", required_repo="owner/repo"
+            ),
+        ],
+    )
+    def test_non_llm_sequence(self, requirement) -> None:
+        payload = _prepared_payload(
+            requirement,
             "https://github.com/alice/repo",
         )
         ctx = _FakeOrchestrationContext({"attempt_id": "a-1"})
@@ -353,7 +363,7 @@ class TestAttemptOrchestration:
 
     def test_llm_sequence(self) -> None:
         payload = _prepared_payload(
-            journal_api_verifier_requirement(slug="journal"),
+            devops_analysis_requirement(slug="devops"),
             "https://github.com/alice/journal",
         )
         ctx = _FakeOrchestrationContext({"attempt_id": "a-1"})
@@ -375,7 +385,7 @@ class TestAttemptOrchestration:
         self, error_type
     ) -> None:
         payload = _prepared_payload(
-            journal_api_verifier_requirement(slug="journal"),
+            devops_analysis_requirement(slug="devops"),
             "https://github.com/alice/journal",
         )
         prepared = PreparedVerificationAttempt.from_payload(payload)
@@ -423,7 +433,7 @@ class TestAttemptOrchestration:
 
     def test_content_filter_is_not_retried(self) -> None:
         payload = _prepared_payload(
-            journal_api_verifier_requirement(slug="journal"),
+            devops_analysis_requirement(slug="devops"),
             "https://github.com/alice/journal",
         )
         prepared = PreparedVerificationAttempt.from_payload(payload)
@@ -463,7 +473,7 @@ class TestAttemptOrchestration:
 
     def test_unknown_durable_error_category_is_normalized(self) -> None:
         payload = _prepared_payload(
-            journal_api_verifier_requirement(slug="journal"),
+            devops_analysis_requirement(slug="devops"),
             "https://github.com/alice/journal",
         )
         prepared = PreparedVerificationAttempt.from_payload(payload)

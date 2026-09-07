@@ -1,133 +1,169 @@
-"""CI status verification service.
-
-Checks whether the learner's fork has a passing CI workflow on the
-``main`` branch.  Instead of re-grading code, we trust the test suite
-that ships with the upstream starter repository.
-
-The ``journal-starter`` repo includes a GitHub Actions workflow
-(``.github/workflows/ci.yml``) with lint and test jobs.  When learners
-fork, they inherit the workflow.  A green CI on ``main`` proves all
-tests pass — which is the honest acceptance gate.
-
-URL validation and ownership checks are handled by the engine gate
-before this module is called.
-
-Workflow::
-
-    fetch latest workflow runs on main
-        → check conclusion
-        → ValidationResult
-
-For the workflow-runs seam, see ``workflow_runs.py``.
-"""
+"""Verify the full Journal capstone workflow on the current main commit."""
 
 from __future__ import annotations
 
+import logging
+import re
+from json import JSONDecodeError
+from typing import Literal
+
 import httpx
 from opentelemetry import trace
+from pydantic import Field, ValidationError
 
-from learn_to_cloud_shared.schemas import ValidationResult
+from learn_to_cloud_shared.schemas import FrozenModel, TaskResult, ValidationResult
 from learn_to_cloud_shared.verification.github_errors import github_error_to_result
-from learn_to_cloud_shared.verification.github_http import (
-    RETRIABLE_EXCEPTIONS,
-)
+from learn_to_cloud_shared.verification.github_http import RETRIABLE_EXCEPTIONS
+from learn_to_cloud_shared.verification.repo_ref import RepoRef, default_repo_ref
 from learn_to_cloud_shared.verification.workflow_runs import (
     WorkflowRuns,
     default_workflow_runs,
 )
 
-# The workflow filename in learntocloud/journal-starter.
-_CI_WORKFLOW_FILE = "ci.yml"
+logger = logging.getLogger(__name__)
+CAPSTONE_WORKFLOW_FILE = "verify-capstone.yml"
+_RUN_INSTRUCTIONS = (
+    "Open Actions > Verify capstone > Run workflow, select main, "
+    "and submit again after it succeeds."
+)
+
+
+class _CapstoneRun(FrozenModel):
+    id: int = Field(gt=0)
+    run_number: int = Field(gt=0)
+    head_branch: str = Field(min_length=1)
+    event: str = Field(min_length=1)
+    head_sha: str = Field(pattern=r"^[0-9a-f]{40}$")
+    status: Literal[
+        "queued", "requested", "waiting", "pending", "in_progress", "completed"
+    ]
+    conclusion: str | None
+
+
+def _invalid_metadata() -> ValidationResult:
+    logger.warning(
+        "capstone.invalid_metadata", extra={"error.type": "response_validation"}
+    )
+    trace.get_current_span().add_event("capstone.invalid_metadata")
+    return ValidationResult(
+        is_valid=False,
+        message=(
+            "Couldn't read GitHub's capstone verification response. Try again later."
+        ),
+        verification_completed=False,
+    )
 
 
 async def verify_ci_status(
     owner: str,
     repo: str,
     runs: WorkflowRuns | None = None,
+    ref: RepoRef | None = None,
 ) -> ValidationResult:
-    """Verify that CI tests pass on the learner's fork's main branch.
-
-    URL validation and ownership checks are handled by the engine gate
-    before this function is called.
-
-    Args:
-        owner: Repository owner (GitHub username).
-        repo: Repository name.
-        runs: Workflow-runs port (defaults to the production adapter).
-
-    Returns:
-        ``ValidationResult`` — valid when the most recent CI run on
-        ``main`` has ``conclusion == "success"``.
-    """
+    """Require the latest manual capstone run to pass on current main HEAD."""
     runs = runs or default_workflow_runs()
+    ref = ref or default_repo_ref()
     span = trace.get_current_span()
     try:
-        latest_run = await runs.latest_run(owner, repo, _CI_WORKFLOW_FILE)
-    except (
-        httpx.HTTPStatusError,
-        *RETRIABLE_EXCEPTIONS,
-    ) as e:
-        if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
-            span.set_attribute("http.response.status_code", 404)
-            span.add_event("ci.workflow_not_found")
+        latest_run = await runs.latest_run(owner, repo, CAPSTONE_WORKFLOW_FILE)
+        run = (
+            _CapstoneRun.model_validate(latest_run, strict=True)
+            if latest_run is not None
+            else None
+        )
+    except (ValidationError, JSONDecodeError, UnicodeDecodeError):
+        return _invalid_metadata()
+    except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
+        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 404:
+            span.add_event("capstone.workflow_not_found")
             return ValidationResult(
                 is_valid=False,
                 message=(
-                    f"CI workflow not found in {owner}/{repo}. "
-                    "Make sure you've synced your fork with the upstream "
-                    "repository to get the .github/workflows/ci.yml file, "
-                    "and that GitHub Actions is enabled on your fork."
+                    f"Verify capstone workflow not found in {owner}/{repo}. "
+                    "Sync your fork with learntocloud/journal-starter to get "
+                    ".github/workflows/verify-capstone.yml and enable GitHub Actions. "
+                    + _RUN_INSTRUCTIONS
                 ),
             )
-        return github_error_to_result(
-            e,
-            event="ci_status.api_error",
+        return github_error_to_result(exc, event="capstone.api_error")
+
+    if run is None:
+        span.add_event("capstone.no_runs")
+        return ValidationResult(
+            is_valid=False,
+            message="No Verify capstone runs found on main. " + _RUN_INSTRUCTIONS,
         )
 
-    if latest_run is None:
-        span.add_event("ci.no_runs")
+    run_url = f"https://github.com/{owner}/{repo}/actions/runs/{run.id}"
+    if run.head_branch != "main" or run.event != "workflow_dispatch":
+        span.add_event("capstone.wrong_invocation")
+        return ValidationResult(
+            is_valid=False,
+            message="Verify capstone must be run manually on main. "
+            + _RUN_INSTRUCTIONS,
+        )
+    if run.status != "completed":
+        span.add_event("capstone.still_running")
         return ValidationResult(
             is_valid=False,
             message=(
-                "No CI runs found on the main branch. "
-                "Push a commit to main or merge a PR to trigger "
-                "the CI workflow, then try again."
+                f"Verify capstone run #{run.run_number} is still {run.status}. "
+                f"Wait for it to finish at {run_url}, then submit again."
             ),
         )
-
-    conclusion = latest_run.get("conclusion")
-    status = latest_run.get("status")
-    run_url = latest_run.get("html_url", "")
-    run_number = latest_run.get("run_number", 0)
-
-    if status != "completed":
-        span.add_event("ci.still_running")
+    if not run.conclusion:
+        return _invalid_metadata()
+    if run.conclusion != "success":
+        span.add_event("capstone.failed")
         return ValidationResult(
             is_valid=False,
             message=(
-                f"CI run #{run_number} is still {status}. "
-                "Wait for it to finish, then try again."
+                f"Verify capstone run #{run.run_number} finished with "
+                f"conclusion '{run.conclusion}'. Review {run_url} "
+                "and fix any failures. " + _RUN_INSTRUCTIONS
             ),
         )
 
-    if conclusion == "success":
-        span.add_event("ci.passed")
+    try:
+        head_sha = await ref.head_sha(owner, repo)
+    except (ValidationError, JSONDecodeError, UnicodeDecodeError):
+        return _invalid_metadata()
+    except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
+        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 404:
+            span.add_event("capstone.branch_not_found")
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    f"Could not find the main branch of {owner}/{repo}. "
+                    "Make sure the repository is public and has a main branch."
+                ),
+            )
+        return github_error_to_result(exc, event="capstone.api_error")
+
+    if not isinstance(head_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", head_sha):
+        return _invalid_metadata()
+    if run.head_sha != head_sha:
+        span.add_event("capstone.stale_run")
         return ValidationResult(
-            is_valid=True,
+            is_valid=False,
             message=(
-                f"CI tests are passing on main (run #{run_number}). "
-                "Your Journal API implementation is verified!"
+                "Verify capstone passed, but not on your current main commit. "
+                "Rerun Verify capstone after every new commit. " + _RUN_INSTRUCTIONS
             ),
         )
 
-    span.add_event("ci.failed")
+    span.add_event("capstone.passed")
     return ValidationResult(
-        is_valid=False,
-        message=(
-            f"CI run #{run_number} finished with "
-            f"conclusion '{conclusion}'. "
-            f"Check the run details at {run_url} "
-            "to see which tests are failing, fix them, "
-            "and push to main."
-        ),
+        is_valid=True,
+        message="Verify capstone passed on your current main commit.",
+        task_results=[
+            TaskResult(
+                task_name="Verify capstone",
+                passed=True,
+                feedback=(
+                    f"Full capstone verification passed for main commit {head_sha}. "
+                    f"Run #{run.run_number}: {run_url}"
+                ),
+            )
+        ],
     )

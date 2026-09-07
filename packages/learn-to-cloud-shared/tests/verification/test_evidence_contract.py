@@ -33,9 +33,6 @@ from learn_to_cloud_shared.verification.grading_requests import (
     build_text_rubric_message,
     validate_grading_request,
 )
-from learn_to_cloud_shared.verification.journal_api import (
-    collect_journal_api_implementation_evidence,
-)
 from learn_to_cloud_shared.verification.repo_files import GitHubRepoFiles
 from learn_to_cloud_shared.verification.security_scanning import (
     collect_security_scanning_evidence,
@@ -44,7 +41,6 @@ from learn_to_cloud_shared.verification.tasks import (
     CAREER_REFLECTION_RUBRIC_TASK,
     DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
     DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
-    JOURNAL_API_FINAL_RUBRIC_TASK,
     SECURITY_SCANNING_RUBRIC_TASK,
 )
 from learn_to_cloud_shared.verification.tasks.base import (
@@ -54,7 +50,6 @@ from learn_to_cloud_shared.verification.tasks.base import (
 from tests.fakes.repo_files import InMemoryRepoFiles
 
 TASKS = [
-    JOURNAL_API_FINAL_RUBRIC_TASK,
     DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
     DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
     SECURITY_SCANNING_RUBRIC_TASK,
@@ -97,10 +92,10 @@ def test_every_rubric_criterion_has_declared_evidence(task):
 
 
 @pytest.mark.parametrize(
-    "missing", JOURNAL_API_FINAL_RUBRIC_TASK.evidence.required_files
+    "missing", SECURITY_SCANNING_RUBRIC_TASK.evidence.required_files
 )
-async def test_phase3_proven_absence_names_canonical_work_without_reads(missing):
-    task = JOURNAL_API_FINAL_RUBRIC_TASK
+async def test_proven_absence_names_canonical_work_without_reads(missing):
+    task = SECURITY_SCANNING_RUBRIC_TASK
     files = dict.fromkeys(task.evidence.required_files, "complete")
     del files[missing]
     files.update(
@@ -115,8 +110,8 @@ async def test_phase3_proven_absence_names_canonical_work_without_reads(missing)
     assert not repo.file_reads
 
 
-async def test_phase3_helpers_use_only_named_files_and_full_optional_support():
-    task = JOURNAL_API_FINAL_RUBRIC_TASK
+async def test_helpers_use_only_named_files_and_full_optional_support():
+    task = SECURITY_SCANNING_RUBRIC_TASK
     selected = [*task.evidence.required_files, *task.evidence.optional_files]
     files = dict.fromkeys(selected, "完整\nimplementation")
     files.update(
@@ -128,10 +123,9 @@ async def test_phase3_helpers_use_only_named_files_and_full_optional_support():
         }
     )
     repo = InMemoryRepoFiles(files)
-    bundle = await collect_journal_api_implementation_evidence(
+    bundle = await collect_security_scanning_evidence(
         "owner",
         "repo",
-        list(files),
         repo_files=repo,
     )
     assert repo.file_reads == sorted(selected)

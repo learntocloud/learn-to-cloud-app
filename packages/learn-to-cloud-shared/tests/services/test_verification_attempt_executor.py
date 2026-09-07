@@ -20,6 +20,7 @@ from learn_to_cloud_shared.repositories.verification_attempt_repository import (
 )
 from learn_to_cloud_shared.schemas import CriterionResult, TaskResult, ValidationResult
 from learn_to_cloud_shared.submission_values import value_kind_for_submission_type
+from learn_to_cloud_shared.verification.ci_status import verify_ci_status
 from learn_to_cloud_shared.verification.execution import attempt_to_submission_data
 from learn_to_cloud_shared.verification.github_errors import (
     GitHubServerError,
@@ -28,8 +29,8 @@ from learn_to_cloud_shared.verification.github_errors import (
 from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud_shared.verification.repo_files import GitHubRepoFiles
 from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle, EvidenceItem
-from learn_to_cloud_shared.verification.tasks.phase3 import (
-    JOURNAL_API_FINAL_RUBRIC_TASK,
+from learn_to_cloud_shared.verification.tasks.phase5 import (
+    DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
 )
 from learn_to_cloud_shared.verification_attempt_executor import (
     AttemptNotRunnableError,
@@ -45,6 +46,8 @@ from learn_to_cloud_shared.verification_attempt_snapshot import (
 from learn_to_cloud_shared.verification_workflow import (
     VerificationRunResult,
 )
+from tests.fakes.repo_ref import InMemoryRepoRef
+from tests.fakes.workflow_runs import InMemoryWorkflowRuns
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -67,8 +70,13 @@ async def _create_attempt(
     session_maker: async_sessionmaker[AsyncSession],
     *,
     reconstructed: bool = False,
+    requirement_slug: str | None = None,
 ) -> VerificationAttempt:
-    requirement = _requirement()
+    requirement = (
+        get_curriculum_catalog().requirements_by_slug[requirement_slug]
+        if requirement_slug is not None
+        else _requirement()
+    )
     value_kind = value_kind_for_submission_type(requirement.submission_type)
     submitted_value = {
         SubmissionValueKind.GITHUB_URL: "https://github.com/octocat/repo",
@@ -100,6 +108,50 @@ async def _create_attempt(
         db.add(attempt)
         await db.commit()
     return attempt
+
+
+async def test_capstone_success_persists_commit_and_run_feedback(
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    attempt = await _create_attempt(
+        session_maker, requirement_slug="journal-api-implementation"
+    )
+    preparation = await prepare_verification_attempt(
+        attempt.id, session_maker=session_maker
+    )
+    sha = "a" * 40
+    result = await verify_ci_status(
+        "octocat",
+        "journal-starter",
+        InMemoryWorkflowRuns(
+            {
+                "id": 789,
+                "run_number": 10,
+                "head_branch": "main",
+                "head_sha": sha,
+                "event": "workflow_dispatch",
+                "status": "completed",
+                "conclusion": "success",
+            }
+        ),
+        InMemoryRepoRef(sha),
+    )
+    run_result = VerificationRunResult(
+        attempt=preparation.attempt, validation_result=result, grading_requests=[]
+    )
+    await finalize_verification_attempt(
+        VerificationRunResult.from_payload(run_result.to_payload()),
+        session_maker=session_maker,
+    )
+    async with session_maker() as db:
+        stored = await db.get(VerificationAttempt, attempt.id)
+    assert stored.outcome == "succeeded"
+    assert stored.validation_message is None
+    assert stored.feedback_json == [result.task_results[0].model_dump()]
+    feedback = stored.feedback_json[0]["feedback"]
+    assert sha in feedback
+    assert "https://github.com/octocat/journal-starter/actions/runs/789" in feedback
+    assert not stored.feedback_json[0]["criterion_results"]
 
 
 async def test_prepare_loads_snapshot_and_marks_attempt_started(
@@ -469,7 +521,7 @@ async def test_incomplete_finalization_drops_private_evidence_and_stale_prompt(
         ),
         evidence=[
             EvidenceBundle(
-                task_id=JOURNAL_API_FINAL_RUBRIC_TASK.id,
+                task_id=DEVOPS_IMPLEMENTATION_RUBRIC_TASK.id,
                 source="repo_files",
                 items=[
                     EvidenceItem(
@@ -483,7 +535,7 @@ async def test_incomplete_finalization_drops_private_evidence_and_stale_prompt(
         ],
         grading_requests=[
             LLMGradingRequest(
-                task=JOURNAL_API_FINAL_RUBRIC_TASK,
+                task=DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
                 message=private,
                 thread_id="private-evidence-thread",
             )

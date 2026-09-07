@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
+from pydantic import TypeAdapter
+
 from learn_to_cloud_shared.verification.github_http import github_api_get
 
 
@@ -40,7 +42,7 @@ class GitHubApiRepoRef:
         """Return the branch HEAD commit sha, or ``None`` when absent."""
         url = f"https://api.github.com/repos/{owner}/{repo}/branches/{branch}"
         response = await github_api_get(url)
-        data: dict[str, Any] = response.json()
+        data = TypeAdapter(dict[str, Any]).validate_python(response.json(), strict=True)
         commit = data.get("commit")
         if isinstance(commit, dict):
             sha = commit.get("sha")

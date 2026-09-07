@@ -16,11 +16,6 @@ from learn_to_cloud_shared.verification.tasks.base import (
     VerificationTask,
     require_llm_rubric_grader,
 )
-from learn_to_cloud_shared.verification.tasks.phase3 import (
-    JOURNAL_API_FINAL_RUBRIC_TASK,
-    PHASE3_FINAL_REQUIREMENT_SLUG,
-    PHASE3_LLM_TASKS,
-)
 from learn_to_cloud_shared.verification.tasks.phase4 import (
     DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
     PHASE4_LLM_TASKS,
@@ -61,9 +56,6 @@ __all__ = [
     "LLMGradingDecision",
     "LLMRubricGraderConfig",
     "RubricCriterion",
-    "JOURNAL_API_FINAL_RUBRIC_TASK",
-    "PHASE3_FINAL_REQUIREMENT_SLUG",
-    "PHASE3_LLM_TASKS",
     "DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK",
     "DEVOPS_IMPLEMENTATION_RUBRIC_TASK",
     "PHASE4_REQUIREMENT_SLUG",
