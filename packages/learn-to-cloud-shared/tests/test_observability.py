@@ -1,11 +1,19 @@
 """Unit tests for observability instrumentation helpers."""
 
+import logging
+from functools import partial
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
 import httpx
 import pytest
 from opentelemetry.instrumentation.httpx import AsyncOpenTelemetryTransport, RequestInfo
+from opentelemetry.instrumentation.logging.handler import LoggingHandler
+from opentelemetry.sdk._logs import LoggerProvider
+from opentelemetry.sdk._logs.export import (
+    InMemoryLogRecordExporter,
+    SimpleLogRecordProcessor,
+)
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -148,7 +156,9 @@ def test_configure_observability_uses_azure_monitor_when_connection_string_set()
         request_hook=observability._sanitize_httpx_span,
         async_request_hook=observability._sanitize_async_httpx_span,
     )
-    fastapi_instrumentor.assert_not_called()
+    fastapi_instrumentor.return_value.instrument.assert_called_once_with(
+        exclude_spans=["receive", "send"]
+    )
     assert observability._telemetry_enabled is True
     assert configured is True
 
@@ -185,7 +195,9 @@ def test_configure_observability_uses_otlp_when_endpoint_set():
         request_hook=observability._sanitize_httpx_span,
         async_request_hook=observability._sanitize_async_httpx_span,
     )
-    fastapi_instrumentor.return_value.instrument.assert_called_once_with()
+    fastapi_instrumentor.return_value.instrument.assert_called_once_with(
+        exclude_spans=["receive", "send"]
+    )
     assert observability._telemetry_enabled is True
     assert configured is True
 
@@ -318,7 +330,7 @@ def test_configure_observability_noops_when_already_enabled():
 
 
 @pytest.mark.unit
-def test_configure_azure_monitor_uses_distro_instrumentation_defaults():
+def test_configure_azure_monitor_leaves_fastapi_to_the_application():
     resource = observability._build_resource()
     with patch(
         "azure.monitor.opentelemetry.configure_azure_monitor"
@@ -330,8 +342,159 @@ def test_configure_azure_monitor_uses_distro_instrumentation_defaults():
     assert kwargs["enable_live_metrics"] is True
     assert kwargs["enable_trace_based_sampling_for_logs"] is False
     assert kwargs["logger_name"] == "learn_to_cloud"
-    assert "instrumentation_options" not in kwargs
+    assert kwargs["instrumentation_options"] == {"fastapi": {"enabled": False}}
     assert kwargs["resource"] is resource
+
+
+@pytest.mark.unit
+def test_local_functions_export_app_logs_once_without_host_forwarding():
+    root = logging.getLogger()
+    original_handlers = root.handlers[:]
+    app_loggers = [
+        logging.getLogger(name) for name in ("learn_to_cloud", "learn_to_cloud_shared")
+    ]
+    original_loggers = [
+        (logger, logger.handlers[:], logger.propagate, logger.level)
+        for logger in app_loggers
+    ]
+    exporter = InMemoryLogRecordExporter()
+    provider = LoggerProvider()
+    provider.add_log_record_processor(SimpleLogRecordProcessor(exporter))
+    handler = LoggingHandler(logger_provider=provider)
+    handler.set_name(observability._OTLP_HANDLER_NAME)
+    host_handler = MagicMock(spec=logging.Handler)
+    host_handler.level = logging.NOTSET
+    root.handlers = [handler, host_handler]
+    try:
+        with patch.object(observability, "_configure_observability", return_value=True):
+            assert observability.configure_otlp_observability() is True
+            assert observability.configure_otlp_observability() is True
+
+        for app_logger in app_loggers:
+            app_logger.setLevel(logging.INFO)
+            logging.getLogger(f"{app_logger.name}.verification").info(
+                "verification.attempt.completed",
+                extra={"verification.attempt.id": "attempt-probe"},
+            )
+
+        records = exporter.get_finished_logs()
+        assert len(records) == 2
+        for record in records:
+            assert record.log_record.body == "verification.attempt.completed"
+            assert record.log_record.attributes["verification.attempt.id"] == (
+                "attempt-probe"
+            )
+        host_handler.handle.assert_not_called()
+        logging.getLogger("azure.functions").warning("framework-probe")
+        host_handler.handle.assert_called_once()
+        assert host_handler.handle.call_args.args[0].getMessage() == "framework-probe"
+        assert root.handlers == [host_handler]
+    finally:
+        root.handlers = original_handlers
+        for app_logger, handlers, propagate, level in original_loggers:
+            app_logger.handlers = handlers
+            app_logger.propagate = propagate
+            app_logger.setLevel(level)
+        provider.shutdown()
+
+
+@pytest.mark.unit
+def test_failed_local_setup_does_not_change_log_routing():
+    root = logging.getLogger()
+    handlers = root.handlers[:]
+    app_logger = logging.getLogger("learn_to_cloud")
+    propagation = app_logger.propagate
+    with patch.object(observability, "_configure_observability", return_value=False):
+        assert observability.configure_otlp_observability() is False
+    assert root.handlers == handlers
+    assert app_logger.propagate is propagation
+
+
+@pytest.mark.unit
+def test_fastapi_instrumentation_is_process_wide_and_idempotent():
+    with patch(
+        "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor"
+    ) as instrumentor:
+        assert observability.configure_fastapi_instrumentation() is True
+        assert observability.configure_fastapi_instrumentation() is True
+    instrumentor.return_value.instrument.assert_called_once_with(
+        exclude_spans=["receive", "send"]
+    )
+
+
+@pytest.mark.unit
+async def test_fastapi_keeps_request_errors_and_metrics_without_asgi_spans():
+    import fastapi
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import InMemoryMetricReader
+    from opentelemetry.trace import SpanKind
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    reader = InMemoryMetricReader()
+    meters = MeterProvider(metric_readers=[reader])
+    instrumentor = FastAPIInstrumentor()
+    try:
+        with patch.object(
+            instrumentor,
+            "instrument",
+            side_effect=partial(
+                instrumentor.instrument,
+                tracer_provider=provider,
+                meter_provider=meters,
+            ),
+        ):
+            assert observability.configure_fastapi_instrumentation() is True
+        app = fastapi.FastAPI()
+
+        @app.post("/probe/{probe_id}")
+        async def probe(probe_id: str, request: fastapi.Request):
+            body = await request.body()
+            if probe_id == "error":
+                raise RuntimeError("Native request failure")
+            return {"bytes": len(body)}
+
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://testserver"
+        ) as client:
+            assert (await client.post("/probe/ok", content="body")).status_code == 200
+            assert (await client.post("/probe/error", content="body")).status_code == (
+                500
+            )
+
+        success, failure = exporter.get_finished_spans()
+        for span in (success, failure):
+            assert span.kind == SpanKind.SERVER
+            assert span.name == "POST /probe/{probe_id}"
+            assert span.end_time >= span.start_time
+        assert success.status.status_code == StatusCode.UNSET
+        assert failure.status.status_code == StatusCode.ERROR
+        assert any(
+            event.name == "exception"
+            and event.attributes["exception.type"] == "RuntimeError"
+            and event.attributes["exception.stacktrace"]
+            for event in failure.events
+        )
+        data = reader.get_metrics_data()
+        durations = [
+            point
+            for resource in data.resource_metrics
+            for scope in resource.scope_metrics
+            for metric in scope.metrics
+            if metric.name == "http.server.duration"
+            for point in metric.data.data_points
+        ]
+        assert sum(point.count for point in durations) == 2
+        assert {point.attributes["http.target"] for point in durations} == {
+            "/probe/{probe_id}"
+        }
+    finally:
+        instrumentor.uninstrument()
+        provider.shutdown()
+        meters.shutdown()
 
 
 @pytest.mark.unit

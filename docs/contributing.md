@@ -779,6 +779,19 @@ HTMX's `replaceState` and `pushState` twice. Do not enable both approaches.
 Provider error classification still controls learner feedback and incomplete
 verification; it is not a reason to suppress unrelated programming errors.
 
+The API configures FastAPI instrumentation once for both Azure Monitor and local
+OTLP, excluding low-level ASGI receive/send spans while retaining request spans,
+metrics, dependencies and errors. Azure Monitor's automatic FastAPI setup is
+disabled because it does not forward that exclusion option.
+
+Local Functions send application logs directly through the existing OTLP
+handler, without forwarding the same records to the Functions host. The host
+still collects framework logs. Leave `PYTHON_ENABLE_OPENTELEMETRY` unset:
+runtime 1.2.1 crashes async invocations with that flag
+([upstream issue](https://github.com/Azure/azure-functions-python-worker/issues/1881)).
+Production continues to use `PYTHON_APPLICATIONINSIGHTS_ENABLE_TELEMETRY=true`
+and its worker-owned Azure Monitor pipeline.
+
 ## Conventions
 
 - Async/await everywhere -- no sync database calls

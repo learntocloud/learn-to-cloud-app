@@ -1,10 +1,9 @@
 """Single-pipeline Azure Monitor and OTLP configuration.
 
-The API calls this before constructing FastAPI. Azure Monitor owns FastAPI
-instrumentation in production; local OTLP configures it explicitly. HTTPX and
-SQLAlchemy remain application-owned because the Azure distro does not bundle
-those instrumentations. Verification Functions reuse only the dependency setup
-and their host-owned OTLP pipeline.
+The API configures FastAPI explicitly so both exporters omit ASGI internal
+spans. HTTPX and SQLAlchemy are also application-owned. Production Functions
+use the worker-owned Azure pipeline; local Functions export app logs directly
+to OTLP while the host owns framework logs.
 """
 
 from __future__ import annotations
@@ -20,6 +19,7 @@ from opentelemetry.trace import Span
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE
 
 logger = logging.getLogger(__name__)
+_OTLP_HANDLER_NAME = "learn_to_cloud.otlp"
 
 _telemetry_enabled: bool = False
 _dependency_tracing_enabled: bool = False
@@ -69,6 +69,8 @@ def _configure_azure_monitor(resource: Resource) -> None:
         enable_live_metrics=True,
         enable_trace_based_sampling_for_logs=False,
         logger_name=APP_LOGGER_NAMESPACE,
+        # The distro does not forward FastAPI's exclude_spans option.
+        instrumentation_options={"fastapi": {"enabled": False}},
         resource=resource,
     )
 
@@ -138,7 +140,9 @@ def _configure_otlp_exporters(
     log_provider = LoggerProvider(resource=resource)
     log_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter_cls()))
     set_logger_provider(log_provider)
-    logging.getLogger().addHandler(LoggingHandler(logger_provider=log_provider))
+    handler = LoggingHandler(logger_provider=log_provider)
+    handler.set_name(_OTLP_HANDLER_NAME)
+    logging.getLogger().addHandler(handler)
 
     from opentelemetry import metrics
     from opentelemetry.sdk.metrics import MeterProvider
@@ -179,14 +183,11 @@ def _configure_observability(*, allow_azure_monitor: bool) -> bool:
     )
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
     resource = _build_resource()
-    instrument_fastapi_for_otlp = False
-
     try:
         if conn_str:
             _configure_azure_monitor(resource)
         elif otlp_endpoint:
             _configure_otlp(resource)
-            instrument_fastapi_for_otlp = allow_azure_monitor
         else:
             logger.error(
                 "telemetry.configure.failed",
@@ -203,14 +204,14 @@ def _configure_observability(*, allow_azure_monitor: bool) -> bool:
         return False
 
     _telemetry_enabled = True
-    if instrument_fastapi_for_otlp:
+    if allow_azure_monitor:
         configure_fastapi_instrumentation()
     configure_dependency_instrumentation()
     return True
 
 
 def configure_fastapi_instrumentation() -> bool:
-    """Instrument FastAPI when the Azure Monitor distro is not active."""
+    """Instrument requests without low-level ASGI receive/send spans."""
     global _fastapi_instrumented
 
     if _fastapi_instrumented:
@@ -219,7 +220,7 @@ def configure_fastapi_instrumentation() -> bool:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
     try:
-        FastAPIInstrumentor().instrument()
+        FastAPIInstrumentor().instrument(exclude_spans=["receive", "send"])
     except Exception as exc:
         logger.warning(
             "telemetry.fastapi.failed",
@@ -261,8 +262,19 @@ def configure_observability() -> bool:
 
 
 def configure_otlp_observability() -> bool:
-    """Set up OTLP without adding an application-owned Azure exporter."""
-    return _configure_observability(allow_azure_monitor=False)
+    """Export Functions app logs once, without forwarding them to the host."""
+    if not _configure_observability(allow_azure_monitor=False):
+        return False
+
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        if handler.get_name() == _OTLP_HANDLER_NAME:
+            for name in (APP_LOGGER_NAMESPACE, "learn_to_cloud_shared"):
+                app_logger = logging.getLogger(name)
+                app_logger.addHandler(handler)
+                app_logger.propagate = False
+            root.removeHandler(handler)
+    return True
 
 
 def instrument_database(engine: Any) -> None:
