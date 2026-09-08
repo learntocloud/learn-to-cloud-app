@@ -21,6 +21,8 @@ resource discovery. Cover:
 - Container App peak CPU/memory and current-revision crash or unhealthy events
 - console `Traceback`, `FATAL`, `OOMKilled`, or segmentation-fault events
 - verification outcomes and OAuth success/failure activity (24h)
+- API worker failures (`verification.worker.failed`), overdue attempts
+  (`verification.attempt.stuck`), and queued versus executing backlog
 
 Use workspace-mode tables `AppRequests`, `AppExceptions`, `AppTraces`,
 `AppDependencies`, `AppAvailabilityResults`, and `AppMetrics`. Container App
@@ -43,6 +45,18 @@ Expected request 401s for missing sessions and 303 login redirects are not OAuth
 callback failures or unhandled application errors. Request URL attributes should
 use route templates, including router prefixes; `/unmatched` is reserved for
 requests without a known route template.
+
+Verification runs in the API under `learn-to-cloud-api`, not a separate host.
+Check worker failures in `AppTraces` as well as `AppExceptions`. Both `/health`
+and `/ready` return 503 when the worker task has finished; ordinary page routes
+are not worker health checks. The worker logs only `error.type`, not raw
+exception details. Overdue reasons are
+`queued_beyond_limit` and `execution_beyond_limit`, with
+`verification.attempt.age_seconds`. Correlate created, execution-started, and
+saved completion events by attempt ID; missing completion telemetry alone is not
+proof of pending work. Confirm backlog with authorized read-only database access.
+Treat worker death as Critical and overdue work as Warning. Do not log prompts,
+evidence, fetched source, or credentials while investigating.
 
 Otherwise report **Healthy**. Missing telemetry is `Unknown`, not healthy.
 

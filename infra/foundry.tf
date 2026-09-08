@@ -1,3 +1,11 @@
+resource "azurerm_role_assignment" "api_foundry" {
+  scope                            = azapi_resource.foundry_project.id
+  role_definition_name             = "Foundry User"
+  principal_id                     = azurerm_user_assigned_identity.api.principal_id
+  principal_type                   = "ServicePrincipal"
+  skip_service_principal_aad_check = true
+}
+
 resource "azapi_resource" "foundry_account" {
   type      = "Microsoft.CognitiveServices/accounts@2025-06-01"
   name      = local.foundry_account_name

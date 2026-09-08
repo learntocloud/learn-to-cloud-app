@@ -28,8 +28,7 @@ async def check_llm_rubric_review(
     """Fetch bounded repository evidence for a terminal LLM rubric review.
 
     Stops on unavailable evidence; otherwise marks the task for grading.
-    The actual LLM call runs later in the separate durable
-    ``run_llm_grading`` activity, so this step stays pure of any model call.
+    The actual LLM call runs later in the API runner.
     """
     if discover_paths == bool(evidence_paths):
         raise ValueError(

@@ -9,6 +9,7 @@ packaged artifact must abort application startup (not merely mark
 from __future__ import annotations
 
 import ast
+import asyncio
 import inspect
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -62,6 +63,10 @@ def fake_app() -> FastAPI:
 @pytest.fixture(autouse=True)
 def _patch_startup_dependencies(test_settings):
     """Patch every I/O dependency lifespan touches, except the curriculum catalog."""
+
+    async def wait_for_shutdown(*_):
+        await asyncio.Event().wait()
+
     with (
         patch("learn_to_cloud.main.get_web_settings", return_value=test_settings),
         patch("learn_to_cloud.main.create_engine", return_value=MagicMock()),
@@ -71,6 +76,11 @@ def _patch_startup_dependencies(test_settings):
         patch("learn_to_cloud.main.init_db", new=AsyncMock()),
         patch("learn_to_cloud.main.close_github_client", new=AsyncMock()),
         patch("learn_to_cloud.main.dispose_engine", new=AsyncMock()),
+        patch("learn_to_cloud.main.close_verification_grader", new=AsyncMock()),
+        patch(
+            "learn_to_cloud.main.run_verification_worker",
+            side_effect=wait_for_shutdown,
+        ),
     ):
         yield
 
@@ -190,3 +200,41 @@ class TestLifespanCurriculumFailFast:
                 assert fake_app.state.curriculum_catalog is catalog
 
         assert "init.curriculum_loaded" in caplog.text
+
+
+async def test_lifespan_cancels_worker_before_closing_clients(fake_app):
+    stopped = asyncio.Event()
+
+    async def run(*_):
+        try:
+            await asyncio.Event().wait()
+        finally:
+            stopped.set()
+
+    async def close():
+        assert stopped.is_set()
+
+    with (
+        patch("learn_to_cloud.main.run_verification_worker", side_effect=run),
+        patch("learn_to_cloud.main.close_verification_grader", side_effect=close),
+    ):
+        async with lifespan(fake_app):
+            await asyncio.sleep(0)
+            assert not fake_app.state.verification_worker.done()
+    assert fake_app.state.verification_worker.cancelled()
+
+
+async def test_lifespan_still_closes_clients_when_worker_failed(fake_app):
+    with (
+        patch(
+            "learn_to_cloud.main.run_verification_worker",
+            side_effect=RuntimeError("worker failed"),
+        ),
+        patch("learn_to_cloud.main.close_verification_grader") as close,
+        patch("learn_to_cloud.main.dispose_engine") as dispose,
+        pytest.raises(RuntimeError, match="worker failed"),
+    ):
+        async with lifespan(fake_app):
+            await asyncio.sleep(0)
+    close.assert_awaited_once()
+    dispose.assert_awaited_once()

@@ -235,14 +235,26 @@ class TestBuildRequirementCardContextCardState:
         assert ctx.error_message == "Verification did not pass."
 
     def test_processing_is_checking_regardless_of_submission(self):
+        from learn_to_cloud.core.templates import templates
+
         req = _make_requirement(SubmissionType.CTF_TOKEN)
+        attempt_id = uuid4()
         ctx = build_checking_requirement_card_context(
             requirement=req,
-            verification_status_token="status-token",
+            verification_attempt_id=attempt_id,
             verification_status_delay_seconds=2,
         )
         assert isinstance(ctx, CheckingCardContext)
         assert ctx.kind == "checking"
+        html = templates.get_template("partials/requirement_card.html").render(card=ctx)
+        assert (
+            f'hx-get="/htmx/verification/attempts/status?attempt_id={attempt_id}"'
+            in html
+        )
+        assert "token=" not in html
+        assert "queued or being verified" in html
+        assert "Analyzing your code" not in html
+        assert 'hx-trigger="load delay:2s"' in html
 
     def test_no_submission_is_not_started(self):
         req = _make_requirement(SubmissionType.CTF_TOKEN)

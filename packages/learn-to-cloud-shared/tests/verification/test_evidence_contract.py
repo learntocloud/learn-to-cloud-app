@@ -360,7 +360,6 @@ def test_actual_serialized_request_is_revalidated_before_provider(mutation):
         payload["deterministic_result"]["is_valid"] = False
     request = LLMGradingRequest(
         task=task,
-        thread_id="test",
         allowed_evidence_refs=refs,
         message="malformed"
         if mutation == "malformed"

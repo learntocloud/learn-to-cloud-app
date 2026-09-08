@@ -26,19 +26,6 @@ postgres_entra_admin_principal_name = "Learn to Cloud PostgreSQL Admins"
 # Optional - PostgreSQL runtime role mapped to the API managed identity
 # postgres_api_runtime_role = "ltc_api_runtime_dev"
 
-# Optional - PostgreSQL runtime role mapped to the verification Functions managed identity
-# postgres_verification_functions_role = "ltc_verification_functions_dev"
-
-# Optional - CIDR ranges allowed to connect to Durable Task Scheduler.
-# For prod, use trusted CIDRs only; Terraform rejects 0.0.0.0/0 and ::/0.
-# durable_task_scheduler_ip_allowlist = ["0.0.0.0/0"]
-
-# Optional - Durable Task Scheduler dashboard readers by environment.
-# Defaults dev to the existing "devs" Microsoft Entra group.
-# durable_task_dashboard_reader_group_object_ids_by_environment = {
-#   dev = ["2141d117-ca04-40c9-a8e2-a0af566791a3"]
-# }
-
 # Required - GitHub OAuth App client ID (create at https://github.com/settings/developers)
 github_client_id = "Ov23xxx"
 
@@ -52,7 +39,7 @@ github_client_id = "Ov23xxx"
 # location    = "centralus"
 # environment = "dev"
 # alert_emails = ["learntocloud@gmail.com"]
-# api_min_replicas = 0
+# api_min_replicas = 1
 # api_max_replicas = 2
 #
 # PostgreSQL defaults use the cheapest configured deployment shape. Override

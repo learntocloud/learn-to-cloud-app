@@ -186,13 +186,25 @@ resource "azurerm_container_app" "api_v5" {
       }
 
       env {
+        name  = "FOUNDRY_PROJECT_ENDPOINT"
+        value = local.foundry_project_endpoint
+      }
+
+      env {
+        name  = "FOUNDRY_MODEL_DEPLOYMENT_NAME"
+        value = azapi_resource.foundry_model_deployment.name
+      }
+
+      # Terraform updates settings before deploying the new image. Keep the old
+      # image's required settings inert so normal site routes remain available.
+      env {
         name  = "VERIFICATION_FUNCTIONS__BASE_URL"
-        value = "https://${azapi_resource.verification_functions.output.properties.defaultHostName}"
+        value = "https://127.0.0.1"
       }
 
       env {
         name  = "VERIFICATION_FUNCTIONS__TOKEN_SCOPE"
-        value = local.verification_functions_auth_scope
+        value = "api://ltc-verification-functions-${var.environment}/.default"
       }
 
       env {
@@ -233,6 +245,7 @@ resource "azurerm_container_app" "api_v5" {
   depends_on = [
     azurerm_role_assignment.api_acr_pull,
     azurerm_role_assignment.api_key_vault_secrets_user,
+    azurerm_role_assignment.api_foundry,
     azurerm_postgresql_flexible_server_database.main,
   ]
 }

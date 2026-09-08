@@ -20,12 +20,9 @@ COPY pyproject.toml uv.lock ./
 COPY api/pyproject.toml api/pyproject.toml
 COPY packages/learn-to-cloud-shared/pyproject.toml packages/learn-to-cloud-shared/pyproject.toml
 COPY packages/learn-to-cloud-shared-test-support/pyproject.toml packages/learn-to-cloud-shared-test-support/pyproject.toml
-COPY apps/verification-functions/pyproject.toml apps/verification-functions/pyproject.toml
 
 # Layer 1 (cached): install only the API package's third-party dependency
-# closure, not the workspace members themselves. This pulls api + shared
-# dependencies but NOT verification-functions-only dependencies, keeping the
-# API image small.
+# closure, not the workspace members themselves.
 RUN uv sync --package learn-to-cloud-api --no-dev --frozen --no-install-workspace --no-editable
 
 # Copy the source for the members in the API's dependency closure.

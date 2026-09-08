@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal
 from urllib.parse import urlparse
@@ -49,9 +48,6 @@ class GitHubUrlValue:
     def as_text(self) -> str:
         return self.github_url
 
-    def to_payload(self) -> dict[str, str]:
-        return {"submission_value_kind": self.kind.value, "value": self.github_url}
-
 
 @dataclass(frozen=True, slots=True)
 class TokenValue:
@@ -69,9 +65,6 @@ class TokenValue:
     @property
     def as_text(self) -> str:
         return self.token
-
-    def to_payload(self) -> dict[str, str]:
-        return {"submission_value_kind": self.kind.value, "value": self.token}
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,9 +85,6 @@ class DeployedUrlValue:
     def as_text(self) -> str:
         return self.url
 
-    def to_payload(self) -> dict[str, str]:
-        return {"submission_value_kind": self.kind.value, "value": self.url}
-
 
 @dataclass(frozen=True, slots=True)
 class TextValue:
@@ -113,9 +103,6 @@ class TextValue:
     @property
     def as_text(self) -> str:
         return self.text
-
-    def to_payload(self) -> dict[str, str]:
-        return {"submission_value_kind": self.kind.value, "value": self.text}
 
 
 type SubmittedValue = GitHubUrlValue | TokenValue | DeployedUrlValue | TextValue
@@ -164,20 +151,6 @@ def submitted_value_from_kind_and_value(
             return TextValue(value)
 
 
-def submitted_value_from_payload(payload: object) -> SubmittedValue:
-    """Deserialize the submitted-value Durable workflow payload."""
-    payload_map = _payload_mapping(payload)
-    _require_payload_keys(payload_map, {"submission_value_kind", "value"})
-    kind = payload_map.get("submission_value_kind")
-    if not isinstance(kind, str):
-        raise TypeError("Expected submission_value_kind payload field")
-    normalized_kind = SubmissionValueKind(kind)
-    value = payload_map["value"]
-    if not isinstance(value, str):
-        raise TypeError("Expected string payload field: value")
-    return submitted_value_from_kind_and_value(normalized_kind, value)
-
-
 def submitted_value_matches_requirement(
     requirement: HandsOnRequirement,
     submitted_value: SubmittedValue,
@@ -205,28 +178,6 @@ def value_kind_for_submission_type(
     if raw_type in _TEXT_TYPES:
         return SubmissionValueKind.TEXT
     raise ValueError(f"Unknown submission_type for submitted value: {raw_type!r}")
-
-
-def _payload_mapping(payload: object) -> dict[str, object]:
-    if not isinstance(payload, Mapping):
-        raise TypeError("Expected submission_value payload object")
-    payload_map: dict[str, object] = {}
-    for key, value in payload.items():
-        if not isinstance(key, str):
-            raise TypeError("Expected string submission_value payload keys")
-        payload_map[key] = value
-    return payload_map
-
-
-def _require_payload_keys(
-    payload: Mapping[str, object],
-    expected: set[str],
-) -> None:
-    actual = set(payload)
-    if actual != expected:
-        raise ValueError(
-            f"Invalid submission value payload fields: {sorted(actual - expected)}"
-        )
 
 
 def _validate_text(value: str) -> None:

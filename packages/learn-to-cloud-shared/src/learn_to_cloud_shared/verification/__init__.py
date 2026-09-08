@@ -1,6 +1,6 @@
 """Verification subsystem for hands-on learning requirements.
 
-Runs inside the Durable Function verify step. Submodules:
+Runs inside the API verification worker. Submodules:
     core              - Typed check, step, and workflow contracts
     checks/           - Directly callable verification adapters
     workflows          - Ordered workflow catalog for every submission type

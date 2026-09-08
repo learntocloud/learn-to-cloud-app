@@ -68,7 +68,7 @@ def render_input_error(
 def render_processing(
     request: Request,
     requirement: HandsOnRequirement,
-    status_token: str,
+    attempt_id: UUID,
     *,
     delay_seconds: int,
 ) -> HTMLResponse:
@@ -76,7 +76,7 @@ def render_processing(
         request,
         build_checking_requirement_card_context(
             requirement=requirement,
-            verification_status_token=status_token,
+            verification_attempt_id=attempt_id,
             verification_status_delay_seconds=delay_seconds,
         ),
     )

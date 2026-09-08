@@ -133,7 +133,7 @@ class LearnerStepCompletion(Base):
 
 
 class VerificationAttempt(TimestampMixin, Base):
-    """One verification attempt, keyed by its Durable instance UUID."""
+    """One persisted verification attempt."""
 
     __tablename__ = "verification_attempts"
     __table_args__ = (
@@ -184,6 +184,12 @@ class VerificationAttempt(TimestampMixin, Base):
             text("created_at DESC"),
         ),
         Index("ix_verification_attempts_created_at", "created_at"),
+        Index(
+            "ix_verification_attempts_pending",
+            "created_at",
+            "id",
+            postgresql_where=text("outcome IS NULL AND started_at IS NULL"),
+        ),
         Index(
             "ix_verification_attempts_succeeded_completed_requirement_user",
             "completed_at",

@@ -14,7 +14,6 @@ from learn_to_cloud_shared.submission_values import (
     GitHubUrlValue,
     TextValue,
     TokenValue,
-    submitted_value_from_payload,
     submitted_value_from_raw,
     value_kind_for_submission_type,
 )
@@ -39,7 +38,7 @@ def test_value_kind_for_submission_type(
 
 
 @pytest.mark.unit
-def test_github_url_value_uses_typed_payload() -> None:
+def test_github_url_value_uses_typed_variant() -> None:
     value = submitted_value_from_raw(
         profile_readme_requirement(),
         " https://github.com/user ",
@@ -48,14 +47,11 @@ def test_github_url_value_uses_typed_payload() -> None:
     assert value.kind is SubmissionValueKind.GITHUB_URL
     assert isinstance(value, GitHubUrlValue)
     assert value.github_url == "https://github.com/user"
-    assert value.to_payload() == {
-        "submission_value_kind": "github_url",
-        "value": "https://github.com/user",
-    }
+    assert value.as_text == "https://github.com/user"
 
 
 @pytest.mark.unit
-def test_text_value_uses_typed_payload() -> None:
+def test_text_value_uses_typed_variant() -> None:
     value = submitted_value_from_raw(
         career_reflection_requirement(),
         "  ## Question 0?\n\nA thoughtful answer.  ",
@@ -65,24 +61,6 @@ def test_text_value_uses_typed_payload() -> None:
     assert isinstance(value, TextValue)
     assert value.text == "## Question 0?\n\nA thoughtful answer."
     assert value.as_text == "## Question 0?\n\nA thoughtful answer."
-    assert value.to_payload() == {
-        "submission_value_kind": "text",
-        "value": "## Question 0?\n\nA thoughtful answer.",
-    }
-
-
-@pytest.mark.unit
-def test_text_value_round_trips_through_payload() -> None:
-    original = submitted_value_from_raw(
-        career_reflection_requirement(),
-        "Reflection body text.",
-    )
-
-    restored = submitted_value_from_payload(original.to_payload())
-
-    assert restored.kind is SubmissionValueKind.TEXT
-    assert isinstance(restored, TextValue)
-    assert restored.text == "Reflection body text."
 
 
 @pytest.mark.unit
@@ -124,32 +102,6 @@ def test_deployed_url_rejects_whitespace() -> None:
             deployed_api_requirement(),
             "https://api.example.com/bad path",
         )
-
-
-@pytest.mark.unit
-def test_payload_rejects_legacy_typed_value_fields() -> None:
-    payload = {
-        "submission_value_kind": "github_url",
-        "github_url": "https://github.com/user",
-        "token_value": "unexpected-token",
-        "deployed_url": None,
-        "text_value": None,
-    }
-
-    with pytest.raises(ValueError, match="Invalid submission value payload fields"):
-        submitted_value_from_payload(payload)
-
-
-@pytest.mark.unit
-def test_current_payload_rejects_extra_variant_fields() -> None:
-    payload = {
-        "submission_value_kind": "token",
-        "value": "token-123",
-        "github_url": "https://github.com/unexpected",
-    }
-
-    with pytest.raises(ValueError, match="Invalid submission value payload fields"):
-        submitted_value_from_payload(payload)
 
 
 @pytest.mark.unit

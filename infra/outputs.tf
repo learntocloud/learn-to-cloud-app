@@ -110,38 +110,8 @@ output "api_postgres_role" {
   value       = local.api_postgres_role
 }
 
-output "verification_functions_name" {
-  description = "Azure Functions app name used for Durable verification jobs"
-  value       = azapi_resource.verification_functions.name
-}
-
-output "verification_functions_url" {
-  description = "Azure Functions app URL used by the API Durable client"
-  value       = "https://${azapi_resource.verification_functions.output.properties.defaultHostName}"
-}
-
-output "verification_functions_auth_scope" {
-  description = "Microsoft Entra token scope used by the API Durable client"
-  value       = local.verification_functions_auth_scope
-}
-
-output "verification_functions_identity_client_id" {
-  description = "Client ID for the verification Functions managed identity"
-  value       = azurerm_user_assigned_identity.verification_functions.client_id
-}
-
-output "verification_functions_identity_id" {
-  description = "Resource ID for the verification Functions managed identity"
-  value       = azurerm_user_assigned_identity.verification_functions.id
-}
-
-output "verification_functions_identity_principal_id" {
-  description = "Principal ID for mapping the verification Functions identity to PostgreSQL"
-  value       = azurerm_user_assigned_identity.verification_functions.principal_id
-}
-
 output "verification_functions_postgres_role" {
-  description = "PostgreSQL role used by the verification Functions app"
+  description = "Inert legacy PostgreSQL role name required by historical migrations"
   value       = local.verification_functions_postgres_role
 }
 
@@ -168,14 +138,4 @@ output "foundry_location" {
 output "foundry_model_deployment_name" {
   description = "Foundry model deployment used by the verification LLM grader"
   value       = azapi_resource.foundry_model_deployment.name
-}
-
-output "durable_task_scheduler_name" {
-  description = "Durable Task Scheduler name used by verification Functions"
-  value       = azapi_resource.verification_scheduler.name
-}
-
-output "durable_task_hub_name" {
-  description = "Durable Task Scheduler task hub name used by verification Functions"
-  value       = azapi_resource.verification_task_hub.name
 }

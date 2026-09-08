@@ -1,4 +1,4 @@
-"""Round-trip and strip tests for VerificationRunResult.evidence carrier."""
+"""Evidence and prompt stripping before verification finalization."""
 
 from __future__ import annotations
 
@@ -11,10 +11,7 @@ from learn_to_cloud_shared_test_support.requirement_factories import (
 
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.submission_values import submitted_value_from_raw
-from learn_to_cloud_shared.verification.tasks.base import (
-    EvidenceBundle,
-    EvidenceItem,
-)
+from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle
 from learn_to_cloud_shared.verification_workflow import (
     GradingDisposition,
     PreparedVerificationAttempt,
@@ -56,7 +53,7 @@ class TestVerificationRunResultEvidence:
             == "server_error"
         )
 
-    def test_evidence_error_survives_transport_and_stripping(self) -> None:
+    def test_evidence_error_survives_stripping(self) -> None:
         result = VerificationRunResult(
             attempt=_run_result(None).attempt,
             validation_result=ValidationResult(
@@ -69,22 +66,12 @@ class TestVerificationRunResultEvidence:
             grading_requests=[],
         )
 
-        restored = VerificationRunResult.from_payload(result.to_payload())
-        stripped = restored.without_transport_data()
+        stripped = result.without_transport_data()
 
         assert stripped.validation_result.error_code == "evidence.total_limit"
         assert stripped.validation_result.verification_completed is False
         assert stripped.evidence is None
         assert stripped.grading_requests is None
-
-    def test_historical_result_without_error_code_still_loads(self) -> None:
-        payload = _run_result(None).to_payload()
-        payload["validation_result"].pop("error_code")
-
-        restored = VerificationRunResult.from_payload(payload)
-
-        assert restored.validation_result.error_code is None
-        assert restored.validation_result.is_valid is True
 
     def test_defaults_to_none(self) -> None:
         result = VerificationRunResult(
@@ -92,22 +79,6 @@ class TestVerificationRunResultEvidence:
             validation_result=ValidationResult(is_valid=True, message="ok"),
         )
         assert result.evidence is None
-
-    def test_none_evidence_round_trips(self) -> None:
-        restored = VerificationRunResult.from_payload(_run_result(None).to_payload())
-        assert restored.evidence is None
-
-    def test_evidence_round_trips(self) -> None:
-        bundle = EvidenceBundle(
-            task_id="t1",
-            source="repo_files",
-            items=[EvidenceItem(path="a.txt", content="hi", sha256="abc")],
-            total_bytes=2,
-        )
-        restored = VerificationRunResult.from_payload(
-            _run_result([bundle]).to_payload()
-        )
-        assert restored.evidence == [bundle]
 
     def test_without_transport_data_strips_bundles(self) -> None:
         bundle = EvidenceBundle(task_id="t1", source="repo_files")
@@ -129,7 +100,6 @@ def _grading_request():
     return LLMGradingRequest(
         task=DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
         message="grade this",
-        thread_id="job-task",
     )
 
 
@@ -137,31 +107,6 @@ def _grading_request():
 class TestVerificationRunResultGradingRequests:
     def test_defaults_to_none(self) -> None:
         assert _run_result(None).grading_requests is None
-
-    def test_none_grading_requests_round_trips(self) -> None:
-        restored = VerificationRunResult.from_payload(_run_result(None).to_payload())
-        assert restored.grading_requests is None
-
-    def test_grading_requests_round_trip(self) -> None:
-        request = _grading_request()
-        result = VerificationRunResult(
-            attempt=_run_result(None).attempt,
-            validation_result=ValidationResult(is_valid=True, message="ok"),
-            grading_requests=[request],
-        )
-        restored = VerificationRunResult.from_payload(result.to_payload())
-        assert restored.grading_requests == [request]
-
-    def test_empty_grading_requests_round_trip(self) -> None:
-        result = VerificationRunResult(
-            attempt=_run_result(None).attempt,
-            validation_result=ValidationResult(is_valid=False, message="gate failed"),
-            grading_requests=[],
-            grading_disposition=GradingDisposition.SKIPPED_GATE_FAILED,
-        )
-        restored = VerificationRunResult.from_payload(result.to_payload())
-        assert restored.grading_requests == []
-        assert restored.grading_disposition == GradingDisposition.SKIPPED_GATE_FAILED
 
     def test_without_transport_data_strips_grading_requests(self) -> None:
         result = VerificationRunResult(

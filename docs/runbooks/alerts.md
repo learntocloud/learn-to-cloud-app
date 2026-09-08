@@ -18,10 +18,10 @@ details are available; query credentials are removed from URL fields. See
 | `availability` | Application Insights standard web-test metric | Unchanged; platform-owned uptime signal. |
 | `api_unhandled_exception` | `unhandled.exception` structured exception log | Unchanged; the FastAPI exception boundary emits it once. |
 | `api_telemetry_pipeline_failure` | `telemetry.configure.failed` JSON stdout log | Narrowed to the app-owned setup signal; removed the Azure SDK's internal logger text. |
-| `verification_attempt_system_error` | `verification.attempt.completed` structured business log | Unchanged; #780 owns this persisted final-outcome contract. |
+| `verification_attempt_system_error` | `verification.attempt.completed` structured business log | Emitted only after PostgreSQL accepts the final outcome. |
 | `verification_llm_immediate_failure` | `verification.llm_grading.failed` structured business log | Unchanged; bounded `error.type` remains the alert dimension. |
 | `verification_llm_transient_failure` | `verification.llm_grading.failed` structured business log | Unchanged; bounded `error.type` remains the alert dimension. |
-| `verification_attempt_stuck` | `verification.attempt.stuck` structured business log | Unchanged; #780 owns the reconciler contract. |
+| `verification_attempt_stuck` | `verification.attempt.stuck` business log or `verification.worker.failed` error log | Queued/executing overdue work and fatal worker failures, under the API role. |
 | `schema_drift` | `health.ready.schema_drift*` structured health logs | Unchanged; the query uses event names, not exception text or spans. |
 
 ## Unhandled API exception
@@ -320,9 +320,7 @@ Alembic head and the code head, or a failure while checking that relationship.
 ```kusto
 traces
 | where timestamp > ago(2h)
-| where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-dev")
-    or cloud_RoleName has "learn-to-cloud-api"
-    or cloud_RoleName has "ca-ltc-api"
+| where cloud_RoleName == "learn-to-cloud-api"
 | where message in (
     "health.ready.schema_drift",
     "health.ready.schema_drift_check_failed"
@@ -362,22 +360,15 @@ validation failures.
 ### First checks
 
 1. Capture the attempt ID and final outcome.
-2. Correlate the attempt across API and verification Functions telemetry.
-3. Check Durable Functions status, dependencies, and the persisted attempt row.
+2. Correlate the attempt's creation, execution span, and completion in API telemetry.
+3. Check API worker health, dependencies, and the persisted attempt row.
 
 ### Detailed Kusto
 
 ```kusto
 traces
 | where timestamp > ago(2h)
-| where cloud_RoleName in (
-    "learn-to-cloud-api",
-    "ca-ltc-api-dev",
-    "learn-to-cloud-verification-functions",
-    "func-ltc-verification-dev"
-)
-    or cloud_RoleName has "learn-to-cloud-api"
-    or cloud_RoleName has "verification-functions"
+| where cloud_RoleName == "learn-to-cloud-api"
 | where message == "verification.attempt.completed"
 | extend
     Outcome = tostring(customDimensions["verification.outcome"]),
@@ -389,21 +380,21 @@ traces
 
 ### Likely causes
 
-- A verification dependency or orchestration activity failed.
-- The orchestration was cancelled during shutdown or recovery.
-- Persisting or reading the final state failed.
+- A verification dependency or execution failed.
+- Execution timed out, or shutdown interrupted it.
+- Overdue cleanup finalized work abandoned by a process crash.
 
 ### Escalation
 
 Escalate when multiple learners are affected, the same stage repeatedly fails,
 or retries produce another system outcome. Include attempt IDs, outcomes,
-failure stage, dependency errors, and orchestration status.
+failure stage, dependency errors, and API revision.
 
 ### Safe recovery
 
 Fix the underlying dependency or code path before asking the learner to retry.
-Do not rewrite a final outcome. Use established replay/reset procedures only
-after confirming they are safe for that attempt.
+Do not rewrite a final outcome or replay an execution. Once the cause is fixed,
+the learner can submit a new attempt.
 
 ## Verification LLM grading failures
 
@@ -426,7 +417,7 @@ rewrite path, not an error or alert.
 
 1. Start with the alert category and count; do not add customer information to
    the query.
-2. Confirm the Functions revision and model deployment configuration.
+2. Confirm the API revision and model deployment configuration.
 3. For transient categories, check Foundry and Azure service health, quotas,
    outbound connectivity, and whether the count continues after the alert
    window.
@@ -436,6 +427,7 @@ rewrite path, not an error or alert.
 ```kusto
 traces
 | where timestamp > ago(2h)
+| where cloud_RoleName == "learn-to-cloud-api"
 | where message == "verification.llm_grading.failed"
 | extend ErrorType = tostring(customDimensions["error.type"])
 | where ErrorType in (
@@ -460,49 +452,58 @@ production smoke validation. For a response-validation category, inspect the
 deployed structured response contract and model deployment, not learner
 evidence. Keep the SDK's 10-minute timeout until 100 successful calls have been
 observed over 30 days; do not introduce a shorter deadline from an alert alone.
+The worker separately bounds the entire attempt to 180 seconds by default;
+that deadline can cancel grading before the SDK timeout and produces a saved
+attempt failure rather than an exhausted SDK error.
 
 ## Verification active beyond limit
 
 ### Meaning
 
-The reconciler confirmed an attempt is still active beyond its allowed duration,
-or it could not reliably query/recheck Durable status. The detector reads the
-`verification.attempt.stuck` event; the alert dimension is limited to:
-`active_beyond_limit`, `status_query_failed`, and `status_recheck_failed`.
+An attempt waited too long for a claim, an execution exceeded its limit, or the
+API's sequential verification loop failed. One alert covers these related
+availability failures without a separate worker-death alert. The bounded
+`StuckReason` dimension is `queued_beyond_limit`, `execution_beyond_limit`, or
+`worker_failed`. The first two come from `verification.attempt.stuck`; the last
+comes from `verification.worker.failed`. The alert accepts trace or exception
+telemetry, but the worker logs only `error.type` to avoid leaking provider
+responses or evidence.
+
+The worker and HTTP server share `learn-to-cloud-api`. Both `/health` and
+`/ready` return 503 when the worker task has finished, allowing restart and
+availability detection. Healthy probes indicate a live task, not that queued
+work is progressing within its limit; the overdue signal covers that separately.
+`verification.worker.failed` is not the HTTP-only `unhandled.exception`.
 
 ### First checks
 
 1. Use the alert dimension to identify the bounded stuck reason.
-2. Capture attempt ID, Durable status, and attempt age from the matching record.
-3. Check the verification Functions revision, host health, storage, and Durable
-   task hub.
+2. Capture attempt ID and age for overdue work, or replica and error type for a
+   worker failure (which need not have an attempt ID).
+3. Check the API revision, replica health, database connectivity, and dependency
+   spans. Confirm queued/executing backlog in PostgreSQL; missing log events are
+   not authoritative queue state.
 
 ### Detailed Kusto
 
 ```kusto
-traces
+union traces, exceptions
 | where timestamp > ago(4h)
-| where cloud_RoleName in (
-    "learn-to-cloud-verification-functions",
-    "func-ltc-verification-dev"
-)
-    or cloud_RoleName has "verification-functions"
-    or cloud_RoleName has "func-ltc-verification"
-| where message == "verification.attempt.stuck"
+| where cloud_RoleName == "learn-to-cloud-api"
+| extend Event = coalesce(message, outerMessage)
+| where Event in ("verification.attempt.stuck", "verification.worker.failed")
 | extend
     AttemptId = tostring(customDimensions["verification.attempt.id"]),
-    DurableStatus = tostring(customDimensions["verification.durable.status"]),
     AttemptAgeSeconds = toint(customDimensions["verification.attempt.age_seconds"]),
-    StuckReason = tostring(customDimensions["verification.stuck.reason"])
+    StuckReason = iff(Event == "verification.worker.failed", "worker_failed", tostring(customDimensions["verification.stuck.reason"]))
 | where StuckReason in (
-    "active_beyond_limit",
-    "status_query_failed",
-    "status_recheck_failed"
+    "queued_beyond_limit",
+    "execution_beyond_limit",
+    "worker_failed"
 )
 | project
     timestamp,
     AttemptId,
-    DurableStatus,
     AttemptAgeSeconds,
     StuckReason,
     cloud_RoleInstance
@@ -511,19 +512,27 @@ traces
 
 ### Likely causes
 
-- An orchestration or activity is genuinely running beyond its limit.
-- Durable storage or the management endpoint could not answer a status query.
-- A race occurred while the reconciler rechecked a terminal transition.
+- Sequential processing cannot keep up, or no healthy process is claiming work.
+- A dependency stalled or an API process exited during execution.
+- The loop failed while claiming work or cleaning up overdue attempts.
 
 ### Escalation
 
 Escalate when age keeps increasing, multiple attempts share the same reason, or
-status queries fail across replicas. Include attempt IDs, bounded reason,
-Durable status, age, revision, and storage/host errors.
+worker failures affect multiple replicas. Include attempt IDs when available,
+bounded reason, age, revision, and database/dependency errors.
 
 ### Safe recovery
 
-Restore task-hub or host connectivity before changing attempt state. Terminate
-or reset an orchestration only after confirming the attempt ID and persisted
-state, and use the application's established recovery path rather than editing
-Durable storage directly.
+Restore database/dependency connectivity or fix the failing code, then restart
+the affected API process through the normal deployment path if its worker died.
+Confirm new execution-started events and saved completions. The worker's overdue
+cleanup saves terminal outcomes for abandoned attempts; it does not retry or
+resume them. Let learners submit again after recovery. Do not manually unclaim
+work that may still be executing.
+
+For the migration cutover, stop the old verification host **before** migration
+`0062_api_verification_worker`. It marks every active attempt `server_error` with
+cause `verification_interrupted`. Then start the new API worker, which only
+claims attempts without a `started_at` value. There is no replay or checkpoint
+migration.

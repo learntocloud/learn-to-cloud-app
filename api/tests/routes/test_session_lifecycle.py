@@ -347,7 +347,7 @@ async def test_touch_once_reuses_account_and_skips_static_health(
                 "/verifications/phase/1",
                 "/dashboard",
                 "/community",
-                "/htmx/verification/attempts/status?token=invalid",
+                "/htmx/verification/attempts/status?attempt_id=00000000-0000-0000-0000-000000000001",
                 "/faq",
                 "/privacy",
                 "/terms",
@@ -355,7 +355,7 @@ async def test_touch_once_reuses_account_and_skips_static_health(
                 queries.clear()
                 response = await client.get(path)
                 assert response.status_code == (
-                    400 if path.startswith("/htmx/verification/attempts/") else 200
+                    404 if path.startswith("/htmx/verification/attempts/") else 200
                 )
                 assert sum("UPDATE auth_sessions" in q for q in queries) == 1
                 assert sum(q.startswith("SELECT auth_sessions.") for q in queries) == 1
@@ -424,7 +424,10 @@ async def test_account_identity_graph_resolves_consistently(
         ("POST", "/htmx/verifications/test/submit/value"),
         ("POST", "/htmx/verifications/test/submit/reflection"),
         ("POST", "/htmx/github/submit"),
-        ("GET", "/htmx/verification/attempts/status?token=private-token"),
+        (
+            "GET",
+            "/htmx/verification/attempts/status?attempt_id=00000000-0000-0000-0000-000000000001",
+        ),
         ("DELETE", "/htmx/account"),
     ],
 )

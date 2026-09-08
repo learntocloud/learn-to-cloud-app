@@ -140,7 +140,7 @@ async def test_capstone_success_persists_commit_and_run_feedback(
         attempt=preparation.attempt, validation_result=result, grading_requests=[]
     )
     await finalize_verification_attempt(
-        VerificationRunResult.from_payload(run_result.to_payload()),
+        run_result,
         session_maker=session_maker,
     )
     async with session_maker() as db:
@@ -220,6 +220,7 @@ async def test_finalize_is_compare_and_set_idempotent(
     assert second.won is False
     outcome = "succeeded" if passed else "failed"
     assert first.state.outcome == outcome
+    assert first.state.terminal_source == "api_worker"
     assert second.state.outcome == outcome
     assert first.state.completed_at == second.state.completed_at
     records = [
@@ -308,13 +309,11 @@ async def test_failed_github_fetch_persists_incomplete_without_completion(
         validation_result=validation,
         grading_requests=[],
     )
-    restored = VerificationRunResult.from_payload(run_result.to_payload())
-
     finalized = await finalize_verification_attempt(
-        restored, session_maker=session_maker
+        run_result, session_maker=session_maker
     )
     repeated = await finalize_verification_attempt(
-        restored, session_maker=session_maker
+        run_result, session_maker=session_maker
     )
 
     assert finalized.won is True
@@ -424,13 +423,11 @@ async def test_evidence_codes_persist_through_terminal_projections(
         grading_requests=[],
         llm_error_type="not-an-allowed-llm-category",
     )
-    restored = VerificationRunResult.from_payload(run_result.to_payload())
-
     with caplog.at_level(
         logging.INFO, logger="learn_to_cloud.verification_attempt_executor"
     ):
         result = await finalize_verification_attempt(
-            restored, session_maker=session_maker
+            run_result, session_maker=session_maker
         )
         repeated = await finalize_verification_attempt(
             VerificationRunResult(
@@ -555,7 +552,6 @@ async def test_incomplete_finalization_drops_private_evidence_and_stale_prompt(
             LLMGradingRequest(
                 task=DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
                 message=private,
-                thread_id="private-evidence-thread",
             )
         ],
     )
@@ -563,7 +559,7 @@ async def test_incomplete_finalization_drops_private_evidence_and_stale_prompt(
         logging.INFO, logger="learn_to_cloud.verification_attempt_executor"
     ):
         await finalize_verification_attempt(
-            VerificationRunResult.from_payload(run_result.to_payload()),
+            run_result,
             session_maker=session_maker,
         )
 

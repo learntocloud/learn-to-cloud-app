@@ -1,11 +1,4 @@
-"""Apply durable LLM grading decisions to verification job results.
-
-Migrated engine workflows record their grading requests on the verify result
-via the engine's rubric-review steps, so evidence collection and prompt
-assembly live in the engine, not here. This module now only merges the
-grader's decisions back into the run result and formats grader-outage and
-content-filter results.
-"""
+"""Apply rubric decisions and format grader failures for verification results."""
 
 from __future__ import annotations
 
@@ -141,13 +134,7 @@ def llm_grading_unavailable_result(
 def llm_grading_content_filtered_result(
     run_result: VerificationRunResult,
 ) -> VerificationRunResult:
-    """Return an actionable result when content safety blocked every retry.
-
-    Azure's safety filter occasionally blocks a submission's free text. When
-    it blocks every retry the cause is usually phrasing that looks like
-    instructions or code, so the message asks the learner to rephrase and
-    try again rather than blaming our systems.
-    """
+    """Return an actionable result when content safety blocks a grading request."""
     validation_result = run_result.validation_result.model_copy(
         update={
             "is_valid": False,

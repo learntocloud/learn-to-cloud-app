@@ -101,8 +101,16 @@ _LEGACY_ROUTES = (
     ("/api/user/me", False, 401),
     ("/account", False, 303),
     ("/account", True, 401),
-    ("/htmx/verification/attempts/status?token=private-token", False, 401),
-    ("/htmx/verification/attempts/status?token=private-token", True, 401),
+    (
+        "/htmx/verification/attempts/status?attempt_id=00000000-0000-0000-0000-000000000001",
+        False,
+        401,
+    ),
+    (
+        "/htmx/verification/attempts/status?attempt_id=00000000-0000-0000-0000-000000000001",
+        True,
+        401,
+    ),
 )
 # Exercise every payload on one route and each cleanup shape across route policies.
 _LEGACY_HTTP_CASES = [
@@ -315,7 +323,11 @@ async def test_api_auth_failure(client, api_services, method, accept, htmx):
 @pytest.mark.parametrize(
     ("method", "path", "data"),
     [
-        ("GET", "/htmx/verification/attempts/status?token=test", None),
+        (
+            "GET",
+            "/htmx/verification/attempts/status?attempt_id=00000000-0000-0000-0000-000000000001",
+            None,
+        ),
         ("POST", "/htmx/github/submit", None),
         (
             "POST",

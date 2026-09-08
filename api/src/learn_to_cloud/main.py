@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -43,6 +43,8 @@ from learn_to_cloud.routes import (
     users_router,
 )
 from learn_to_cloud.routes.health_routes import get_code_alembic_head
+from learn_to_cloud.services.verification_grader import close_verification_grader
+from learn_to_cloud.services.verification_worker import run_verification_worker
 
 # Configure stdlib logging before Azure Monitor adds any logging handlers.
 # Azure Monitor must run before fastapi.FastAPI() is instantiated so request
@@ -104,12 +106,26 @@ async def lifespan(app: fastapi.FastAPI):
         raise
 
     try:
+        app.state.verification_worker = asyncio.create_task(
+            run_verification_worker(
+                app.state.session_maker, app.state.settings.verification_worker
+            ),
+            name="verification-worker",
+        )
         yield
     finally:
-        await close_github_client()
-        await dispose_engine(app.state.engine)
-        if app.state.settings.database.use_azure_postgres:
-            await close_credential()
+        worker = getattr(app.state, "verification_worker", None)
+        try:
+            if worker is not None:
+                worker.cancel()
+                with suppress(asyncio.CancelledError):
+                    await worker
+        finally:
+            await close_verification_grader()
+            await close_github_client()
+            await dispose_engine(app.state.engine)
+            if app.state.settings.database.use_azure_postgres:
+                await close_credential()
 
 
 _settings = get_web_settings()

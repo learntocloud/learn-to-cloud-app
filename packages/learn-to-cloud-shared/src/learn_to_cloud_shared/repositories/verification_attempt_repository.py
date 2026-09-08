@@ -14,6 +14,7 @@ from sqlalchemy import (
     column,
     func,
     literal,
+    or_,
     select,
     text,
     union_all,
@@ -64,7 +65,7 @@ class AttemptTerminalState:
 
 @dataclass(frozen=True, slots=True)
 class AttemptStatusRow:
-    """Lifecycle projection used by the stale-attempt reconciler."""
+    """Lifecycle projection for attempt status and expiry."""
 
     id: UUID
     user_id: int
@@ -146,15 +147,67 @@ class AttemptAlreadyValidatedError(Exception):
 
 
 class VerificationAttemptRepository:
-    """Data access for verification attempts.
-
-    Most methods here run under the Functions role's narrowed column grants
-    (see migration 0051). :meth:`create_or_get_active` is the API-side
-    submission-creation path and runs under the API's normal role instead.
-    """
+    """Data access for API submission, verification, and progress reads."""
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+
+    async def claim_pending(self, *, queued_after: datetime) -> UUID | None:
+        """Claim one runnable attempt once, without locking during verification."""
+        candidate = (
+            select(VerificationAttempt.id)
+            .where(
+                VerificationAttempt.outcome.is_(None),
+                VerificationAttempt.started_at.is_(None),
+                VerificationAttempt.snapshot_source
+                == VerificationSnapshotSource.SUBMITTED.value,
+                VerificationAttempt.created_at >= queued_after,
+            )
+            .order_by(VerificationAttempt.created_at, VerificationAttempt.id)
+            .with_for_update(skip_locked=True)
+            .limit(1)
+            .scalar_subquery()
+        )
+        result = await self.db.execute(
+            update(VerificationAttempt)
+            .where(
+                VerificationAttempt.id == candidate,
+                VerificationAttempt.outcome.is_(None),
+                VerificationAttempt.started_at.is_(None),
+            )
+            .values(started_at=func.now(), updated_at=func.now())
+            .returning(VerificationAttempt.id)
+        )
+        return result.scalar_one_or_none()
+
+    async def lock_overdue(
+        self, *, queued_before: datetime, started_before: datetime
+    ) -> list[AttemptStatusRow]:
+        """Lock a bounded batch so expiry cannot race a claim or completion."""
+        result = await self.db.execute(
+            select(
+                VerificationAttempt.id,
+                VerificationAttempt.user_id,
+                VerificationAttempt.requirement_uuid,
+                VerificationAttempt.outcome,
+                VerificationAttempt.started_at,
+                VerificationAttempt.created_at,
+            )
+            .where(
+                VerificationAttempt.outcome.is_(None),
+                or_(
+                    and_(
+                        VerificationAttempt.started_at.is_(None),
+                        VerificationAttempt.created_at < queued_before,
+                    ),
+                    VerificationAttempt.started_at < started_before,
+                ),
+            )
+            .order_by(VerificationAttempt.created_at, VerificationAttempt.id)
+            .with_for_update(skip_locked=True)
+            .limit(100)
+        )
+        return [AttemptStatusRow(**row._mapping) for row in result.all()]
 
     async def create_or_get_active(
         self,
@@ -355,51 +408,6 @@ class VerificationAttemptRepository:
             completed_at=row.completed_at,
         )
 
-    async def list_active_older_than(
-        self, cutoff: datetime, *, limit: int
-    ) -> list[AttemptStatusRow]:
-        """Return active (``outcome IS NULL``) attempts created before ``cutoff``.
-
-        Ordered oldest-first and bounded by ``limit`` so a reconciler pass
-        drains the backlog deterministically without unbounded work.
-        """
-        result = await self.db.execute(
-            select(
-                VerificationAttempt.id,
-                VerificationAttempt.user_id,
-                VerificationAttempt.requirement_uuid,
-                VerificationAttempt.outcome,
-                VerificationAttempt.started_at,
-                VerificationAttempt.created_at,
-            )
-            .where(
-                VerificationAttempt.outcome.is_(None),
-                func.coalesce(
-                    VerificationAttempt.started_at,
-                    VerificationAttempt.created_at,
-                )
-                < cutoff,
-            )
-            .order_by(
-                func.coalesce(
-                    VerificationAttempt.started_at,
-                    VerificationAttempt.created_at,
-                ).asc()
-            )
-            .limit(limit)
-        )
-        return [
-            AttemptStatusRow(
-                id=row.id,
-                user_id=row.user_id,
-                requirement_uuid=row.requirement_uuid,
-                outcome=row.outcome,
-                started_at=row.started_at,
-                created_at=row.created_at,
-            )
-            for row in result.all()
-        ]
-
     async def finalize(
         self,
         attempt_id: UUID,
@@ -467,73 +475,6 @@ class VerificationAttemptRepository:
             raise AttemptAlreadyGoneError(str(attempt_id))
         return FinalizeResult(won=False, state=existing)
 
-    async def finalize_unstarted(
-        self,
-        attempt_id: UUID,
-        *,
-        outcome: VerificationAttemptOutcome | str,
-        error_code: str,
-        validation_message: str,
-        terminal_source: str,
-        completed_at: datetime | None = None,
-    ) -> FinalizeResult | None:
-        """Finalize only while an attempt is both active and unclaimed."""
-        normalized_outcome = (
-            outcome.value
-            if isinstance(outcome, VerificationAttemptOutcome)
-            else VerificationAttemptOutcome(outcome).value
-        )
-        now = completed_at or utcnow()
-        stmt = (
-            update(VerificationAttempt)
-            .where(
-                VerificationAttempt.id == attempt_id,
-                VerificationAttempt.outcome.is_(None),
-                VerificationAttempt.started_at.is_(None),
-            )
-            .values(
-                outcome=normalized_outcome,
-                error_code=error_code,
-                validation_message=validation_message,
-                terminal_source=terminal_source,
-                feedback_json=None,
-                completed_at=now,
-                updated_at=now,
-            )
-            .returning(
-                VerificationAttempt.id,
-                VerificationAttempt.outcome,
-                VerificationAttempt.error_code,
-                VerificationAttempt.validation_message,
-                VerificationAttempt.terminal_source,
-                VerificationAttempt.completed_at,
-            )
-        )
-        result = await self.db.execute(stmt)
-        row = result.one_or_none()
-        if row is not None:
-            return FinalizeResult(
-                won=True,
-                state=AttemptTerminalState(
-                    id=row.id,
-                    outcome=row.outcome,
-                    error_code=row.error_code,
-                    validation_message=row.validation_message,
-                    terminal_source=row.terminal_source,
-                    completed_at=row.completed_at,
-                ),
-            )
-
-        existing = await self.get_status(attempt_id)
-        if existing is None:
-            raise AttemptAlreadyGoneError(str(attempt_id))
-        if existing.outcome is None:
-            return None
-        terminal = await self.get_terminal_state(attempt_id)
-        if terminal is None:
-            raise AttemptAlreadyGoneError(str(attempt_id))
-        return FinalizeResult(won=False, state=terminal)
-
     # Authoritative progress, gating, card, and stats reads.
 
     async def get_succeeded_requirement_uuids(self, user_id: int) -> set[UUID]:
@@ -590,11 +531,7 @@ class VerificationAttemptRepository:
     async def get_active_for_requirements(
         self, user_id: int, requirement_uuids: Iterable[UUID]
     ) -> list[ActiveAttemptRow]:
-        """Get active (``outcome IS NULL``) attempts across a set of requirements.
-
-        ``VerificationAttempt.id`` is also the Durable instance id and the
-        status-token attempt id.
-        """
+        """Get active attempts across a set of requirements."""
         uuids = list(requirement_uuids)
         if not uuids:
             return []

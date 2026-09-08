@@ -127,7 +127,6 @@ def test_stuck_alert_uses_only_canonical_attributes():
     runbook = (_ROOT / "docs" / "runbooks" / "alerts.md").read_text()
     block = _resource_block(monitoring, "verification_attempt_stuck")
     for canonical in (
-        "verification.durable.status",
         "verification.attempt.age_seconds",
         "verification.stuck.reason",
     ):
@@ -136,3 +135,29 @@ def test_stuck_alert_uses_only_canonical_attributes():
     for historical in ("durable_status", "attempt_age_seconds", "stuck_reason"):
         assert f'customDimensions["{historical}"]' not in block
         assert f'customDimensions["{historical}"]' not in runbook
+    assert "DurableStatus" not in block
+    assert "verification.durable.status" not in block
+    assert "union traces, exceptions" in block
+    assert "coalesce(message, outerMessage)" in block
+    assert '"verification.worker.failed"' in block
+    assert 'Event == "verification.worker.failed" or isnotempty(AttemptId)' in block
+    assert 'cloud_RoleName == "learn-to-cloud-api"' in block
+    for reason in ("queued_beyond_limit", "execution_beyond_limit", "worker_failed"):
+        assert f'"{reason}"' in block
+        assert reason in runbook
+
+
+def test_verification_alerts_use_only_the_api_role():
+    monitoring = (_ROOT / "infra" / "monitoring.tf").read_text()
+    for name in (
+        "verification_attempt_system_error",
+        "verification_llm_immediate_failure",
+        "verification_llm_transient_failure",
+        "verification_attempt_stuck",
+    ):
+        block = _resource_block(monitoring, name)
+        assert 'cloud_RoleName == "learn-to-cloud-api"' in block
+        assert "functions" not in block
+    assert 'outerMessage == "unhandled.exception"' in _resource_block(
+        monitoring, "api_unhandled_exception"
+    )

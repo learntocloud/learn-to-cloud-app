@@ -16,14 +16,18 @@ from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from learn_to_cloud_shared.core.database import Base
-from learn_to_cloud_shared.models import LearnerStepCompletion, User
+from learn_to_cloud_shared.models import (
+    LearnerStepCompletion,
+    User,
+    VerificationAttempt,
+)
 from learn_to_cloud_shared.repositories import user_repository
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from pytest_alembic.tests import (
@@ -45,7 +49,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import registry
+from sqlalchemy.orm import Session, registry
 
 from alembic import command
 
@@ -128,6 +132,52 @@ def alembic_engine():
         )
         conn.execute(text(f"DROP DATABASE IF EXISTS {MIGRATION_DB}"))
     admin_eng.dispose()
+
+
+def test_api_worker_cutover_closes_only_unfinished_attempts(
+    alembic_runner, alembic_engine
+) -> None:
+    previous = "0061_auth_sessions_concurrent_indexes"
+    alembic_runner.migrate_up_to(previous)
+    now = datetime.now(UTC)
+    ids = [uuid4() for _ in range(3)]
+    with Session(alembic_engine) as db:
+        db.add(User(id=85101, github_username="cutover"))
+        db.flush()
+        for index, attempt_id in enumerate(ids):
+            db.add(
+                VerificationAttempt(
+                    id=attempt_id,
+                    user_id=85101,
+                    requirement_uuid=uuid4(),
+                    snapshot_source="reconstructed",
+                    submission_value_kind="github_url",
+                    submitted_value="https://github.com/cutover/repo",
+                    started_at=now if index else None,
+                    outcome="succeeded" if index == 2 else None,
+                    completed_at=now if index == 2 else None,
+                )
+            )
+        db.commit()
+
+    alembic_runner.migrate_up_to("0062_api_verification_worker")
+    with Session(alembic_engine) as db:
+        for attempt_id in ids[:2]:
+            attempt = db.get(VerificationAttempt, attempt_id)
+            assert attempt is not None
+            assert attempt.outcome == "server_error"
+            assert attempt.error_code == "verification_interrupted"
+            assert attempt.completed_at is not None
+        completed = db.get(VerificationAttempt, ids[2])
+        assert completed is not None
+        assert completed.outcome == "succeeded"
+
+    alembic_runner.migrate_down_to(previous)
+    with Session(alembic_engine) as db:
+        for attempt_id in ids:
+            attempt = db.get(VerificationAttempt, attempt_id)
+            assert attempt is not None
+            assert attempt.outcome is not None
 
 
 def test_contract_removes_legacy_database_objects(
@@ -241,6 +291,14 @@ def _expanded_metadata(*, contracted: bool = False) -> MetaData:
     for table in Base.metadata.sorted_tables:
         if table.name != "auth_sessions":
             table.to_metadata(metadata)
+    attempts = metadata.tables["verification_attempts"]
+    attempts.indexes.remove(
+        next(
+            index
+            for index in attempts.indexes
+            if index.name == "ix_verification_attempts_pending"
+        )
+    )
     if not contracted:
         for name in ("first_name", "last_name"):
             metadata.tables["users"].append_column(

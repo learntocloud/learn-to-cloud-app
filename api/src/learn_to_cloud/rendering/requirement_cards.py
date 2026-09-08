@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 from urllib.parse import urlparse
+from uuid import UUID
 
 from learn_to_cloud_shared.schemas import HandsOnRequirement, SubmissionData
 
@@ -73,7 +74,7 @@ class NotStartedCardContext(_RequirementCardBase):
 class CheckingCardContext(_RequirementCardBase):
     """An active verification attempt."""
 
-    verification_status_token: str | None
+    verification_attempt_id: UUID
     verification_status_delay_seconds: int
     kind: Literal["checking"] = field(init=False, default="checking")
 
@@ -190,7 +191,7 @@ def build_requirement_card_context(
 def build_checking_requirement_card_context(
     *,
     requirement: HandsOnRequirement,
-    verification_status_token: str | None,
+    verification_attempt_id: UUID,
     verification_status_delay_seconds: int,
     feedback_tasks: list[FeedbackTaskContext] | None = None,
     feedback_passed: int = 0,
@@ -201,7 +202,7 @@ def build_checking_requirement_card_context(
         requirement=requirement,
         feedback_tasks=tasks,
         feedback_passed=passed,
-        verification_status_token=verification_status_token,
+        verification_attempt_id=verification_attempt_id,
         verification_status_delay_seconds=verification_status_delay_seconds,
     )
 

@@ -97,18 +97,13 @@ class HttpConfig(FrozenConfig):
     external_api_timeout: float = 15.0
 
 
-class ReconcilerConfig(FrozenConfig):
-    """Stale verification-attempt reconciler config.
+class VerificationWorkerConfig(FrozenConfig):
+    """Limits for the API's sequential verification worker."""
 
-    ``stale_attempt_min_age_minutes`` is the age past which an attempt that is
-    still ``active`` (``outcome IS NULL``) is inspected against Durable and
-    terminalized if abandoned. It must comfortably exceed the normal
-    verification window (submit -> orchestrate -> finalize, plus retries) so a
-    healthy in-flight run is never mistaken for abandoned.
-    """
-
-    stale_attempt_min_age_minutes: int = Field(default=30, ge=1)
-    batch_limit: int = Field(default=200, ge=1)
+    poll_interval_seconds: float = Field(default=5, gt=0)
+    execution_timeout_seconds: int = Field(default=180, ge=1)
+    queue_timeout_seconds: int = Field(default=600, ge=1)
+    shutdown_timeout_seconds: int = Field(default=10, ge=1, le=20)
 
 
 class ContentConfig(FrozenConfig):
@@ -199,13 +194,6 @@ class FrontendTelemetryConfig(FrozenConfig):
     sampling_percentage: float = Field(default=100.0, ge=0.0, le=100.0)
 
 
-class VerificationFunctionsConfig(FrozenConfig):
-    """Durable verification Functions starter config."""
-
-    base_url: str = ""
-    token_scope: str = ""
-
-
 class WebSecurityConfig(FrozenConfig):
     """Web security and documentation toggles."""
 
@@ -232,7 +220,6 @@ class WorkerSettings(BaseSettings):
     labs: LabsConfig = LabsConfig()
     http: HttpConfig = HttpConfig()
     content: ContentConfig = ContentConfig()
-    reconciler: ReconcilerConfig = ReconcilerConfig()
 
 
 class WebSettings(BaseSettings):
@@ -251,10 +238,9 @@ class WebSettings(BaseSettings):
     smoke_test: SmokeTestConfig = SmokeTestConfig()
     cors: CorsConfig = CorsConfig()
     frontend_telemetry: FrontendTelemetryConfig = FrontendTelemetryConfig()
-    verification_functions: VerificationFunctionsConfig = VerificationFunctionsConfig()
+    verification_worker: VerificationWorkerConfig = VerificationWorkerConfig()
     web_security: WebSecurityConfig = WebSecurityConfig()
     startup_timeout: int = 60
-    verification_wait_timeout: int = 180
 
     @model_validator(mode="after")
     def _validate_web(self) -> Self:
@@ -270,16 +256,6 @@ class WebSettings(BaseSettings):
             ):
                 raise ValueError(
                     "SESSION__SECRET_KEY must be set to a secure random value "
-                    "when ENVIRONMENT=production."
-                )
-            if not self.verification_functions.base_url:
-                raise ValueError(
-                    "VERIFICATION_FUNCTIONS__BASE_URL must be set "
-                    "when ENVIRONMENT=production."
-                )
-            if not self.verification_functions.token_scope:
-                raise ValueError(
-                    "VERIFICATION_FUNCTIONS__TOKEN_SCOPE must be set "
                     "when ENVIRONMENT=production."
                 )
         return self

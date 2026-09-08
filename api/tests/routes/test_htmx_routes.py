@@ -13,6 +13,7 @@ Testing approach:
 """
 
 import logging
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -20,6 +21,9 @@ from uuid import uuid4
 import pytest
 from fastapi.responses import HTMLResponse
 from learn_to_cloud_shared.models import User
+from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+    AttemptStatusRow,
+)
 from learn_to_cloud_shared.submission_values import (
     GitHubUrlValue,
     TextValue,
@@ -29,7 +33,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.datastructures import FormData, UploadFile
 
 from learn_to_cloud.core.auth import AuthenticatedUser, AuthenticationRequired
-from learn_to_cloud.rendering.requirement_cards import UnavailableCardContext
+from learn_to_cloud.rendering.requirement_cards import CheckingCardContext
 from learn_to_cloud.routes.htmx_routes import (
     _submit_canonical_verification,
     htmx_complete_step,
@@ -41,16 +45,10 @@ from learn_to_cloud.routes.htmx_routes import (
     htmx_uncomplete_step,
     htmx_verification_attempt_status,
 )
-from learn_to_cloud.services.durable_verification_client import (
-    DurableStatusResult,
-    DurableVerificationConfigError,
-    DurableVerificationStartError,
-)
 from learn_to_cloud.services.steps_service import StepValidationError
 from learn_to_cloud.services.submissions_service import (
     VerificationAttemptSubmission,
 )
-from learn_to_cloud.services.verification_status_tokens import VerificationStatusToken
 from learn_to_cloud.verification_forms import combine_reflection_answers
 
 
@@ -215,7 +213,7 @@ class TestHtmxUncompleteStep:
 class TestHtmxSubmitVerification:
     """Tests for typed verification submission boundaries.
 
-    Routes validate one form shape, then share attempt creation and startup.
+    Routes validate one form shape, then share persisted attempt creation.
     """
 
     async def test_derived_route_uses_server_built_url(self):
@@ -428,38 +426,24 @@ class TestHtmxSubmitVerification:
         assert result.status_code == 200
         assert result.headers["HX-Refresh"] == "true"
 
-    async def test_submit_success_returns_processing_card(self):
-        """Successful submission starts Durable and returns processing card."""
+    @pytest.mark.parametrize("created", [True, False])
+    async def test_submit_returns_queued_attempt_without_external_calls(
+        self, created, _patch_templates
+    ):
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        attempt_submission = _mock_attempt_submission(created=True)
-        start_result = SimpleNamespace(instance_id=str(attempt_submission.attempt_id))
-        write_session = AsyncMock()
-        request.app.state.session_maker.return_value.__aenter__.return_value = (
-            write_session
-        )
+        attempt_submission = _mock_attempt_submission(created=created)
 
         with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="https://github.com/user/repo",
-            ),
             patch(
                 "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=attempt_submission,
             ) as mock_create_attempt,
             patch(
-                "learn_to_cloud.services.verification_attempt_service."
-                "start_verification_attempt_orchestration",
-                new_callable=AsyncMock,
-                return_value=start_result,
-            ) as mock_start,
+                "httpx.AsyncClient",
+                side_effect=AssertionError("Submission must not start external work"),
+            ) as mock_http_client,
         ):
             result = await _submit_canonical_verification(
                 request,
@@ -468,10 +452,20 @@ class TestHtmxSubmitVerification:
                 GitHubUrlValue("https://github.com/user/repo"),
             )
 
-        # Should return a processing card, not a final result
-        assert result is not None
-        mock_create_attempt.assert_awaited_once()
-        mock_start.assert_awaited_once_with(attempt_submission.attempt_id)
+        assert result.status_code == 200
+        mock_create_attempt.assert_awaited_once_with(
+            session_maker=request.app.state.session_maker,
+            user_id=1,
+            github_username="user",
+            requirement_slug="req-1",
+            submitted_value=GitHubUrlValue("https://github.com/user/repo"),
+        )
+        mock_http_client.assert_not_called()
+        _, _, context = _patch_templates.TemplateResponse.call_args.args
+        card = context["card"]
+        assert isinstance(card, CheckingCardContext)
+        assert card.verification_attempt_id == attempt_submission.attempt_id
+        assert card.verification_status_delay_seconds == 2
 
     async def test_submit_logs_attempt_created(self, caplog):
         """A successful submission leaves an application log line (#700)."""
@@ -493,14 +487,6 @@ class TestHtmxSubmitVerification:
                 "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
                 return_value=attempt_submission,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service."
-                "start_verification_attempt_orchestration",
-                new_callable=AsyncMock,
-                return_value=SimpleNamespace(
-                    instance_id=str(attempt_submission.attempt_id)
-                ),
             ),
             caplog.at_level(
                 logging.INFO,
@@ -555,184 +541,19 @@ class TestHtmxSubmitVerification:
         # Should render a server error card, not crash
         assert result is not None
 
-    async def test_durable_start_failure_terminalizes_attempt(self):
-        """A failed pre-start attempt remains in the outcome ledger."""
-        request = _mock_request()
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        attempt_submission = _mock_attempt_submission(created=True)
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="https://github.com/user/repo",
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
-                new_callable=AsyncMock,
-                return_value=attempt_submission,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service."
-                "start_verification_attempt_orchestration",
-                new_callable=AsyncMock,
-                side_effect=DurableVerificationStartError("boom"),
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service."
-                "terminalize_unstarted_verification_attempt",
-                new_callable=AsyncMock,
-            ) as terminalize,
-        ):
-            result = await _submit_canonical_verification(
-                request,
-                current_user,
-                MagicMock(slug="req-1"),
-                GitHubUrlValue("https://github.com/user/repo"),
-            )
-
-        assert isinstance(result, HTMLResponse)
-        terminalize.assert_awaited_once_with(
-            attempt_submission.attempt_id,
-            error_code="durable_transport_error",
-            validation_message="Verification could not be started.",
-            terminal_source="api_start_failure",
-            session_maker=request.app.state.session_maker,
-        )
-
-    async def test_durable_config_error_does_not_invite_immediate_retry(
-        self, _patch_templates
-    ):
-        """A config error is a server-side misconfiguration, so retrying never
-        helps. The banner must not tell the user to try again immediately."""
-        request = _mock_request()
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        attempt_submission = _mock_attempt_submission(created=True)
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="https://github.com/user/repo",
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
-                new_callable=AsyncMock,
-                return_value=attempt_submission,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service."
-                "start_verification_attempt_orchestration",
-                new_callable=AsyncMock,
-                side_effect=DurableVerificationConfigError("not configured"),
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service."
-                "terminalize_unstarted_verification_attempt",
-                new_callable=AsyncMock,
-            ) as terminalize,
-        ):
-            result = await _submit_canonical_verification(
-                request,
-                current_user,
-                MagicMock(slug="req-1"),
-                GitHubUrlValue("https://github.com/user/repo"),
-            )
-
-        assert isinstance(result, HTMLResponse)
-        terminalize.assert_awaited_once()
-        _, _, context = _patch_templates.TemplateResponse.call_args.args
-        card = context["card"]
-        assert isinstance(card, UnavailableCardContext)
-        assert "please try again later" in card.message.lower()
-        assert "report the issue" in card.message.lower()
-
-    async def test_durable_start_error_uses_service_failure_message(
-        self, _patch_templates
+    @pytest.mark.parametrize("error_type", [SQLAlchemyError, ConnectionRefusedError])
+    async def test_submit_database_unavailable_returns_503(
+        self, error_type, _patch_templates, caplog
     ):
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        attempt_submission = _mock_attempt_submission(created=True)
         with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="https://github.com/user/repo",
-            ),
             patch(
                 "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
                 new_callable=AsyncMock,
-                return_value=attempt_submission,
+                side_effect=error_type("private database details"),
             ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service."
-                "start_verification_attempt_orchestration",
-                new_callable=AsyncMock,
-                side_effect=DurableVerificationStartError("boom"),
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service."
-                "terminalize_unstarted_verification_attempt",
-                new_callable=AsyncMock,
-            ) as terminalize,
-        ):
-            await _submit_canonical_verification(
-                request,
-                current_user,
-                MagicMock(slug="req-1"),
-                GitHubUrlValue("https://github.com/user/repo"),
-            )
-
-        _, _, context = _patch_templates.TemplateResponse.call_args.args
-        card = context["card"]
-        assert isinstance(card, UnavailableCardContext)
-        assert "please try again later" in card.message.lower()
-        assert "report the issue" in card.message.lower()
-        terminalize.assert_awaited_once()
-
-    async def test_async_submit_still_returns_processing_card(self):
-        """Regression: async submissions must keep using the
-        VerificationAttemptSubmission spinner-and-poll path."""
-        request = _mock_request()
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        attempt_submission = _mock_attempt_submission(created=True)
-        start_result = SimpleNamespace(instance_id=str(attempt_submission.attempt_id))
-        write_session = AsyncMock()
-        request.app.state.session_maker.return_value.__aenter__.return_value = (
-            write_session
-        )
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="https://github.com/user/repo",
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
-                new_callable=AsyncMock,
-                return_value=attempt_submission,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service."
-                "start_verification_attempt_orchestration",
-                new_callable=AsyncMock,
-                return_value=start_result,
-            ) as mock_start,
+            caplog.at_level(logging.WARNING),
         ):
             result = await _submit_canonical_verification(
                 request,
@@ -741,8 +562,10 @@ class TestHtmxSubmitVerification:
                 GitHubUrlValue("https://github.com/user/repo"),
             )
 
-        assert isinstance(result, HTMLResponse)
-        mock_start.assert_awaited_once_with(attempt_submission.attempt_id)
+        assert result.status_code == 503
+        assert b"private database details" not in result.body
+        assert "private database details" not in caplog.text
+        _patch_templates.TemplateResponse.assert_not_called()
 
     async def test_repo_fork_is_rejected_by_value_route(self):
         from learn_to_cloud_shared_test_support.requirement_factories import (
@@ -806,433 +629,205 @@ class TestHtmxSubmitVerification:
         assert isinstance(result, HTMLResponse)
         mock_create.assert_not_awaited()
 
-    async def test_duplicate_submit_skips_durable_start(self):
-        """When ``create_verification_attempt`` returns ``created=False``
-        (concurrent submit raced into the same attempt), the route does
-        NOT call ``start_verification_attempt_orchestration`` — the
-        original submit already kicked off Durable, and calling start_new
-        again with the same instance id would error."""
-        request = _mock_request()
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        attempt_submission = _mock_attempt_submission(created=False)
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="https://github.com/user/repo",
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
-                new_callable=AsyncMock,
-                return_value=attempt_submission,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service."
-                "start_verification_attempt_orchestration",
-                new_callable=AsyncMock,
-            ) as mock_start,
-        ):
-            result = await _submit_canonical_verification(
-                request,
-                current_user,
-                MagicMock(slug="req-1"),
-                GitHubUrlValue("https://github.com/user/repo"),
-            )
-
-        assert isinstance(result, HTMLResponse)
-        mock_start.assert_not_awaited()
-
 
 @pytest.mark.unit
 class TestHtmxVerificationAttemptStatus:
-    """Tests for Durable-backed verification status polling."""
+    """Polling uses owned database state without writing outcomes."""
 
-    async def test_running_status_returns_next_poll_card(self):
+    @pytest.mark.parametrize("started", [False, True])
+    async def test_active_attempt_returns_next_poll_card(
+        self, started, _patch_templates
+    ):
         request = _mock_request()
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        token_data = VerificationStatusToken(
-            user_id=1,
-            job_id=str(uuid4()),
-            instance_id=str(uuid4()),
-            requirement_slug="req-1",
-        )
+        attempt = self._attempt(started=started)
+        requirement = MagicMock(slug="req-1")
 
         with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
-                return_value=token_data,
-            ) as mock_load_token,
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
-                new_callable=AsyncMock,
-                return_value=DurableStatusResult(runtime_status="Running"),
-            ) as mock_get_status,
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=MagicMock(),
-            ),
-        ):
-            result = await htmx_verification_attempt_status(
-                request,
-                token="signed-token",
-                current_user=current_user,
-            )
-
-        assert isinstance(result, HTMLResponse)
-        mock_load_token.assert_called_once_with(
-            "signed-token",
-            expected_user_id=1,
-        )
-        mock_get_status.assert_awaited_once_with(token_data.instance_id)
-
-    async def test_completed_status_returns_reload_trigger(self):
-        request = _mock_request()
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        token_data = VerificationStatusToken(
-            user_id=1,
-            job_id=str(uuid4()),
-            instance_id=str(uuid4()),
-            requirement_slug="req-1",
-        )
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
-                return_value=token_data,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
-                new_callable=AsyncMock,
-                return_value=DurableStatusResult(runtime_status="Completed"),
-            ),
             patch(
                 "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
                 autospec=True,
-            ) as mock_repository_class,
-        ):
-            mock_repository_class.return_value.get_terminal_state = AsyncMock(
-                return_value=None
-            )
-            result = await htmx_verification_attempt_status(
-                request,
-                token="signed-token",
-                current_user=current_user,
-            )
-
-        assert isinstance(result, HTMLResponse)
-        assert "location.reload()" in bytes(result.body).decode()
-
-    async def test_completed_status_logs_terminal_outcome(self, caplog):
-        """The poller records the attempt's terminal outcome (#700)."""
-        request = _mock_request()
-        request.app.state.session_maker.return_value.__aenter__.return_value = (
-            AsyncMock()
-        )
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job_id = uuid4()
-        token_data = VerificationStatusToken(
-            user_id=1,
-            job_id=str(job_id),
-            instance_id=str(uuid4()),
-            requirement_slug="journal-api-implementation",
-        )
-
-        with (
+            ) as repository,
             patch(
-                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
-                return_value=token_data,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
-                new_callable=AsyncMock,
-                return_value=DurableStatusResult(runtime_status="Completed"),
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
-                autospec=True,
-            ) as mock_repository_class,
-            caplog.at_level(logging.INFO, logger="learn_to_cloud.routes.htmx_routes"),
-        ):
-            mock_repository_class.return_value.get_terminal_state = AsyncMock(
+                "learn_to_cloud.routes.htmx_routes.get_curriculum_catalog",
                 return_value=SimpleNamespace(
-                    id=job_id,
-                    outcome="server_error",
-                    error_code="verification_incomplete",
-                    validation_message="boom",
-                    terminal_source="orchestrator",
-                    completed_at=None,
+                    requirements_by_uuid={attempt.requirement_uuid: requirement}
+                ),
+            ),
+            patch("httpx.AsyncClient") as http_client,
+        ):
+            repository.return_value.get_status.return_value = attempt
+            result = await htmx_verification_attempt_status(
+                request,
+                attempt_id=attempt.id,
+                current_user=AuthenticatedUser(user_id=1, github_username="user"),
+            )
+
+        assert result.status_code == 200
+        repository.return_value.get_status.assert_awaited_once_with(attempt.id)
+        assert len(repository.return_value.mock_calls) == 1
+        http_client.assert_not_called()
+        _, _, context = _patch_templates.TemplateResponse.call_args.args
+        card = context["card"]
+        assert isinstance(card, CheckingCardContext)
+        assert card.requirement is requirement
+        assert card.verification_attempt_id == attempt.id
+        assert card.verification_status_delay_seconds == 5
+
+    @pytest.mark.parametrize(
+        ("outcome", "status_code"),
+        [
+            ("succeeded", 200),
+            ("failed", 200),
+            ("server_error", 200),
+            ("cancelled", 200),
+            ("unrecognized", 409),
+        ],
+    )
+    async def test_terminal_and_unexpected_states_do_not_write_or_invent_success(
+        self, outcome, status_code, _patch_templates
+    ):
+        request = _mock_request()
+        session = AsyncMock()
+        request.app.state.session_maker.return_value.__aenter__.return_value = session
+        attempt = self._attempt(outcome=outcome)
+        with patch(
+            "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
+            autospec=True,
+        ) as repository:
+            repository.return_value.get_status.return_value = attempt
+            result = await htmx_verification_attempt_status(
+                request,
+                attempt_id=attempt.id,
+                current_user=AuthenticatedUser(user_id=1, github_username="user"),
+            )
+
+        assert result.status_code == status_code
+        assert (b"location.reload()" in result.body) is (status_code == 200)
+        assert len(repository.return_value.mock_calls) == 1
+        session.commit.assert_not_awaited()
+        _patch_templates.TemplateResponse.assert_not_called()
+
+    @pytest.mark.parametrize("outcome", [None, "succeeded", "server_error"])
+    async def test_unknown_and_other_users_attempts_return_identical_404(
+        self, outcome, _patch_templates
+    ):
+        request = _mock_request()
+        attempt = self._attempt(user_id=2, outcome=outcome)
+        with (
+            patch(
+                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
+                autospec=True,
+            ) as repository,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_curriculum_catalog"
+            ) as catalog,
+        ):
+            repository.return_value.get_status.side_effect = [None, attempt]
+            responses = [
+                await htmx_verification_attempt_status(
+                    request,
+                    attempt_id=attempt.id,
+                    current_user=AuthenticatedUser(user_id=1, github_username="user"),
                 )
+                for _ in range(2)
+            ]
+
+        assert [response.status_code for response in responses] == [404, 404]
+        assert responses[0].body == responses[1].body
+        assert b"location.reload()" not in responses[0].body
+        assert str(attempt.id).encode() not in responses[0].body
+        catalog.assert_not_called()
+        _patch_templates.TemplateResponse.assert_not_called()
+
+    @pytest.mark.parametrize("error_type", [SQLAlchemyError, ConnectionRefusedError])
+    async def test_database_unavailable_returns_503_not_reload(
+        self, error_type, caplog, _patch_templates
+    ):
+        request = _mock_request()
+        with (
+            patch(
+                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
+                autospec=True,
+            ) as repository,
+            caplog.at_level(logging.WARNING),
+        ):
+            repository.return_value.get_status.side_effect = error_type(
+                "private database details"
             )
-            await htmx_verification_attempt_status(
+            result = await htmx_verification_attempt_status(
                 request,
-                token="signed-token",
-                current_user=current_user,
+                attempt_id=uuid4(),
+                current_user=AuthenticatedUser(user_id=1, github_username="user"),
             )
 
+        assert result.status_code == 503
+        assert b"location.reload()" not in result.body
+        assert b"private database details" not in result.body
+        assert "private database details" not in caplog.text
         record = next(
-            r for r in caplog.records if r.message == "verification.attempt.observed"
+            r
+            for r in caplog.records
+            if r.message == "verification.status.database_unavailable"
         )
-        # A server_error is the case an operator most needs to find, so it must
-        # not be buried at INFO.
-        assert record.levelno == logging.WARNING
-        assert record.__dict__["verification.outcome"] == "server_error"
-        assert record.__dict__["verification.error.code"] == "verification_incomplete"
-        assert record.__dict__["verification.attempt.id"] == str(job_id)
-        assert (
-            record.__dict__["verification.requirement.slug"]
-            == "journal-api-implementation"
-        )
-        assert "user_id" not in record.__dict__
+        assert record.__dict__["error.type"] == error_type.__name__
+        assert record.exc_info is None
+        _patch_templates.TemplateResponse.assert_not_called()
 
-    async def test_completed_status_survives_log_read_failure(self):
-        """A logging read failure must not break the learner's page reload."""
-        request = _mock_request()
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        token_data = VerificationStatusToken(
-            user_id=1,
-            job_id=str(uuid4()),
-            instance_id=str(uuid4()),
-            requirement_slug="req-1",
-        )
+    @pytest.mark.parametrize(
+        ("query", "status_code"),
+        [
+            ("attempt_id=00000000-0000-0000-0000-000000000001", 404),
+            ("attempt_id=invalid", 422),
+            ("token=retired-token", 422),
+            ("", 422),
+        ],
+    )
+    async def test_http_requires_uuid_attempt_id(self, query, status_code):
+        from uuid import UUID
 
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
-                return_value=token_data,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
-                new_callable=AsyncMock,
-                return_value=DurableStatusResult(runtime_status="Completed"),
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
-                autospec=True,
-            ) as mock_repository_class,
-        ):
-            mock_repository_class.return_value.get_terminal_state = AsyncMock(
-                side_effect=SQLAlchemyError("connection lost")
+        from fastapi import FastAPI
+        from httpx import ASGITransport, AsyncClient
+
+        from learn_to_cloud.core.auth import require_authenticated_user
+        from learn_to_cloud.routes.htmx_routes import router
+
+        app = FastAPI()
+        app.include_router(router)
+        app.state.session_maker = MagicMock()
+        app.dependency_overrides[require_authenticated_user] = lambda: (
+            AuthenticatedUser(user_id=1, github_username="user")
+        )
+        with patch(
+            "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
+            autospec=True,
+        ) as repository:
+            repository.return_value.get_status.return_value = None
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    f"/htmx/verification/attempts/status?{query}"
+                )
+
+        assert response.status_code == status_code
+        if status_code == 404:
+            repository.return_value.get_status.assert_awaited_once_with(
+                UUID("00000000-0000-0000-0000-000000000001")
             )
-            result = await htmx_verification_attempt_status(
-                request,
-                token="signed-token",
-                current_user=current_user,
-            )
+        else:
+            repository.assert_not_called()
 
-        assert isinstance(result, HTMLResponse)
-        assert "location.reload()" in bytes(result.body).decode()
-
-    async def test_failed_status_terminalizes_attempt_and_reloads(self):
-        """Durable terminal failure records a server error before reloading."""
-        request = _mock_request()
-        mock_session = AsyncMock()
-        request.app.state.session_maker.return_value.__aenter__.return_value = (
-            mock_session
+    @staticmethod
+    def _attempt(*, user_id=1, outcome=None, started=False):
+        now = datetime.now(UTC)
+        return AttemptStatusRow(
+            id=uuid4(),
+            user_id=user_id,
+            requirement_uuid=uuid4(),
+            outcome=outcome,
+            started_at=now if started else None,
+            created_at=now,
         )
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job_id = uuid4()
-        token_data = VerificationStatusToken(
-            user_id=1,
-            job_id=str(job_id),
-            instance_id=str(uuid4()),
-            requirement_slug="req-1",
-        )
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
-                return_value=token_data,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
-                new_callable=AsyncMock,
-                return_value=DurableStatusResult(runtime_status="Failed"),
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
-                autospec=True,
-            ) as mock_repository_class,
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.terminalize_verification_attempt",
-                new_callable=AsyncMock,
-                return_value=MagicMock(
-                    won=True,
-                    state=MagicMock(outcome="server_error"),
-                ),
-            ) as terminalize,
-        ):
-            mock_repository = mock_repository_class.return_value
-            mock_repository.get_status = AsyncMock(return_value=MagicMock())
-            result = await htmx_verification_attempt_status(
-                request,
-                token="signed-token",
-                current_user=current_user,
-            )
-
-        assert isinstance(result, HTMLResponse)
-        terminalize.assert_awaited_once_with(
-            job_id,
-            outcome="server_error",
-            error_code="server_error",
-            validation_message="Verification failed before recording a result.",
-            terminal_source="poller",
-            session_maker=request.app.state.session_maker,
-        )
-        assert "location.reload()" in bytes(result.body).decode()
-
-    async def test_canceled_status_terminalizes_attempt_as_cancelled(self):
-        request = _mock_request()
-        mock_session = AsyncMock()
-        request.app.state.session_maker.return_value.__aenter__.return_value = (
-            mock_session
-        )
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job_id = uuid4()
-        token_data = VerificationStatusToken(
-            user_id=1,
-            job_id=str(job_id),
-            instance_id=str(uuid4()),
-            requirement_slug="req-1",
-        )
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
-                return_value=token_data,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
-                new_callable=AsyncMock,
-                return_value=DurableStatusResult(runtime_status="Canceled"),
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
-                autospec=True,
-            ) as mock_repository_class,
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.terminalize_verification_attempt",
-                new_callable=AsyncMock,
-                return_value=MagicMock(
-                    won=True,
-                    state=MagicMock(outcome="cancelled"),
-                ),
-            ) as terminalize,
-        ):
-            mock_repository = mock_repository_class.return_value
-            mock_repository.get_status = AsyncMock(return_value=MagicMock())
-            result = await htmx_verification_attempt_status(
-                request,
-                token="signed-token",
-                current_user=current_user,
-            )
-
-        assert isinstance(result, HTMLResponse)
-        terminalize.assert_awaited_once_with(
-            job_id,
-            outcome="cancelled",
-            error_code="cancelled",
-            validation_message="Verification was cancelled.",
-            terminal_source="poller",
-            session_maker=request.app.state.session_maker,
-        )
-        assert "location.reload()" in bytes(result.body).decode()
-
-    async def test_failed_status_reloads_when_attempt_was_already_finalized(self):
-        request = _mock_request()
-        mock_session = AsyncMock()
-        request.app.state.session_maker.return_value.__aenter__.return_value = (
-            mock_session
-        )
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job_id = uuid4()
-        token_data = VerificationStatusToken(
-            user_id=1,
-            job_id=str(job_id),
-            instance_id=str(uuid4()),
-            requirement_slug="req-1",
-        )
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
-                return_value=token_data,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
-                new_callable=AsyncMock,
-                return_value=DurableStatusResult(runtime_status="Failed"),
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
-                autospec=True,
-            ) as mock_attempt_repository_class,
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.terminalize_verification_attempt",
-                new_callable=AsyncMock,
-                return_value=MagicMock(
-                    won=False,
-                    state=MagicMock(outcome="succeeded"),
-                ),
-            ),
-        ):
-            attempt_repo = mock_attempt_repository_class.return_value
-            attempt_repo.get_status = AsyncMock(return_value=MagicMock())
-
-            result = await htmx_verification_attempt_status(
-                request,
-                token="signed-token",
-                current_user=current_user,
-            )
-
-        assert "location.reload()" in bytes(result.body).decode()
-        mock_session.commit.assert_not_awaited()
-
-    async def test_failed_status_reloads_when_attempt_is_missing(self):
-        request = _mock_request()
-        mock_session = AsyncMock()
-        request.app.state.session_maker.return_value.__aenter__.return_value = (
-            mock_session
-        )
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        token_data = VerificationStatusToken(
-            user_id=1,
-            job_id=str(uuid4()),
-            instance_id=str(uuid4()),
-            requirement_slug="req-1",
-        )
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
-                return_value=token_data,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.get_verification_attempt_status",
-                new_callable=AsyncMock,
-                return_value=DurableStatusResult(runtime_status="Failed"),
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.VerificationAttemptRepository",
-                autospec=True,
-            ) as mock_attempt_repository_class,
-        ):
-            mock_attempt_repository_class.return_value.get_status = AsyncMock(
-                return_value=None
-            )
-
-            result = await htmx_verification_attempt_status(
-                request,
-                token="signed-token",
-                current_user=current_user,
-            )
-
-        assert isinstance(result, HTMLResponse)
-        assert "location.reload()" in bytes(result.body).decode()
 
 
 @pytest.mark.unit

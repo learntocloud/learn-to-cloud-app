@@ -2,25 +2,23 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import Mapping
+from contextlib import AsyncExitStack
 from dataclasses import dataclass
-from functools import cache
 from typing import Any
 
 import openai
 from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
 from agent_framework_openai import OpenAIChatOptions
-from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
+from azure.identity.aio import DefaultAzureCredential, ManagedIdentityCredential
+from learn_to_cloud_shared.core.config import get_web_settings
 from learn_to_cloud_shared.verification.tasks import LLMGradingDecision
 from pydantic import ValidationError
 
 CONTENT_FILTER_MARKER = "content_filter"
-LLM_OUTCOME_SUCCESS = "success"
-LLM_OUTCOME_CONTENT_FILTERED = "content_filtered"
-LLM_OUTCOME_ERROR = "error"
-
 LLM_CONFIGURATION = "llm.configuration"
 LLM_AUTHENTICATION = "llm.authentication"
 LLM_AUTHORIZATION = "llm.authorization"
@@ -164,12 +162,7 @@ _GRADER_OPTIONS: OpenAIChatOptions[LLMGradingDecision] = {
 
 
 def missing_grading_config() -> list[str]:
-    """Return required grading env var names that are unset or blank.
-
-    Reading env vars is not a transient operation, so callers can treat a
-    non-empty result as a permanent configuration error and fail fast
-    instead of retrying.
-    """
+    """Return required grading env var names that are unset or blank."""
     return [
         name for name in _REQUIRED_GRADING_ENV if not (os.getenv(name) or "").strip()
     ]
@@ -196,7 +189,7 @@ class GradingConfig:
 
 
 def _credential() -> DefaultAzureCredential | ManagedIdentityCredential:
-    if os.getenv("AZURE_FUNCTIONS_ENVIRONMENT") == "Development":
+    if get_web_settings().is_development:
         return DefaultAzureCredential()
 
     client_id = os.getenv("AZURE_CLIENT_ID")
@@ -205,31 +198,52 @@ def _credential() -> DefaultAzureCredential | ManagedIdentityCredential:
     return ManagedIdentityCredential()
 
 
-@cache
-def get_verification_grader() -> Agent[Any]:
-    """Return the lazily-constructed Foundry-backed grading agent.
+_grader: Agent[Any] | None = None
+_grader_resources = AsyncExitStack()
+_grader_lock = asyncio.Lock()
 
-    Validates required config defensively: the orchestrator pre-checks it,
-    but activities can run on a different worker, so this stays a guard.
-    """
-    config = GradingConfig.from_env()
-    return Agent(
-        client=FoundryChatClient(
-            project_endpoint=config.project_endpoint,
-            model=config.model_deployment_name,
-            credential=_credential(),
-        ),
-        instructions=_GRADER_INSTRUCTIONS,
-        id="verification-grader",
-        name=VERIFICATION_GRADER_AGENT_NAME,
-        description="Grades verification evidence against a rubric.",
-    )
+
+async def get_verification_grader() -> Agent[Any]:
+    """Lazily create the grader with asynchronous Azure authentication."""
+    global _grader, _grader_resources
+    async with _grader_lock:
+        if _grader is None:
+            config = GradingConfig.from_env()
+            async with AsyncExitStack() as resources:
+                credential = _credential()
+                resources.push_async_callback(credential.close)
+                client = FoundryChatClient(
+                    project_endpoint=config.project_endpoint,
+                    model=config.model_deployment_name,
+                    credential=credential,
+                )
+                # FoundryChatClient has no close method or async context manager.
+                resources.push_async_callback(client.project_client.close)
+                resources.push_async_callback(client.client.close)
+                _grader = Agent(
+                    client=client,
+                    instructions=_GRADER_INSTRUCTIONS,
+                    id="verification-grader",
+                    name=VERIFICATION_GRADER_AGENT_NAME,
+                    description="Grades verification evidence against a rubric.",
+                )
+                _grader_resources = resources.pop_all()
+        return _grader
+
+
+async def close_verification_grader() -> None:
+    """Close grader transports after the verification worker has stopped."""
+    global _grader
+    async with _grader_lock:
+        _grader = None
+        await _grader_resources.aclose()
 
 
 async def grade_evidence(message: str) -> LLMGradingDecision:
     """Grade one self-contained verification prompt."""
     try:
-        response = await get_verification_grader().run(message, options=_GRADER_OPTIONS)
+        grader = await get_verification_grader()
+        response = await grader.run(message, options=_GRADER_OPTIONS)
     except Exception as exc:
         filtered = _find_content_filter_error(exc)
         if filtered is not None:

@@ -15,10 +15,9 @@
         {% endif %}
     </div>
 
-    {% if card.kind == 'checking' and card.verification_status_token %}
-    {# Verification in progress — poll the Durable status proxy until terminal. #}
+    {% if card.kind == 'checking' %}
     <div
-        hx-get="/htmx/verification/attempts/status?token={{ card.verification_status_token | urlencode }}"
+        hx-get="/htmx/verification/attempts/status?attempt_id={{ card.verification_attempt_id }}"
         hx-trigger="load delay:{{ card.verification_status_delay_seconds }}s"
         hx-target="#requirement-{{ card.requirement.slug }}"
         hx-swap="outerHTML"
@@ -28,7 +27,7 @@
     >
         <div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full" aria-hidden="true"></div>
         <span class="text-sm text-gray-600 dark:text-gray-400">
-            Analyzing your code... this usually takes 30–60 seconds.
+            Your submission is queued or being verified. You can return later to see the result.
         </span>
     </div>
     {% elif card.kind == 'checking' %}
