@@ -12,6 +12,20 @@ def incomplete_verification_message(
     cause: str | None, error_code: str | None = None
 ) -> str:
     """Explain an incomplete outcome alongside its saved learner-safe cause."""
+    if error_code in {
+        "authentication",
+        "authorization",
+        "client_error",
+        "network",
+        "provider_unavailable",
+        "rate_limit",
+    }:
+        return (
+            "Verification is temporarily unavailable because the service could not "
+            "retrieve the required evidence. Your work was not evaluated. "
+            "Try again in a few minutes. If the problem continues, report the issue."
+        )
+
     explanation = (
         "Verification stopped before it could finish. "
         "Your work was not judged to have failed."
@@ -38,19 +52,6 @@ def incomplete_verification_message(
             "The repository changed while evidence was being collected. "
             "Try again later, after the repository stops changing. "
             "If this keeps happening, report the issue."
-        )
-    elif error_code in {
-        "authentication",
-        "authorization",
-        "client_error",
-        "network",
-        "provider_unavailable",
-        "rate_limit",
-    }:
-        recovery = (
-            "The verifier could not retrieve the required evidence. "
-            "Try again later. If this keeps happening, report the issue. "
-            "You do not need to change your work to fix a verification-service problem."
         )
     return " ".join(part for part in (explanation, cause, recovery) if part)
 
