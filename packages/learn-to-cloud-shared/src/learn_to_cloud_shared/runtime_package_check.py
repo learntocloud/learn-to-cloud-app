@@ -1,14 +1,18 @@
-"""Validate the installed shared package's runtime curriculum contract."""
+"""Validate the installed curriculum and verification runtime contracts."""
 
+from importlib import import_module
 from importlib.resources import files
 from importlib.util import find_spec
 from pathlib import Path
 
 from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
+from learn_to_cloud_shared.models import SubmissionType
+from learn_to_cloud_shared.verification.checks.registry import CHECK_REGISTRY
+from learn_to_cloud_shared.verification.workflows import workflow_for
 
 
 def main() -> None:
-    """Verify the compiled curriculum exists and authored YAML does not."""
+    """Check runtime data and catalog imports without contacting services."""
     catalog = get_curriculum_catalog()
     if not catalog.phases:
         raise RuntimeError("Runtime package did not load the curriculum artifact.")
@@ -27,6 +31,16 @@ def main() -> None:
         raise RuntimeError(
             "Runtime environment contains development-only test support."
         )
+
+    import_module("learn_to_cloud_shared.verification.engine")
+    for submission_type in SubmissionType:
+        workflow = workflow_for(submission_type)
+        if workflow is None:
+            raise RuntimeError(
+                f"Runtime package has no workflow for {submission_type}."
+            )
+        for step in workflow.steps:
+            CHECK_REGISTRY.check_for(step.params)
 
 
 if __name__ == "__main__":

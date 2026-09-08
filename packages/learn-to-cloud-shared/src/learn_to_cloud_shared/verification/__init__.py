@@ -1,7 +1,10 @@
 """Verification subsystem for hands-on learning requirements.
 
 Runs inside the Durable Function verify step. Submodules:
-    engine            - Declarative profile registry that routes each type
+    core              - Typed check, step, and workflow contracts
+    checks/           - Focused adapters and explicit exact-type registration
+    workflows          - Ordered workflow catalog for every submission type
+    engine            - Ownership, execution, telemetry, and grading preparation
     events            - In-process event bus for async verification results
     github_profile    - Profile README/fork verification
     ci_status         - CI test-pass check
