@@ -9,7 +9,6 @@ from opentelemetry.trace import Status, StatusCode
 
 from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.schemas import ValidationResult
-from learn_to_cloud_shared.verification.checks.registry import CHECK_REGISTRY
 from learn_to_cloud_shared.verification.core import (
     Step,
     StepContext,
@@ -223,14 +222,14 @@ async def _run_step(step: Step, context: StepContext) -> StepResult:
     with _tracer.start_as_current_span(
         "verification.step",
         attributes={
-            "verification.check.name": step.params.check_name,
+            "verification.check.name": step.name,
             "verification.task.id": step.task_id,
         },
         record_exception=False,
         set_status_on_exception=False,
     ) as span:
         try:
-            result = await CHECK_REGISTRY.check_for(step.params)(context, step.params)
+            result = await step.check(context)
             if result.grading_task is not None:
                 if len(result.evidence) != 1:
                     raise EvidenceError("evidence.selection")

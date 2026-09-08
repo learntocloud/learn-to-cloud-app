@@ -1,10 +1,9 @@
-"""Shared verification contracts and exact-type check dispatch."""
+"""Shared verification contracts for directly callable workflow steps."""
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import ClassVar
 
 from pydantic import Field
 
@@ -20,18 +19,13 @@ from learn_to_cloud_shared.verification.tasks.base import (
 from learn_to_cloud_shared.verification_workflow import PreparedVerificationAttempt
 
 
-class CheckParams(FrozenModel):
-    """Base for typed check configuration and its stable diagnostic name."""
-
-    check_name: ClassVar[str]
-
-
 @dataclass(frozen=True, slots=True)
 class Step:
-    """One ordered workflow step selected by its typed params."""
+    """A check callable with stable telemetry and task identifiers."""
 
-    params: CheckParams
+    name: str
     task_id: str
+    check: CheckFn
 
 
 class StepResult(FrozenModel):
@@ -81,27 +75,4 @@ class VerificationWorkflow:
     rubric: LLMRubricGraderConfig | None = None
 
 
-CheckFn = Callable[[StepContext, CheckParams], Awaitable[StepResult]]
-
-
-class CheckRegistry:
-    """Exact-type dispatch with explicit, duplicate-safe registration."""
-
-    def __init__(
-        self, entries: Iterable[tuple[type[CheckParams], CheckFn]] = ()
-    ) -> None:
-        self._checks: dict[type[CheckParams], CheckFn] = {}
-        for params_type, check in entries:
-            self.register(params_type, check)
-
-    def register(self, params_type: type[CheckParams], check: CheckFn) -> None:
-        if params_type in self._checks:
-            raise ValueError(f"Check already registered: {params_type.check_name}")
-        self._checks[params_type] = check
-
-    def check_for(self, params: CheckParams) -> CheckFn:
-        """Resolve only the exact params type, never an inherited fallback."""
-        try:
-            return self._checks[type(params)]
-        except KeyError:
-            raise KeyError(f"No check registered for {params.check_name!r}") from None
+CheckFn = Callable[[StepContext], Awaitable[StepResult]]

@@ -16,22 +16,6 @@ from learn_to_cloud_shared.verification.tasks.base import (
     VerificationTask,
     require_llm_rubric_grader,
 )
-from learn_to_cloud_shared.verification.tasks.phase4 import (
-    DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
-    PHASE4_LLM_TASKS,
-    PHASE4_REQUIREMENT_SLUG,
-    PHASE4_TASKS,
-)
-from learn_to_cloud_shared.verification.tasks.phase5 import (
-    DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
-    PHASE5_EVIDENCE_PATH_PATTERNS,
-    PHASE5_LLM_TASKS,
-    PHASE5_MAX_EVIDENCE_FILES,
-    PHASE5_MAX_FILE_SIZE_BYTES,
-    PHASE5_MAX_TOTAL_CONTENT_BYTES,
-    PHASE5_REQUIRED_PATHS,
-    PHASE5_REQUIREMENT_SLUG,
-)
 from learn_to_cloud_shared.verification.tasks.phase6 import (
     PHASE6_LLM_TASKS,
     PHASE6_REQUIREMENT_SLUG,
@@ -56,18 +40,6 @@ __all__ = [
     "LLMGradingDecision",
     "LLMRubricGraderConfig",
     "RubricCriterion",
-    "DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK",
-    "DEVOPS_IMPLEMENTATION_RUBRIC_TASK",
-    "PHASE4_REQUIREMENT_SLUG",
-    "PHASE4_LLM_TASKS",
-    "PHASE4_TASKS",
-    "PHASE5_EVIDENCE_PATH_PATTERNS",
-    "PHASE5_LLM_TASKS",
-    "PHASE5_MAX_EVIDENCE_FILES",
-    "PHASE5_MAX_FILE_SIZE_BYTES",
-    "PHASE5_MAX_TOTAL_CONTENT_BYTES",
-    "PHASE5_REQUIREMENT_SLUG",
-    "PHASE5_REQUIRED_PATHS",
     "PHASE6_REQUIREMENT_SLUG",
     "PHASE6_LLM_TASKS",
     "CAREER_REFLECTION_RUBRIC_TASK",

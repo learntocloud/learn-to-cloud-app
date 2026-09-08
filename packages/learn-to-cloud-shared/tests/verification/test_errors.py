@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from learn_to_cloud_shared.verification import deployed_api, ghcr, github_http
+from learn_to_cloud_shared.verification import deployed_api, github_http
 from learn_to_cloud_shared.verification.errors import (
     BASE_RETRIABLE,
     UpstreamResponseError,
@@ -36,7 +36,6 @@ def test_make_retriable_preserves_explicit_network_types():
     ("module", "own_error"),
     [
         (github_http, GitHubServerError),
-        (ghcr, ghcr._GhcrServerError),
     ],
 )
 def test_retry_policies_do_not_include_base_or_other_integrations(module, own_error):
@@ -48,7 +47,6 @@ def test_retry_policies_do_not_include_base_or_other_integrations(module, own_er
     for other in (
         GitHubServerError,
         deployed_api.DeployedApiServerError,
-        ghcr._GhcrServerError,
     ):
         assert isinstance(
             other("response", status_code=503), module.RETRIABLE_EXCEPTIONS
@@ -61,4 +59,4 @@ def test_deployed_api_retains_its_distinct_public_error_type():
     assert deployed_api.DeployedApiServerError.__bases__ == (UpstreamResponseError,)
     assert error.status_code == 503
     assert error.retry_after is None
-    assert not isinstance(error, (GitHubServerError, ghcr._GhcrServerError))
+    assert not isinstance(error, GitHubServerError)

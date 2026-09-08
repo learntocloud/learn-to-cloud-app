@@ -2,11 +2,11 @@
 uuid: ddd726e7-818e-4672-b33a-579718b1a8f3
 slug: capstone
 name: 'Capstone: Secure Cloud Deployment'
-description: Deploy the Journal API from Phase 3 as a secure foundational cloud workload. You'll combine segmented networking, private PostgreSQL connectivity, HTTPS, identity-aware administration, cost controls, and the live AI endpoint you evaluated in this phase. The goal is a defensible working deployment, not a claim of full production readiness.
+description: Deploy your Phase 3 Journal API on your chosen cloud. You own the architecture, service choices, and deployment approach. Use the earlier topics as references, not a deployment recipe. Researching what you do not yet know is part of this project.
 short_description: Deploy the Journal API over HTTPS with private database connectivity, secure administration, and live cloud AI analysis.
 learning_objectives:
 - uuid: a8283b86-24bb-4e2e-8a20-7679cd19741a
-  text: Design a segmented cloud architecture for public API and private database traffic.
+  text: Choose and justify a cloud architecture with separate application and database tiers.
   order: 1
 - uuid: 6654c03c-ccbf-4983-9147-3130f07ee90e
   text: Deploy and operate the Journal API without public database or management access.
@@ -15,104 +15,42 @@ learning_objectives:
   text: Integrate the live model endpoint selected for the Journal API.
   order: 3
 - uuid: 0f9954fd-42d1-4a8a-99e1-9ee7b8f1a8d4
-  text: Validate HTTPS, CRUD behavior, AI analysis, private connectivity, and cleanup.
+  text: Demonstrate working API behavior, explain security and cost tradeoffs, and clean up unused resources.
   order: 4
 learning_steps:
-- uuid: 0bb54815-026c-4012-96c6-c4511e8870c3
+- uuid: 4c1da717-a539-446a-81bc-deb7aec0e05a
   order: 1
-  action: 'Explore:'
-  title: Draw the deployment and traffic paths
-  description: Draw the network before provisioning resources. Reuse the decisions and diagnostic evidence from the networking, database, and AI topics.
+  action: 'Build:'
+  title: Deploy the Journal API
+  description: Choose the cloud services and tools yourself. A two-tier application and database architecture is sufficient; a frontend or third tier is not required. Meet these requirements without following a prescribed implementation.
   checklist:
-  - A virtual network with non-overlapping application and private database subnets
-  - Public HTTPS traffic terminating at a reverse proxy or managed ingress
-  - The API process listening only behind that HTTPS entry point
-  - Private API-to-database traffic on port 5432
-  - No public IP or public inbound rule for the database
-  - No public SSH or RDP rule for either tier
-  - Bastion, Session Manager, or IAP for administrative access
-  - The outbound path required for package installation and the live AI endpoint
-  done_when: Your diagram shows each allowed traffic path, its port, and the control that blocks unintended access.
-  slug: phase4-topic9-design-deployment-traffic-paths
-- uuid: c35ea082-b623-475d-94ff-32a71fa9e519
+  - Expose the API over public HTTPS with a trusted certificate.
+  - Separate the application and PostgreSQL tiers, with private database connectivity and no public database access.
+  - Keep administrative access private and authenticated, and credentials out of source control and logs.
+  - Preserve all Journal API CRUD operations and data across application restarts, and keep the service running after your administrative session ends.
+  - Connect the analysis endpoint to a live AI service, not a mock response.
+  - Estimate costs and configure budget alerts before provisioning.
+  done_when: You have demonstrated the API behavior and access controls on your deployed system.
+  slug: phase4-topic9-practice-deploy-api-service
+- uuid: a6ab032c-fe77-4d31-987f-564f6248ede6
   order: 2
   action: 'Practice:'
-  title: Provision the network, compute, and private database
-  description: Create the segmented network and compute resources from your design. Reuse the private PostgreSQL tier from the database topic if it is still running; otherwise reproduce it. Use cloud-init, provider run-command tooling, or identity-aware sessions for setup instead of temporarily exposing management ports.
+  title: Submit your deployment
+  description: Submit your public HTTPS base URL. The verifier makes these requests without authentication headers and requires direct JSON responses without redirects.
   checklist:
-  - Create the application and private database subnets
-  - Apply least-privilege routes and firewall or security-group rules
-  - Deploy the API compute in the application subnet
-  - Deploy PostgreSQL without a public IP, or use managed PostgreSQL with private connectivity
-  - Create the `career_journal` database and least-privilege application role
-  - Run `database_setup.sql`
-  - Prove the API compute can reach PostgreSQL and the public internet cannot
-  done_when: The database is reachable from the API workload over a private path and is unreachable from your local machine over the public internet.
-  slug: phase4-topic9-practice-provision-foundational-infrastructure
-- uuid: 4c1da717-a539-446a-81bc-deb7aec0e05a
-  order: 3
-  action: 'Practice:'
-  title: Deploy the Journal API as a managed service process
-  description: Clone your fork onto the API compute, install dependencies, configure the private database connection, and run the API with a service manager such as systemd. Keep runtime settings outside the repository and restrict access to the service account.
-  checklist:
-  - Install Python 3.11 or newer and `uv`
-  - Configure `DATABASE_URL` with the database's private address
-  - Store runtime settings in a protected environment file or provider secrets integration
-  - Run Uvicorn through systemd or an equivalent service manager without `--reload`
-  - Bind Uvicorn to localhost or an internal interface rather than exposing port 8000 publicly
-  - Verify the service restarts and survives an administrative session ending
-  done_when: All Journal API CRUD operations work from the API host and the service is supervised by the operating system.
-  slug: phase4-topic9-practice-deploy-api-service
-- uuid: 27462a4a-7f2d-47f2-b910-2eb9d030deba
-  order: 4
-  action: 'Practice:'
-  title: Expose HTTPS and verify secure administration
-  description: Configure DNS, a trusted TLS certificate, and a reverse proxy or managed ingress that forwards to the private application listener. Administer the hosts only through the identity-aware access path configured earlier.
-  checklist:
-  - Point a DNS name at the public HTTPS entry point
-  - Terminate TLS with a trusted certificate
-  - Forward HTTPS requests to the internal Journal API listener
-  - Allow public inbound traffic only on required web ports
-  - Confirm SSH and RDP are not publicly reachable
-  - Locate the audit event for an administrative session
-  done_when: "`curl https://your-domain/entries` returns a direct 200 response with valid JSON and a trusted certificate, while public management ports remain blocked."
-  slug: phase4-topic9-practice-expose-https-secure-administration
-- uuid: 023ae8e4-f00e-4c6b-af08-93055c275aeb
-  order: 5
-  action: 'Practice:'
-  title: Configure and test the live AI endpoint
-  description: Configure the API with the model endpoint selected in Operating Cloud AI Services. Use the Responses API environment variables from Phase 3 when the provider is compatible; otherwise use the provider adapter you implemented. Do not commit credentials.
-  checklist:
-  - Configure the endpoint, model or deployment name, and authentication
-  - Apply the timeout, retry, rate-limit, and safety decisions you documented
-  - Restart the API service and inspect its logs for configuration errors
-  - Create a journal entry and call `POST /entries/{id}/analyze`
-  - Confirm the response includes `entry_id`, `sentiment`, `summary`, and `topics`
-  done_when: The deployed HTTPS API returns a valid live AI analysis without exposing credentials in source control or logs.
-  slug: phase4-topic9-practice-configure-test-live-ai
-- uuid: a6ab032c-fe77-4d31-987f-564f6248ede6
-  order: 6
-  action: 'Practice:'
-  title: Verify and submit the deployment
-  description: Submit the HTTPS base URL. The verifier posts a journal entry recording your verification submission, uses the returned entry ID to call its live AI analysis endpoint, and checks the analysis response. Both requests run once without automatic retries. The entry stays in your journal; no listing or deletion is performed.
+  - "`POST /entries` accepts `work`, `struggle`, and `intention` and returns HTTP 200 or 201 with a non-empty string `id`, either at the top level or inside an `entry` object."
+  - "`POST /entries/{id}/analyze` returns HTTP 200 within 30 seconds with the matching `entry_id`, a `sentiment` of `positive`, `negative`, or `neutral`, a non-empty `summary`, and a non-empty `topics` list of non-empty strings."
   tips:
   - type: tip
-    text: The API must return direct JSON responses without HTTP redirects. AI wording is nondeterministic, so verification checks the response schema rather than exact text.
+    text: Automated verification checks entry creation and the analysis response contract, not your architecture, database isolation, other CRUD operations, or whether a real model produced the response. You are responsible for demonstrating the remaining requirements.
   - type: warning
-    text: Verification makes one billable model request and allows additional time for that request to complete.
+    text: Each request runs once without automatic retries. Analysis through your live model may incur a charge. The created entry stays in your journal; the verifier does not list or delete entries.
   done_when: The verifier reports that entry creation and live AI analysis passed.
   slug: phase4-topic9-practice-verify-submit-deployment
 - uuid: 8560edaf-a754-485a-93bc-42b20d6b18f6
-  order: 7
+  order: 3
   action: 'Reflect:'
   title: Document decisions and clean up
-  description: Add a concise architecture diagram and deployment notes to your Journal Starter README. Explain the network boundaries, administration path, database controls, AI endpoint, cost estimate, and one limitation you would address before production. After verification, delete every resource you do not need for Phase 5.
-  checklist:
-  - Document what you actually deployed rather than an idealized architecture
-  - Record the public and private traffic paths and their controls
-  - Explain the model choice, safety settings, and expected cost
-  - Note at least one remaining production concern such as backup, high availability, secrets rotation, or disaster recovery
-  - Delete compute, disks, IPs, networking services, database resources, and unused AI deployments
-  - Confirm the billing dashboard shows no unexpected active resources
+  description: Add an architecture diagram and concise notes to your Journal Starter README. Explain your service choices, public and private traffic paths, access controls, AI model and safety choices, expected costs, and how you demonstrated the requirements. Identify one limitation you would address before production. Delete resources you do not need for Phase 5 and review your billing dashboard for unexpected charges.
   done_when: Your repository documents the verified deployment and your cloud account contains only resources you intentionally retained for Phase 5.
   slug: phase4-topic9-reflect-document-clean-up

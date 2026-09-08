@@ -4,7 +4,6 @@ import pytest
 
 from learn_to_cloud_shared.verification.graders import grade_file_presence_task
 from learn_to_cloud_shared.verification.tasks import (
-    PHASE5_LLM_TASKS,
     PHASE6_LLM_TASKS,
     PHASE7_LLM_TASKS,
 )
@@ -15,44 +14,8 @@ from learn_to_cloud_shared.verification.tasks.base import (
     VerificationTask,
     require_llm_rubric_grader,
 )
-from learn_to_cloud_shared.verification.tasks.phase5 import (
-    PHASE5_EVIDENCE_PATH_PATTERNS,
-    PHASE5_REQUIRED_PATHS,
-    PHASE5_REQUIREMENT_SLUG,
-)
 from learn_to_cloud_shared.verification.tasks.phase6 import PHASE6_REQUIREMENT_SLUG
 from learn_to_cloud_shared.verification.tasks.phase7 import PHASE7_REQUIREMENT_SLUG
-
-
-@pytest.mark.unit
-def test_phase5_repository_contract_is_stable():
-    assert PHASE5_REQUIRED_PATHS == (
-        "Dockerfile",
-        ".github/workflows/",
-        "infra/",
-        "k8s/deployment.yaml",
-        "k8s/service.yaml",
-    )
-    assert PHASE5_EVIDENCE_PATH_PATTERNS[:5] == (
-        "Dockerfile",
-        ".dockerignore",
-        "k8s/deployment.yaml",
-        "k8s/service.yaml",
-        "k8s/secrets.yaml.example",
-    )
-
-
-@pytest.mark.unit
-def test_phase5_uses_one_holistic_rubric_task():
-    assert [task.id for task in PHASE5_LLM_TASKS] == ["devops-implementation-rubric"]
-    task = PHASE5_LLM_TASKS[0]
-    grader = require_llm_rubric_grader(task)
-
-    assert task.phase_id == 5
-    assert task.requirement_slug == PHASE5_REQUIREMENT_SLUG
-    assert task.evidence.path_patterns == list(PHASE5_EVIDENCE_PATH_PATTERNS)
-    assert grader.rubric_id == "phase5-devops-implementation-v2"
-    assert grader.passing_score == 0.8
 
 
 @pytest.mark.unit

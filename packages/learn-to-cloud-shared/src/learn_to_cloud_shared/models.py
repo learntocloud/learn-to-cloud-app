@@ -85,7 +85,6 @@ class SubmissionType(StrEnum):
     NETWORKING_TOKEN = "networking_token"
     JOURNAL_API_VERIFIER = "journal_api_verifier"
     DEPLOYED_API = "deployed_api"
-    DEPLOYMENT_ARCHITECTURE = "deployment_architecture"
     DEVOPS_ANALYSIS = "devops_analysis"
     SECURITY_SCANNING = "security_scanning"
     CAREER_REFLECTION = "career_reflection"

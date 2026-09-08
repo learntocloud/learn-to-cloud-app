@@ -10,8 +10,8 @@ from learn_to_cloud_shared_test_support.requirement_factories import (
     career_reflection_requirement,
     ctf_token_requirement,
     deployed_api_requirement,
-    deployment_architecture_requirement,
     networking_token_requirement,
+    repo_fork_requirement,
 )
 
 from learn_to_cloud.rendering.verification_forms import (
@@ -86,9 +86,11 @@ def test_reflection_form_shares_answer_limits_and_preserves_question_order():
 
 
 def test_unsupported_requirement_has_no_submission_form():
-    form = build_verification_form_context(
-        deployment_architecture_requirement(), "learner", None
-    )
+    with patch(
+        "learn_to_cloud.rendering.verification_forms.verification_submit_action",
+        return_value=None,
+    ):
+        form = build_verification_form_context(repo_fork_requirement(), "learner", None)
 
     assert isinstance(form, UnsupportedFormContext)
     assert (
@@ -99,13 +101,11 @@ def test_unsupported_requirement_has_no_submission_form():
 def test_active_requirement_without_a_form_model_raises():
     with (
         patch(
-            "learn_to_cloud.rendering.verification_forms.verification_submit_action",
-            return_value="/htmx/verifications/architecture/submit/value",
+            "learn_to_cloud.rendering.verification_forms.is_derivable",
+            return_value=False,
         ),
         pytest.raises(
             ValueError, match="has an HTTP action but no rendering form model"
         ),
     ):
-        build_verification_form_context(
-            deployment_architecture_requirement(), "learner", None
-        )
+        build_verification_form_context(repo_fork_requirement(), "learner", None)

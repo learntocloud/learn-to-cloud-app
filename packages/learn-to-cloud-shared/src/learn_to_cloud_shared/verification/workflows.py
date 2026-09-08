@@ -2,44 +2,33 @@
 
 from __future__ import annotations
 
+from functools import partial
+
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.verification.checks.career import (
-    CareerReflectionGateParams,
-    CareerReflectionReviewParams,
+    check_career_reflection,
 )
 from learn_to_cloud_shared.verification.checks.deployed_api import (
-    DeployedApiCheckParams,
-)
-from learn_to_cloud_shared.verification.checks.deployment_architecture import (
-    DeploymentArchitectureGateParams,
-    DeploymentArchitectureReviewParams,
+    check_deployed_api,
 )
 from learn_to_cloud_shared.verification.checks.devops import (
-    DevopsRequiredFilesParams,
-    PublicGhcrImageParams,
+    check_devops_pipeline,
 )
 from learn_to_cloud_shared.verification.checks.github import (
-    CIStatusParams,
-    ProfileReadmeCheckParams,
-    RepoForkCheckParams,
+    check_github_ci_passing,
+    check_profile_readme,
+    check_repo_fork,
 )
-from learn_to_cloud_shared.verification.checks.rubric import LLMRubricReviewParams
 from learn_to_cloud_shared.verification.checks.security import (
-    CodeQLStatusParams,
-    SecurityScanningReviewParams,
+    check_codeql_status,
+    check_security_scanning_review,
 )
 from learn_to_cloud_shared.verification.checks.tokens import (
-    CtfTokenCheckParams,
-    NetworkingTokenCheckParams,
+    check_ctf_token,
+    check_networking_token,
 )
 from learn_to_cloud_shared.verification.core import Step, VerificationWorkflow
 from learn_to_cloud_shared.verification.tasks.base import LLMRubricGraderConfig
-from learn_to_cloud_shared.verification.tasks.phase4 import (
-    DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
-)
-from learn_to_cloud_shared.verification.tasks.phase5 import (
-    DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
-)
 from learn_to_cloud_shared.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
 )
@@ -68,8 +57,9 @@ _JOURNAL_API_WORKFLOW = VerificationWorkflow(
     requires_username=True,
     steps=(
         Step(
-            params=CIStatusParams(),
+            name="github_ci_passing",
             task_id="journal-api-implementation-ci",
+            check=check_github_ci_passing,
         ),
     ),
 )
@@ -77,37 +67,13 @@ _JOURNAL_API_WORKFLOW = VerificationWorkflow(
 register_workflow(SubmissionType.JOURNAL_API_VERIFIER, _JOURNAL_API_WORKFLOW)
 
 
-_DEPLOYMENT_ARCHITECTURE_RUBRIC = DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK.grader
-assert isinstance(_DEPLOYMENT_ARCHITECTURE_RUBRIC, LLMRubricGraderConfig)
-
-_DEPLOYMENT_ARCHITECTURE_WORKFLOW = VerificationWorkflow(
-    requires_username=True,
-    steps=(
-        Step(
-            params=DeploymentArchitectureGateParams(),
-            task_id="deployment-architecture-gate",
-        ),
-        Step(
-            params=DeploymentArchitectureReviewParams(
-                task=DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
-            ),
-            task_id=DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK.id,
-        ),
-    ),
-    rubric=_DEPLOYMENT_ARCHITECTURE_RUBRIC,
-)
-
-register_workflow(
-    SubmissionType.DEPLOYMENT_ARCHITECTURE, _DEPLOYMENT_ARCHITECTURE_WORKFLOW
-)
-
-
 _DEPLOYED_API_WORKFLOW = VerificationWorkflow(
     requires_username=False,
     steps=(
         Step(
-            params=DeployedApiCheckParams(),
+            name="deployed_api_check",
             task_id="deployed-api-check",
+            check=check_deployed_api,
         ),
     ),
 )
@@ -115,29 +81,15 @@ _DEPLOYED_API_WORKFLOW = VerificationWorkflow(
 register_workflow(SubmissionType.DEPLOYED_API, _DEPLOYED_API_WORKFLOW)
 
 
-_DEVOPS_IMPLEMENTATION_RUBRIC = DEVOPS_IMPLEMENTATION_RUBRIC_TASK.grader
-assert isinstance(_DEVOPS_IMPLEMENTATION_RUBRIC, LLMRubricGraderConfig)
-
 _DEVOPS_ANALYSIS_WORKFLOW = VerificationWorkflow(
     requires_username=True,
     steps=(
         Step(
-            params=DevopsRequiredFilesParams(),
-            task_id="devops-required-files",
-        ),
-        Step(
-            params=PublicGhcrImageParams(),
-            task_id="public-ghcr-image",
-        ),
-        Step(
-            params=LLMRubricReviewParams(
-                task=DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
-                discover_paths=True,
-            ),
-            task_id=DEVOPS_IMPLEMENTATION_RUBRIC_TASK.id,
+            name="devops_pipeline",
+            task_id="devops-pipeline",
+            check=check_devops_pipeline,
         ),
     ),
-    rubric=_DEVOPS_IMPLEMENTATION_RUBRIC,
 )
 
 register_workflow(SubmissionType.DEVOPS_ANALYSIS, _DEVOPS_ANALYSIS_WORKFLOW)
@@ -150,12 +102,16 @@ _SECURITY_SCANNING_WORKFLOW = VerificationWorkflow(
     requires_username=True,
     steps=(
         Step(
-            params=CodeQLStatusParams(),
+            name="codeql_status",
             task_id="codeql-status-gate",
+            check=check_codeql_status,
         ),
         Step(
-            params=SecurityScanningReviewParams(task=SECURITY_SCANNING_RUBRIC_TASK),
+            name="security_scanning_review",
             task_id=SECURITY_SCANNING_RUBRIC_TASK.id,
+            check=partial(
+                check_security_scanning_review, task=SECURITY_SCANNING_RUBRIC_TASK
+            ),
         ),
     ),
     rubric=_SECURITY_SCANNING_RUBRIC,
@@ -171,12 +127,9 @@ _CAREER_REFLECTION_WORKFLOW = VerificationWorkflow(
     requires_username=False,
     steps=(
         Step(
-            params=CareerReflectionGateParams(),
-            task_id="career-reflection-gate",
-        ),
-        Step(
-            params=CareerReflectionReviewParams(task=CAREER_REFLECTION_RUBRIC_TASK),
+            name="career_reflection",
             task_id=CAREER_REFLECTION_RUBRIC_TASK.id,
+            check=partial(check_career_reflection, task=CAREER_REFLECTION_RUBRIC_TASK),
         ),
     ),
     rubric=_CAREER_REFLECTION_RUBRIC,
@@ -189,8 +142,9 @@ _PROFILE_README_WORKFLOW = VerificationWorkflow(
     requires_username=True,
     steps=(
         Step(
-            params=ProfileReadmeCheckParams(),
+            name="profile_readme_check",
             task_id="profile-readme-check",
+            check=check_profile_readme,
         ),
     ),
 )
@@ -202,8 +156,9 @@ _REPO_FORK_WORKFLOW = VerificationWorkflow(
     requires_username=True,
     steps=(
         Step(
-            params=RepoForkCheckParams(),
+            name="repo_fork_check",
             task_id="repo-fork-check",
+            check=check_repo_fork,
         ),
     ),
 )
@@ -215,8 +170,9 @@ _CTF_TOKEN_WORKFLOW = VerificationWorkflow(
     requires_username=True,
     steps=(
         Step(
-            params=CtfTokenCheckParams(),
+            name="ctf_token_check",
             task_id="ctf-token-check",
+            check=check_ctf_token,
         ),
     ),
 )
@@ -228,8 +184,9 @@ _NETWORKING_TOKEN_WORKFLOW = VerificationWorkflow(
     requires_username=True,
     steps=(
         Step(
-            params=NetworkingTokenCheckParams(),
+            name="networking_token_check",
             task_id="networking-token-check",
+            check=check_networking_token,
         ),
     ),
 )

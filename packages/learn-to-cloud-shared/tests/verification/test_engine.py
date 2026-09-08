@@ -5,6 +5,7 @@ import json
 import logging
 import traceback
 from dataclasses import replace
+from functools import partial
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
@@ -27,25 +28,12 @@ from learn_to_cloud_shared.verification.checks import career as career_checks
 from learn_to_cloud_shared.verification.checks import (
     deployed_api as deployed_api_checks,
 )
-from learn_to_cloud_shared.verification.checks import (
-    deployment_architecture as deployment_architecture_checks,
-)
 from learn_to_cloud_shared.verification.checks import devops as devops_checks
 from learn_to_cloud_shared.verification.checks import github as github_checks
-from learn_to_cloud_shared.verification.checks import rubric as rubric_checks
 from learn_to_cloud_shared.verification.checks import security as security_checks
 from learn_to_cloud_shared.verification.checks import tokens as tokens_checks
-from learn_to_cloud_shared.verification.checks.deployment_architecture import (
-    DeploymentArchitectureReviewParams,
-)
-from learn_to_cloud_shared.verification.checks.github import CIStatusParams
-from learn_to_cloud_shared.verification.checks.rubric import LLMRubricReviewParams
-from learn_to_cloud_shared.verification.checks.security import (
-    SecurityScanningReviewParams,
-)
 from learn_to_cloud_shared.verification.core import (
-    CheckParams,
-    CheckRegistry,
+    CheckFn,
     Step,
     StepContext,
     StepResult,
@@ -60,9 +48,6 @@ from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
     EvidenceItem,
 )
-from learn_to_cloud_shared.verification.tasks.phase4 import (
-    DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
-)
 from learn_to_cloud_shared.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
 )
@@ -73,7 +58,9 @@ from learn_to_cloud_shared.verification_workflow import (
     GradingDisposition,
     PreparedVerificationAttempt,
 )
+from tests.fakes import rubric_check as rubric_checks
 from tests.fakes.github_metadata import InMemoryGitHubMetadata
+from tests.fakes.legacy_devops import DEVOPS_IMPLEMENTATION_RUBRIC_TASK
 from tests.fakes.repo_files import InMemoryRepoFiles
 
 
@@ -100,38 +87,6 @@ def repository_metadata(monkeypatch):
         lambda: metadata,
     )
     return metadata
-
-
-class PassingCheckParams(CheckParams):
-    check_name = "test_gate_pass"
-
-
-class HardFailParams(CheckParams):
-    check_name = "hard_fail"
-
-
-class NeverRunsParams(CheckParams):
-    check_name = "never_runs"
-
-
-class SoftFailParams(CheckParams):
-    check_name = "soft_fail"
-
-
-class AfterSoftParams(CheckParams):
-    check_name = "after_soft"
-
-
-class EmitEvidenceParams(CheckParams):
-    check_name = "emit_evidence"
-
-
-class ReadEvidenceParams(CheckParams):
-    check_name = "read_evidence"
-
-
-class ExplodingCheckParams(CheckParams):
-    check_name = "exploding"
 
 
 class _Span:
@@ -176,39 +131,41 @@ def _job(requirement=None) -> PreparedVerificationAttempt:
     )
 
 
-def _step(params: CheckParams, task_id: str) -> Step:
-    return Step(params=params, task_id=task_id)
+def _step(check: CheckFn, task_id: str, *, name: str = "test_check") -> Step:
+    return Step(name=name, task_id=task_id, check=check)
 
 
 def _workflow(*steps: Step) -> VerificationWorkflow:
     return VerificationWorkflow(requires_username=False, steps=steps)
 
 
-@pytest.fixture
-def register_check(monkeypatch):
-    registry = CheckRegistry()
-    monkeypatch.setattr(engine_module, "CHECK_REGISTRY", registry)
+@pytest.mark.parametrize("configured", [False, True])
+async def test_step_preserves_callback_context_and_result_identity(configured):
+    result = StepResult(
+        passed=True,
+        validation_result=ValidationResult(is_valid=True, message="Unchanged"),
+    )
+    check = AsyncMock(return_value=result)
+    kwargs = {"task": CAREER_REFLECTION_RUBRIC_TASK} if configured else {}
+    callback = partial(check, **kwargs) if configured else check
+    job = _job()
+    context = StepContext(
+        job=job, repository=job.target, submitted_value=job.submitted_value
+    )
 
-    def register(params_type):
-        def decorator(check):
-            registry.register(params_type, check)
-            return check
-
-        return decorator
-
-    return register
+    assert await engine_module._run_step(_step(callback, "gate"), context) is result
+    check.assert_awaited_once_with(context, **kwargs)
 
 
 @pytest.mark.asyncio
-async def test_run_verification_uses_declared_steps(monkeypatch, register_check):
+async def test_run_verification_uses_declared_steps(monkeypatch):
     bundle = EvidenceBundle(
         task_id="gate",
         source="repo_files",
         items=[EvidenceItem(path="a.txt", content="x")],
     )
 
-    @register_check(PassingCheckParams)
-    async def _gate(context: StepContext, params) -> StepResult:
+    async def _gate(context: StepContext) -> StepResult:
         return StepResult(
             passed=True,
             task_result=TaskResult(task_name="Gate", passed=True, feedback="ok"),
@@ -218,7 +175,7 @@ async def test_run_verification_uses_declared_steps(monkeypatch, register_check)
     monkeypatch.setattr(
         engine_module,
         "workflow_for",
-        lambda _t: _workflow(_step(PassingCheckParams(), "gate")),
+        lambda _t: _workflow(_step(_gate, "gate", name="test_gate_pass")),
     )
     tracer = _Tracer()
     monkeypatch.setattr(engine_module, "_tracer", tracer)
@@ -248,17 +205,14 @@ async def test_run_verification_uses_declared_steps(monkeypatch, register_check)
 
 
 @pytest.mark.asyncio
-async def test_step_span_records_error_type_without_exception_details(
-    monkeypatch, register_check
-):
-    @register_check(ExplodingCheckParams)
-    async def _explode(context: StepContext, params) -> StepResult:
+async def test_step_span_records_error_type_without_exception_details(monkeypatch):
+    async def _explode(context: StepContext) -> StepResult:
         raise RuntimeError("sensitive failure details")
 
     monkeypatch.setattr(
         engine_module,
         "workflow_for",
-        lambda _t: _workflow(_step(ExplodingCheckParams(), "explode")),
+        lambda _t: _workflow(_step(_explode, "explode", name="exploding")),
     )
     tracer = _Tracer()
     monkeypatch.setattr(engine_module, "_tracer", tracer)
@@ -278,16 +232,14 @@ async def test_step_span_records_error_type_without_exception_details(
 
 
 @pytest.mark.asyncio
-async def test_failed_gate_short_circuits(monkeypatch, register_check):
+async def test_failed_gate_short_circuits(monkeypatch):
     ran: list[str] = []
 
-    @register_check(HardFailParams)
-    async def _first(context: StepContext, params) -> StepResult:
+    async def _first(context: StepContext) -> StepResult:
         ran.append("first")
         return StepResult(passed=False, stop_on_fail=True)
 
-    @register_check(NeverRunsParams)
-    async def _second(context: StepContext, params) -> StepResult:
+    async def _second(context: StepContext) -> StepResult:
         ran.append("second")
         return StepResult(passed=True)
 
@@ -295,8 +247,8 @@ async def test_failed_gate_short_circuits(monkeypatch, register_check):
         engine_module,
         "workflow_for",
         lambda _t: _workflow(
-            _step(HardFailParams(), "a"),
-            _step(NeverRunsParams(), "b"),
+            _step(_first, "a"),
+            _step(_second, "b"),
         ),
     )
 
@@ -307,16 +259,14 @@ async def test_failed_gate_short_circuits(monkeypatch, register_check):
 
 
 @pytest.mark.asyncio
-async def test_stop_on_fail_false_continues(monkeypatch, register_check):
+async def test_stop_on_fail_false_continues(monkeypatch):
     ran: list[str] = []
 
-    @register_check(SoftFailParams)
-    async def _soft(context: StepContext, params) -> StepResult:
+    async def _soft(context: StepContext) -> StepResult:
         ran.append("soft")
         return StepResult(passed=False, stop_on_fail=False)
 
-    @register_check(AfterSoftParams)
-    async def _after(context: StepContext, params) -> StepResult:
+    async def _after(context: StepContext) -> StepResult:
         ran.append("after")
         return StepResult(passed=True)
 
@@ -324,8 +274,8 @@ async def test_stop_on_fail_false_continues(monkeypatch, register_check):
         engine_module,
         "workflow_for",
         lambda _t: _workflow(
-            _step(SoftFailParams(), "a"),
-            _step(AfterSoftParams(), "b"),
+            _step(_soft, "a"),
+            _step(_after, "b"),
         ),
     )
 
@@ -394,16 +344,14 @@ def test_later_authoritative_failure_is_not_hidden_by_an_earlier_pass():
 
 
 @pytest.mark.asyncio
-async def test_later_step_sees_prior_evidence(monkeypatch, register_check):
+async def test_later_step_sees_prior_evidence(monkeypatch):
     seen: list[int] = []
     bundle = EvidenceBundle(task_id="a", source="repo_files")
 
-    @register_check(EmitEvidenceParams)
-    async def _emit(context: StepContext, params) -> StepResult:
+    async def _emit(context: StepContext) -> StepResult:
         return StepResult(passed=True, evidence=[bundle])
 
-    @register_check(ReadEvidenceParams)
-    async def _read(context: StepContext, params) -> StepResult:
+    async def _read(context: StepContext) -> StepResult:
         seen.append(len(context.evidence_so_far))
         return StepResult(passed=True)
 
@@ -411,8 +359,8 @@ async def test_later_step_sees_prior_evidence(monkeypatch, register_check):
         engine_module,
         "workflow_for",
         lambda _t: _workflow(
-            _step(EmitEvidenceParams(), "a"),
-            _step(ReadEvidenceParams(), "b"),
+            _step(_emit, "a"),
+            _step(_read, "b"),
         ),
     )
 
@@ -439,7 +387,6 @@ _REPOSITORY_TYPES = {
     SubmissionType.PROFILE_README,
     SubmissionType.REPO_FORK,
     SubmissionType.JOURNAL_API_VERIFIER,
-    SubmissionType.DEPLOYMENT_ARCHITECTURE,
     SubmissionType.DEVOPS_ANALYSIS,
     SubmissionType.SECURITY_SCANNING,
 }
@@ -494,6 +441,7 @@ async def test_shared_preflight_covers_only_repository_assignments(
             SubmissionType.NETWORKING_TOKEN,
             SubmissionType.DEPLOYED_API,
             SubmissionType.JOURNAL_API_VERIFIER,
+            SubmissionType.DEVOPS_ANALYSIS,
         }
         else GradingDisposition.SKIPPED_GATE_FAILED
     )
@@ -755,88 +703,6 @@ async def test_journal_workflow_never_collects_source_or_requests_grading(
 
 
 # ---------------------------------------------------------------------------
-# Phase 4 deployment architecture workflow: gate + deploy.sh/description rubric.
-# ---------------------------------------------------------------------------
-
-
-def _deployment_job(description: str) -> PreparedVerificationAttempt:
-    from learn_to_cloud_shared_test_support.requirement_factories import (
-        deployment_architecture_requirement,
-    )
-
-    requirement = deployment_architecture_requirement(
-        slug="deployment-architecture",
-        required_repo="owner/journal-starter",
-    )
-    return PreparedVerificationAttempt(
-        id=uuid4(),
-        user_id=1,
-        github_username="learner",
-        requirement=requirement,
-        submitted_value=submitted_value_from_raw(requirement, description),
-    )
-
-
-@pytest.mark.asyncio
-async def test_deployment_workflow_bundles_script_and_description():
-    from learn_to_cloud_shared.verification.tasks.phase4 import (
-        DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
-    )
-    from tests.fakes.repo_files import InMemoryRepoFiles
-
-    description = (
-        "My two-tier deployment provisions a public API tier and a private "
-        "database tier in an isolated subnet, all created idempotently by "
-        "deploy.sh with restricted inbound rules and TLS termination for the "
-        "API. Traffic flows from the internet to the load balancer, then to "
-        "the API compute, and only the API can reach the private database."
-    )
-    repo_files = InMemoryRepoFiles({"deploy.sh": "#!/bin/bash\naz group create\n"})
-
-    result = await run_verification(_deployment_job(description), repo_files=repo_files)
-
-    assert result.validation_result.is_valid is True
-    assert result.grading_requests is not None
-    assert len(result.grading_requests) == 1
-    request = result.grading_requests[0]
-    assert request.task.id == DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK.id
-    assert "deploy.sh" in request.message
-    assert description in request.message
-
-
-@pytest.mark.asyncio
-async def test_deployment_workflow_gate_fails_when_description_too_short():
-    from tests.fakes.repo_files import InMemoryRepoFiles
-
-    repo_files = InMemoryRepoFiles({"deploy.sh": "#!/bin/bash\n"})
-
-    result = await run_verification(_deployment_job("too short"), repo_files=repo_files)
-
-    assert result.validation_result.is_valid is False
-    assert result.grading_requests == []
-    assert result.evidence is None
-
-
-@pytest.mark.asyncio
-async def test_deployment_workflow_gate_fails_when_deploy_script_missing():
-    from tests.fakes.repo_files import InMemoryRepoFiles
-
-    description = (
-        "My two-tier deployment provisions a public API tier and a private "
-        "database tier in an isolated subnet, all created idempotently by a "
-        "script with restricted inbound rules and TLS termination for the "
-        "API. Traffic flows from the internet to the load balancer, then to "
-        "the API compute, and only the API can reach the private database."
-    )
-    repo_files = InMemoryRepoFiles({"README.md": "no script here"})
-
-    result = await run_verification(_deployment_job(description), repo_files=repo_files)
-
-    assert result.validation_result.is_valid is False
-    assert result.grading_requests == []
-
-
-# ---------------------------------------------------------------------------
 # Phase 4/5 deterministic workflows: deployed API probe and DevOps workflow.
 # ---------------------------------------------------------------------------
 
@@ -908,109 +774,26 @@ async def test_deployed_api_workflow_fails_when_probe_fails(monkeypatch):
     assert result.grading_requests == []
 
 
-@pytest.mark.asyncio
-async def test_devops_workflow_runs_files_then_ghcr_gates(monkeypatch):
-    from tests.fakes.repo_files import InMemoryRepoFiles
-
-    calls: list[str] = []
-    files_task = TaskResult(task_name="Files", passed=True, feedback="present")
-    image_task = TaskResult(task_name="Image", passed=True, feedback="pullable")
-
-    async def fake_files(owner, repo, repo_files=None):
-        calls.append("files")
-        assert owner == "learner"
-        assert repo == "devops-repo"
-        return ValidationResult(
-            is_valid=True,
-            message="Required files exist",
-            task_results=[files_task],
-        )
-
-    async def fake_image(owner):
-        calls.append("image")
-        assert owner == "learner"
-        return ValidationResult(
-            is_valid=True,
-            message="Container image is pullable",
-            task_results=[image_task],
-        )
-
-    monkeypatch.setattr(devops_checks, "verify_required_devops_files", fake_files)
-    monkeypatch.setattr(devops_checks, "verify_public_ghcr_image", fake_image)
-
-    repo_files = InMemoryRepoFiles(
-        {
-            "Dockerfile": "FROM python:3.12-slim",
-            ".github/workflows/deploy.yml": "jobs: {}",
-            "infra/main.tf": 'resource "azurerm_kubernetes_cluster" "main" {}',
-            "k8s/deployment.yaml": "kind: Deployment",
-            "k8s/service.yaml": "kind: Service",
-        }
+@pytest.mark.parametrize(
+    ("passed", "completed"), [(True, True), (False, True), (False, False)]
+)
+async def test_devops_workflow_uses_only_run_results(monkeypatch, passed, completed):
+    validation = ValidationResult(
+        is_valid=passed, verification_completed=completed, message="Pipeline result"
     )
-    result = await run_verification(_devops_job(), repo_files=repo_files)
+    verify = AsyncMock(return_value=validation)
+    monkeypatch.setattr(devops_checks, "verify_devops_pipeline", verify)
+    files = AsyncMock()
 
-    assert calls == ["files", "image"]
-    assert result.validation_result.is_valid is True
-    assert result.validation_result.message == "Container image is pullable"
-    assert result.validation_result.task_results == [files_task, image_task]
-    assert result.grading_requests is not None
-    assert len(result.grading_requests) == 1
-    assert result.grading_disposition == GradingDisposition.REQUESTED
-    assert result.evidence is not None
-    assert [item.path for item in result.evidence[0].items] == [
-        ".github/workflows/deploy.yml",
-        "Dockerfile",
-        "infra/main.tf",
-        "k8s/deployment.yaml",
-        "k8s/service.yaml",
-    ]
-    request = result.grading_requests[0]
-    assert request.task.id == "devops-implementation-rubric"
-    assert ".github/workflows/deploy.yml" in request.message
-    assert "infra/main.tf" in request.message
+    result = await run_verification(_devops_job(), repo_files=files)
 
-
-@pytest.mark.asyncio
-async def test_devops_workflow_skips_ghcr_when_files_gate_fails(monkeypatch):
-    calls: list[str] = []
-
-    async def fake_files(owner, repo, repo_files=None):
-        calls.append("files")
-        return ValidationResult(is_valid=False, message="Missing workflow file")
-
-    async def fake_image(owner):
-        calls.append("image")
-        return ValidationResult(is_valid=True, message="unexpected")
-
-    monkeypatch.setattr(devops_checks, "verify_required_devops_files", fake_files)
-    monkeypatch.setattr(devops_checks, "verify_public_ghcr_image", fake_image)
-
-    result = await run_verification(_devops_job())
-
-    assert calls == ["files"]
-    assert result.validation_result.is_valid is False
-    assert result.validation_result.message == "Missing workflow file"
+    verify.assert_awaited_once_with("learner", "devops-repo")
+    files.tree.assert_not_awaited()
+    files.file.assert_not_awaited()
+    assert result.validation_result is validation
     assert result.grading_requests == []
-    assert result.grading_disposition == GradingDisposition.SKIPPED_GATE_FAILED
-
-
-@pytest.mark.asyncio
-async def test_devops_workflow_stops_when_ghcr_gate_fails(monkeypatch):
-    async def fake_files(owner, repo, repo_files=None):
-        return ValidationResult(is_valid=True, message="Required files exist")
-
-    async def fake_image(owner):
-        return ValidationResult(is_valid=False, message="Image is private")
-
-    monkeypatch.setattr(devops_checks, "verify_required_devops_files", fake_files)
-    monkeypatch.setattr(devops_checks, "verify_public_ghcr_image", fake_image)
-
-    result = await run_verification(_devops_job())
-
-    assert result.validation_result.is_valid is False
-    assert result.validation_result.message == "Image is private"
-    assert result.grading_requests == []
-    assert result.grading_disposition == GradingDisposition.SKIPPED_GATE_FAILED
+    assert result.grading_disposition == GradingDisposition.NOT_REQUIRED
+    assert result.evidence is None
 
 
 # ---------------------------------------------------------------------------
@@ -1098,7 +881,6 @@ def _evidence_checks(flow):
         "exact": rubric_checks,
         "discovered": rubric_checks,
         "security": security_checks,
-        "deployment": deployment_architecture_checks,
     }[flow]
 
 
@@ -1110,18 +892,19 @@ def _evidence_flow(flow, monkeypatch):
     monkeypatch.setattr(
         security_checks, "verify_codeql_status", AsyncMock(return_value=passing)
     )
-    monkeypatch.setattr(
-        devops_checks, "verify_public_ghcr_image", AsyncMock(return_value=passing)
-    )
     if flow == "exact":
         task = SECURITY_SCANNING_RUBRIC_TASK
         paths = [*task.evidence.required_files, *task.evidence.optional_files]
         workflow = VerificationWorkflow(
             requires_username=True,
             steps=(
-                _step(CIStatusParams(), "first-gate"),
+                _step(github_checks.check_github_ci_passing, "first-gate"),
                 _step(
-                    LLMRubricReviewParams(task=task, evidence_paths=tuple(paths)),
+                    partial(
+                        rubric_checks.check_llm_rubric_review,
+                        task=task,
+                        evidence_paths=tuple(paths),
+                    ),
                     task.id,
                 ),
             ),
@@ -1134,6 +917,27 @@ def _evidence_flow(flow, monkeypatch):
         )
         return _security_job(), paths
     if flow == "discovered":
+        task = DEVOPS_IMPLEMENTATION_RUBRIC_TASK
+        workflow = VerificationWorkflow(
+            requires_username=True,
+            steps=(
+                _step(github_checks.check_github_ci_passing, "first-gate"),
+                _step(
+                    partial(
+                        rubric_checks.check_llm_rubric_review,
+                        task=task,
+                        discover_paths=True,
+                    ),
+                    task.id,
+                ),
+            ),
+            rubric=task.grader,
+        )
+        monkeypatch.setitem(
+            workflows_module._WORKFLOW_REGISTRY,
+            SubmissionType.DEVOPS_ANALYSIS,
+            workflow,
+        )
         return _devops_job(), [
             "Dockerfile",
             "k8s/deployment.yaml",
@@ -1147,7 +951,7 @@ def _evidence_flow(flow, monkeypatch):
         )
 
         return _security_job(), SECURITY_SCANNING_EVIDENCE_PATHS
-    return _deployment_job("A detailed architecture description. " * 10), ["deploy.sh"]
+    raise ValueError(f"Unknown evidence flow: {flow}")
 
 
 @pytest.mark.asyncio
@@ -1157,7 +961,6 @@ def _evidence_flow(flow, monkeypatch):
         ("exact", "llm_rubric_review.repo_file_error"),
         ("discovered", "llm_rubric_review.repo_file_error"),
         ("security", "security_scanning.repo_file_error"),
-        ("deployment", "deployment_architecture.repo_file_error"),
     ],
 )
 @pytest.mark.parametrize(
@@ -1175,7 +978,7 @@ async def test_failed_evidence_read_stops_grading(
 ):
     job, paths = _evidence_flow(flow, monkeypatch)
     paths = sorted(paths)
-    failed_path = paths[0] if flow == "deployment" else paths[1]
+    failed_path = paths[1]
     fetched = []
     mapper = Mock(wraps=github_errors.github_error_to_result)
     monkeypatch.setattr(_evidence_checks(flow), "github_error_to_result", mapper)
@@ -1207,7 +1010,7 @@ async def test_failed_evidence_read_stops_grading(
         )
         result = await run_verification(job, repo_files=GitHubRepoFiles())
 
-    assert fetched == paths[: 1 if flow == "deployment" else 2]
+    assert fetched == paths[:2]
     assert result.validation_result.is_valid is False
     assert result.validation_result.verification_completed is False
     assert "private" not in result.validation_result.message
@@ -1223,7 +1026,7 @@ async def test_failed_evidence_read_stops_grading(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("flow", ["exact", "discovered", "security", "deployment"])
+@pytest.mark.parametrize("flow", ["exact", "discovered", "security"])
 @pytest.mark.parametrize(
     "error",
     [
@@ -1248,11 +1051,11 @@ async def test_evidence_boundaries_do_not_swallow_unsupported_errors(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("flow", ["exact", "discovered", "security", "deployment"])
+@pytest.mark.parametrize("flow", ["exact", "discovered", "security"])
 async def test_selected_evidence_disappearance_blocks_grading(monkeypatch, flow):
     job, paths = _evidence_flow(flow, monkeypatch)
     contents = dict.fromkeys(paths, "evidence")
-    missing_path = paths[0] if flow == "deployment" else paths[1]
+    missing_path = paths[1]
     del contents[missing_path]
     files = InMemoryRepoFiles(contents, tree=paths)
 
@@ -1266,7 +1069,6 @@ async def test_selected_evidence_disappearance_blocks_grading(monkeypatch, flow)
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("flow", ["discovered", "deployment"])
 @pytest.mark.parametrize(
     "error",
     [
@@ -1274,19 +1076,10 @@ async def test_selected_evidence_disappearance_blocks_grading(monkeypatch, flow)
         httpx.ConnectError("private connection details"),
     ],
 )
-async def test_tree_failure_stops_grading_with_tree_event(monkeypatch, flow, error):
-    job, _ = _evidence_flow(flow, monkeypatch)
-    monkeypatch.setattr(
-        devops_checks,
-        "verify_required_devops_files",
-        AsyncMock(return_value=ValidationResult(is_valid=True, message="Files found.")),
-    )
+async def test_tree_failure_stops_grading_with_tree_event(monkeypatch, error):
+    job, _ = _evidence_flow("discovered", monkeypatch)
     mapper = Mock(wraps=github_errors.github_error_to_result)
-    monkeypatch.setattr(_evidence_checks(flow), "github_error_to_result", mapper)
-    monkeypatch.setattr(
-        "learn_to_cloud_shared.verification.deployment_architecture.github_error_to_result",
-        mapper,
-    )
+    monkeypatch.setattr(rubric_checks, "github_error_to_result", mapper)
     files = InMemoryRepoFiles(tree_error=error)
     read = AsyncMock()
     monkeypatch.setattr(files, "file", read)
@@ -1297,12 +1090,7 @@ async def test_tree_failure_stops_grading_with_tree_event(monkeypatch, flow, err
     assert result.grading_requests == []
     assert result.evidence is None
     assert result.grading_disposition is GradingDisposition.SKIPPED_GATE_FAILED
-    event = (
-        "llm_rubric_review.repo_tree_error"
-        if flow == "discovered"
-        else "deployment_architecture.repo_tree_error"
-    )
-    mapper.assert_called_once_with(error, event=event)
+    mapper.assert_called_once_with(error, event="llm_rubric_review.repo_tree_error")
     read.assert_not_awaited()
 
 
@@ -1315,7 +1103,11 @@ async def test_later_incomplete_step_discards_previously_recorded_grading(monkey
         engine_module,
         "workflow_for",
         lambda _: replace(
-            workflow, steps=(*workflow.steps, _step(CIStatusParams(), "later-gate"))
+            workflow,
+            steps=(
+                *workflow.steps,
+                _step(github_checks.check_github_ci_passing, "later-gate"),
+            ),
         ),
     )
     incomplete = github_errors.github_error_to_result(
@@ -1344,7 +1136,7 @@ async def test_later_incomplete_step_discards_previously_recorded_grading(monkey
     build_prompt.assert_not_called()
 
 
-@pytest.mark.parametrize("flow", ["exact", "discovered", "security", "deployment"])
+@pytest.mark.parametrize("flow", ["exact", "discovered", "security"])
 async def test_all_repository_workflows_block_oversized_evidence(monkeypatch, flow):
     job, paths = _evidence_flow(flow, monkeypatch)
     files = dict.fromkeys(paths, "complete")
@@ -1396,7 +1188,10 @@ async def test_any_later_failed_gate_discards_earlier_grading(monkeypatch, compl
         "workflow_for",
         lambda _: replace(
             workflow,
-            steps=(*workflow.steps, _step(CIStatusParams(), "later-gate")),
+            steps=(
+                *workflow.steps,
+                _step(github_checks.check_github_ci_passing, "later-gate"),
+            ),
         ),
     )
     code = "evidence.required_missing" if completed else "evidence.total_limit"
@@ -1480,20 +1275,23 @@ async def test_engine_rechecks_collector_result_before_recording_grading(
 
 
 @pytest.mark.parametrize(
-    "params",
+    "check",
     [
-        LLMRubricReviewParams(
+        partial(
+            rubric_checks.check_llm_rubric_review,
             task=SECURITY_SCANNING_RUBRIC_TASK,
             evidence_paths=(".github/workflows/codeql.yml", ".github/dependabot.yml"),
         ),
-        SecurityScanningReviewParams(task=SECURITY_SCANNING_RUBRIC_TASK),
-        DeploymentArchitectureReviewParams(task=DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK),
+        partial(
+            security_checks.check_security_scanning_review,
+            task=SECURITY_SCANNING_RUBRIC_TASK,
+        ),
     ],
 )
-async def test_missing_rubric_repository_is_explicit_incomplete_configuration(params):
+async def test_missing_rubric_repository_is_explicit_incomplete_configuration(check):
     job = _job()
     result = await engine_module._run_step(
-        _step(params, "rubric"),
+        _step(check, "rubric"),
         StepContext(job=job, repository=None, submitted_value=job.submitted_value),
     )
     assert not result.passed
@@ -1503,21 +1301,35 @@ async def test_missing_rubric_repository_is_explicit_incomplete_configuration(pa
 
 
 @pytest.mark.asyncio
-async def test_career_workflow_records_text_grading_request_when_gate_passes():
+async def test_career_workflow_prepares_text_grading_in_one_step(monkeypatch):
     from learn_to_cloud_shared.verification.tasks.phase7 import (
         CAREER_REFLECTION_RUBRIC_TASK,
     )
 
     text = "A specific, first-person reflection on my target role and projects."
+    workflow = workflows_module.workflow_for(SubmissionType.CAREER_REFLECTION)
+    assert len(workflow.steps) == 1
+    assert workflow.steps[0].name == "career_reflection"
+    tracer = _Tracer()
+    monkeypatch.setattr(engine_module, "_tracer", tracer)
     result = await run_verification(_career_job(text))
 
     assert result.validation_result.is_valid is True
+    assert result.validation_result.message == (
+        "Reflection received. Reviewing your answers."
+    )
     assert result.grading_requests is not None
     assert len(result.grading_requests) == 1
     request = result.grading_requests[0]
     assert request.task.id == CAREER_REFLECTION_RUBRIC_TASK.id
     assert request.task.evidence.source == "submitted_text"
     assert text in request.message
+    assert len(tracer.spans) == 1
+    assert tracer.spans[0][1].attributes == {
+        "verification.check.name": "career_reflection",
+        "verification.task.id": CAREER_REFLECTION_RUBRIC_TASK.id,
+        "verification.step.result": "passed",
+    }
 
 
 @pytest.mark.asyncio
@@ -1667,14 +1479,13 @@ def test_every_submission_type_has_a_registered_workflow():
 
 
 # ---------------------------------------------------------------------------
-# Every workflow step's params type must own a registered check.
+# Every workflow step must reference a check directly.
 # ---------------------------------------------------------------------------
 
 
 def test_every_registered_workflow_step_is_valid():
-    from learn_to_cloud_shared.verification.checks.registry import CHECK_REGISTRY
     from learn_to_cloud_shared.verification.workflows import _WORKFLOW_REGISTRY
 
     for submission_type, workflow in _WORKFLOW_REGISTRY.items():
         for step in workflow.steps:
-            assert callable(CHECK_REGISTRY.check_for(step.params)), submission_type
+            assert callable(step.check), submission_type

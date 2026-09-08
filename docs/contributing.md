@@ -358,20 +358,21 @@ The shared package separates workflow configuration from execution:
 
 | Module under `verification/` | Responsibility |
 | --- | --- |
-| `core.py` | Typed params, steps, results, contexts, workflows, and exact-type dispatch. |
+| `core.py` | Typed check callables, steps, results, contexts, and workflows. |
 | `checks/` | Focused adapters around domain validators and evidence collectors. |
-| `checks/registry.py` | Explicit registration of every built-in params/adapter pair. |
 | `workflows.py` | Ordered steps, username requirements, and rubric configuration per submission type. |
 | `engine.py` | Ownership preflight, execution, evidence flow, aggregation, safe step telemetry, and grading preparation. |
 | `execution.py` | Persisted message/result projection, not the engine core. |
 
-To add a check, define typed params and its async adapter in a focused check
-module, add the pair to `checks/registry.py`, then declare its steps in
-`workflows.py`. New workflows using existing checks need only catalog changes.
-Extend the adapter and catalog tests, including the fixed workflow contracts.
-Dispatch uses the exact params type, rejects duplicates, and has no subclass
-fallback. Importing the catalog fully initializes it; there is no startup
-registration call or required adapter import order.
+To add a check, define a public async function in a focused check module and
+reference it directly from a `Step` in `workflows.py`. Every step callable
+accepts a `StepContext` and returns a `StepResult`. Bind configuration such as
+rubric tasks with `functools.partial` and typed keyword-only arguments.
+Give each step a stable `name` for telemetry and a `task_id`; the engine calls
+`await step.check(context)` without a check registry or dispatch-only params.
+Extend the check and workflow tests, including the fixed workflow contracts.
+Importing the workflows fully initializes them; no startup registration call
+or required check import order is needed.
 
 Keep execution and step telemetry in the engine. Provider error classification
 stays in domain helpers; domain validators do not depend on engine contracts.

@@ -3,11 +3,11 @@
 from importlib import import_module
 from importlib.resources import files
 from importlib.util import find_spec
+from inspect import iscoroutinefunction, signature
 from pathlib import Path
 
 from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.verification.checks.registry import CHECK_REGISTRY
 from learn_to_cloud_shared.verification.workflows import workflow_for
 
 
@@ -40,7 +40,9 @@ def main() -> None:
                 f"Runtime package has no workflow for {submission_type}."
             )
         for step in workflow.steps:
-            CHECK_REGISTRY.check_for(step.params)
+            if not iscoroutinefunction(step.check):
+                raise RuntimeError(f"Workflow step {step.name} has no async check.")
+            signature(step.check).bind(object())
 
 
 if __name__ == "__main__":

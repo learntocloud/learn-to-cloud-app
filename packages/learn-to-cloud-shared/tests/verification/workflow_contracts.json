@@ -3,10 +3,10 @@
     "requires_username": true,
     "steps": [
       {
-        "params_type": "ProfileReadmeCheckParams",
+        "check": "check_profile_readme",
         "check_name": "profile_readme_check",
         "task_id": "profile-readme-check",
-        "params": {}
+        "kwargs": {}
       }
     ],
     "rubric": null,
@@ -16,10 +16,10 @@
     "requires_username": true,
     "steps": [
       {
-        "params_type": "RepoForkCheckParams",
+        "check": "check_repo_fork",
         "check_name": "repo_fork_check",
         "task_id": "repo-fork-check",
-        "params": {}
+        "kwargs": {}
       }
     ],
     "rubric": null,
@@ -29,10 +29,10 @@
     "requires_username": true,
     "steps": [
       {
-        "params_type": "CtfTokenCheckParams",
+        "check": "check_ctf_token",
         "check_name": "ctf_token_check",
         "task_id": "ctf-token-check",
-        "params": {}
+        "kwargs": {}
       }
     ],
     "rubric": null,
@@ -42,10 +42,10 @@
     "requires_username": true,
     "steps": [
       {
-        "params_type": "NetworkingTokenCheckParams",
+        "check": "check_networking_token",
         "check_name": "networking_token_check",
         "task_id": "networking-token-check",
-        "params": {}
+        "kwargs": {}
       }
     ],
     "rubric": null,
@@ -55,10 +55,10 @@
     "requires_username": true,
     "steps": [
       {
-        "params_type": "CIStatusParams",
+        "check": "check_github_ci_passing",
         "check_name": "github_ci_passing",
         "task_id": "journal-api-implementation-ci",
-        "params": {}
+        "kwargs": {}
       }
     ],
     "rubric": null,
@@ -68,327 +68,42 @@
     "requires_username": false,
     "steps": [
       {
-        "params_type": "DeployedApiCheckParams",
+        "check": "check_deployed_api",
         "check_name": "deployed_api_check",
         "task_id": "deployed-api-check",
-        "params": {}
+        "kwargs": {}
       }
     ],
     "rubric": null,
-    "system_prompt": null
-  },
-  "deployment_architecture": {
-    "requires_username": true,
-    "steps": [
-      {
-        "params_type": "DeploymentArchitectureGateParams",
-        "check_name": "deployment_architecture_gate",
-        "task_id": "deployment-architecture-gate",
-        "params": {}
-      },
-      {
-        "params_type": "DeploymentArchitectureReviewParams",
-        "check_name": "deployment_architecture_review",
-        "task_id": "deployment-architecture-rubric",
-        "params": {
-          "task": {
-            "id": "deployment-architecture-rubric",
-            "phase_id": 4,
-            "requirement_slug": "deployment-architecture",
-            "name": "Deployment Architecture Alignment Review",
-            "criteria": [
-              {
-                "id": "implementation-alignment",
-                "label": "Architecture matches the deployment",
-                "instruction": "The architecture description matches what the deployment script provisions and does not claim unsupported resources or controls.",
-                "kind": "required"
-              },
-              {
-                "id": "two-tier-architecture",
-                "label": "Two-tier architecture",
-                "instruction": "The deployment script provisions a public API tier and a private database tier.",
-                "kind": "required"
-              },
-              {
-                "id": "security-controls",
-                "label": "Deployment security",
-                "instruction": "The deployment includes meaningful controls such as a private database, restricted inbound access, or API TLS termination.",
-                "kind": "required"
-              },
-              {
-                "id": "design-specificity",
-                "label": "Specific architecture explanation",
-                "instruction": "The description explains the learner's networking, compute, database, and traffic flow rather than restating the task.",
-                "kind": "required"
-              },
-              {
-                "id": "substantive-submission",
-                "label": "Substantive submission",
-                "instruction": "The script and description are complete and are not empty, placeholder, copied, or obviously low effort.",
-                "kind": "required"
-              }
-            ],
-            "grading_instructions": [
-              "Grade only the full configured script and architecture description. Script dependencies are not discovered; do not infer their behavior."
-            ],
-            "evidence": {
-              "source": "repo_files",
-              "path_patterns": [],
-              "required_files": [
-                "deploy.sh",
-                "architecture-description.md"
-              ],
-              "optional_files": [],
-              "directory_rules": [],
-              "criterion_evidence": {
-                "implementation-alignment": [
-                  "deploy.sh",
-                  "architecture-description.md"
-                ],
-                "two-tier-architecture": [
-                  "deploy.sh",
-                  "architecture-description.md"
-                ],
-                "security-controls": [
-                  "deploy.sh",
-                  "architecture-description.md"
-                ],
-                "design-specificity": [
-                  "deploy.sh",
-                  "architecture-description.md"
-                ],
-                "substantive-submission": [
-                  "deploy.sh",
-                  "architecture-description.md"
-                ]
-              },
-              "max_files": 2,
-              "max_file_size_bytes": 30720,
-              "max_total_bytes": 61440,
-              "redact_patterns": []
-            },
-            "grader": {
-              "kind": "llm_rubric",
-              "rubric_id": "phase4-deployment-architecture-v2",
-              "prompt_version": "2026-09-06",
-              "passing_score": 0.7,
-              "model": "gpt-5-mini"
-            }
-          }
-        }
-      }
-    ],
-    "rubric": {
-      "kind": "llm_rubric",
-      "rubric_id": "phase4-deployment-architecture-v2",
-      "prompt_version": "2026-09-06",
-      "passing_score": 0.7,
-      "model": "gpt-5-mini"
-    },
     "system_prompt": null
   },
   "devops_analysis": {
     "requires_username": true,
     "steps": [
       {
-        "params_type": "DevopsRequiredFilesParams",
-        "check_name": "devops_required_files",
-        "task_id": "devops-required-files",
-        "params": {}
-      },
-      {
-        "params_type": "PublicGhcrImageParams",
-        "check_name": "public_ghcr_image",
-        "task_id": "public-ghcr-image",
-        "params": {}
-      },
-      {
-        "params_type": "LLMRubricReviewParams",
-        "check_name": "llm_rubric_review",
-        "task_id": "devops-implementation-rubric",
-        "params": {
-          "task": {
-            "id": "devops-implementation-rubric",
-            "phase_id": 5,
-            "requirement_slug": "devops-implementation",
-            "name": "DevOps Implementation Review",
-            "criteria": [
-              {
-                "id": "container-image",
-                "label": "Application container",
-                "instruction": "The Dockerfile uses an appropriate Python base image, installs dependencies reproducibly with uv, copies the app, exposes port 8000, and starts the API with uvicorn.",
-                "kind": "required"
-              },
-              {
-                "id": "delivery-workflow",
-                "label": "CI/CD workflow",
-                "instruction": "CI/CD runs tests, builds and pushes the image, and deploys the Kubernetes manifests from main or an equivalent protected flow.",
-                "kind": "required"
-              },
-              {
-                "id": "cloud-infrastructure",
-                "label": "Cloud infrastructure",
-                "instruction": "Terraform provisions a container registry, managed Kubernetes, managed PostgreSQL, and the role needed to pull images.",
-                "kind": "required"
-              },
-              {
-                "id": "kubernetes-runtime",
-                "label": "Kubernetes runtime",
-                "instruction": "Kubernetes defines a Deployment and Service, injects secrets without real committed credentials, and configures health probes and port 8000 routing.",
-                "kind": "required"
-              },
-              {
-                "id": "delivery-coherence",
-                "label": "End-to-end coherence",
-                "instruction": "CI builds the image Kubernetes deploys, Terraform provisions referenced services, and container, probe, and Service ports agree.",
-                "kind": "required"
-              },
-              {
-                "id": "deployable-configuration",
-                "label": "Deployable and safe configuration",
-                "instruction": "The files contain no hardcoded credentials, placeholder-only resources, contradictions, or configurations that cannot plausibly deploy the Journal API.",
-                "kind": "required"
-              }
-            ],
-            "grading_instructions": [
-              "Review the Dockerfile, CI/CD workflows, Terraform, and Kubernetes manifests together as one production delivery system.",
-              "Treat the required-files and public-GHCR checks as trusted passing gates; do not re-grade whether files or the image exist.",
-              "Accept equivalent valid cloud-provider syntax and file organization within the published source roots. They contain the submitted deployment, not unrelated examples or alternative deployments. Do not infer an active provider folder.",
-              "Only direct .yml/.yaml workflows, recursive infra/ .tf/.tf.json sources (excluding .terraform/), and recursive k8s/ .yaml/.yml sources are discovered. External modules, scripts and generated artifacts are not fetched or executed; do not invent their behavior.",
-              ".dockerignore and k8s/secrets.yaml.example are optional evidence, not additional required work."
-            ],
-            "evidence": {
-              "source": "repo_files",
-              "path_patterns": [
-                "Dockerfile",
-                ".dockerignore",
-                "k8s/deployment.yaml",
-                "k8s/service.yaml",
-                "k8s/secrets.yaml.example",
-                ".github/workflows/",
-                "infra/",
-                "k8s/"
-              ],
-              "required_files": [
-                "Dockerfile",
-                "k8s/deployment.yaml",
-                "k8s/service.yaml"
-              ],
-              "optional_files": [
-                ".dockerignore",
-                "k8s/secrets.yaml.example"
-              ],
-              "directory_rules": [
-                {
-                  "root": ".github/workflows/",
-                  "suffixes": [
-                    ".yml",
-                    ".yaml"
-                  ],
-                  "recursive": false,
-                  "required": true,
-                  "excluded_directories": []
-                },
-                {
-                  "root": "infra/",
-                  "suffixes": [
-                    ".tf",
-                    ".tf.json"
-                  ],
-                  "recursive": true,
-                  "required": true,
-                  "excluded_directories": [
-                    ".terraform"
-                  ]
-                },
-                {
-                  "root": "k8s/",
-                  "suffixes": [
-                    ".yaml",
-                    ".yml"
-                  ],
-                  "recursive": true,
-                  "required": false,
-                  "excluded_directories": []
-                }
-              ],
-              "criterion_evidence": {
-                "container-image": [
-                  "Dockerfile",
-                  ".dockerignore"
-                ],
-                "delivery-workflow": [
-                  ".github/workflows/"
-                ],
-                "cloud-infrastructure": [
-                  "infra/"
-                ],
-                "kubernetes-runtime": [
-                  "k8s/",
-                  "k8s/secrets.yaml.example"
-                ],
-                "delivery-coherence": [
-                  "Dockerfile",
-                  ".dockerignore",
-                  "k8s/deployment.yaml",
-                  "k8s/service.yaml",
-                  "k8s/secrets.yaml.example",
-                  ".github/workflows/",
-                  "infra/",
-                  "k8s/"
-                ],
-                "deployable-configuration": [
-                  "Dockerfile",
-                  ".dockerignore",
-                  "k8s/deployment.yaml",
-                  "k8s/service.yaml",
-                  "k8s/secrets.yaml.example",
-                  ".github/workflows/",
-                  "infra/",
-                  "k8s/"
-                ]
-              },
-              "max_files": 24,
-              "max_file_size_bytes": 51200,
-              "max_total_bytes": 204800,
-              "redact_patterns": []
-            },
-            "grader": {
-              "kind": "llm_rubric",
-              "rubric_id": "phase5-devops-implementation-v2",
-              "prompt_version": "2026-09-06",
-              "passing_score": 0.8,
-              "model": "gpt-5-mini"
-            }
-          },
-          "evidence_paths": [],
-          "discover_paths": true
-        }
+        "check": "check_devops_pipeline",
+        "check_name": "devops_pipeline",
+        "task_id": "devops-pipeline",
+        "kwargs": {}
       }
     ],
-    "rubric": {
-      "kind": "llm_rubric",
-      "rubric_id": "phase5-devops-implementation-v2",
-      "prompt_version": "2026-09-06",
-      "passing_score": 0.8,
-      "model": "gpt-5-mini"
-    },
+    "rubric": null,
     "system_prompt": null
   },
   "security_scanning": {
     "requires_username": true,
     "steps": [
       {
-        "params_type": "CodeQLStatusParams",
+        "check": "check_codeql_status",
         "check_name": "codeql_status",
         "task_id": "codeql-status-gate",
-        "params": {}
+        "kwargs": {}
       },
       {
-        "params_type": "SecurityScanningReviewParams",
+        "check": "check_security_scanning_review",
         "check_name": "security_scanning_review",
         "task_id": "security-scanning-rubric",
-        "params": {
+        "kwargs": {
           "task": {
             "id": "security-scanning-rubric",
             "phase_id": 6,
@@ -490,16 +205,10 @@
     "requires_username": false,
     "steps": [
       {
-        "params_type": "CareerReflectionGateParams",
-        "check_name": "career_reflection_gate",
-        "task_id": "career-reflection-gate",
-        "params": {}
-      },
-      {
-        "params_type": "CareerReflectionReviewParams",
-        "check_name": "career_reflection_review",
+        "check": "check_career_reflection",
+        "check_name": "career_reflection",
         "task_id": "career-reflection-rubric",
-        "params": {
+        "kwargs": {
           "task": {
             "id": "career-reflection-rubric",
             "phase_id": 7,

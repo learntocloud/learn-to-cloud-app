@@ -122,7 +122,7 @@ class TestVerificationRunResultEvidence:
 
 def _grading_request():
     from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
-    from learn_to_cloud_shared.verification.tasks.phase5 import (
+    from tests.fakes.legacy_devops import (
         DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
     )
 

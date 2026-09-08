@@ -1,4 +1,4 @@
-"""Phase 5 DevOps verification configuration."""
+"""Legacy repository rubric fixture for evidence and persisted-result tests."""
 
 from __future__ import annotations
 

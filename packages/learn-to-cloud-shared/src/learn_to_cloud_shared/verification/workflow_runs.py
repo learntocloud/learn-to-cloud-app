@@ -12,10 +12,26 @@ inject an in-memory implementation. ``verify_ci_status`` accepts an optional
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
+
+from pydantic import Field
 
 from learn_to_cloud_shared.schemas import FrozenModel
 from learn_to_cloud_shared.verification.github_http import github_api_get
+
+
+class WorkflowRun(FrozenModel):
+    """GitHub run metadata used by current-commit verification gates."""
+
+    id: int = Field(gt=0)
+    run_number: int = Field(gt=0)
+    head_branch: str = Field(min_length=1)
+    event: str = Field(min_length=1)
+    head_sha: str = Field(pattern=r"^[0-9a-f]{40}$")
+    status: Literal[
+        "queued", "requested", "waiting", "pending", "in_progress", "completed"
+    ]
+    conclusion: str | None
 
 
 @runtime_checkable

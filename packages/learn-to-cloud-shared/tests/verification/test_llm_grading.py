@@ -18,7 +18,6 @@ from learn_to_cloud_shared.verification.llm_grading import (
     validate_llm_grading_decision,
 )
 from learn_to_cloud_shared.verification.tasks import (
-    PHASE5_LLM_TASKS,
     PHASE6_LLM_TASKS,
     PHASE7_LLM_TASKS,
     LLMGradingDecision,
@@ -27,6 +26,7 @@ from learn_to_cloud_shared.verification_workflow import (
     PreparedVerificationAttempt,
     VerificationRunResult,
 )
+from tests.fakes.legacy_devops import PHASE5_LLM_TASKS
 
 
 def _run_result(is_valid: bool = True) -> VerificationRunResult:

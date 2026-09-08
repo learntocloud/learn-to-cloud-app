@@ -1,6 +1,7 @@
 """Adapter contracts independent of workflow execution."""
 
 import sys
+from functools import partial
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
@@ -14,22 +15,17 @@ from learn_to_cloud_shared.verification.checks import career as career_checks
 from learn_to_cloud_shared.verification.checks import (
     deployed_api as deployed_api_checks,
 )
-from learn_to_cloud_shared.verification.checks import (
-    deployment_architecture as deployment_architecture_checks,
-)
 from learn_to_cloud_shared.verification.checks import devops as devops_checks
 from learn_to_cloud_shared.verification.checks import github as github_checks
-from learn_to_cloud_shared.verification.checks import rubric as rubric_checks
 from learn_to_cloud_shared.verification.checks import security as security_checks
 from learn_to_cloud_shared.verification.checks import tokens as tokens_checks
-from learn_to_cloud_shared.verification.checks.registry import CHECK_REGISTRY
 from learn_to_cloud_shared.verification.core import StepContext, StepResult
 from learn_to_cloud_shared.verification.evidence import EvidenceError
-from learn_to_cloud_shared.verification.tasks.phase4 import (
-    DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
-)
 from learn_to_cloud_shared.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
+)
+from learn_to_cloud_shared.verification.tasks.phase7 import (
+    CAREER_REFLECTION_RUBRIC_TASK,
 )
 from learn_to_cloud_shared.verification_workflow import PreparedVerificationAttempt
 from tests.fakes.repo_files import InMemoryRepoFiles
@@ -59,73 +55,55 @@ def _context(submission_type):
 
 
 @pytest.mark.parametrize(
-    ("params", "submission_type", "validator", "is_async"),
+    ("check", "submission_type", "validator", "is_async"),
     [
         (
-            github_checks.CIStatusParams(),
+            github_checks.check_github_ci_passing,
             SubmissionType.JOURNAL_API_VERIFIER,
             "verify_ci_status",
             True,
         ),
         (
-            github_checks.ProfileReadmeCheckParams(),
+            github_checks.check_profile_readme,
             SubmissionType.PROFILE_README,
             "validate_profile_readme",
             True,
         ),
         (
-            github_checks.RepoForkCheckParams(),
+            github_checks.check_repo_fork,
             SubmissionType.REPO_FORK,
             "validate_repo_fork",
             True,
         ),
         (
-            tokens_checks.CtfTokenCheckParams(),
+            tokens_checks.check_ctf_token,
             SubmissionType.CTF_TOKEN,
             "verify_ctf_token",
             False,
         ),
         (
-            tokens_checks.NetworkingTokenCheckParams(),
+            tokens_checks.check_networking_token,
             SubmissionType.NETWORKING_TOKEN,
             "verify_networking_token",
             False,
         ),
         (
-            deployed_api_checks.DeployedApiCheckParams(),
+            deployed_api_checks.check_deployed_api,
             SubmissionType.DEPLOYED_API,
             "validate_deployed_api",
             True,
         ),
         (
-            deployment_architecture_checks.DeploymentArchitectureGateParams(),
-            SubmissionType.DEPLOYMENT_ARCHITECTURE,
-            "validate_deployment_architecture",
-            True,
-        ),
-        (
-            devops_checks.DevopsRequiredFilesParams(),
+            devops_checks.check_devops_pipeline,
             SubmissionType.DEVOPS_ANALYSIS,
-            "verify_required_devops_files",
+            "verify_devops_pipeline",
             True,
         ),
         (
-            devops_checks.PublicGhcrImageParams(),
-            SubmissionType.DEVOPS_ANALYSIS,
-            "verify_public_ghcr_image",
-            True,
-        ),
-        (
-            security_checks.CodeQLStatusParams(),
+            security_checks.check_codeql_status,
             SubmissionType.SECURITY_SCANNING,
             "verify_codeql_status",
             True,
-        ),
-        (
-            career_checks.CareerReflectionGateParams(),
-            SubmissionType.CAREER_REFLECTION,
-            "validate_career_reflection",
-            False,
         ),
     ],
 )
@@ -133,7 +111,7 @@ def _context(submission_type):
     ("passed", "completed"), [(True, True), (False, True), (False, False)]
 )
 async def test_deterministic_results_preserve_identity_and_arguments(
-    monkeypatch, params, submission_type, validator, is_async, passed, completed
+    monkeypatch, check, submission_type, validator, is_async, passed, completed
 ):
     context = _context(submission_type)
     target = context.repository
@@ -150,9 +128,9 @@ async def test_deterministic_results_preserve_identity_and_arguments(
         ],
     )
     mock = (AsyncMock if is_async else Mock)(return_value=result)
-    monkeypatch.setattr(sys.modules[type(params).__module__], validator, mock)
+    monkeypatch.setattr(sys.modules[check.__module__], validator, mock)
 
-    step_result = await CHECK_REGISTRY.check_for(params)(context, params)
+    step_result = await check(context)
 
     assert step_result.validation_result is result
     assert step_result.passed is passed
@@ -165,19 +143,6 @@ async def test_deterministic_results_preserve_identity_and_arguments(
         expected = (context.submitted_value.token, "learner")
     elif validator == "validate_deployed_api":
         expected = (context.submitted_value.url,)
-    elif validator == "validate_career_reflection":
-        expected = (context.submitted_value.text,)
-    elif validator == "validate_deployment_architecture":
-        expected = (
-            context.job.requirement,
-            context.submitted_value.text,
-            target,
-            context.repo_files,
-        )
-    elif validator == "verify_required_devops_files":
-        expected = (target.owner, target.repo, context.repo_files)
-    elif validator == "verify_public_ghcr_image":
-        expected = (target.owner,)
     else:
         expected = (target.owner, target.repo)
     mock.assert_called_once_with(*expected)
@@ -186,23 +151,72 @@ async def test_deterministic_results_preserve_identity_and_arguments(
 
 
 @pytest.mark.parametrize(
-    "params",
+    ("passed", "completed"),
+    [(True, True), (False, True), (False, False), (True, False)],
+)
+async def test_career_check_validates_before_preparing_grading(
+    monkeypatch, passed, completed
+):
+    context = _context(SubmissionType.CAREER_REFLECTION)
+    validation = ValidationResult(
+        is_valid=passed,
+        verification_completed=completed,
+        message="Reflection feedback",
+    )
+    validate = Mock(return_value=validation)
+    collect = Mock(wraps=career_checks.collect_career_reflection_evidence)
+    monkeypatch.setattr(career_checks, "validate_career_reflection", validate)
+    monkeypatch.setattr(career_checks, "collect_career_reflection_evidence", collect)
+
+    result = await career_checks.check_career_reflection(
+        context, task=CAREER_REFLECTION_RUBRIC_TASK
+    )
+
+    validate.assert_called_once_with(context.submitted_value.text)
+    assert result.validation_result is validation
+    assert result.passed is passed
+    if passed and completed:
+        collect.assert_called_once_with(
+            context.submitted_value.text, CAREER_REFLECTION_RUBRIC_TASK
+        )
+        assert len(result.evidence) == 1
+        assert result.evidence[0].task_id == CAREER_REFLECTION_RUBRIC_TASK.id
+        assert result.evidence[0].items[0].content == context.submitted_value.text
+        assert result.grading_task is CAREER_REFLECTION_RUBRIC_TASK
+        assert not result.stop_on_fail
+    else:
+        collect.assert_not_called()
+        assert result.evidence == []
+        assert result.grading_task is None
+        assert result.stop_on_fail
+
+
+async def test_career_check_rejects_non_text_values():
+    with pytest.raises(
+        TypeError, match="Career reflection check requires a text value"
+    ):
+        await career_checks.check_career_reflection(
+            _context(SubmissionType.CTF_TOKEN), task=CAREER_REFLECTION_RUBRIC_TASK
+        )
+
+
+@pytest.mark.parametrize(
+    "check",
     [
-        github_checks.CIStatusParams(),
-        devops_checks.DevopsRequiredFilesParams(),
-        devops_checks.PublicGhcrImageParams(),
-        security_checks.CodeQLStatusParams(),
-        github_checks.ProfileReadmeCheckParams(),
-        github_checks.RepoForkCheckParams(),
+        github_checks.check_github_ci_passing,
+        devops_checks.check_devops_pipeline,
+        security_checks.check_codeql_status,
+        github_checks.check_profile_readme,
+        github_checks.check_repo_fork,
     ],
 )
-async def test_missing_target_preserves_completed_and_incomplete_results(params):
+async def test_missing_target_preserves_completed_and_incomplete_results(check):
     context = _context(SubmissionType.CTF_TOKEN)
-    result = await CHECK_REGISTRY.check_for(params)(context, params)
-    completed = isinstance(
-        params,
-        (github_checks.ProfileReadmeCheckParams, github_checks.RepoForkCheckParams),
-    )
+    result = await check(context)
+    completed = check in {
+        github_checks.check_profile_readme,
+        github_checks.check_repo_fork,
+    }
     assert result == StepResult(
         passed=False,
         stop_on_fail=True,
@@ -222,32 +236,15 @@ async def test_missing_target_preserves_completed_and_incomplete_results(params)
 
 
 @pytest.mark.parametrize(
-    "params",
+    "check",
     [
-        rubric_checks.LLMRubricReviewParams(
-            task=SECURITY_SCANNING_RUBRIC_TASK, evidence_paths=("codeql.yml",)
-        ),
-        security_checks.SecurityScanningReviewParams(
-            task=SECURITY_SCANNING_RUBRIC_TASK
-        ),
-        deployment_architecture_checks.DeploymentArchitectureReviewParams(
-            task=DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK
+        partial(
+            security_checks.check_security_scanning_review,
+            task=SECURITY_SCANNING_RUBRIC_TASK,
         ),
     ],
 )
-async def test_missing_rubric_target_raises_evidence_error(params):
+async def test_missing_rubric_target_raises_evidence_error(check):
     with pytest.raises(EvidenceError) as raised:
-        await CHECK_REGISTRY.check_for(params)(
-            _context(SubmissionType.CTF_TOKEN), params
-        )
+        await check(_context(SubmissionType.CTF_TOKEN))
     assert raised.value.code == "evidence.configuration"
-
-
-@pytest.mark.parametrize(("paths", "discover"), [((), False), (("codeql.yml",), True)])
-def test_rubric_requires_exactly_one_evidence_mode(paths, discover):
-    with pytest.raises(ValueError, match="Choose exactly one LLM evidence mode"):
-        rubric_checks.LLMRubricReviewParams(
-            task=SECURITY_SCANNING_RUBRIC_TASK,
-            evidence_paths=paths,
-            discover_paths=discover,
-        )

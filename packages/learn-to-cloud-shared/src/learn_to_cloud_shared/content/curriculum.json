@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "ee366fc84ea29957c5ed57f9331f2c00a35b973690c14f532c8d0f6be7a1a597",
-  "curriculum_version": 17,
+  "content_hash": "8a3da2e9acfc955d1439d9b74bfb7dc2ec67ec040131b3fcd535a1674c1f76cc",
+  "curriculum_version": 19,
   "phases": [
     {
       "capstone": null,
@@ -3460,11 +3460,11 @@
           "uuid": "7ca1401a-0e78-4fcb-8665-aeba544555d1"
         },
         {
-          "description": "Deploy the Journal API from Phase 3 as a secure foundational cloud workload. You'll combine segmented networking, private PostgreSQL connectivity, HTTPS, identity-aware administration, cost controls, and the live AI endpoint you evaluated in this phase. The goal is a defensible working deployment, not a claim of full production readiness.",
+          "description": "Deploy your Phase 3 Journal API on your chosen cloud. You own the architecture, service choices, and deployment approach. Use the earlier topics as references, not a deployment recipe. Researching what you do not yet know is part of this project.",
           "learning_objectives": [
             {
               "order": 1,
-              "text": "Design a segmented cloud architecture for public API and private database traffic.",
+              "text": "Choose and justify a cloud architecture with separate application and database tiers.",
               "uuid": "a8283b86-24bb-4e2e-8a20-7679cd19741a"
             },
             {
@@ -3479,156 +3479,66 @@
             },
             {
               "order": 4,
-              "text": "Validate HTTPS, CRUD behavior, AI analysis, private connectivity, and cleanup.",
+              "text": "Demonstrate working API behavior, explain security and cost tradeoffs, and clean up unused resources.",
               "uuid": "0f9954fd-42d1-4a8a-99e1-9ee7b8f1a8d4"
             }
           ],
           "learning_steps": [
             {
-              "action": "explore",
+              "action": "build",
               "checklist": [
-                "A virtual network with non-overlapping application and private database subnets",
-                "Public HTTPS traffic terminating at a reverse proxy or managed ingress",
-                "The API process listening only behind that HTTPS entry point",
-                "Private API-to-database traffic on port 5432",
-                "No public IP or public inbound rule for the database",
-                "No public SSH or RDP rule for either tier",
-                "Bastion, Session Manager, or IAP for administrative access",
-                "The outbound path required for package installation and the live AI endpoint"
+                "Expose the API over public HTTPS with a trusted certificate.",
+                "Separate the application and PostgreSQL tiers, with private database connectivity and no public database access.",
+                "Keep administrative access private and authenticated, and credentials out of source control and logs.",
+                "Preserve all Journal API CRUD operations and data across application restarts, and keep the service running after your administrative session ends.",
+                "Connect the analysis endpoint to a live AI service, not a mock response.",
+                "Estimate costs and configure budget alerts before provisioning."
               ],
               "code": null,
-              "description": "Draw the network before provisioning resources. Reuse the decisions and diagnostic evidence from the networking, database, and AI topics.",
-              "done_when": "Your diagram shows each allowed traffic path, its port, and the control that blocks unintended access.",
+              "description": "Choose the cloud services and tools yourself. A two-tier application and database architecture is sufficient; a frontend or third tier is not required. Meet these requirements without following a prescribed implementation.",
+              "done_when": "You have demonstrated the API behavior and access controls on your deployed system.",
               "options": [],
               "order": 1,
-              "slug": "phase4-topic9-design-deployment-traffic-paths",
-              "tips": [],
-              "title": "Draw the deployment and traffic paths",
-              "url": null,
-              "uuid": "0bb54815-026c-4012-96c6-c4511e8870c3"
-            },
-            {
-              "action": "practice",
-              "checklist": [
-                "Create the application and private database subnets",
-                "Apply least-privilege routes and firewall or security-group rules",
-                "Deploy the API compute in the application subnet",
-                "Deploy PostgreSQL without a public IP, or use managed PostgreSQL with private connectivity",
-                "Create the `career_journal` database and least-privilege application role",
-                "Run `database_setup.sql`",
-                "Prove the API compute can reach PostgreSQL and the public internet cannot"
-              ],
-              "code": null,
-              "description": "Create the segmented network and compute resources from your design. Reuse the private PostgreSQL tier from the database topic if it is still running; otherwise reproduce it. Use cloud-init, provider run-command tooling, or identity-aware sessions for setup instead of temporarily exposing management ports.",
-              "done_when": "The database is reachable from the API workload over a private path and is unreachable from your local machine over the public internet.",
-              "options": [],
-              "order": 2,
-              "slug": "phase4-topic9-practice-provision-foundational-infrastructure",
-              "tips": [],
-              "title": "Provision the network, compute, and private database",
-              "url": null,
-              "uuid": "c35ea082-b623-475d-94ff-32a71fa9e519"
-            },
-            {
-              "action": "practice",
-              "checklist": [
-                "Install Python 3.11 or newer and `uv`",
-                "Configure `DATABASE_URL` with the database's private address",
-                "Store runtime settings in a protected environment file or provider secrets integration",
-                "Run Uvicorn through systemd or an equivalent service manager without `--reload`",
-                "Bind Uvicorn to localhost or an internal interface rather than exposing port 8000 publicly",
-                "Verify the service restarts and survives an administrative session ending"
-              ],
-              "code": null,
-              "description": "Clone your fork onto the API compute, install dependencies, configure the private database connection, and run the API with a service manager such as systemd. Keep runtime settings outside the repository and restrict access to the service account.",
-              "done_when": "All Journal API CRUD operations work from the API host and the service is supervised by the operating system.",
-              "options": [],
-              "order": 3,
               "slug": "phase4-topic9-practice-deploy-api-service",
               "tips": [],
-              "title": "Deploy the Journal API as a managed service process",
+              "title": "Deploy the Journal API",
               "url": null,
               "uuid": "4c1da717-a539-446a-81bc-deb7aec0e05a"
             },
             {
               "action": "practice",
               "checklist": [
-                "Point a DNS name at the public HTTPS entry point",
-                "Terminate TLS with a trusted certificate",
-                "Forward HTTPS requests to the internal Journal API listener",
-                "Allow public inbound traffic only on required web ports",
-                "Confirm SSH and RDP are not publicly reachable",
-                "Locate the audit event for an administrative session"
+                "`POST /entries` accepts `work`, `struggle`, and `intention` and returns HTTP 200 or 201 with a non-empty string `id`, either at the top level or inside an `entry` object.",
+                "`POST /entries/{id}/analyze` returns HTTP 200 within 30 seconds with the matching `entry_id`, a `sentiment` of `positive`, `negative`, or `neutral`, a non-empty `summary`, and a non-empty `topics` list of non-empty strings."
               ],
               "code": null,
-              "description": "Configure DNS, a trusted TLS certificate, and a reverse proxy or managed ingress that forwards to the private application listener. Administer the hosts only through the identity-aware access path configured earlier.",
-              "done_when": "`curl https://your-domain/entries` returns a direct 200 response with valid JSON and a trusted certificate, while public management ports remain blocked.",
-              "options": [],
-              "order": 4,
-              "slug": "phase4-topic9-practice-expose-https-secure-administration",
-              "tips": [],
-              "title": "Expose HTTPS and verify secure administration",
-              "url": null,
-              "uuid": "27462a4a-7f2d-47f2-b910-2eb9d030deba"
-            },
-            {
-              "action": "practice",
-              "checklist": [
-                "Configure the endpoint, model or deployment name, and authentication",
-                "Apply the timeout, retry, rate-limit, and safety decisions you documented",
-                "Restart the API service and inspect its logs for configuration errors",
-                "Create a journal entry and call `POST /entries/{id}/analyze`",
-                "Confirm the response includes `entry_id`, `sentiment`, `summary`, and `topics`"
-              ],
-              "code": null,
-              "description": "Configure the API with the model endpoint selected in Operating Cloud AI Services. Use the Responses API environment variables from Phase 3 when the provider is compatible; otherwise use the provider adapter you implemented. Do not commit credentials.",
-              "done_when": "The deployed HTTPS API returns a valid live AI analysis without exposing credentials in source control or logs.",
-              "options": [],
-              "order": 5,
-              "slug": "phase4-topic9-practice-configure-test-live-ai",
-              "tips": [],
-              "title": "Configure and test the live AI endpoint",
-              "url": null,
-              "uuid": "023ae8e4-f00e-4c6b-af08-93055c275aeb"
-            },
-            {
-              "action": "practice",
-              "checklist": [],
-              "code": null,
-              "description": "Submit the HTTPS base URL. The verifier posts a journal entry recording your verification submission, uses the returned entry ID to call its live AI analysis endpoint, and checks the analysis response. Both requests run once without automatic retries. The entry stays in your journal; no listing or deletion is performed.",
+              "description": "Submit your public HTTPS base URL. The verifier makes these requests without authentication headers and requires direct JSON responses without redirects.",
               "done_when": "The verifier reports that entry creation and live AI analysis passed.",
               "options": [],
-              "order": 6,
+              "order": 2,
               "slug": "phase4-topic9-practice-verify-submit-deployment",
               "tips": [
                 {
-                  "text": "The API must return direct JSON responses without HTTP redirects. AI wording is nondeterministic, so verification checks the response schema rather than exact text.",
+                  "text": "Automated verification checks entry creation and the analysis response contract, not your architecture, database isolation, other CRUD operations, or whether a real model produced the response. You are responsible for demonstrating the remaining requirements.",
                   "type": "tip"
                 },
                 {
-                  "text": "Verification makes one billable model request and allows additional time for that request to complete.",
+                  "text": "Each request runs once without automatic retries. Analysis through your live model may incur a charge. The created entry stays in your journal; the verifier does not list or delete entries.",
                   "type": "warning"
                 }
               ],
-              "title": "Verify and submit the deployment",
+              "title": "Submit your deployment",
               "url": null,
               "uuid": "a6ab032c-fe77-4d31-987f-564f6248ede6"
             },
             {
               "action": "reflect",
-              "checklist": [
-                "Document what you actually deployed rather than an idealized architecture",
-                "Record the public and private traffic paths and their controls",
-                "Explain the model choice, safety settings, and expected cost",
-                "Note at least one remaining production concern such as backup, high availability, secrets rotation, or disaster recovery",
-                "Delete compute, disks, IPs, networking services, database resources, and unused AI deployments",
-                "Confirm the billing dashboard shows no unexpected active resources"
-              ],
+              "checklist": [],
               "code": null,
-              "description": "Add a concise architecture diagram and deployment notes to your Journal Starter README. Explain the network boundaries, administration path, database controls, AI endpoint, cost estimate, and one limitation you would address before production. After verification, delete every resource you do not need for Phase 5.",
+              "description": "Add an architecture diagram and concise notes to your Journal Starter README. Explain your service choices, public and private traffic paths, access controls, AI model and safety choices, expected costs, and how you demonstrated the requirements. Identify one limitation you would address before production. Delete resources you do not need for Phase 5 and review your billing dashboard for unexpected charges.",
               "done_when": "Your repository documents the verified deployment and your cloud account contains only resources you intentionally retained for Phase 5.",
               "options": [],
-              "order": 7,
+              "order": 3,
               "slug": "phase4-topic9-reflect-document-clean-up",
               "tips": [],
               "title": "Document decisions and clean up",
@@ -3653,7 +3563,7 @@
         ],
         "requirements": [
           {
-            "description": "We'll review your fork's `main` branch. Required evidence is `Dockerfile`, `k8s/deployment.yaml`, `k8s/service.yaml`, at least one `.yml` or `.yaml` workflow directly in `.github/workflows/`, and at least one `.tf` or `.tf.json` file under `infra/`. All matching workflow and Terraform source files, including nested Terraform modules, and all `.yaml` or `.yml` files under `k8s/` are read in full. `.dockerignore` and `k8s/secrets.yaml.example` are also read when present but are optional. Use these roots only for the submitted deployment, not alternative examples. Terraform filenames such as `main.tf` are examples, not requirements. `.terraform/`, state, plan, tfvars, credentials, README, and unrelated files are excluded. External modules and scripts outside these roots are not automatically fetched or executed. Internal evidence limits leave work ungraded, not failed; report the issue rather than shrinking valid work.",
+            "description": "We'll check the latest run of `.github/workflows/ci.yml` on your fork's current `main` commit. The run must succeed with exactly one successful job named `test`, `build`, and `deploy`. Use those exact job IDs and display names, without matrix suffixes. These jobs should test the app, build and publish its container image, and deploy it to Kubernetes and confirm rollout. Verification uses run and job results only, not source files, commands, logs, or AI review. It does not prove what each job actually does. If you rerun a workflow, choose Re-run all jobs so the latest attempt contains all three.",
             "name": "Complete the DevOps Capstone",
             "slug": "devops-implementation",
             "submission_type": "devops_analysis",
@@ -3915,8 +3825,8 @@
             {
               "action": "practice",
               "checklist": [],
-              "code": "name: Build and Push\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      \n      - name: Build Docker image\n        run: docker build -t myapp:${{ github.sha }} .\n      \n      - name: Login to Registry\n        run: echo ${{ secrets.REGISTRY_PASSWORD }} | docker login -u ${{ secrets.REGISTRY_USER }} --password-stdin\n      \n      - name: Push image\n        run: docker push myapp:${{ github.sha }}",
-              "description": "Extend your workflow to build a Docker image and push it to a container registry on successful builds. Use this as a reference:",
+              "code": null,
+              "description": "Extend `.github/workflows/ci.yml` rather than replacing its tests. Name the existing test job `test` and add a `build` job that depends on it with `needs: test`. Build your Docker image and publish it to your container registry with a commit-specific tag. Use exact job IDs and matching display names (`name: test` and `name: build`). Keep registry credentials out of source control. In the capstone, you will add a `deploy` job with `needs: build` to deploy that image to Kubernetes and confirm rollout.",
               "done_when": null,
               "options": [],
               "order": 4,
@@ -4821,26 +4731,17 @@
             {
               "action": "build",
               "checklist": [
-                "Use `python:3.12-slim` as the base image (matches the dev container's Python version)",
-                "Install `uv` (not pip) and run `uv sync` to install dependencies",
-                "Commit `uv.lock` to your repo for reproducible builds",
-                "Set `PYTHONPATH` to your app directory so imports resolve correctly",
-                "Expose port 8000",
-                "Use `uvicorn api.main:app --host 0.0.0.0 --port 8000` as the entry point",
-                "Create `.dockerignore` to exclude `.git/`, `tests/`, `.devcontainer/`"
+                "Use a suitable Python base image and reproducible dependency installation.",
+                "Keep secrets and unnecessary files out of the image.",
+                "Configure the container to start the API and accept traffic on port 8000."
               ],
               "code": null,
-              "description": "Write a `Dockerfile` at the root of your repository that packages your Journal API into a container image. Also create a `.dockerignore` to exclude non-production files.",
+              "description": "Package your Journal API as a Docker image that you can run locally and deploy to Kubernetes.",
               "done_when": "`docker build` succeeds and `docker run` starts the API listening on port 8000.",
               "options": [],
               "order": 1,
               "slug": "phase5-topic6-build-containerize-the-application",
-              "tips": [
-                {
-                  "text": "Docker is not available inside the dev container by default. To build locally, run `docker build` on your host machine. Alternatively, use `az acr build --registry <name> --image journal-api:latest .` to build remotely in Azure Container Registry without needing local Docker.",
-                  "type": "note"
-                }
-              ],
+              "tips": [],
               "title": "Containerize the Application",
               "url": null,
               "uuid": "e44b670a-c53c-4e31-8a6a-23fdc0729c6d"
@@ -4848,33 +4749,17 @@
             {
               "action": "build",
               "checklist": [
-                "**Container registry** \u2014 e.g., Azure Container Registry",
-                "**Managed Kubernetes cluster** \u2014 e.g., AKS",
-                "**Managed PostgreSQL 15 database** \u2014 e.g., Azure Database for PostgreSQL Flexible Server",
-                "**IAM/role bindings** \u2014 so your K8s cluster can pull images from the registry",
-                "**`main.tf`** \u2014 core resource definitions",
-                "**`variables.tf`** \u2014 input variable declarations",
-                "**`providers.tf`** \u2014 cloud provider and Terraform version config",
-                "**`outputs.tf`** \u2014 export registry URL, DB connection string, kubeconfig",
-                "**`terraform.tfvars`** \u2014 your variable values (add to `.gitignore`)",
-                "**Run `database_setup.sql`** against your PostgreSQL instance after provisioning"
+                "Provision a container registry, managed Kubernetes cluster, and managed PostgreSQL database.",
+                "Configure the permissions and networking needed to pull images and connect to the database.",
+                "Initialize the database schema and protect credentials and Terraform state."
               ],
               "code": null,
-              "description": "Create Terraform configuration files in an `infra/` directory to provision your cloud infrastructure. Provider-specific filenames and nested modules are supported. The filenames below are examples, not required names.",
+              "description": "Use Terraform to provision the infrastructure needed to run your containerized application on your chosen cloud provider.",
               "done_when": "`terraform apply` completes, all resources exist, and you can connect to the database.",
               "options": [],
               "order": 2,
               "slug": "phase5-topic6-build-infrastructure-as-code",
-              "tips": [
-                {
-                  "text": "Azure PostgreSQL requires `?sslmode=require` appended to your `DATABASE_URL`. The local dev format without SSL will not work in the cloud.",
-                  "type": "note"
-                },
-                {
-                  "text": "If Terraform fails with `LocationIsOfferRestricted` for PostgreSQL, try a different Azure region (e.g., `centralus`, `westus2`).",
-                  "type": "tip"
-                }
-              ],
+              "tips": [],
               "title": "Infrastructure as Code",
               "url": null,
               "uuid": "340708fb-f0f4-438f-9058-e0c88dce33f4"
@@ -4882,27 +4767,21 @@
             {
               "action": "build",
               "checklist": [
-                "**Test job** \u2014 Run linting and tests with a PostgreSQL 15 service container, run `database_setup.sql` before pytest, install `uv` using `astral-sh/setup-uv`",
-                "**Build & Push job** \u2014 Build the Docker image and push it to your cloud container registry, tagged with commit SHA and `latest`",
-                "**Public verification copy** \u2014 Also push the image as `ghcr.io/<your-github-username>/journal-api:latest` so automated verification can confirm the build succeeded",
-                "**Public GHCR package** \u2014 After the first push, open the package settings on GitHub and change the package visibility to public",
-                "**Deploy job** \u2014 Connect to your K8s cluster, `sed`-substitute the image placeholder, apply manifests from `k8s/`",
-                "**`AZURE_CREDENTIALS` secret** \u2014 output of `az ad sp create-for-rbac --sdk-auth`",
-                "**`ACR_LOGIN_SERVER` secret** \u2014 your ACR login server URL",
-                "**`ACR_USERNAME` secret** \u2014 ACR username",
-                "**`ACR_PASSWORD` secret** \u2014 ACR password",
-                "**`AZURE_RESOURCE_GROUP` secret** \u2014 your resource group name",
-                "**`AKS_CLUSTER_NAME` secret** \u2014 your AKS cluster name"
+                "**`test`** - Run linting and tests with the dependencies they need.",
+                "**`build`** - Use `needs: test` to build and publish a commit-tagged container image after tests pass.",
+                "**`deploy`** - Use `needs: build` to deploy that image to Kubernetes and wait for rollout to succeed.",
+                "Use these exact job IDs and display names (`name: test`, `name: build`, `name: deploy`), with one of each and no matrix suffixes.",
+                "Use secure cloud authentication and keep credentials out of the repository."
               ],
               "code": null,
-              "description": "Apply the GitHub Actions workflow you built in the CI/CD Pipelines topic. It should trigger on every push to `main` with at least three jobs.",
-              "done_when": "Pushing to `main` triggers the workflow, all three jobs pass, and your image is pushed to the registry.",
+              "description": "Extend `.github/workflows/ci.yml` from the CI/CD topic so pushes to `main` test, build, and deploy your application.",
+              "done_when": "Pushing to `main` triggers the workflow, all three jobs pass, and Kubernetes runs the newly built image.",
               "options": [],
               "order": 3,
               "slug": "phase5-topic6-build-cicd-pipeline",
               "tips": [
                 {
-                  "text": "Keep your cloud registry and IAM-based Kubernetes pull path for the real deployment. The public GHCR image is an additional copy used only by automated verification; private GHCR packages cannot be verified.",
+                  "text": "Choose the actions and commands that fit your deployment. Your registry does not need to be public for verification.",
                   "type": "note"
                 }
               ],
@@ -4913,24 +4792,17 @@
             {
               "action": "build",
               "checklist": [
-                "**`deployment.yaml`** \u2014 use `IMAGE_PLACEHOLDER` as the image reference (CI/CD substitutes with real tag)",
-                "**Environment from Secret** \u2014 reference `journal-api-secrets` via `envFrom` for `DATABASE_URL`, `OPENAI_API_KEY`, etc.",
-                "**Health probes** \u2014 configure liveness and readiness probes pointing to `/health` on port 8000",
-                "**`secrets.yaml.example`** \u2014 show required keys (never commit real values)",
-                "**`service.yaml`** \u2014 create a `LoadBalancer` or `NodePort` service routing port 80 \u2192 container port 8000"
+                "Create a Deployment using the image published by your pipeline and a Service that exposes the API.",
+                "Supply application configuration securely without committing real credentials.",
+                "Configure health probes and make the deploy job fail if rollout does not succeed."
               ],
               "code": null,
-              "description": "Write Kubernetes manifests in a `k8s/` directory to deploy and expose your containerized application. First, add a `GET /health` endpoint to `api/main.py` that returns `{\"status\": \"healthy\"}`.",
-              "done_when": "`kubectl get pods` shows your app running, and `curl http://<EXTERNAL-IP>/health` returns `{\"status\": \"healthy\"}`.",
+              "description": "Write Kubernetes YAML manifests to deploy and expose your containerized application. Apply them from the pipeline using `kubectl`.",
+              "done_when": "Kubernetes runs your app, health probes pass, and you can create and analyze a journal entry through the deployed API.",
               "options": [],
               "order": 4,
               "slug": "phase5-topic6-build-container-orchestration",
-              "tips": [
-                {
-                  "text": "When creating your `DATABASE_URL` secret for the cloud database, remember to append `?sslmode=require` to the connection string.",
-                  "type": "note"
-                }
-              ],
+              "tips": [],
               "title": "Container Orchestration",
               "url": null,
               "uuid": "cddc7d25-1801-4d27-86a8-ba8317bbab8f"
@@ -4978,23 +4850,19 @@
             {
               "action": "build",
               "checklist": [],
-              "code": "your-journal-starter/\n  \u251c\u2500\u2500 Dockerfile              # Step 1: Container definition\n  \u251c\u2500\u2500 .dockerignore            # Step 1: Exclude non-production files from build\n  \u251c\u2500\u2500 .github/\n  \u2502   \u2514\u2500\u2500 workflows/          # Step 3: CI/CD pipeline configs\n  \u2502       \u2514\u2500\u2500 *.yml\n  \u251c\u2500\u2500 infra/                   # Step 2: Terraform IaC configs\n  \u2502   \u251c\u2500\u2500 main.tf\n  \u2502   \u251c\u2500\u2500 variables.tf\n  \u2502   \u251c\u2500\u2500 outputs.tf\n  \u2502   \u2514\u2500\u2500 providers.tf\n  \u251c\u2500\u2500 k8s/                     # Step 4: Kubernetes manifests\n  \u2502   \u251c\u2500\u2500 deployment.yaml\n  \u2502   \u251c\u2500\u2500 service.yaml\n  \u2502   \u2514\u2500\u2500 secrets.yaml.example # Example secrets (never commit real values)\n  \u251c\u2500\u2500 api/                     # Your FastAPI app code\n  \u2514\u2500\u2500 README.md                # Step 6: Documentation",
-              "description": "Required files are `Dockerfile`, `k8s/deployment.yaml`, and `k8s/service.yaml`. Also include at least one `.yml` or `.yaml` workflow directly in `.github/workflows/` and at least one `.tf` or `.tf.json` Terraform source file anywhere under `infra/`. A README, state file, or unrelated file alone does not satisfy either source requirement. Verification reads all matching workflow and Terraform source files, all `.yaml` and `.yml` files under `k8s/`, and the required files in full. It also reads `.dockerignore` and `k8s/secrets.yaml.example` in full when present; those two are optional evidence, not mandatory verification gates. The tree below is an example: Terraform filenames such as `main.tf` are not universal requirements. Steps 1-4 are verified automatically when you submit your repo URL.",
+              "code": null,
+              "description": "Confirm that your Docker image, Terraform infrastructure, Kubernetes manifests, and delivery pipeline work together. Document how to deploy, observe, and troubleshoot the application. Apart from the workflow path and job names used for verification, organize the files to suit your project.",
               "done_when": null,
               "options": [],
               "order": 7,
               "slug": "phase5-topic6-build-required-project-structure",
               "tips": [
                 {
-                  "text": "These roots must contain the deployment you are submitting, not several alternative deployments or unrelated examples. Put non-submitted examples outside the evidence roots. Provider-specific filenames and nested modules inside `infra/` are included; the verifier does not infer which provider folder is active. `.terraform/`, state, plan, tfvars, credential files, README files, and unrelated file types are excluded. Never commit real credentials in source or manifests. External modules, generated artifacts, and scripts outside these roots are not automatically fetched or executed. The published file-type rules are deterministic, not a search for a passing implementation or support for arbitrary repository layouts.",
-                  "type": "important"
-                },
-                {
-                  "text": "All selected evidence is reviewed together in full. If internal limits prevent this, verification is incomplete and your work has not been judged as failed. Report the service issue; retrying unchanged may not help, and you should not shrink or split otherwise valid work.",
+                  "text": "Automated verification uses run and job results only. It does not read source files, commands, or logs, or use AI review. A green job does not prove what its commands do; implementing these practices and checking the deployed application remain your responsibility.",
                   "type": "note"
                 }
               ],
-              "title": "Required Project Structure",
+              "title": "Review Your Delivery Setup",
               "url": null,
               "uuid": "e080abdc-bf94-4e6b-a78e-33294ef28595"
             },
@@ -5002,14 +4870,14 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Push the completed implementation to your fork's `main` branch. Automated verification reviews the container build, Terraform, CI/CD workflow, Kubernetes manifests, and secret handling. It also confirms that the workflow published `ghcr.io/<your-github-username>/journal-api:latest` and that the GHCR package is public.",
-              "done_when": "Your completed work is on `main`, the latest CI/CD run passes, and the public GHCR verification image is available.",
+              "description": "Push your completed implementation to your fork. The latest run of `.github/workflows/ci.yml` must succeed on your current `main` commit, with exactly one successful job named `test`, `build`, and `deploy`. A failed, skipped, or missing job does not pass. Submit your fork for verification after the run finishes.",
+              "done_when": "The latest run and all three required jobs succeed on your current `main` commit, and your submission passes.",
               "options": [],
               "order": 8,
               "slug": "phase5-topic6-practice-submit-verification",
               "tips": [
                 {
-                  "text": "Keep your cloud registry and IAM-based Kubernetes image pull as the real deployment path. The public GHCR image is an additional copy used only for automated verification.",
+                  "text": "Choose Re-run all jobs if you rerun a workflow. Verification reads only the latest attempt, so rerunning just failed jobs may leave required jobs missing.",
                   "type": "note"
                 }
               ],
