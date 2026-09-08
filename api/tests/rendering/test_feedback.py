@@ -82,11 +82,16 @@ def test_changed_evidence_recommends_stable_repository_retry():
     ],
 )
 def test_retrieval_failure_recommends_retry_later(error_code):
-    message = incomplete_verification_message(None, error_code)
+    message = incomplete_verification_message(
+        "GitHub API error (401). Try again later.", error_code
+    )
 
-    assert "Your work was not judged" in message
-    assert "Try again later." in message
-    assert "You do not need to change your work" in message
+    assert message == (
+        "Verification is temporarily unavailable because the service could not "
+        "retrieve the required evidence. Your work was not evaluated. "
+        "Try again in a few minutes. If the problem continues, report the issue."
+    )
+    assert "401" not in message
 
 
 @pytest.mark.parametrize("error_code", [None, "historical.unknown"])
