@@ -126,9 +126,28 @@ Published architecture and operations docs are available on
 
 ## Deployment
 
-Push to `main` triggers automated deployment via GitHub Actions → Terraform → Azure.
-Production verification uses the GitHub Actions secret `TF_VAR_github_token`
-to populate the `GITHUB__TOKEN` environment variable used by verification jobs.
+Pushes to `main` select deployment work by changed paths:
+
+- Application changes build and validate the API and migration images, run
+  migrations, update the API, and verify production in one deployment job.
+- Infrastructure changes call `infra-deploy.yml` to plan and apply Terraform,
+  then verify production without building images, running migrations, or updating
+  the API image. Terraform can still update the API's configuration.
+- Combined changes apply infrastructure before the application deployment.
+
+`app-deploy.yml` remains the single production entry point so combined releases
+are ordered and production deployments do not overlap. Application-only releases
+read Terraform outputs but do not plan or apply infrastructure. CI is unchanged.
+
+For manual runs of **Application Deploy**, choose `application` (the default),
+`infrastructure`, or `all`. A manual **Infrastructure Deploy** run remains
+plan-only. Use `all` for coordinated database/identity changes or recovery that
+also requires migrations and an application rollout; infrastructure-only mode is
+not a database bootstrap procedure.
+
+After a failed deployment, fix and rerun it before shipping another release.
+Path selection describes the current push, not everything since the last
+successful deployment. Do not use an old workflow run as an image-only rollback.
 
 ## License
 
