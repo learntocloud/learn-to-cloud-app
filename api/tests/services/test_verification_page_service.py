@@ -88,7 +88,6 @@ def test_other_history_outcomes_keep_their_message(outcome, label):
 
 def _phase_overview(order: int) -> PhaseOverview:
     return PhaseOverview(
-        uuid=uuid4(),
         order=order,
         name=f"Phase {order}",
         slug=f"phase{order}",
@@ -96,13 +95,11 @@ def _phase_overview(order: int) -> PhaseOverview:
 
 
 def _phase_progress(
-    order: int,
     *,
     verified: int,
     required: int,
 ) -> PhaseProgress:
     return PhaseProgress(
-        phase_id=order,
         learning=LearningProgress(steps_completed=0, steps_required=1),
         verification=VerificationProgress(
             requirements_verified=verified,
@@ -115,12 +112,11 @@ def _phase_progress(
 async def test_overview_builds_progress_gating_and_next_phase():
     phases = tuple(_phase_overview(order) for order in (2, 3, 4, 5))
     user_progress = UserProgress(
-        user_id=42,
         phases={
-            2: _phase_progress(2, verified=0, required=0),
-            3: _phase_progress(3, verified=1, required=1),
-            4: _phase_progress(4, verified=1, required=2),
-            5: _phase_progress(5, verified=0, required=1),
+            2: _phase_progress(verified=0, required=0),
+            3: _phase_progress(verified=1, required=1),
+            4: _phase_progress(verified=1, required=2),
+            5: _phase_progress(verified=0, required=1),
         },
         total_phases=4,
     )
@@ -152,8 +148,7 @@ async def test_overview_builds_progress_gating_and_next_phase():
 async def test_overview_has_no_next_phase_when_everything_is_verified():
     phases = (_phase_overview(3),)
     user_progress = UserProgress(
-        user_id=42,
-        phases={3: _phase_progress(3, verified=1, required=1)},
+        phases={3: _phase_progress(verified=1, required=1)},
         total_phases=1,
     )
 
@@ -186,7 +181,7 @@ async def test_phase_workspace_preserves_active_attempt_polling_state():
             requirements=[requirement]
         ),
     )
-    progress = _phase_progress(4, verified=0, required=1)
+    progress = _phase_progress(verified=0, required=1)
     active_attempt = SimpleNamespace(
         id=uuid4(),
         requirement_uuid=requirement.uuid,
@@ -260,7 +255,7 @@ async def test_phase_workspace_maps_safe_history_and_suppresses_reflection_feedb
             requirements=[repository_requirement, reflection_requirement]
         ),
     )
-    progress = _phase_progress(7, verified=0, required=2)
+    progress = _phase_progress(verified=0, required=2)
     completed_at = datetime.now(UTC)
     repository_attempt = AttemptHistoryProjection(
         id=uuid4(),

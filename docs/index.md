@@ -15,6 +15,5 @@ Architecture, contributor, and operations documentation for the
 - [Telemetry](contributing.html#telemetry)
 - [Contributing](contributing.html)
 - [Authentication and sessions](contributing.html#authentication-and-sessions)
-- [GitHub Powering Your AI SDLC presentation](scaling-with-github/)
 
 Application users should start at [learntocloud.guide](https://learntocloud.guide).

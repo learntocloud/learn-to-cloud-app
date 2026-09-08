@@ -207,26 +207,6 @@ async def test_get_prepare_state_and_status(
     assert status.outcome is None
 
 
-async def test_mark_started_is_idempotent(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    attempt_id = await _insert_attempt(session_maker)
-    first_started_at = utcnow()
-    async with session_maker() as db:
-        repo = VerificationAttemptRepository(db)
-        assert await repo.mark_started(attempt_id, started_at=first_started_at)
-        await db.commit()
-
-    async with session_maker() as db:
-        repo = VerificationAttemptRepository(db)
-        assert not await repo.mark_started(
-            attempt_id, started_at=first_started_at + timedelta(minutes=1)
-        )
-        status = await repo.get_status(attempt_id)
-    assert status is not None
-    assert status.started_at == first_started_at
-
-
 def _create_kwargs(
     *,
     id: UUID,
@@ -485,67 +465,6 @@ async def test_get_succeeded_requirement_uuids_only_counts_succeeded(
     assert result == {succeeded_req}
 
 
-async def test_count_succeeded_for_requirements_filters_to_candidates(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    succeeded_req = uuid4()
-    other_succeeded_req = uuid4()
-    await _insert_attempt(
-        session_maker, requirement_uuid=succeeded_req, outcome="succeeded"
-    )
-    await _insert_attempt(
-        session_maker, requirement_uuid=other_succeeded_req, outcome="succeeded"
-    )
-
-    async with session_maker() as db:
-        count = await VerificationAttemptRepository(
-            db
-        ).count_succeeded_for_requirements(USER_ID, [succeeded_req])
-    assert count == 1
-
-
-async def test_count_succeeded_for_requirements_empty_input_returns_zero(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    async with session_maker() as db:
-        count = await VerificationAttemptRepository(
-            db
-        ).count_succeeded_for_requirements(USER_ID, [])
-    assert count == 0
-
-
-async def test_are_all_requirements_succeeded_true_when_all_succeeded(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    a, b = uuid4(), uuid4()
-    await _insert_attempt(session_maker, requirement_uuid=a, outcome="succeeded")
-    await _insert_attempt(session_maker, requirement_uuid=b, outcome="succeeded")
-    async with session_maker() as db:
-        assert await VerificationAttemptRepository(db).are_all_requirements_succeeded(
-            USER_ID, [a, b]
-        )
-
-
-async def test_are_all_requirements_succeeded_false_when_one_missing(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    a, b = uuid4(), uuid4()
-    await _insert_attempt(session_maker, requirement_uuid=a, outcome="succeeded")
-    async with session_maker() as db:
-        assert not await VerificationAttemptRepository(
-            db
-        ).are_all_requirements_succeeded(USER_ID, [a, b])
-
-
-async def test_are_all_requirements_succeeded_empty_list_is_true(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    async with session_maker() as db:
-        assert await VerificationAttemptRepository(db).are_all_requirements_succeeded(
-            USER_ID, []
-        )
-
-
 async def test_get_active_for_requirements_excludes_terminal(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
@@ -574,7 +493,7 @@ async def test_get_latest_terminal_for_requirements_returns_newest_and_skips_act
         created_at=now - timedelta(hours=2),
         outcome="failed",
     )
-    latest_id = await _insert_attempt(
+    await _insert_attempt(
         session_maker,
         requirement_uuid=req,
         created_at=now - timedelta(hours=1),
@@ -590,7 +509,7 @@ async def test_get_latest_terminal_for_requirements_returns_newest_and_skips_act
         ).get_latest_terminal_for_requirements(USER_ID, [req])
 
     assert len(rows) == 1
-    assert rows[0].id == latest_id
+    assert rows[0].requirement_uuid == req
     assert rows[0].outcome == "succeeded"
 
 

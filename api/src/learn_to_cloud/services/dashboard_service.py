@@ -32,31 +32,16 @@ def _build_phase_summary(
     return PhaseSummaryData(
         order=phase.order,
         name=phase.name,
-        slug=phase.slug,
         progress=progress_data,
     )
 
 
 async def get_dashboard_data(
     db: AsyncSession,
-    user_id: int | None,
+    user_id: int,
 ) -> DashboardData:
-    """Build the full dashboard payload.
-
-    Returns phase list, overall stats, and continue-phase pointer.
-    For unauthenticated users, returns phases only with zeroed stats.
-    """
+    """Build dashboard progress and the learner's continue destination."""
     phases = get_curriculum_overview()
-
-    if user_id is None:
-        return DashboardData(
-            phases=[_build_phase_summary(phase, None) for phase in phases],
-            learning_percentage=0.0,
-            verification_percentage=0.0,
-            phases_completed=0,
-            total_phases=len(phases),
-            is_program_complete=False,
-        )
 
     user_progress = await fetch_user_progress(db, user_id, phase_overview=phases)
 

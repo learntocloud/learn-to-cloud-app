@@ -31,16 +31,10 @@ def attempt_to_submission_data(attempt: AttemptCardProjection) -> SubmissionData
         VerificationAttemptOutcome.FAILED,
     )
     return SubmissionData(
-        id=attempt.id,
         submitted_value=attempt.submitted_value,
-        extracted_username=attempt.github_username_snapshot,
         is_validated=is_validated,
         validated_at=attempt.completed_at if is_validated else None,
         verification_completed=verification_completed,
-        feedback_json=attempt.feedback_json,
         validation_message=(attempt.validation_message if not is_validated else None),
         error_code=attempt.error_code,
-        cloud_provider=attempt.cloud_provider,
-        created_at=attempt.created_at,
-        updated_at=attempt.updated_at,
     )

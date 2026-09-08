@@ -1,10 +1,9 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "8a3da2e9acfc955d1439d9b74bfb7dc2ec67ec040131b3fcd535a1674c1f76cc",
-  "curriculum_version": 19,
+  "content_hash": "e012da360227bdfe9b3b45414e6f4761e14de81fb6b2c880fabc07495ef1d379",
+  "curriculum_version": 20,
   "phases": [
     {
-      "capstone": null,
       "description": "This phase is designed for complete beginners who are starting from zero and want to build toward cloud engineering. You will learn the core ideas behind Linux, networking, programming, cloud computing, and DevOps in a beginner-friendly sequence. A strong foundation here will make every later phase easier to understand and apply in real projects.",
       "hands_on_verification": {
         "requirement_slugs": [
@@ -22,7 +21,6 @@
         ]
       },
       "name": "Starting from Zero",
-      "objectives": [],
       "order": 0,
       "short_description": "Build your beginner-friendly IT foundation across Linux, networking, programming, cloud computing, and DevOps.",
       "slug": "phase0",
@@ -661,7 +659,6 @@
       "uuid": "be385f44-1086-4b97-bfbb-b652540ad228"
     },
     {
-      "capstone": null,
       "description": "Phase 1 gets you hands-on immediately with Linux and Bash through a Capture The Flag (CTF) lab. You\u2019ll build the foundation needed to access and complete the lab by setting up your environment, learning core command-line workflows, and practicing the tools you\u2019ll use throughout the rest of the curriculum.",
       "hands_on_verification": {
         "requirement_slugs": [
@@ -694,7 +691,6 @@
         ]
       },
       "name": "Linux and Bash",
-      "objectives": [],
       "order": 1,
       "short_description": "Build practical Linux and Bash skills with Git, cloud CLI, SSH, and Infrastructure as Code fundamentals through hands-on CTF lab work.",
       "slug": "phase1",
@@ -1424,7 +1420,6 @@
       "uuid": "2cc27dfe-e922-4e98-89bb-c0555af94472"
     },
     {
-      "capstone": null,
       "description": "Welcome to Phase 2! This phase covers the core networking concepts you need before diving into cloud infrastructure. Understanding how networks work\u2014IP addressing, routing, DNS, and common protocols\u2014is essential for cloud engineering. You'll learn to troubleshoot connectivity issues and build a mental model of how data flows across networks.",
       "hands_on_verification": {
         "requirement_slugs": [
@@ -1457,7 +1452,6 @@
         ]
       },
       "name": "Networking Fundamentals",
-      "objectives": [],
       "order": 2,
       "short_description": "Learn core networking: IP/subnetting, routing, DNS, HTTP, ports, and troubleshooting. Build the foundation for cloud networking.",
       "slug": "phase2",
@@ -1964,7 +1958,6 @@
       "uuid": "9a45b1ee-ff89-4b59-9708-6c7c6229e8bb"
     },
     {
-      "capstone": null,
       "description": "Welcome to Phase 3! This phase is all about programming with Python and building real applications. Programming is a fundamental skill for cloud engineering, enabling you to create, manage, and optimize cloud resources efficiently. You'll build a working API with database integration\u2014the foundation for everything that follows.",
       "hands_on_verification": {
         "requirement_slugs": [
@@ -1984,7 +1977,6 @@
         ]
       },
       "name": "Programming Fundamentals",
-      "objectives": [],
       "order": 3,
       "short_description": "Learn Python programming, FastAPI, and databases. Build a real-world Journal API project.",
       "slug": "phase3",
@@ -2564,7 +2556,6 @@
       "uuid": "5edbc820-fe9c-4b17-bdb1-91991f0fe9f6"
     },
     {
-      "capstone": null,
       "description": "This phase focuses on cloud platform fundamentals - the core concepts and skills you need to work effectively with cloud services. You'll learn everything from virtual machines and networking to security and application deployment. Through hands-on practice and real-world projects, you'll build the practical experience needed to work with cloud platforms professionally.",
       "hands_on_verification": {
         "requirement_slugs": [
@@ -2586,7 +2577,6 @@
         ]
       },
       "name": "Cloud Platform Fundamentals",
-      "objectives": [],
       "order": 4,
       "short_description": "Deploy on AWS, Azure, or GCP: virtual machines, cloud networking, IAM security, databases, and application hosting.",
       "slug": "phase4",
@@ -3555,7 +3545,6 @@
       "uuid": "0308493d-4c94-4ea9-b643-6a7f534bacda"
     },
     {
-      "capstone": null,
       "description": "This phase covers DevOps fundamentals - the practices and tools that enable teams to deliver software faster and more reliably. You'll learn containerization, CI/CD pipelines, Infrastructure as Code, container orchestration, and how to instrument your application with OpenTelemetry for cloud-native monitoring.",
       "hands_on_verification": {
         "requirement_slugs": [
@@ -3575,7 +3564,6 @@
         ]
       },
       "name": "DevOps Fundamentals",
-      "objectives": [],
       "order": 5,
       "short_description": "Master Docker containers, Kubernetes orchestration, CI/CD pipelines, Terraform IaC, and OpenTelemetry observability with your cloud provider.",
       "slug": "phase5",
@@ -4933,7 +4921,6 @@
       "uuid": "9f4fb0fa-407b-4fe5-9020-dc9c6b44f9e0"
     },
     {
-      "capstone": null,
       "description": "You've built your Journal API, deployed it to the cloud, and set up CI/CD pipelines. Now it's time to lock it down. Security isn't a separate thing you bolt on at the end\u2014it's something every cloud engineer needs to think about from day one. In this phase, we'll walk you through the key security practices that keep real production apps safe. By the end, your Journal API will be hardened and production-ready.",
       "hands_on_verification": {
         "requirement_slugs": [
@@ -4953,7 +4940,6 @@
         ]
       },
       "name": "Securing Your Cloud Applications",
-      "objectives": [],
       "order": 6,
       "short_description": "Secure your Journal API with IAM, secrets management, network controls, monitoring, and incident response. Make it production-ready.",
       "slug": "phase6",
@@ -5781,7 +5767,6 @@
       "uuid": "4fb2871c-ba79-4de7-933c-76bad9639f8e"
     },
     {
-      "capstone": null,
       "description": "Finishing this curriculum proves discipline, but it does not make you unique. What makes you stand out is what you explored, improved, and built beyond the outline, and this phase helps you turn that into interviews and opportunities. A lot of it is inspired by Cassidoo's [getting-a-gig](https://github.com/cassidoo/getting-a-gig) guide and her excellent [weekly newsletter](https://cassidoo.co/newsletter/), and by [some thoughts I wrote in a community discussion](https://github.com/learntocloud/learn-to-cloud-app/discussions/330#discussioncomment-16742472).",
       "hands_on_verification": {
         "requirement_slugs": [
@@ -5815,7 +5800,6 @@
         ]
       },
       "name": "Interview & Job Prep",
-      "objectives": [],
       "order": 7,
       "short_description": "Turn your cloud skills into a job. Network, tailor your resume, prepare your interview stories, and learn to talk about your work with confidence.",
       "slug": "phase7",

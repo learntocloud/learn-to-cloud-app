@@ -14,7 +14,7 @@ Output:
     src/learn_to_cloud_shared/content/schemas/requirement.schema.json
 
 A CI check regenerates these and fails if the committed files differ
-(see .github/workflows/deploy.yml).
+(see .github/workflows/ci.yml).
 """
 
 from __future__ import annotations

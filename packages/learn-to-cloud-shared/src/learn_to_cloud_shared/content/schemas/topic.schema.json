@@ -179,7 +179,7 @@
       "type": "object"
     },
     "StepAction": {
-      "description": "Categorical action label for a learning step.\n\nDrives the colored action badge in the step UI. Authored in YAML as\n``action: 'Practice:'`` (capitalized, trailing colon) for readability;\nthe schema validator normalizes to the lowercase enum value at load\ntime. The trailing colon is purely a YAML-author affordance and\nnever reaches the rendered UI.",
+      "description": "Categorical action label for a learning step.\n\nDrives the action label in the step UI. Authored in YAML as\n``action: 'Practice:'`` (capitalized, trailing colon) for readability;\nthe schema validator normalizes to the lowercase enum value at load\ntime. The trailing colon is purely a YAML-author affordance and\nnever reaches the rendered UI.",
       "enum": [
         "build",
         "explore",

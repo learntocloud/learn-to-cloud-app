@@ -138,7 +138,6 @@ def test_grade_evidence_preserves_safe_provider_outage_category(
         asyncio.run(grade_evidence("grade this"))
 
     assert caught.value.error_type == "llm.provider_unavailable"
-    assert caught.value.http_status == status
     assert str(caught.value) == "llm.provider_unavailable"
 
 

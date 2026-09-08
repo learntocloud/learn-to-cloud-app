@@ -38,7 +38,6 @@ class AttemptPrepareState:
 
     id: UUID
     user_id: int
-    requirement_uuid: UUID
     snapshot_source: str
     payload_version: int | None
     requirement_snapshot: dict | None
@@ -46,7 +45,6 @@ class AttemptPrepareState:
     submission_value_kind: str
     submitted_value: str
     github_username_snapshot: str | None
-    cloud_provider: str | None
     outcome: str | None
     started_at: datetime | None
 
@@ -58,7 +56,6 @@ class AttemptTerminalState:
     id: UUID
     outcome: str | None
     error_code: str | None
-    validation_message: str | None
     terminal_source: str | None
     completed_at: datetime | None
 
@@ -87,18 +84,12 @@ class ActiveAttemptRow:
 class AttemptCardProjection:
     """Latest terminal attempt for one requirement, for card rendering."""
 
-    id: UUID
     requirement_uuid: UUID
-    submission_value_kind: str
     submitted_value: str
-    github_username_snapshot: str | None
-    cloud_provider: str | None
     outcome: str
     feedback_json: list[dict] | None
     validation_message: str | None
     completed_at: datetime | None
-    created_at: datetime
-    updated_at: datetime
     error_code: str | None = None
 
 
@@ -311,7 +302,6 @@ class VerificationAttemptRepository:
             select(
                 VerificationAttempt.id,
                 VerificationAttempt.user_id,
-                VerificationAttempt.requirement_uuid,
                 VerificationAttempt.snapshot_source,
                 VerificationAttempt.payload_version,
                 VerificationAttempt.requirement_snapshot,
@@ -319,7 +309,6 @@ class VerificationAttemptRepository:
                 VerificationAttempt.submission_value_kind,
                 VerificationAttempt.submitted_value,
                 VerificationAttempt.github_username_snapshot,
-                VerificationAttempt.cloud_provider,
                 VerificationAttempt.outcome,
                 VerificationAttempt.started_at,
             ).where(VerificationAttempt.id == attempt_id)
@@ -330,7 +319,6 @@ class VerificationAttemptRepository:
         return AttemptPrepareState(
             id=row.id,
             user_id=row.user_id,
-            requirement_uuid=row.requirement_uuid,
             snapshot_source=row.snapshot_source,
             payload_version=row.payload_version,
             requirement_snapshot=row.requirement_snapshot,
@@ -338,27 +326,9 @@ class VerificationAttemptRepository:
             submission_value_kind=row.submission_value_kind,
             submitted_value=row.submitted_value,
             github_username_snapshot=row.github_username_snapshot,
-            cloud_provider=row.cloud_provider,
             outcome=row.outcome,
             started_at=row.started_at,
         )
-
-    async def mark_started(
-        self, attempt_id: UUID, *, started_at: datetime | None = None
-    ) -> bool:
-        """Record when an active attempt begins execution."""
-        now = started_at or utcnow()
-        result = await self.db.execute(
-            update(VerificationAttempt)
-            .where(
-                VerificationAttempt.id == attempt_id,
-                VerificationAttempt.outcome.is_(None),
-                VerificationAttempt.started_at.is_(None),
-            )
-            .values(started_at=now, updated_at=now)
-            .returning(VerificationAttempt.id)
-        )
-        return result.scalar_one_or_none() is not None
 
     async def get_status(self, attempt_id: UUID) -> AttemptStatusRow | None:
         """Load the lifecycle projection for one attempt."""
@@ -391,7 +361,6 @@ class VerificationAttemptRepository:
                 VerificationAttempt.id,
                 VerificationAttempt.outcome,
                 VerificationAttempt.error_code,
-                VerificationAttempt.validation_message,
                 VerificationAttempt.terminal_source,
                 VerificationAttempt.completed_at,
             ).where(VerificationAttempt.id == attempt_id)
@@ -403,7 +372,6 @@ class VerificationAttemptRepository:
             id=row.id,
             outcome=row.outcome,
             error_code=row.error_code,
-            validation_message=row.validation_message,
             terminal_source=row.terminal_source,
             completed_at=row.completed_at,
         )
@@ -450,7 +418,6 @@ class VerificationAttemptRepository:
                 VerificationAttempt.id,
                 VerificationAttempt.outcome,
                 VerificationAttempt.error_code,
-                VerificationAttempt.validation_message,
                 VerificationAttempt.terminal_source,
                 VerificationAttempt.completed_at,
             )
@@ -464,7 +431,6 @@ class VerificationAttemptRepository:
                     id=row.id,
                     outcome=row.outcome,
                     error_code=row.error_code,
-                    validation_message=row.validation_message,
                     terminal_source=row.terminal_source,
                     completed_at=row.completed_at,
                 ),
@@ -490,43 +456,6 @@ class VerificationAttemptRepository:
             )
         )
         return set(result.scalars().all())
-
-    async def count_succeeded_for_requirements(
-        self, user_id: int, requirement_uuids: Iterable[UUID]
-    ) -> int:
-        """Count how many of the given requirement UUIDs have succeeded.
-
-        Filters against a specific set of UUIDs (from current content) so a
-        retired requirement never inflates the count.
-        """
-        uuids = list(requirement_uuids)
-        if not uuids:
-            return 0
-        result = await self.db.execute(
-            select(
-                func.count(func.distinct(VerificationAttempt.requirement_uuid))
-            ).where(
-                VerificationAttempt.user_id == user_id,
-                VerificationAttempt.requirement_uuid.in_(uuids),
-                VerificationAttempt.outcome
-                == VerificationAttemptOutcome.SUCCEEDED.value,
-            )
-        )
-        return result.scalar_one() or 0
-
-    async def are_all_requirements_succeeded(
-        self, user_id: int, requirement_uuids: Iterable[UUID]
-    ) -> bool:
-        """Check if the user has a succeeded attempt for ALL given requirements.
-
-        Used for sequential phase gating -- ensures prior-phase verification
-        is fully complete before allowing the next phase's submissions.
-        """
-        uuids = list(requirement_uuids)
-        if not uuids:
-            return True
-        succeeded = await self.count_succeeded_for_requirements(user_id, uuids)
-        return succeeded >= len(uuids)
 
     async def get_active_for_requirements(
         self, user_id: int, requirement_uuids: Iterable[UUID]
@@ -577,19 +506,13 @@ class VerificationAttemptRepository:
         )
         result = await self.db.execute(
             select(
-                VerificationAttempt.id,
                 VerificationAttempt.requirement_uuid,
-                VerificationAttempt.submission_value_kind,
                 VerificationAttempt.submitted_value,
-                VerificationAttempt.github_username_snapshot,
-                VerificationAttempt.cloud_provider,
                 VerificationAttempt.outcome,
                 VerificationAttempt.feedback_json,
                 VerificationAttempt.validation_message,
                 VerificationAttempt.error_code,
                 VerificationAttempt.completed_at,
-                VerificationAttempt.created_at,
-                VerificationAttempt.updated_at,
             )
             .join(
                 latest_sq,
@@ -603,19 +526,13 @@ class VerificationAttemptRepository:
         )
         return [
             AttemptCardProjection(
-                id=row.id,
                 requirement_uuid=row.requirement_uuid,
-                submission_value_kind=row.submission_value_kind,
                 submitted_value=row.submitted_value,
-                github_username_snapshot=row.github_username_snapshot,
-                cloud_provider=row.cloud_provider,
                 outcome=row.outcome,
                 feedback_json=row.feedback_json,
                 validation_message=row.validation_message,
                 error_code=row.error_code,
                 completed_at=row.completed_at,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
             )
             for row in result.all()
         ]

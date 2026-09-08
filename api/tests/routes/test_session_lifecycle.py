@@ -36,7 +36,6 @@ from learn_to_cloud.core.auth import (
     CurrentAccount,
     CurrentUser,
     OptionalCurrentAccount,
-    OptionalCurrentUser,
     optional_authenticated_account,
 )
 from learn_to_cloud.core.middleware import TelemetrySanitizationMiddleware
@@ -79,56 +78,41 @@ def build_app(engine, settings):
         optional_account: OptionalCurrentAccount,
         current_user: CurrentUser,
         account: CurrentAccount,
-        optional_user: OptionalCurrentUser,
     ):
         again = await optional_authenticated_account(request)
         assert again is account is optional_account
         assert inspect(account).detached
         assert not inspect(account).expired_attributes
         assert not inspect(account).unloaded
-        assert optional_user == current_user
-        assert account.id == current_user.user_id == request.state.user_id
-        assert (
-            account.github_username
-            == current_user.github_username
-            == request.state.github_username
-        )
+        assert account.id == current_user.user_id
+        assert account.github_username == current_user.github_username
         return {"id": account.id}
 
     @app.get("/required-first")
     def required_first(
-        request: Request,
         account: CurrentAccount,
         current_user: CurrentUser,
         optional_account: OptionalCurrentAccount,
-        optional_user: OptionalCurrentUser,
     ):
         assert account is optional_account
-        assert current_user == optional_user
-        assert account.id == current_user.user_id == request.state.user_id
-        assert account.github_username == request.state.github_username
+        assert account.id == current_user.user_id
+        assert account.github_username == current_user.github_username
         return {"id": account.id}
 
     @app.get("/account-only")
-    def account_only(request: Request, account: CurrentAccount):
-        assert account.id == request.state.user_id
-        assert account.github_username == request.state.github_username
+    def account_only(account: CurrentAccount):
         assert inspect(account).detached
         return {"id": account.id}
 
     @app.get("/optional-reuse")
-    def optional_reuse(
+    async def optional_reuse(
         request: Request,
-        current_user: OptionalCurrentUser,
         account: OptionalCurrentAccount,
     ):
+        assert await optional_authenticated_account(request) is account
         if account is None:
-            assert current_user is None
-            assert not hasattr(request.state, "user_id")
             return {"id": None}
-        assert current_user is not None
-        assert account.id == current_user.user_id == request.state.user_id
-        assert account.github_username == request.state.github_username
+        assert inspect(account).detached
         return {"id": account.id}
 
     return app

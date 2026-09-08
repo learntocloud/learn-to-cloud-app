@@ -48,8 +48,9 @@ def _grading_failed(
 ) -> VerificationRunResult:
     if error_type in EVIDENCE_ERROR_CODES:
         return replace(
-            run_result.without_transport_data(),
+            run_result,
             validation_result=EvidenceError(error_type).to_validation_result(),
+            grading_requests=None,
         )
     if error_type not in LLM_ERROR_TYPES:
         error_type = "llm.unknown"
@@ -102,9 +103,9 @@ async def execute_verification_attempt(
     session_maker: async_sessionmaker[AsyncSession],
 ) -> None:
     """Prepare, verify, grade, and finalize once; unexpected errors reach the worker."""
-    preparation = await prepare_verification_attempt(
+    attempt = await prepare_verification_attempt(
         attempt_id, session_maker=session_maker
     )
-    run_result = await run_verification(preparation.attempt)
+    run_result = await run_verification(attempt)
     run_result = await _grade_result(run_result)
     await finalize_verification_attempt(run_result, session_maker=session_maker)

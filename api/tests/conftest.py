@@ -3,7 +3,6 @@
 This module provides:
 - Test database setup with real PostgreSQL (via Docker)
 - Async session fixtures for repository/service tests
-- FastAPI test client for route integration tests
 
 Architecture follows best practices from:
 - https://pythonspeed.com/articles/faster-db-tests/
@@ -32,13 +31,10 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from fastapi import FastAPI
 from learn_to_cloud_shared.core.config import (
     CorsConfig,
     DatabaseConfig,
     Environment,
-    GitHubConfig,
-    LabsConfig,
     OAuthConfig,
     SessionConfig,
     WebSecurityConfig,
@@ -96,8 +92,6 @@ def test_settings() -> WebSettings:
             client_secret="test_github_client_secret",
         ),
         session=SessionConfig(secret_key="test_session_secret_key_for_testing"),
-        github=GitHubConfig(token="test_github_token"),
-        labs=LabsConfig(verification_secret="test_ctf_secret_must_be_32_chars!"),
         cors=CorsConfig(allowed_origins=""),
     )
 
@@ -233,31 +227,3 @@ async def cleanup_database(
     quoted_tables = ", ".join(_quote_table_name(name) for name in table_names)
     async with engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE {quoted_tables} RESTART IDENTITY CASCADE"))
-
-
-# =============================================================================
-# FastAPI Test Client Fixtures
-# =============================================================================
-
-
-@pytest_asyncio.fixture(scope="function")
-async def app(
-    test_engine: AsyncEngine,
-) -> AsyncGenerator[FastAPI]:
-    """Create FastAPI app configured for testing.
-
-    - Uses test database
-    """
-    # Import here to avoid circular imports and ensure fresh app state
-    from learn_to_cloud.main import app as fastapi_app
-
-    fastapi_app.state.engine = test_engine
-    fastapi_app.state.session_maker = async_sessionmaker(
-        bind=test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    fastapi_app.state.init_done = True
-    fastapi_app.state.init_error = None
-
-    yield fastapi_app

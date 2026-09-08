@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,11 +25,6 @@ class UserRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_id(self, user_id: int) -> User | None:
-        """Get a user by their ID (GitHub numeric user ID)."""
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        return result.scalar_one_or_none()
-
     async def get_by_ids(self, user_ids: Iterable[int]) -> list[User]:
         """Batch-fetch users by id in a single query.
 
@@ -41,55 +36,6 @@ class UserRepository:
             return []
         result = await self.db.execute(select(User).where(User.id.in_(ids)))
         return list(result.scalars().all())
-
-    async def count(self) -> int:
-        """Count all user accounts."""
-        result = await self.db.execute(select(func.count()).select_from(User))
-        return result.scalar_one()
-
-    async def get_or_create(
-        self,
-        user_id: int,
-        *,
-        github_username: str,
-        display_name: str | None = None,
-        avatar_url: str | None = None,
-    ) -> User:
-        """Get user from DB or create from GitHub OAuth data.
-
-        Uses INSERT ... ON CONFLICT to handle concurrent requests safely.
-        An existing user's profile is returned unchanged.
-
-        Query strategy:
-        - Existing user (common path): 1 SELECT
-        - New user: 1 SELECT + 1 INSERT RETURNING = 2 queries
-        - Race condition (rare): 1 SELECT + 1 INSERT (conflict) + 1 SELECT = 3 queries
-        """
-        user = await self.get_by_id(user_id)
-        if user:
-            return user
-
-        values = {
-            "id": user_id,
-            "display_name": display_name,
-            "avatar_url": avatar_url,
-            "github_username": github_username,
-        }
-
-        stmt = (
-            pg_insert(User)
-            .values(**values)
-            .on_conflict_do_nothing(index_elements=["id"])
-            .returning(User)
-        )
-        result = await self.db.execute(stmt)
-        user = result.scalar_one_or_none()
-        if user:
-            return user
-
-        # Race condition: another request inserted between our SELECT and INSERT
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        return result.scalar_one()
 
     async def upsert(
         self,

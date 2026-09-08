@@ -41,12 +41,9 @@ from learn_to_cloud_shared.verification.core import (
 )
 from learn_to_cloud_shared.verification.deployed_api import DeployedApiServerError
 from learn_to_cloud_shared.verification.engine import run_verification
+from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud_shared.verification.repo_files import (
     GitHubRepoFiles,
-)
-from learn_to_cloud_shared.verification.tasks.base import (
-    EvidenceBundle,
-    EvidenceItem,
 )
 from learn_to_cloud_shared.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
@@ -55,12 +52,9 @@ from learn_to_cloud_shared.verification.tasks.phase7 import (
     CAREER_REFLECTION_RUBRIC_TASK,
 )
 from learn_to_cloud_shared.verification_workflow import (
-    GradingDisposition,
     PreparedVerificationAttempt,
 )
-from tests.fakes import rubric_check as rubric_checks
 from tests.fakes.github_metadata import InMemoryGitHubMetadata
-from tests.fakes.legacy_devops import DEVOPS_IMPLEMENTATION_RUBRIC_TASK
 from tests.fakes.repo_files import InMemoryRepoFiles
 
 
@@ -157,6 +151,29 @@ def _workflow(*steps: Step) -> VerificationWorkflow:
     return VerificationWorkflow(requires_username=False, steps=steps)
 
 
+def test_workflow_requires_an_authoritative_validation_result():
+    with pytest.raises(ValueError, match="without a validation result"):
+        engine_module._aggregate([StepResult(passed=True)])
+
+
+def test_non_rubric_workflow_rejects_grading_requests():
+    request = LLMGradingRequest(
+        task=CAREER_REFLECTION_RUBRIC_TASK, message="unexpected grading request"
+    )
+    with pytest.raises(ValueError, match="Non-rubric workflow"):
+        engine_module._validate_grading_requests(_workflow(), [], [request])
+
+
+def test_successful_rubric_workflow_requires_a_grading_request():
+    workflow = VerificationWorkflow(
+        requires_username=False, rubric=CAREER_REFLECTION_RUBRIC_TASK.grader
+    )
+    with pytest.raises(ValueError, match="without a grading request"):
+        engine_module._validate_grading_requests(
+            workflow, [StepResult(passed=True)], []
+        )
+
+
 @pytest.mark.parametrize("configured", [False, True])
 async def test_step_preserves_callback_context_and_result_identity(configured):
     result = StepResult(
@@ -177,17 +194,14 @@ async def test_step_preserves_callback_context_and_result_identity(configured):
 
 @pytest.mark.asyncio
 async def test_run_verification_uses_declared_steps(monkeypatch):
-    bundle = EvidenceBundle(
-        task_id="gate",
-        source="repo_files",
-        items=[EvidenceItem(path="a.txt", content="x")],
-    )
-
     async def _gate(context: StepContext) -> StepResult:
         return StepResult(
             passed=True,
-            task_result=TaskResult(task_name="Gate", passed=True, feedback="ok"),
-            evidence=[bundle],
+            validation_result=ValidationResult(
+                is_valid=True,
+                message="Gate passed",
+                task_results=[TaskResult(task_name="Gate", passed=True, feedback="ok")],
+            ),
         )
 
     monkeypatch.setattr(
@@ -204,7 +218,6 @@ async def test_run_verification_uses_declared_steps(monkeypatch):
     assert result.validation_result.task_results == [
         TaskResult(task_name="Gate", passed=True, feedback="ok")
     ]
-    assert result.evidence == [bundle]
     assert len(tracer.spans) == 2
     _, ownership_span, _ = tracer.spans[0]
     assert ownership_span.attributes == {
@@ -253,7 +266,10 @@ async def test_failed_gate_short_circuits(monkeypatch):
 
     async def _first(context: StepContext) -> StepResult:
         ran.append("first")
-        return StepResult(passed=False, stop_on_fail=True)
+        return StepResult(
+            passed=False,
+            validation_result=ValidationResult(is_valid=False, message="Gate failed"),
+        )
 
     async def _second(context: StepContext) -> StepResult:
         ran.append("second")
@@ -271,33 +287,6 @@ async def test_failed_gate_short_circuits(monkeypatch):
     result = await run_verification(_job())
 
     assert ran == ["first"]
-    assert result.validation_result.is_valid is False
-
-
-@pytest.mark.asyncio
-async def test_stop_on_fail_false_continues(monkeypatch):
-    ran: list[str] = []
-
-    async def _soft(context: StepContext) -> StepResult:
-        ran.append("soft")
-        return StepResult(passed=False, stop_on_fail=False)
-
-    async def _after(context: StepContext) -> StepResult:
-        ran.append("after")
-        return StepResult(passed=True)
-
-    monkeypatch.setattr(
-        engine_module,
-        "workflow_for",
-        lambda _t: _workflow(
-            _step(_soft, "a"),
-            _step(_after, "b"),
-        ),
-    )
-
-    result = await run_verification(_job())
-
-    assert ran == ["soft", "after"]
     assert result.validation_result.is_valid is False
 
 
@@ -360,32 +349,6 @@ def test_later_authoritative_failure_is_not_hidden_by_an_earlier_pass():
 
 
 @pytest.mark.asyncio
-async def test_later_step_sees_prior_evidence(monkeypatch):
-    seen: list[int] = []
-    bundle = EvidenceBundle(task_id="a", source="repo_files")
-
-    async def _emit(context: StepContext) -> StepResult:
-        return StepResult(passed=True, evidence=[bundle])
-
-    async def _read(context: StepContext) -> StepResult:
-        seen.append(len(context.evidence_so_far))
-        return StepResult(passed=True)
-
-    monkeypatch.setattr(
-        engine_module,
-        "workflow_for",
-        lambda _t: _workflow(
-            _step(_emit, "a"),
-            _step(_read, "b"),
-        ),
-    )
-
-    await run_verification(_job())
-
-    assert seen == [1]
-
-
-@pytest.mark.asyncio
 async def test_unregistered_type_returns_unknown_result(monkeypatch):
     monkeypatch.setattr(engine_module, "workflow_for", lambda _t: None)
 
@@ -394,9 +357,6 @@ async def test_unregistered_type_returns_unknown_result(monkeypatch):
     assert result.validation_result.is_valid is False
     assert "Unknown submission type" in result.validation_result.message
     assert result.grading_requests == []
-    assert (
-        result.grading_disposition == GradingDisposition.SKIPPED_UNKNOWN_SUBMISSION_TYPE
-    )
 
 
 _REPOSITORY_TYPES = {
@@ -446,21 +406,6 @@ async def test_shared_preflight_covers_only_repository_assignments(
         step.assert_awaited_once()
         assert result.validation_result.message == "existing gate"
     assert result.grading_requests == []
-    assert result.evidence is None
-    assert result.grading_disposition == (
-        GradingDisposition.NOT_REQUIRED
-        if submission_type
-        in {
-            SubmissionType.PROFILE_README,
-            SubmissionType.REPO_FORK,
-            SubmissionType.CTF_TOKEN,
-            SubmissionType.NETWORKING_TOKEN,
-            SubmissionType.DEPLOYED_API,
-            SubmissionType.JOURNAL_API_VERIFIER,
-            SubmissionType.DEVOPS_ANALYSIS,
-        }
-        else GradingDisposition.SKIPPED_GATE_FAILED
-    )
 
 
 @pytest.mark.asyncio
@@ -683,8 +628,6 @@ async def test_journal_workflow_never_collects_source_or_requests_grading(
     files.file.assert_not_awaited()
     assert result.validation_result == gate_result
     assert result.grading_requests == []
-    assert result.grading_disposition == GradingDisposition.NOT_REQUIRED
-    assert result.evidence is None
 
 
 # ---------------------------------------------------------------------------
@@ -742,8 +685,6 @@ async def test_deployed_api_workflow_passes_through_deterministic_result(monkeyp
     assert result.validation_result.is_valid is True
     assert result.validation_result.message == "API is healthy"
     assert result.grading_requests == []
-    assert result.grading_disposition == GradingDisposition.NOT_REQUIRED
-    assert result.evidence is None
 
 
 @pytest.mark.asyncio
@@ -777,8 +718,6 @@ async def test_devops_workflow_uses_only_run_results(monkeypatch, passed, comple
     files.file.assert_not_awaited()
     assert result.validation_result is validation
     assert result.grading_requests == []
-    assert result.grading_disposition == GradingDisposition.NOT_REQUIRED
-    assert result.evidence is None
 
 
 # ---------------------------------------------------------------------------
@@ -858,96 +797,18 @@ async def test_security_workflow_skips_grading_when_gate_fails(monkeypatch):
 
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
-    assert result.evidence is None
 
 
-def _evidence_checks(flow):
-    return {
-        "exact": rubric_checks,
-        "discovered": rubric_checks,
-        "security": security_checks,
-    }[flow]
-
-
-def _evidence_flow(flow, monkeypatch):
+def _evidence_flow(monkeypatch):
     passing = ValidationResult(is_valid=True, message="Prerequisite passed.")
-    monkeypatch.setattr(
-        github_checks, "verify_ci_status", AsyncMock(return_value=passing)
-    )
     monkeypatch.setattr(
         security_checks, "verify_codeql_status", AsyncMock(return_value=passing)
     )
-    if flow == "exact":
-        task = SECURITY_SCANNING_RUBRIC_TASK
-        paths = [*task.evidence.required_files, *task.evidence.optional_files]
-        workflow = VerificationWorkflow(
-            requires_username=True,
-            steps=(
-                _step(github_checks.check_github_ci_passing, "first-gate"),
-                _step(
-                    partial(
-                        rubric_checks.check_llm_rubric_review,
-                        task=task,
-                        evidence_paths=tuple(paths),
-                    ),
-                    task.id,
-                ),
-            ),
-            rubric=task.grader,
-        )
-        monkeypatch.setitem(
-            workflows_module._WORKFLOW_REGISTRY,
-            SubmissionType.SECURITY_SCANNING,
-            workflow,
-        )
-        return _security_job(), paths
-    if flow == "discovered":
-        task = DEVOPS_IMPLEMENTATION_RUBRIC_TASK
-        workflow = VerificationWorkflow(
-            requires_username=True,
-            steps=(
-                _step(github_checks.check_github_ci_passing, "first-gate"),
-                _step(
-                    partial(
-                        rubric_checks.check_llm_rubric_review,
-                        task=task,
-                        discover_paths=True,
-                    ),
-                    task.id,
-                ),
-            ),
-            rubric=task.grader,
-        )
-        monkeypatch.setitem(
-            workflows_module._WORKFLOW_REGISTRY,
-            SubmissionType.DEVOPS_ANALYSIS,
-            workflow,
-        )
-        return _devops_job(), [
-            "Dockerfile",
-            "k8s/deployment.yaml",
-            "k8s/service.yaml",
-            ".github/workflows/deploy.yml",
-            "infra/main.tf",
-        ]
-    if flow == "security":
-        from learn_to_cloud_shared.verification.security_scanning import (
-            SECURITY_SCANNING_EVIDENCE_PATHS,
-        )
-
-        return _security_job(), SECURITY_SCANNING_EVIDENCE_PATHS
-    raise ValueError(f"Unknown evidence flow: {flow}")
+    policy = SECURITY_SCANNING_RUBRIC_TASK.evidence
+    return _security_job(), [*policy.required_files, *policy.optional_files]
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("flow", "event"),
-    [
-        ("exact", "llm_rubric_review.repo_file_error"),
-        ("discovered", "llm_rubric_review.repo_file_error"),
-        ("security", "security_scanning.repo_file_error"),
-    ],
-)
 @pytest.mark.parametrize(
     ("failure", "category"),
     [
@@ -958,15 +819,13 @@ def _evidence_flow(flow, monkeypatch):
         ("network", "network"),
     ],
 )
-async def test_failed_evidence_read_stops_grading(
-    monkeypatch, flow, event, failure, category
-):
-    job, paths = _evidence_flow(flow, monkeypatch)
+async def test_failed_evidence_read_stops_grading(monkeypatch, failure, category):
+    job, paths = _evidence_flow(monkeypatch)
     paths = sorted(paths)
     failed_path = paths[1]
     fetched = []
     mapper = Mock(wraps=github_errors.github_error_to_result)
-    monkeypatch.setattr(_evidence_checks(flow), "github_error_to_result", mapper)
+    monkeypatch.setattr(security_checks, "github_error_to_result", mapper)
     counter = Mock()
     monkeypatch.setattr(github_errors, "_GITHUB_API_ERROR_COUNTER", counter)
     tracer = _Tracer()
@@ -999,11 +858,9 @@ async def test_failed_evidence_read_stops_grading(
     assert result.validation_result.is_valid is False
     assert result.validation_result.verification_completed is False
     assert "private" not in result.validation_result.message
-    assert result.evidence is None
     assert result.grading_requests == []
-    assert result.grading_disposition is GradingDisposition.SKIPPED_GATE_FAILED
     mapper.assert_called_once()
-    assert mapper.call_args.kwargs == {"event": event}
+    assert mapper.call_args.kwargs == {"event": "security_scanning.repo_file_error"}
     counter.add.assert_called_once_with(1, {"error.type": category})
     assert tracer.spans[0][1].attributes["verification.step.result"] == "passed"
     assert tracer.spans[-1][1].attributes["verification.step.result"] == "unavailable"
@@ -1011,7 +868,6 @@ async def test_failed_evidence_read_stops_grading(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("flow", ["exact", "discovered", "security"])
 @pytest.mark.parametrize(
     "error",
     [
@@ -1020,13 +876,13 @@ async def test_failed_evidence_read_stops_grading(
     ],
 )
 async def test_evidence_boundaries_do_not_swallow_unsupported_errors(
-    monkeypatch, flow, error
+    monkeypatch, error
 ):
-    job, paths = _evidence_flow(flow, monkeypatch)
+    job, paths = _evidence_flow(monkeypatch)
     files = InMemoryRepoFiles(dict.fromkeys(paths, "evidence"))
     monkeypatch.setattr(files, "file", AsyncMock(side_effect=error))
     mapper = Mock(wraps=github_errors.github_error_to_result)
-    monkeypatch.setattr(_evidence_checks(flow), "github_error_to_result", mapper)
+    monkeypatch.setattr(security_checks, "github_error_to_result", mapper)
 
     with pytest.raises(type(error)) as raised:
         await run_verification(job, repo_files=files)
@@ -1036,9 +892,8 @@ async def test_evidence_boundaries_do_not_swallow_unsupported_errors(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("flow", ["exact", "discovered", "security"])
-async def test_selected_evidence_disappearance_blocks_grading(monkeypatch, flow):
-    job, paths = _evidence_flow(flow, monkeypatch)
+async def test_selected_evidence_disappearance_blocks_grading(monkeypatch):
+    job, paths = _evidence_flow(monkeypatch)
     contents = dict.fromkeys(paths, "evidence")
     missing_path = paths[1]
     del contents[missing_path]
@@ -1048,9 +903,7 @@ async def test_selected_evidence_disappearance_blocks_grading(monkeypatch, flow)
 
     assert result.validation_result.verification_completed is False
     assert result.validation_result.error_code == "evidence.changed"
-    assert result.grading_disposition is GradingDisposition.SKIPPED_GATE_FAILED
     assert result.grading_requests == []
-    assert result.evidence is None
 
 
 @pytest.mark.asyncio
@@ -1062,9 +915,9 @@ async def test_selected_evidence_disappearance_blocks_grading(monkeypatch, flow)
     ],
 )
 async def test_tree_failure_stops_grading_with_tree_event(monkeypatch, error):
-    job, _ = _evidence_flow("discovered", monkeypatch)
+    job, _ = _evidence_flow(monkeypatch)
     mapper = Mock(wraps=github_errors.github_error_to_result)
-    monkeypatch.setattr(rubric_checks, "github_error_to_result", mapper)
+    monkeypatch.setattr(security_checks, "github_error_to_result", mapper)
     files = InMemoryRepoFiles(tree_error=error)
     read = AsyncMock()
     monkeypatch.setattr(files, "file", read)
@@ -1073,15 +926,13 @@ async def test_tree_failure_stops_grading_with_tree_event(monkeypatch, error):
 
     assert result.validation_result.verification_completed is False
     assert result.grading_requests == []
-    assert result.evidence is None
-    assert result.grading_disposition is GradingDisposition.SKIPPED_GATE_FAILED
-    mapper.assert_called_once_with(error, event="llm_rubric_review.repo_tree_error")
+    mapper.assert_called_once_with(error, event="security_scanning.repo_file_error")
     read.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_later_incomplete_step_discards_previously_recorded_grading(monkeypatch):
-    job, paths = _evidence_flow("exact", monkeypatch)
+    job, paths = _evidence_flow(monkeypatch)
     workflow = engine_module.workflow_for(job.requirement.submission_type)
     assert workflow is not None
     monkeypatch.setattr(
@@ -1091,7 +942,7 @@ async def test_later_incomplete_step_discards_previously_recorded_grading(monkey
             workflow,
             steps=(
                 *workflow.steps,
-                _step(github_checks.check_github_ci_passing, "later-gate"),
+                _step(security_checks.check_codeql_status, "later-gate"),
             ),
         ),
     )
@@ -1104,7 +955,7 @@ async def test_later_incomplete_step_discards_previously_recorded_grading(monkey
             incomplete,
         ]
     )
-    monkeypatch.setattr(github_checks, "verify_ci_status", gate)
+    monkeypatch.setattr(security_checks, "verify_codeql_status", gate)
     build_prompt = Mock()
     monkeypatch.setattr(engine_module, "build_repo_rubric_message", build_prompt)
 
@@ -1113,17 +964,14 @@ async def test_later_incomplete_step_discards_previously_recorded_grading(monkey
     )
 
     assert gate.await_count == 2
-    assert result.evidence
     assert result.validation_result.verification_completed is False
     assert result.validation_result.message == incomplete.message
     assert result.grading_requests == []
-    assert result.grading_disposition is GradingDisposition.SKIPPED_GATE_FAILED
     build_prompt.assert_not_called()
 
 
-@pytest.mark.parametrize("flow", ["exact", "discovered", "security"])
-async def test_all_repository_workflows_block_oversized_evidence(monkeypatch, flow):
-    job, paths = _evidence_flow(flow, monkeypatch)
+async def test_repository_rubric_blocks_oversized_evidence(monkeypatch):
+    job, paths = _evidence_flow(monkeypatch)
     files = dict.fromkeys(paths, "complete")
     files[paths[0]] = "x" * (51 * 1024)
     result = await run_verification(job, repo_files=InMemoryRepoFiles(files))
@@ -1131,7 +979,6 @@ async def test_all_repository_workflows_block_oversized_evidence(monkeypatch, fl
     assert not result.validation_result.is_valid
     assert not result.validation_result.verification_completed
     assert result.grading_requests == []
-    assert result.evidence is None
 
 
 async def test_oversized_reflection_is_incomplete_without_any_repository_read():
@@ -1147,9 +994,8 @@ async def test_oversized_reflection_is_incomplete_without_any_repository_read():
     repo.file.assert_not_awaited()
 
 
-@pytest.mark.parametrize("flow", ["exact", "security"])
-async def test_absent_optional_work_still_prepares_complete_grading(monkeypatch, flow):
-    job, paths = _evidence_flow(flow, monkeypatch)
+async def test_absent_optional_work_still_prepares_complete_grading(monkeypatch):
+    job, paths = _evidence_flow(monkeypatch)
     task = SECURITY_SCANNING_RUBRIC_TASK
     files = {
         path: "complete" for path in paths if path not in task.evidence.optional_files
@@ -1166,7 +1012,7 @@ async def test_absent_optional_work_still_prepares_complete_grading(monkeypatch,
 
 @pytest.mark.parametrize("completed", [False, True])
 async def test_any_later_failed_gate_discards_earlier_grading(monkeypatch, completed):
-    job, paths = _evidence_flow("exact", monkeypatch)
+    job, paths = _evidence_flow(monkeypatch)
     workflow = engine_module.workflow_for(job.requirement.submission_type)
     monkeypatch.setattr(
         engine_module,
@@ -1175,14 +1021,14 @@ async def test_any_later_failed_gate_discards_earlier_grading(monkeypatch, compl
             workflow,
             steps=(
                 *workflow.steps,
-                _step(github_checks.check_github_ci_passing, "later-gate"),
+                _step(security_checks.check_codeql_status, "later-gate"),
             ),
         ),
     )
     code = "evidence.required_missing" if completed else "evidence.total_limit"
     monkeypatch.setattr(
-        github_checks,
-        "verify_ci_status",
+        security_checks,
+        "verify_codeql_status",
         AsyncMock(
             side_effect=[
                 ValidationResult(is_valid=True, message="First gate passed"),
@@ -1221,7 +1067,7 @@ def test_aggregation_preserves_incomplete_cause_over_later_learner_feedback():
     )
     result = engine_module._aggregate(
         [
-            StepResult(passed=False, stop_on_fail=False, validation_result=incomplete),
+            StepResult(passed=False, validation_result=incomplete),
             StepResult(passed=False, validation_result=missing),
         ]
     )
@@ -1256,17 +1102,11 @@ async def test_engine_rechecks_collector_result_before_recording_grading(
     assert result.validation_result.error_code == "evidence.selection"
     assert not result.validation_result.verification_completed
     assert result.grading_requests == []
-    assert result.evidence is None
 
 
 @pytest.mark.parametrize(
     "check",
     [
-        partial(
-            rubric_checks.check_llm_rubric_review,
-            task=SECURITY_SCANNING_RUBRIC_TASK,
-            evidence_paths=(".github/workflows/codeql.yml", ".github/dependabot.yml"),
-        ),
         partial(
             security_checks.check_security_scanning_review,
             task=SECURITY_SCANNING_RUBRIC_TASK,
@@ -1329,7 +1169,6 @@ async def test_career_workflow_skips_grading_when_gate_fails(monkeypatch):
 
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
-    assert result.evidence is None
 
 
 # ---------------------------------------------------------------------------
@@ -1369,7 +1208,6 @@ async def test_profile_readme_workflow_passes_through_validator(monkeypatch):
 
     assert result.validation_result is sentinel
     assert result.grading_requests == []
-    assert result.evidence is None
 
 
 @pytest.mark.asyncio
@@ -1445,7 +1283,6 @@ async def test_workflow_requiring_username_short_circuits_when_missing():
     assert result.validation_result.username_match is False
     assert "GitHub username is required" in result.validation_result.message
     assert result.grading_requests == []
-    assert result.grading_disposition == GradingDisposition.SKIPPED_MISSING_USERNAME
 
 
 # ---------------------------------------------------------------------------

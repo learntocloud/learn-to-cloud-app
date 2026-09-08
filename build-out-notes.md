@@ -1,5 +1,9 @@
 # Build-out Notes
 
+These are historical notes from the Durable Functions and curriculum cutovers.
+They explain past decisions, not the current deployment sequence. Verification
+now runs inside the API; see [Deployment](README.md#deployment).
+
 ## PR 4: Durable start idempotency
 
 The plan assumed the fixed attempt UUID was enough to make Durable starts

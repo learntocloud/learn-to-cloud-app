@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification import evidence as evidence_module
@@ -15,9 +16,6 @@ from learn_to_cloud_shared.verification.evidence import (
     EvidenceError,
     apply_evidence_cap,
     collect_repo_file_evidence,
-    collect_repo_pattern_evidence,
-    resolve_evidence_selection,
-    validate_evidence_bundle,
 )
 from learn_to_cloud_shared.verification.grading_requests import (
     LLMGradingRequest,
@@ -35,13 +33,10 @@ from learn_to_cloud_shared.verification.tasks import (
 )
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
-    EvidenceDirectoryRule,
 )
-from tests.fakes.legacy_devops import DEVOPS_IMPLEMENTATION_RUBRIC_TASK
 from tests.fakes.repo_files import InMemoryRepoFiles
 
 TASKS = [
-    DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
     SECURITY_SCANNING_RUBRIC_TASK,
     CAREER_REFLECTION_RUBRIC_TASK,
 ]
@@ -53,25 +48,9 @@ def _with_policy(task, **updates):
     )
 
 
-def _devops_files():
-    return {
-        "Dockerfile": "FROM python",
-        ".github/workflows/provider.yaml": "jobs: {}",
-        "infra/provider/nested/network.tf": "resource {}",
-        "infra/provider/database.tf.json": '{"resource": {}}',
-        "k8s/deployment.yaml": "kind: Deployment",
-        "k8s/service.yaml": "kind: Service",
-        "k8s/nested/config.yml": "kind: ConfigMap",
-    }
-
-
 @pytest.mark.parametrize("task", TASKS, ids=lambda task: task.id)
 def test_every_rubric_criterion_has_declared_evidence(task):
-    groups = (
-        set(task.evidence.required_files)
-        | set(task.evidence.optional_files)
-        | {rule.root for rule in task.evidence.directory_rules}
-    )
+    groups = set(task.evidence.required_files) | set(task.evidence.optional_files)
     assert set(task.evidence.criterion_evidence) == {
         criterion.id for criterion in task.criteria
     }
@@ -93,7 +72,7 @@ async def test_proven_absence_names_canonical_work_without_reads(missing):
     )
     repo = InMemoryRepoFiles(files)
     with pytest.raises(EvidenceError, match="evidence.required_missing") as caught:
-        await collect_repo_pattern_evidence(repo, "owner", "repo", task)
+        await collect_repo_file_evidence(repo, "owner", "repo", [], task)
     result = caught.value.to_validation_result()
     assert result.verification_completed
     assert missing in result.message
@@ -121,53 +100,6 @@ async def test_helpers_use_only_named_files_and_full_optional_support():
     assert repo.file_reads == sorted(selected)
     assert all(item.content == "完整\nimplementation" for item in bundle.items)
     assert bundle.optional_presence == dict.fromkeys(task.evidence.optional_files, True)
-
-
-async def test_phase5_ignores_unrelated_files_before_necessary_source():
-    files = _devops_files()
-    expected = sorted(files)
-    ignored = [
-        "infra/.terraform/provider/main.tf",
-        "infra/nested/.terraform/cache.tf.json",
-        "infra/terraform.tfstate",
-        "infra/credentials.tfvars",
-        "infra/deploy.tfplan",
-        "infra/README.md",
-        ".github/workflows/nested/not-a-workflow.yml",
-        "outside/main.tf",
-        "k8s/credentials.txt",
-        *[f"infra/000-{index}.md" for index in range(100)],
-    ]
-    files.update(dict.fromkeys(ignored, "unrelated" * 100_000))
-    repo = InMemoryRepoFiles(files)
-    bundle = await collect_repo_pattern_evidence(
-        repo,
-        "owner",
-        "repo",
-        DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
-    )
-    assert repo.file_reads == expected
-    assert [item.path for item in bundle.items] == expected
-
-
-@pytest.mark.parametrize(
-    ("root", "irrelevant"),
-    [
-        (
-            "infra/",
-            ["infra/README.md", "infra/terraform.tfstate", "infra/.terraform/main.tf"],
-        ),
-        (
-            ".github/workflows/",
-            [".github/workflows/README.md", ".github/workflows/nested/test.yml"],
-        ),
-    ],
-)
-def test_collector_rejects_irrelevant_directory(root, irrelevant):
-    files = [path for path in _devops_files() if not path.startswith(root)]
-    files.extend(irrelevant)
-    with pytest.raises(EvidenceError, match="evidence.required_missing"):
-        resolve_evidence_selection(files, DEVOPS_IMPLEMENTATION_RUBRIC_TASK)
 
 
 @pytest.mark.parametrize("present", [False, True])
@@ -210,16 +142,20 @@ async def test_oversized_optional_dependabot_blocks_whole_packet():
 
 @pytest.mark.parametrize(("count", "code"), [(24, None), (25, "evidence.file_limit")])
 async def test_selected_count_limit_precedes_any_file_read(count, code):
-    task = DEVOPS_IMPLEMENTATION_RUBRIC_TASK
-    files = _devops_files()
-    files.update({f"infra/module-{i}.tf": "source" for i in range(count - len(files))})
+    files = {f"evidence-{i}.txt": "source" for i in range(count)}
+    task = _with_policy(
+        SECURITY_SCANNING_RUBRIC_TASK,
+        required_files=list(files),
+        optional_files=[],
+        max_files=24,
+    )
     repo = InMemoryRepoFiles(files)
     if code:
         with pytest.raises(EvidenceError, match=code):
-            await collect_repo_pattern_evidence(repo, "owner", "repo", task)
+            await collect_repo_file_evidence(repo, "owner", "repo", [], task)
         assert not repo.file_reads
     else:
-        bundle = await collect_repo_pattern_evidence(repo, "owner", "repo", task)
+        bundle = await collect_repo_file_evidence(repo, "owner", "repo", [], task)
         assert len(bundle.items) == count
 
 
@@ -257,7 +193,6 @@ def test_exact_utf8_byte_boundary_and_complete_json_round_trip(text):
         {"required_files": ["career-reflection.md", "career-reflection.md"]},
         {"optional_files": ["career-reflection.md"]},
         {"required_files": ["../secret"]},
-        {"directory_rules": [EvidenceDirectoryRule(root="infra", suffixes=(".tf",))]},
     ],
 )
 def test_invalid_configuration_is_not_a_learner_failure(updates):
@@ -445,13 +380,14 @@ def test_restored_prompt_enforces_utf8_item_budget(text, oversized):
         assert json.loads(message.split("\n\n", 1)[1])["evidence"] == kwargs["evidence"]
 
 
-def test_valid_legacy_packet_without_new_selection_fields_still_validates():
+@pytest.mark.parametrize("field", ["selected_paths", "optional_presence"])
+def test_evidence_packet_requires_current_selection_fields(field):
     task = SECURITY_SCANNING_RUBRIC_TASK
     bundle = apply_evidence_cap(task, [(task.evidence.required_files[0], "CodeQL")])
     data = bundle.model_dump(mode="json")
-    del data["selected_paths"]
-    del data["optional_presence"]
-    validate_evidence_bundle(task, EvidenceBundle.model_validate(data))
+    del data[field]
+    with pytest.raises(ValidationError):
+        EvidenceBundle.model_validate(data)
 
 
 async def test_wrong_source_is_configuration_failure_before_repository_access():
@@ -487,8 +423,8 @@ async def test_truncated_github_tree_is_never_trusted(monkeypatch, boundary):
         if boundary == "tree":
             await repo.tree("owner", "repo")
         else:
-            await collect_repo_pattern_evidence(
-                repo, "owner", "repo", DEVOPS_IMPLEMENTATION_RUBRIC_TASK
+            await collect_repo_file_evidence(
+                repo, "owner", "repo", [], SECURITY_SCANNING_RUBRIC_TASK
             )
     result = caught.value.to_validation_result()
     assert not result.verification_completed

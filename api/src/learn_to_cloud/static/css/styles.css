@@ -531,6 +531,9 @@
   .flex-shrink-0 {
     flex-shrink: 0;
   }
+  .shrink {
+    flex-shrink: 1;
+  }
   .shrink-0 {
     flex-shrink: 0;
   }
@@ -1002,9 +1005,6 @@
   .break-all {
     word-break: break-all;
   }
-  .text-amber-600 {
-    color: var(--color-amber-600);
-  }
   .text-amber-700 {
     color: var(--color-amber-700);
   }
@@ -1052,12 +1052,6 @@
   }
   .text-green-900 {
     color: var(--color-green-900);
-  }
-  .text-indigo-500 {
-    color: var(--color-indigo-500);
-  }
-  .text-orange-500 {
-    color: var(--color-orange-500);
   }
   .text-red-600 {
     color: var(--color-red-600);
@@ -1440,9 +1434,6 @@
   .dark\:text-amber-300:where(.dark, .dark *) {
     color: var(--color-amber-300);
   }
-  .dark\:text-amber-400:where(.dark, .dark *) {
-    color: var(--color-amber-400);
-  }
   .dark\:text-blue-200:where(.dark, .dark *) {
     color: var(--color-blue-200);
   }
@@ -1476,20 +1467,11 @@
   .dark\:text-green-300:where(.dark, .dark *) {
     color: var(--color-green-300);
   }
-  .dark\:text-indigo-400:where(.dark, .dark *) {
-    color: var(--color-indigo-400);
-  }
-  .dark\:text-orange-400:where(.dark, .dark *) {
-    color: var(--color-orange-400);
-  }
   .dark\:text-red-200:where(.dark, .dark *) {
     color: var(--color-red-200);
   }
   .dark\:text-red-300:where(.dark, .dark *) {
     color: var(--color-red-300);
-  }
-  .dark\:text-red-400:where(.dark, .dark *) {
-    color: var(--color-red-400);
   }
   .dark\:text-white:where(.dark, .dark *) {
     color: var(--color-white);
@@ -1852,13 +1834,6 @@
 }
 .htmx-request.htmx-indicator {
   display: inline-flex;
-}
-.scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: oklch(70.7% 0.022 261.325) transparent;
-}
-.dark .scrollbar-thin {
-  scrollbar-color: oklch(44.6% 0.03 256.802) transparent;
 }
 .callout {
   display: flex;

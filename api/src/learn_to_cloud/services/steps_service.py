@@ -9,7 +9,7 @@ from learn_to_cloud_shared.progress_reads import resolve_completed_step_uuids
 from learn_to_cloud_shared.repositories import (
     LearnerStepCompletionRepository,
 )
-from learn_to_cloud_shared.schemas import LearningStep, StepCompletionResult
+from learn_to_cloud_shared.schemas import LearningStep
 from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
@@ -57,20 +57,12 @@ async def complete_step(
     db: AsyncSession,
     user_id: int,
     step_uuid: UUID,
-) -> tuple[StepCompletionResult, "Topic", set[UUID]]:
-    """Mark a learning step as complete.
-
-    Idempotent -- completing an already-completed step is a no-op that
-    returns the current state without error.
-
-    Returns the (result, parent topic, set of completed step UUIDs in
-    that topic) tuple so the HTMX caller can re-render the step partial
-    and the topic progress bar without re-loading the curriculum.
-    """
+) -> tuple["Topic", LearningStep, set[UUID]]:
+    """Complete a step idempotently and return its updated rendering state."""
     topic, step = _find_step(step_uuid)
 
     completed_at = utcnow()
-    completion = await LearnerStepCompletionRepository(db).create_if_not_exists(
+    await LearnerStepCompletionRepository(db).create_if_not_exists(
         user_id=user_id,
         step_uuid=step.uuid,
         completed_at=completed_at,
@@ -78,33 +70,14 @@ async def complete_step(
 
     completed = await get_valid_completed_steps(db, user_id, topic)
 
-    if completion is None:
-        return (
-            StepCompletionResult(
-                topic_slug=topic.slug,
-                step_slug=step.slug,
-                completed_at=utcnow(),
-            ),
-            topic,
-            completed,
-        )
-
-    return (
-        StepCompletionResult(
-            topic_slug=topic.slug,
-            step_slug=step.slug,
-            completed_at=completion.completed_at,
-        ),
-        topic,
-        completed,
-    )
+    return topic, step, completed
 
 
 async def uncomplete_step(
     db: AsyncSession,
     user_id: int,
     step_uuid: UUID,
-) -> tuple[int, "Topic", LearningStep, set[UUID]]:
+) -> tuple["Topic", LearningStep, set[UUID]]:
     """Mark a single learning step as incomplete.
 
     Only removes the specified step -- does not cascade.
@@ -114,10 +87,10 @@ async def uncomplete_step(
     """
     topic, step = _find_step(step_uuid)
 
-    deleted = await LearnerStepCompletionRepository(db).delete(
+    await LearnerStepCompletionRepository(db).delete(
         user_id=user_id, step_uuid=step.uuid
     )
 
     completed = await get_valid_completed_steps(db, user_id, topic)
 
-    return deleted, topic, step, completed
+    return topic, step, completed

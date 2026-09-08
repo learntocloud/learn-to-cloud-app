@@ -11,7 +11,9 @@ from learn_to_cloud_shared.core.config import (
     Environment,
     FrontendTelemetryConfig,
     GitHubConfig,
+    HttpConfig,
     LabsConfig,
+    MigrationSettings,
     OAuthConfig,
     SessionConfig,
     VerificationWorkerConfig,
@@ -47,6 +49,14 @@ class TestDatabaseConfig:
         )
         assert s.use_azure_postgres is True
 
+    @pytest.mark.parametrize("settings_type", [WebSettings, MigrationSettings])
+    def test_database_profiles_require_database(self, monkeypatch, settings_type):
+        for name in ("DATABASE__URL", "DATABASE__HOST", "DATABASE__USER"):
+            monkeypatch.delenv(name, raising=False)
+
+        with pytest.raises(ValidationError, match="database"):
+            settings_type(_env_file=None)
+
 
 @pytest.mark.unit
 class TestSessionConfig:
@@ -57,15 +67,15 @@ class TestSessionConfig:
         assert config.absolute_timeout_seconds == 30 * 24 * 3600
 
     @pytest.mark.parametrize(
-        "field,maximum",
+        "field",
         [
-            ("oauth_state_max_age_seconds", 600),
-            ("idle_timeout_seconds", 604800),
-            ("absolute_timeout_seconds", 2592000),
+            "oauth_state_max_age_seconds",
+            "idle_timeout_seconds",
+            "absolute_timeout_seconds",
         ],
     )
     @pytest.mark.parametrize("invalid", [0, -1, 1.5, "bad", None])
-    def test_invalid_durations(self, field, maximum, invalid):
+    def test_invalid_durations(self, field, invalid):
         with pytest.raises(ValidationError):
             SessionConfig(**{field: invalid})
 
@@ -102,17 +112,30 @@ class TestSessionConfig:
 class TestWorkerSettings:
     def test_accepts_worker_sections(self):
         s = WorkerSettings(
-            database=DatabaseConfig(url="postgresql+asyncpg://localhost/test"),
             github=GitHubConfig(token="ghp_xxx"),
             labs=LabsConfig(verification_secret="secret"),
+            http=HttpConfig(external_api_timeout=5),
+            content=ContentConfig(dir="/authored-content"),
         )
         assert s.github.token == "ghp_xxx"
         assert s.labs.verification_secret == "secret"
+        assert s.http.external_api_timeout == 5
+        assert s.content.dir == "/authored-content"
 
-    def test_no_oauth_validation(self):
-        WorkerSettings(
+    def test_does_not_require_database_or_oauth(self, monkeypatch):
+        for name in ("DATABASE__URL", "DATABASE__HOST", "DATABASE__USER"):
+            monkeypatch.delenv(name, raising=False)
+
+        WorkerSettings(_env_file=None)
+
+
+@pytest.mark.unit
+class TestMigrationSettings:
+    def test_accepts_database_config(self):
+        settings = MigrationSettings(
             database=DatabaseConfig(url="postgresql+asyncpg://localhost/test")
         )
+        assert settings.database.url == "postgresql+asyncpg://localhost/test"
 
 
 @pytest.mark.unit

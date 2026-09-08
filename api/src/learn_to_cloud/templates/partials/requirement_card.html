@@ -30,10 +30,6 @@
             Your submission is queued or being verified. You can return later to see the result.
         </span>
     </div>
-    {% elif card.kind == 'checking' %}
-    <div class="text-amber-600 dark:text-amber-400 text-sm p-2" role="status">
-        Verification is running. Refresh the page to check for results.
-    </div>
     {% elif card.kind != 'passed' %}
     {% if card.kind == 'unavailable' %}
     {{ banner(
@@ -59,7 +55,6 @@
     </div>
     {% endif %}
 
-    {% if card.verification_form.kind != 'unsupported' %}
     <form
         hx-post="{{ card.verification_form.action }}"
         hx-target="#requirement-{{ card.requirement.slug }}"
@@ -87,11 +82,6 @@
             Checking...
         </span>
     </form>
-    {% else %}
-    <div class="text-amber-600 dark:text-amber-400 text-sm p-2" role="status">
-        {{ card.verification_form.message }}
-    </div>
-    {% endif %}
     {% if card.verification_form.kind == 'derived' %}
     <details class="mt-2 text-xs text-gray-500 dark:text-gray-400">
         <summary class="min-h-11 cursor-pointer rounded-md py-3 font-medium text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:focus-visible:outline-blue-300">

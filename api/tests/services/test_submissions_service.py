@@ -6,7 +6,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.models import SubmissionType, SubmissionValueKind
+from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
     AttemptCardProjection,
@@ -50,36 +50,6 @@ def _make_mock_requirement(
         slug="test-requirement",
         name="Test Requirement",
         description="Test description",
-    )
-
-
-def _make_mock_submission(
-    *,
-    is_validated: bool = False,
-    verification_completed: bool = True,
-    submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
-) -> MagicMock:
-    """Create a mock Submission DB model with all fields for _to_submission_data."""
-    return MagicMock(
-        id=1,
-        requirement_slug="test-requirement",
-        submission_type=submission_type,
-        phase_id=3,
-        submitted_value=GitHubUrlValue("https://github.com/user/repo"),
-        submission_value_kind=SubmissionValueKind.GITHUB_URL.value,
-        github_url="https://github.com/user/repo",
-        token_value=None,
-        deployed_url=None,
-        text_value=None,
-        extracted_username="user",
-        is_validated=is_validated,
-        validated_at=datetime.now(UTC) if is_validated else None,
-        verification_completed=verification_completed,
-        feedback_json=None,
-        validation_message=None,
-        cloud_provider=None,
-        created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC),
     )
 
 
@@ -382,7 +352,6 @@ class TestSequentialPhaseGating:
                     github_username="user",
                 )
 
-            assert exc_info.value.prerequisite_phase == 3
             assert "Phase 3" in str(exc_info.value)
 
     @pytest.mark.asyncio
@@ -647,25 +616,18 @@ def _make_attempt_projection(
 ) -> AttemptCardProjection:
     now = datetime.now(UTC)
     return AttemptCardProjection(
-        id=uuid4(),
         requirement_uuid=req.uuid,
-        submission_value_kind=SubmissionValueKind.GITHUB_URL.value,
         submitted_value="https://github.com/user/repo",
-        github_username_snapshot="user",
-        cloud_provider=None,
         outcome=outcome,
         feedback_json=feedback_json,
         validation_message=validation_message,
         completed_at=now,
-        created_at=now,
-        updated_at=now,
     )
 
 
 def _patch_attempt_repo(
     *,
     latest_terminal: list[AttemptCardProjection] | None = None,
-    attempted_uuids: set | None = None,
 ):
     """Patch VerificationAttemptRepository for get_phase_submission_context tests."""
     return patch(
@@ -674,11 +636,6 @@ def _patch_attempt_repo(
         return_value=MagicMock(
             get_latest_terminal_for_requirements=AsyncMock(
                 return_value=latest_terminal or []
-            ),
-            get_requirement_uuids_with_any_attempt=AsyncMock(
-                return_value=attempted_uuids
-                if attempted_uuids is not None
-                else {p.requirement_uuid for p in (latest_terminal or [])}
             ),
         ),
     )

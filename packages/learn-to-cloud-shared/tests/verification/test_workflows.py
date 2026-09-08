@@ -61,7 +61,6 @@ def test_workflow_configuration_matches_baseline(submission_type):
         "requires_username": workflow.requires_username,
         "steps": [_step_contract(step) for step in workflow.steps],
         "rubric": workflow.rubric.model_dump(mode="json") if workflow.rubric else None,
-        "system_prompt": workflow.system_prompt,
     } == _CONTRACTS[submission_type.value]
 
 

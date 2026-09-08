@@ -138,12 +138,12 @@ learner attempt. Prior completions remain intact.
 
 | Code | Investigation and recovery |
 | --- | --- |
-| `evidence.required_missing` | Completed learner feedback, not a service outage. Check the published required paths/source groups; a README or state file is not Terraform/workflow source. |
+| `evidence.required_missing` | Completed learner feedback, not a service outage. Check the published required paths; other files cannot substitute for required workflow source. |
 | `evidence.changed` | A selected known-present file disappeared. Retry after the repository stops changing; do not label this initial absence. |
 | `evidence.file_limit` | Compare selected file count with the task's bound. All selected optional evidence counts too. |
 | `evidence.item_limit` | A complete item exceeds its UTF-8 byte bound. Do not truncate the item. |
 | `evidence.total_limit` | Complete selected content exceeds the bundle bound. Do not drop optional files or split the rubric into partial grades. |
-| `evidence.selection` | Investigate contract mismatch, invalid/restored packets, or incomplete discovery; no partial packet may be graded. |
+| `evidence.selection` | Investigate contract mismatch, invalid packets, or incomplete discovery; no partial packet may be graded. |
 | `evidence.configuration` | Investigate the registered task policy, configured evidence requirements, and repository target. |
 
 Budget, selection, and configuration failures require service attention.

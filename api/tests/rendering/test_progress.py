@@ -50,7 +50,6 @@ class TestBuildPhaseTopics:
             topics=[topic],
         )
         detail = PhaseProgress(
-            phase_id=0,
             learning=LearningProgress(steps_completed=1, steps_required=3),
             verification=VerificationProgress(
                 requirements_verified=0, requirements_required=0
@@ -80,7 +79,6 @@ class TestBuildPhaseTopics:
             topics=[topic],
         )
         detail = PhaseProgress(
-            phase_id=0,
             learning=LearningProgress(steps_completed=0, steps_required=3),
             verification=VerificationProgress(
                 requirements_verified=0, requirements_required=0
@@ -101,7 +99,6 @@ class TestBuildPhaseTopics:
             topics=[first, second],
         )
         detail = PhaseProgress(
-            phase_id=0,
             learning=LearningProgress(steps_completed=1, steps_required=6),
             verification=VerificationProgress(
                 requirements_verified=0, requirements_required=0

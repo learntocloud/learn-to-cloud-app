@@ -20,7 +20,6 @@ def build_topic_nav(
         return None, None
 
     phase_link = {
-        "slug": None,
         "name": phase_name,
         "url": f"/phase/{phase_id}",
     }
@@ -30,7 +29,6 @@ def build_topic_nav(
     else:
         prev_t = topics[current_idx - 1]
         prev_topic = {
-            "slug": prev_t.slug,
             "name": prev_t.name,
             "url": f"/phase/{phase_id}/{prev_t.slug}",
         }
@@ -40,7 +38,6 @@ def build_topic_nav(
     else:
         next_t = topics[current_idx + 1]
         next_topic = {
-            "slug": next_t.slug,
             "name": next_t.name,
             "url": f"/phase/{phase_id}/{next_t.slug}",
         }

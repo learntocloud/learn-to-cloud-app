@@ -30,7 +30,6 @@ async def check_profile_readme(context: StepContext) -> StepResult:
     if target is None:
         return StepResult(
             passed=False,
-            stop_on_fail=True,
             validation_result=ValidationResult(
                 is_valid=False,
                 message=(
@@ -50,7 +49,6 @@ async def check_repo_fork(context: StepContext) -> StepResult:
     if target is None:
         return StepResult(
             passed=False,
-            stop_on_fail=True,
             validation_result=ValidationResult(
                 is_valid=False,
                 message=(

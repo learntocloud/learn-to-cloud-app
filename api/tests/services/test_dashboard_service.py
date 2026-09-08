@@ -2,7 +2,6 @@
 
 Tests cover:
 - _build_phase_summary builds PhaseSummaryData correctly
-- Unauthenticated dashboard returns zeroed stats
 - Authenticated dashboard returns correct progress and continue_phase
 - Program-complete dashboard has no continue_phase
 - Query-count regression against a real DB (curriculum read-shapes refactor)
@@ -11,7 +10,6 @@ Tests cover:
 from collections.abc import Iterator
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
 
 import pytest
 from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
@@ -47,7 +45,6 @@ from learn_to_cloud.services.dashboard_service import (
 def _make_phase(phase_id: int, name: str = "", slug: str = "") -> PhaseOverview:
     """Create a minimal PhaseOverview for testing."""
     return PhaseOverview(
-        uuid=uuid4(),
         name=name or f"Phase {phase_id}",
         slug=slug or f"phase{phase_id}",
         order=phase_id,
@@ -56,7 +53,6 @@ def _make_phase(phase_id: int, name: str = "", slug: str = "") -> PhaseOverview:
 
 
 def _make_phase_progress(
-    phase_id: int,
     *,
     steps_completed: int = 0,
     steps_required: int = 5,
@@ -64,7 +60,6 @@ def _make_phase_progress(
     hands_on_required: int = 1,
 ) -> PhaseProgress:
     return PhaseProgress(
-        phase_id=phase_id,
         learning=LearningProgress(
             steps_completed=steps_completed, steps_required=steps_required
         ),
@@ -95,7 +90,6 @@ class TestBuildPhaseSummary:
             verification=VerificationProgress(
                 requirements_verified=1, requirements_required=1
             ),
-            is_complete=False,
             status="in_progress",
         )
         result = _build_phase_summary(phase, progress_data)
@@ -104,7 +98,6 @@ class TestBuildPhaseSummary:
 
     def test_maps_all_phase_fields(self):
         phase = PhaseOverview(
-            uuid=uuid4(),
             name="Networking",
             slug="phase2",
             description="Learn networking",
@@ -114,45 +107,7 @@ class TestBuildPhaseSummary:
         )
         result = _build_phase_summary(phase, None)
         assert result.name == "Networking"
-        assert result.slug == "phase2"
         assert result.order == 2
-
-
-# ---------------------------------------------------------------------------
-# get_dashboard_data — unauthenticated
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestGetDashboardDataUnauthenticated:
-    @pytest.mark.asyncio
-    async def test_returns_zeroed_stats(self):
-        phases = (_make_phase(0), _make_phase(1))
-        with patch(
-            "learn_to_cloud.services.dashboard_service.get_curriculum_overview",
-            autospec=True,
-            return_value=phases,
-        ):
-            result = await get_dashboard_data(db=AsyncMock(), user_id=None)
-
-        assert result.learning_percentage == 0.0
-        assert result.verification_percentage == 0.0
-        assert result.phases_completed == 0
-        assert result.total_phases == 2
-        assert result.is_program_complete is False
-        assert result.continue_phase is None
-
-    @pytest.mark.asyncio
-    async def test_includes_all_phases(self):
-        phases = (_make_phase(0), _make_phase(1), _make_phase(2))
-        with patch(
-            "learn_to_cloud.services.dashboard_service.get_curriculum_overview",
-            autospec=True,
-            return_value=phases,
-        ):
-            result = await get_dashboard_data(db=AsyncMock(), user_id=None)
-
-        assert len(result.phases) == 3
 
 
 # ---------------------------------------------------------------------------
@@ -167,10 +122,9 @@ class TestGetDashboardDataAuthenticated:
         """A fresh learner sees the dashboard start state, not Resume."""
         phases = (_make_phase(0), _make_phase(1))
         user_progress = UserProgress(
-            user_id=42,
             phases={
-                0: _make_phase_progress(0, steps_completed=0, steps_required=5),
-                1: _make_phase_progress(1, steps_completed=0, steps_required=5),
+                0: _make_phase_progress(steps_completed=0, steps_required=5),
+                1: _make_phase_progress(steps_completed=0, steps_required=5),
             },
             total_phases=2,
         )
@@ -179,7 +133,6 @@ class TestGetDashboardDataAuthenticated:
             verification=VerificationProgress(
                 requirements_verified=0, requirements_required=1
             ),
-            is_complete=False,
             status="not_started",
         )
 
@@ -215,10 +168,9 @@ class TestGetDashboardDataAuthenticated:
         destination resolve_continue_destination computes for that phase."""
         phases = (_make_phase(0), _make_phase(1))
         user_progress = UserProgress(
-            user_id=42,
             phases={
-                0: _make_phase_progress(0, steps_completed=2, steps_required=5),
-                1: _make_phase_progress(1, steps_completed=0, steps_required=5),
+                0: _make_phase_progress(steps_completed=2, steps_required=5),
+                1: _make_phase_progress(steps_completed=0, steps_required=5),
             },
             total_phases=2,
         )
@@ -227,7 +179,6 @@ class TestGetDashboardDataAuthenticated:
             verification=VerificationProgress(
                 requirements_verified=0, requirements_required=1
             ),
-            is_complete=False,
             status="in_progress",
         )
 
@@ -268,8 +219,7 @@ class TestGetDashboardDataAuthenticated:
         """A missing catalog lookup falls back to the plain phase link."""
         phases = (_make_phase(0),)
         user_progress = UserProgress(
-            user_id=42,
-            phases={0: _make_phase_progress(0, steps_completed=2, steps_required=5)},
+            phases={0: _make_phase_progress(steps_completed=2, steps_required=5)},
             total_phases=1,
         )
         progress_data = PhaseProgressData(
@@ -277,7 +227,6 @@ class TestGetDashboardDataAuthenticated:
             verification=VerificationProgress(
                 requirements_verified=0, requirements_required=1
             ),
-            is_complete=False,
             status="in_progress",
         )
 
@@ -312,10 +261,8 @@ class TestGetDashboardDataAuthenticated:
         """All phases complete → is_program_complete=True, continue_phase=None."""
         phases = (_make_phase(0),)
         user_progress = UserProgress(
-            user_id=42,
             phases={
                 0: _make_phase_progress(
-                    0,
                     steps_completed=5,
                     steps_required=5,
                     hands_on_validated=1,
@@ -329,7 +276,6 @@ class TestGetDashboardDataAuthenticated:
             verification=VerificationProgress(
                 requirements_verified=1, requirements_required=1
             ),
-            is_complete=True,
             status="completed",
         )
 
@@ -361,9 +307,8 @@ class TestGetDashboardDataAuthenticated:
         phases = (_make_phase(0), _make_phase(1))
         # Only phase 0 has progress data
         user_progress = UserProgress(
-            user_id=42,
             phases={
-                0: _make_phase_progress(0, steps_completed=3, steps_required=5),
+                0: _make_phase_progress(steps_completed=3, steps_required=5),
             },
             total_phases=2,
         )
@@ -372,7 +317,6 @@ class TestGetDashboardDataAuthenticated:
             verification=VerificationProgress(
                 requirements_verified=0, requirements_required=1
             ),
-            is_complete=False,
             status="in_progress",
         )
 

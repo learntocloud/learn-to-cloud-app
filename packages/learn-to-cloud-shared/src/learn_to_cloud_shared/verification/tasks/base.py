@@ -2,27 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Literal
 
 from pydantic import Field
 
-from learn_to_cloud_shared.schemas import CriterionResult, FrozenModel, TaskResult
+from learn_to_cloud_shared.schemas import CriterionResult, FrozenModel
 
-EvidenceSource = Literal[
-    "repo_files",
-    "pr_diff",
-    "deployed_api",
-    "token",
-    "submitted_text",
-    "manual",
-]
-GraderKind = Literal[
-    "file_presence",
-    "api_probe",
-    "token",
-    "llm_rubric",
-    "composite",
-]
+EvidenceSource = Literal["repo_files", "submitted_text"]
 RubricCriterionKind = Literal["required", "quality", "bonus"]
 
 
@@ -35,29 +21,16 @@ class RubricCriterion(FrozenModel):
     kind: RubricCriterionKind = "required"
 
 
-class EvidenceDirectoryRule(FrozenModel):
-    """A published source group, never repository-wide discovery."""
-
-    root: str
-    suffixes: tuple[str, ...]
-    recursive: bool = True
-    required: bool = False
-    excluded_directories: tuple[str, ...] = ()
-
-
 class EvidencePolicy(FrozenModel):
     """Evidence allowed for one verification task."""
 
     source: EvidenceSource
-    path_patterns: list[str] = Field(default_factory=list)
     required_files: list[str] = Field(default_factory=list)
     optional_files: list[str] = Field(default_factory=list)
-    directory_rules: list[EvidenceDirectoryRule] = Field(default_factory=list)
     criterion_evidence: dict[str, list[str]] = Field(default_factory=dict)
     max_files: int = 10
     max_file_size_bytes: int = 50 * 1024
     max_total_bytes: int = 200 * 1024
-    redact_patterns: list[str] = Field(default_factory=list)
 
 
 class EvidenceItem(FrozenModel):
@@ -76,32 +49,8 @@ class EvidenceBundle(FrozenModel):
     source: EvidenceSource
     items: list[EvidenceItem] = Field(default_factory=list)
     total_bytes: int = 0
-    selected_paths: list[str] | None = None
-    optional_presence: dict[str, bool] = Field(default_factory=dict)
-
-
-class FilePresenceGraderConfig(FrozenModel):
-    """File/config presence grading config."""
-
-    kind: Literal["file_presence"] = "file_presence"
-    required_any: list[str] = Field(default_factory=list)
-    required_all: list[str] = Field(default_factory=list)
-    content_indicators: list[str] = Field(default_factory=list)
-
-
-class ApiProbeGraderConfig(FrozenModel):
-    """HTTP/API probe grading config."""
-
-    kind: Literal["api_probe"] = "api_probe"
-    probe_id: str
-
-
-class TokenGraderConfig(FrozenModel):
-    """Signed token grading config."""
-
-    kind: Literal["token"] = "token"
-    token_family: str
-    required_challenges: int
+    selected_paths: list[str]
+    optional_presence: dict[str, bool]
 
 
 class LLMRubricGraderConfig(FrozenModel):
@@ -111,7 +60,6 @@ class LLMRubricGraderConfig(FrozenModel):
     rubric_id: str
     prompt_version: str
     passing_score: float = Field(ge=0.0, le=1.0)
-    model: str | None = None
 
 
 class LLMGradingDecision(FrozenModel):
@@ -127,23 +75,6 @@ class LLMGradingDecision(FrozenModel):
     criterion_results: list[CriterionResult] = Field(default_factory=list)
 
 
-class CompositeGraderConfig(FrozenModel):
-    """Composite grading config for later multi-signal tasks."""
-
-    kind: Literal["composite"] = "composite"
-    required_pass_count: int = 1
-
-
-GraderConfig = Annotated[
-    FilePresenceGraderConfig
-    | ApiProbeGraderConfig
-    | TokenGraderConfig
-    | LLMRubricGraderConfig
-    | CompositeGraderConfig,
-    Field(discriminator="kind"),
-]
-
-
 class VerificationTask(FrozenModel):
     """Stable internal definition for one verification task."""
 
@@ -154,45 +85,4 @@ class VerificationTask(FrozenModel):
     criteria: list[RubricCriterion | str] = Field(default_factory=list)
     grading_instructions: list[str] = Field(default_factory=list)
     evidence: EvidencePolicy
-    grader: GraderConfig
-
-
-class GradingResult(FrozenModel):
-    """Normalized internal result from any grader strategy."""
-
-    task_id: str
-    task_name: str
-    passed: bool
-    feedback: str
-    next_steps: str = ""
-    grader_kind: GraderKind
-    failure_reason: str | None = None
-    score: float | None = None
-    confidence: float | None = None
-    rubric_version: str | None = None
-    evidence_refs: list[str] = Field(default_factory=list)
-    criterion_results: list[CriterionResult] = Field(default_factory=list)
-
-    def to_task_result(self) -> TaskResult:
-        """Convert to the current public task feedback schema."""
-        return TaskResult(
-            task_name=self.task_name,
-            passed=self.passed,
-            feedback=self.feedback,
-            next_steps=self.next_steps,
-            criterion_results=self.criterion_results,
-        )
-
-
-def require_file_presence_grader(task: VerificationTask) -> FilePresenceGraderConfig:
-    """Return the task's file-presence grader or raise a configuration error."""
-    if not isinstance(task.grader, FilePresenceGraderConfig):
-        raise TypeError(f"Task {task.id} does not use a file-presence grader")
-    return task.grader
-
-
-def require_llm_rubric_grader(task: VerificationTask) -> LLMRubricGraderConfig:
-    """Return the task's LLM rubric grader or raise a configuration error."""
-    if not isinstance(task.grader, LLMRubricGraderConfig):
-        raise TypeError(f"Task {task.id} does not use an LLM rubric grader")
-    return task.grader
+    grader: LLMRubricGraderConfig

@@ -26,11 +26,6 @@ from learn_to_cloud_shared.schemas import (
 )
 
 
-def get_all_phases() -> tuple[Phase, ...]:
-    """Get all phases in order, with nested topics and requirements."""
-    return get_curriculum_catalog().phases
-
-
 def get_phase_by_slug(slug: str) -> Phase | None:
     """Get a phase by its slug (e.g. ``phase1``)."""
     return get_curriculum_catalog().phases_by_slug.get(slug)
@@ -44,14 +39,13 @@ def get_curriculum_overview() -> tuple[PhaseOverview, ...]:
     catalog = get_curriculum_catalog()
     return tuple(
         PhaseOverview(
-            uuid=phase.uuid,
             order=phase.order,
             name=phase.name,
             slug=phase.slug,
             description=phase.description,
             short_description=phase.short_description,
             topics=[
-                TopicOverview(uuid=topic.uuid, slug=topic.slug, name=topic.name)
+                TopicOverview(slug=topic.slug, name=topic.name)
                 for topic in phase.topics
             ],
         )

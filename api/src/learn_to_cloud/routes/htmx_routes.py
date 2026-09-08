@@ -85,14 +85,13 @@ router = APIRouter(prefix="/htmx", tags=["htmx"], include_in_schema=False)
 
 @router.post("/steps/complete", response_class=HTMLResponse)
 async def htmx_complete_step(
-    request: Request,
     db: DbSession,
     account: CurrentAccount,
     step_uuid: Annotated[UUID, Form()],
 ) -> HTMLResponse:
     """Complete a step and return the updated step partial."""
     try:
-        _, topic, completed = await complete_step(db, account.id, step_uuid)
+        topic, step, completed = await complete_step(db, account.id, step_uuid)
     except StepValidationError:
         # Step UUID doesn't exist in current content (stale cached page).
         # Force a full page reload so the user gets the current steps.
@@ -100,26 +99,24 @@ async def htmx_complete_step(
         response.headers["HX-Refresh"] = "true"
         return response
 
-    step = next(s for s in topic.learning_steps if s.uuid == step_uuid)
-    return render_step_toggle(request, account, topic, step, completed)
+    return render_step_toggle(account, topic, step, completed)
 
 
 @router.delete("/steps/{step_uuid}", response_class=HTMLResponse)
 async def htmx_uncomplete_step(
-    request: Request,
     step_uuid: UUID,
     db: DbSession,
     account: CurrentAccount,
 ) -> HTMLResponse:
     """Uncomplete a step and return the updated step partial."""
     try:
-        _, topic, step, completed = await uncomplete_step(db, account.id, step_uuid)
+        topic, step, completed = await uncomplete_step(db, account.id, step_uuid)
     except StepValidationError:
         response = HTMLResponse("")
         response.headers["HX-Refresh"] = "true"
         return response
 
-    return render_step_toggle(request, account, topic, step, completed)
+    return render_step_toggle(account, topic, step, completed)
 
 
 async def _parse_verification_form[FormModel: BaseModel](

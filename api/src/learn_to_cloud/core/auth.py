@@ -13,7 +13,6 @@ from learn_to_cloud_shared.core.config import OAuthConfig, get_web_settings
 from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.repositories.auth_session_repository import (
     AuthSessionRepository,
-    ResolvedSession,
     SessionRejection,
 )
 
@@ -126,7 +125,7 @@ async def optional_authenticated_account(request: Request) -> User | None:
                 db, get_web_settings().session
             ).resolve_and_touch(digest)
     request.state.auth_resolved = True
-    if not isinstance(resolved, ResolvedSession):
+    if not isinstance(resolved, User):
         request.state.clear_auth_cookie = True
         logger.log(
             logging.WARNING
@@ -136,10 +135,8 @@ async def optional_authenticated_account(request: Request) -> User | None:
             extra={"auth.session.reason": resolved.value},
         )
         return None
-    account = resolved.user
+    account = resolved
     request.state.auth_account = account
-    request.state.user_id = account.id
-    request.state.github_username = account.github_username
     return account
 
 
@@ -161,16 +158,4 @@ def require_authenticated_user(account: CurrentAccount) -> AuthenticatedUser:
     return AuthenticatedUser(account.id, account.github_username)
 
 
-def optional_authenticated_user(
-    account: OptionalCurrentAccount,
-) -> AuthenticatedUser | None:
-    """Return the identity of the optional account."""
-    if account is None:
-        return None
-    return AuthenticatedUser(account.id, account.github_username)
-
-
 CurrentUser = Annotated[AuthenticatedUser, Depends(require_authenticated_user)]
-OptionalCurrentUser = Annotated[
-    AuthenticatedUser | None, Depends(optional_authenticated_user)
-]

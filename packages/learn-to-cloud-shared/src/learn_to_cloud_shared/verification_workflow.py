@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from enum import StrEnum
+from dataclasses import dataclass
 from uuid import UUID
 
 from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
@@ -14,7 +13,6 @@ from learn_to_cloud_shared.schemas import (
 from learn_to_cloud_shared.submission_derivation import build_target
 from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
-from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle
 
 VALIDATION_FAILED_ERROR_CODE = "validation_failed"
 VERIFICATION_INCOMPLETE_ERROR_CODE = "verification_incomplete"
@@ -38,16 +36,6 @@ LLM_ERROR_TYPES = frozenset(
 )
 
 
-class GradingDisposition(StrEnum):
-    """Why LLM grading was requested or skipped for a verification run."""
-
-    REQUESTED = "requested"
-    NOT_REQUIRED = "not_required"
-    SKIPPED_GATE_FAILED = "skipped_gate_failed"
-    SKIPPED_MISSING_USERNAME = "skipped_missing_username"
-    SKIPPED_UNKNOWN_SUBMISSION_TYPE = "skipped_unknown_submission_type"
-
-
 @dataclass(frozen=True, slots=True)
 class PreparedVerificationAttempt:
     """Validated attempt input loaded from its stored snapshot."""
@@ -69,16 +57,8 @@ class VerificationRunResult:
 
     attempt: PreparedVerificationAttempt
     validation_result: ValidationResult
-    evidence: list[EvidenceBundle] | None = None
     grading_requests: list[LLMGradingRequest] | None = None
-    grading_disposition: GradingDisposition | None = None
     llm_error_type: str | None = None
-
-    def without_transport_data(self) -> VerificationRunResult:
-        """Drop evidence and grading prompts before the database write."""
-        if self.evidence is None and self.grading_requests is None:
-            return self
-        return replace(self, evidence=None, grading_requests=None)
 
 
 def outcome_for_validation(validation_result: ValidationResult) -> str:

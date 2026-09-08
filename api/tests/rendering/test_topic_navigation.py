@@ -27,26 +27,18 @@ class TestBuildTopicNav:
 
     def test_middle_topic(self):
         prev_t, next_t = build_topic_nav(self._topics(), "second", 0, "Phase 0")
-        assert prev_t is not None
-        assert prev_t["slug"] == "first"
-        assert next_t is not None
-        assert next_t["slug"] == "third"
+        assert prev_t == {"name": "First", "url": "/phase/0/first"}
+        assert next_t == {"name": "Third", "url": "/phase/0/third"}
 
     def test_first_topic_prev_is_phase_link(self):
         prev_t, next_t = build_topic_nav(self._topics(), "first", 0, "Phase 0")
-        assert prev_t is not None
-        assert prev_t["slug"] is None
-        assert prev_t["url"] == "/phase/0"
-        assert next_t is not None
-        assert next_t["slug"] == "second"
+        assert prev_t == {"name": "Phase 0", "url": "/phase/0"}
+        assert next_t == {"name": "Second", "url": "/phase/0/second"}
 
     def test_last_topic_next_is_phase_link(self):
         prev_t, next_t = build_topic_nav(self._topics(), "third", 0, "Phase 0")
-        assert prev_t is not None
-        assert prev_t["slug"] == "second"
-        assert next_t is not None
-        assert next_t["slug"] is None
-        assert next_t["url"] == "/phase/0"
+        assert prev_t == {"name": "Second", "url": "/phase/0/second"}
+        assert next_t == {"name": "Phase 0", "url": "/phase/0"}
 
     def test_unknown_slug_returns_none(self):
         prev_t, next_t = build_topic_nav(self._topics(), "nonexistent", 0, "Phase 0")

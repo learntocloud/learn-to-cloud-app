@@ -1,7 +1,7 @@
 """Unit tests for the curriculum catalog (process-level artifact reader).
 
 Covers:
-- Catalog lookup indices (by UUID, by slug, by phase, active sets/counts)
+- Catalog lookup indices (by UUID, by slug, by phase, active sets)
 - Loading the real packaged artifact end to end
 - Schema compatibility (artifact_schema_version mismatch fails fast)
 - Strict failure on a missing/corrupted/tampered artifact
@@ -78,7 +78,7 @@ class TestLoadCurriculumCatalog:
     def test_loads_real_packaged_artifact(self):
         """The artifact actually committed to the wheel loads cleanly."""
         catalog = load_curriculum_catalog()
-        assert catalog.phase_count > 0
+        assert catalog.phases
         assert catalog.artifact_schema_version == ARTIFACT_SCHEMA_VERSION
 
     def test_missing_artifact_raises(self):
@@ -137,17 +137,9 @@ class TestCurriculumCatalogIndices:
         with _patched_resource(json.dumps(real_payload)):
             return load_curriculum_catalog()
 
-    def test_phase_lookup_by_slug_and_order_agree(self, catalog: CurriculumCatalog):
-        phase0 = catalog.phases_by_slug["phase0"]
-        assert catalog.phases_by_order[phase0.order] is phase0
-
-    def test_topic_lookup_by_uuid_and_phase_slug_agree(
-        self, catalog: CurriculumCatalog
-    ):
-        phase0 = catalog.phases_by_slug["phase0"]
-        topic = phase0.topics[0]
-        assert catalog.topics_by_uuid[topic.uuid] is topic
-        assert catalog.topics_by_phase_and_slug[(phase0.slug, topic.slug)] is topic
+    def test_phase_lookup_by_slug(self, catalog: CurriculumCatalog):
+        for phase in catalog.phases:
+            assert catalog.phases_by_slug[phase.slug] is phase
 
     def test_step_lookup_by_uuid_and_phase(self, catalog: CurriculumCatalog):
         phase0 = catalog.phases_by_slug["phase0"]
@@ -158,22 +150,26 @@ class TestCurriculumCatalogIndices:
         assert catalog.topic_by_step_uuid[step.uuid] is topic
         assert catalog.phase_order_by_step_uuid[step.uuid] == phase0.order
 
-    def test_requirement_lookup_by_uuid_slug_and_phase(
-        self, catalog: CurriculumCatalog
-    ):
+    def test_requirement_lookup_by_uuid_and_phase(self, catalog: CurriculumCatalog):
         phase = next(p for p in catalog.phases if p.hands_on_verification)
         req = phase.hands_on_verification.requirements[0]
         assert catalog.requirements_by_uuid[req.uuid] is req
-        assert catalog.requirements_by_slug[req.slug] is req
         assert req in catalog.requirements_by_phase_slug[phase.slug]
         assert catalog.phase_order_by_requirement_uuid[req.uuid] == phase.order
 
-    def test_active_uuid_sets_and_counts(self, catalog: CurriculumCatalog):
-        assert catalog.phase_count == len(catalog.phases)
-        assert catalog.topic_count == len(catalog.active_topic_uuids)
-        assert catalog.step_count == len(catalog.active_step_uuids)
-        assert catalog.requirement_count == len(catalog.active_requirement_uuids)
-        assert all(p.uuid in catalog.active_phase_uuids for p in catalog.phases)
+    def test_active_uuid_sets_match_curriculum(self, catalog: CurriculumCatalog):
+        assert catalog.active_step_uuids == {
+            step.uuid
+            for phase in catalog.phases
+            for topic in phase.topics
+            for step in topic.learning_steps
+        }
+        assert catalog.active_requirement_uuids == {
+            requirement.uuid
+            for phase in catalog.phases
+            if phase.hands_on_verification
+            for requirement in phase.hands_on_verification.requirements
+        }
 
 
 class TestCurriculumCatalogImmutability:
@@ -186,15 +182,11 @@ class TestCurriculumCatalogImmutability:
         "attr",
         [
             "phases_by_slug",
-            "phases_by_order",
-            "topics_by_uuid",
-            "topics_by_phase_and_slug",
             "steps_by_uuid",
             "steps_by_phase_slug",
             "topic_by_step_uuid",
             "phase_order_by_step_uuid",
             "requirements_by_uuid",
-            "requirements_by_slug",
             "requirements_by_phase_slug",
             "phase_order_by_requirement_uuid",
         ],

@@ -27,7 +27,6 @@ async def check_career_reflection(
     bundle = collect_career_reflection_evidence(submitted_value.text, task)
     return StepResult(
         passed=True,
-        stop_on_fail=False,
         validation_result=result,
         evidence=[bundle],
         grading_task=task,

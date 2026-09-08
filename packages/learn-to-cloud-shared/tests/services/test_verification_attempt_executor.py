@@ -28,7 +28,9 @@ from learn_to_cloud_shared.verification.github_errors import (
 )
 from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud_shared.verification.repo_files import GitHubRepoFiles
-from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle, EvidenceItem
+from learn_to_cloud_shared.verification.tasks.phase6 import (
+    SECURITY_SCANNING_RUBRIC_TASK,
+)
 from learn_to_cloud_shared.verification_attempt_executor import (
     AttemptNotRunnableError,
     finalize_verification_attempt,
@@ -42,9 +44,6 @@ from learn_to_cloud_shared.verification_attempt_snapshot import (
 )
 from learn_to_cloud_shared.verification_workflow import (
     VerificationRunResult,
-)
-from tests.fakes.legacy_devops import (
-    DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
 )
 from tests.fakes.repo_ref import InMemoryRepoRef
 from tests.fakes.workflow_runs import InMemoryWorkflowRuns
@@ -71,9 +70,14 @@ async def _create_attempt(
     *,
     reconstructed: bool = False,
     requirement_slug: str | None = None,
+    claimed: bool = True,
 ) -> VerificationAttempt:
     requirement = (
-        get_curriculum_catalog().requirements_by_slug[requirement_slug]
+        next(
+            requirement
+            for requirement in get_curriculum_catalog().requirements_by_uuid.values()
+            if requirement.slug == requirement_slug
+        )
         if requirement_slug is not None
         else _requirement()
     )
@@ -101,12 +105,19 @@ async def _create_attempt(
         github_username_snapshot="octocat",
         submission_value_kind=value_kind.value,
         submitted_value=submitted_value,
+        started_at=utcnow() if reconstructed else None,
     )
     async with session_maker() as db:
         if await db.get(User, 82001) is None:
             db.add(User(id=82001, github_username="octocat"))
         db.add(attempt)
         await db.commit()
+        if claimed and not reconstructed:
+            claimed_id = await VerificationAttemptRepository(db).claim_pending(
+                queued_after=attempt.created_at
+            )
+            assert claimed_id == attempt.id
+            await db.commit()
     return attempt
 
 
@@ -137,7 +148,7 @@ async def test_capstone_success_persists_commit_and_run_feedback(
         InMemoryRepoRef(sha),
     )
     run_result = VerificationRunResult(
-        attempt=preparation.attempt, validation_result=result, grading_requests=[]
+        attempt=preparation, validation_result=result, grading_requests=[]
     )
     await finalize_verification_attempt(
         run_result,
@@ -154,7 +165,7 @@ async def test_capstone_success_persists_commit_and_run_feedback(
     assert not stored.feedback_json[0]["criterion_results"]
 
 
-async def test_prepare_loads_snapshot_and_marks_attempt_started(
+async def test_prepare_loads_claimed_snapshot(
     session_maker: async_sessionmaker[AsyncSession],
 ) -> None:
     attempt = await _create_attempt(session_maker)
@@ -163,8 +174,8 @@ async def test_prepare_loads_snapshot_and_marks_attempt_started(
         attempt.id, session_maker=session_maker
     )
 
-    assert preparation.attempt.id == attempt.id
-    assert preparation.attempt.requirement.uuid == attempt.requirement_uuid
+    assert preparation.id == attempt.id
+    assert preparation.requirement.uuid == attempt.requirement_uuid
     async with session_maker() as db:
         status = await VerificationAttemptRepository(db).get_status(attempt.id)
     assert status is not None
@@ -180,6 +191,15 @@ async def test_prepare_rejects_reconstructed_attempt(
         await prepare_verification_attempt(attempt.id, session_maker=session_maker)
 
 
+async def test_prepare_rejects_unclaimed_attempt(session_maker):
+    attempt = await _create_attempt(session_maker, claimed=False)
+    with pytest.raises(AttemptNotRunnableError, match="has not been claimed"):
+        await prepare_verification_attempt(attempt.id, session_maker=session_maker)
+    async with session_maker() as db:
+        status = await VerificationAttemptRepository(db).get_status(attempt.id)
+    assert status.started_at is None
+
+
 @pytest.mark.parametrize("passed", [False, True])
 async def test_finalize_is_compare_and_set_idempotent(
     session_maker: async_sessionmaker[AsyncSession],
@@ -191,7 +211,7 @@ async def test_finalize_is_compare_and_set_idempotent(
         attempt.id, session_maker=session_maker
     )
     run_result = VerificationRunResult(
-        attempt=preparation.attempt,
+        attempt=preparation,
         validation_result=ValidationResult(
             is_valid=passed,
             message="Submission validation details",
@@ -249,7 +269,7 @@ async def test_finalize_persists_structured_criterion_feedback(
         attempt.id, session_maker=session_maker
     )
     run_result = VerificationRunResult(
-        attempt=preparation.attempt,
+        attempt=preparation,
         validation_result=ValidationResult(
             is_valid=True,
             message="Verified.",
@@ -305,7 +325,7 @@ async def test_failed_github_fetch_persists_incomplete_without_completion(
         raised.value, event="llm_rubric_review.repo_file_error"
     )
     run_result = VerificationRunResult(
-        attempt=preparation.attempt,
+        attempt=preparation,
         validation_result=validation,
         grading_requests=[],
     )
@@ -320,9 +340,6 @@ async def test_failed_github_fetch_persists_incomplete_without_completion(
     assert repeated.won is False
     assert finalized.state.outcome == "server_error"
     assert finalized.state.error_code == "provider_unavailable"
-    assert finalized.state.validation_message == (
-        "GitHub API error (503). Try again later."
-    )
     async with session_maker() as db:
         stored = await db.get(VerificationAttempt, attempt.id)
         completions = await VerificationAttemptRepository(db).list_phase_completions(
@@ -330,6 +347,7 @@ async def test_failed_github_fetch_persists_incomplete_without_completion(
         )
     assert stored is not None
     assert stored.outcome == "server_error"
+    assert stored.validation_message == "GitHub API error (503). Try again later."
     assert stored.completed_at is not None
     assert stored.feedback_json is None
     assert (1, attempt.user_id) not in completions
@@ -361,7 +379,7 @@ async def test_finalize_persists_only_safe_llm_error_category(
         attempt.id, session_maker=session_maker
     )
     run_result = VerificationRunResult(
-        attempt=preparation.attempt,
+        attempt=preparation,
         validation_result=ValidationResult(
             is_valid=False,
             message=(
@@ -379,7 +397,9 @@ async def test_finalize_persists_only_safe_llm_error_category(
     )
 
     assert result.state.error_code == "llm.provider_unavailable"
-    assert "provider" not in (result.state.validation_message or "").lower()
+    async with session_maker() as db:
+        stored = await db.get(VerificationAttempt, attempt.id)
+    assert "provider" not in (stored.validation_message or "").lower()
 
 
 @pytest.mark.parametrize(
@@ -413,7 +433,7 @@ async def test_evidence_codes_persist_through_terminal_projections(
         attempt.id, session_maker=session_maker
     )
     run_result = VerificationRunResult(
-        attempt=preparation.attempt,
+        attempt=preparation,
         validation_result=ValidationResult(
             is_valid=False,
             message="The required evidence could not be collected.",
@@ -431,7 +451,7 @@ async def test_evidence_codes_persist_through_terminal_projections(
         )
         repeated = await finalize_verification_attempt(
             VerificationRunResult(
-                attempt=preparation.attempt,
+                attempt=preparation,
                 validation_result=ValidationResult(is_valid=True, message="Stale"),
             ),
             session_maker=session_maker,
@@ -494,7 +514,7 @@ async def test_incomplete_evidence_does_not_remove_previous_completion(
 
     await finalize_verification_attempt(
         VerificationRunResult(
-            attempt=preparation.attempt,
+            attempt=preparation,
             validation_result=ValidationResult(
                 is_valid=False,
                 message="Evidence exceeds the service budget.",
@@ -510,14 +530,12 @@ async def test_incomplete_evidence_does_not_remove_previous_completion(
         completions = await repo.list_phase_completions(
             {1: 1}, {attempt.requirement_uuid: 1}
         )
-        succeeded = await repo.count_succeeded_for_requirements(
-            attempt.user_id, [attempt.requirement_uuid]
-        )
+        succeeded = await repo.get_succeeded_requirement_uuids(attempt.user_id)
     assert (1, attempt.user_id) in completions
-    assert succeeded == 1
+    assert attempt.requirement_uuid in succeeded
 
 
-async def test_incomplete_finalization_drops_private_evidence_and_stale_prompt(
+async def test_incomplete_finalization_never_persists_private_grading_prompt(
     session_maker: async_sessionmaker[AsyncSession],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -527,30 +545,16 @@ async def test_incomplete_finalization_drops_private_evidence_and_stale_prompt(
     )
     private = "private-evidence-sentinel-https://private.example/repository"
     run_result = VerificationRunResult(
-        attempt=preparation.attempt,
+        attempt=preparation,
         validation_result=ValidationResult(
             is_valid=False,
             message="The verifier could not assemble the required evidence.",
             verification_completed=False,
             error_code="evidence.selection",
         ),
-        evidence=[
-            EvidenceBundle(
-                task_id=DEVOPS_IMPLEMENTATION_RUBRIC_TASK.id,
-                source="repo_files",
-                items=[
-                    EvidenceItem(
-                        path="private-evidence-path",
-                        content=private,
-                        sha256="private-content-hash",
-                    )
-                ],
-                total_bytes=len(private.encode()),
-            )
-        ],
         grading_requests=[
             LLMGradingRequest(
-                task=DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
+                task=SECURITY_SCANNING_RUBRIC_TASK,
                 message=private,
             )
         ],
@@ -569,5 +573,4 @@ async def test_incomplete_finalization_drops_private_evidence_and_stale_prompt(
     assert stored.feedback_json is None
     assert stored.error_code == "evidence.selection"
     assert "private-evidence" not in str(vars(stored))
-    assert "private-content-hash" not in str(vars(stored))
     assert "private-evidence" not in str([vars(record) for record in caplog.records])

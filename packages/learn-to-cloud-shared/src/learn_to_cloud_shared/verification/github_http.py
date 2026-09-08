@@ -83,7 +83,6 @@ def raise_for_server_error(response: httpx.Response) -> None:
 async def github_api_get(
     url: str,
     *,
-    extra_headers: dict[str, str] | None = None,
     params: dict[str, str | int] | None = None,
 ) -> httpx.Response:
     """Resilient GitHub API GET with retry and 5xx/429 mapping.
@@ -94,8 +93,6 @@ async def github_api_get(
     """
     client = await _get_github_client()
     headers = get_github_headers()
-    if extra_headers:
-        headers.update(extra_headers)
     response = await client.get(url, headers=headers, params=params)
     raise_for_server_error(response)
     response.raise_for_status()

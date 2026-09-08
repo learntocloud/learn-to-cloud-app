@@ -172,13 +172,14 @@ or expose submission data to fill that gap. Two specifics about these logs:
 
 Use the requirement metadata in the reference.
 
-### Check Azure sign-in first
+### Check Azure sign-in before LLM grading
 
-Every requirement is graded by an LLM through Azure AI Foundry, which uses
-`DefaultAzureCredential`. Without a signed-in Azure identity, every submission
-terminates as `server_error` and you learn nothing about the requirement.
+The Phase 6–7 rubric checks use Azure AI Foundry through
+`DefaultAzureCredential`. They need a configured Foundry endpoint and model
+deployment plus a signed-in Azure identity. Deterministic and token checks in
+Phases 0–5 do not require this LLM authentication.
 
-Check before submitting anything:
+Before submitting a requirement that uses LLM grading, check:
 
 ```bash
 az account show --output none && echo "azure ok"
@@ -186,8 +187,8 @@ az account show --output none && echo "azure ok"
 
 If that fails, **stop the submission workflow immediately** and tell the user:
 
-> Azure sign-in is required to dogfood verification. Run `az login`, then ask me
-> to run this again.
+> Azure sign-in is required for this LLM-graded requirement. Run `az login`,
+> then ask me to run this again.
 
 Report what you had already verified up to that point, clean up the processes
 you started, and do not submit. A run that submits without Azure credentials
@@ -227,7 +228,7 @@ worthless anywhere else.
    requirement invalidates the result, and hand-editing the database is outside
    this agent's remit.
 
-2. Navigate to `/phase/{N}` and find the requirement card.
+2. Navigate to `/verifications/phase/{N}` and find the requirement card.
 3. Enter the value: a minted token for Phases 1 and 2, the deployed API URL for
    Phase 4, a written answer for `career-reflection`, or the prefilled value for
    auto-derived submissions. If a prefilled field is read-only and holds

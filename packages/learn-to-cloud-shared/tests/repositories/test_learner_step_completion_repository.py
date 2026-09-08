@@ -3,9 +3,10 @@
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud_shared.models import utcnow
+from learn_to_cloud_shared.models import LearnerStepCompletion, utcnow
 from learn_to_cloud_shared.repositories.learner_step_completion_repository import (
     LearnerStepCompletionRepository,
 )
@@ -28,39 +29,48 @@ class TestCreateIfNotExists:
         step_uuid = uuid4()
         repo = LearnerStepCompletionRepository(db_session)
 
-        completion = await repo.create_if_not_exists(
-            user_id=USER_ID, step_uuid=step_uuid
-        )
+        await repo.create_if_not_exists(user_id=USER_ID, step_uuid=step_uuid)
+        completion = await db_session.get(LearnerStepCompletion, (USER_ID, step_uuid))
 
         assert completion is not None
         assert completion.user_id == USER_ID
         assert completion.step_uuid == step_uuid
         assert completion.completed_at is not None
 
-    async def test_returns_none_on_duplicate(self, db_session: AsyncSession, user):
+    async def test_duplicate_preserves_completed_at(
+        self, db_session: AsyncSession, user
+    ):
         step_uuid = uuid4()
+        completed_at = utcnow()
         repo = LearnerStepCompletionRepository(db_session)
-        await repo.create_if_not_exists(user_id=USER_ID, step_uuid=step_uuid)
+        await repo.create_if_not_exists(
+            user_id=USER_ID, step_uuid=step_uuid, completed_at=completed_at
+        )
         await db_session.flush()
 
-        duplicate = await repo.create_if_not_exists(
-            user_id=USER_ID, step_uuid=step_uuid
+        await repo.create_if_not_exists(user_id=USER_ID, step_uuid=step_uuid)
+        stored = (
+            await db_session.execute(select(LearnerStepCompletion.__table__))
+        ).one()
+        assert (stored.user_id, stored.step_uuid, stored.completed_at) == (
+            USER_ID,
+            step_uuid,
+            completed_at,
         )
-        assert duplicate is None
 
     async def test_accepts_explicit_completed_at(self, db_session: AsyncSession, user):
-        """Callers dual-writing alongside ``step_progress`` pass one shared
-        timestamp so both tables agree on when the step was completed."""
+        """Preserve a caller-supplied completion timestamp."""
         step_uuid = uuid4()
         shared_completed_at = utcnow()
         repo = LearnerStepCompletionRepository(db_session)
 
-        completion = await repo.create_if_not_exists(
+        await repo.create_if_not_exists(
             user_id=USER_ID,
             step_uuid=step_uuid,
             completed_at=shared_completed_at,
         )
 
+        completion = await db_session.get(LearnerStepCompletion, (USER_ID, step_uuid))
         assert completion is not None
         assert completion.completed_at == shared_completed_at
 
@@ -68,25 +78,29 @@ class TestCreateIfNotExists:
 class TestDelete:
     async def test_deletes_only_specified_step(self, db_session: AsyncSession, user):
         step_a, step_b = uuid4(), uuid4()
+        completed_at = utcnow()
         repo = LearnerStepCompletionRepository(db_session)
         await repo.create_if_not_exists(user_id=USER_ID, step_uuid=step_a)
-        await repo.create_if_not_exists(user_id=USER_ID, step_uuid=step_b)
+        await repo.create_if_not_exists(
+            user_id=USER_ID, step_uuid=step_b, completed_at=completed_at
+        )
         await db_session.flush()
 
-        deleted = await repo.delete(user_id=USER_ID, step_uuid=step_a)
+        await repo.delete(user_id=USER_ID, step_uuid=step_a)
 
-        assert deleted == 1
-        # step_b is untouched: a follow-up create_if_not_exists still hits
-        # the existing row and returns None (conflict), never re-created.
-        remaining = await repo.create_if_not_exists(user_id=USER_ID, step_uuid=step_b)
-        assert remaining is None
+        remaining = (
+            await db_session.execute(select(LearnerStepCompletion.__table__))
+        ).one()
+        assert (remaining.user_id, remaining.step_uuid, remaining.completed_at) == (
+            USER_ID,
+            step_b,
+            completed_at,
+        )
 
-    async def test_returns_zero_when_nothing_to_delete(
-        self, db_session: AsyncSession, user
-    ):
+    async def test_delete_nonexistent_is_noop(self, db_session: AsyncSession, user):
         repo = LearnerStepCompletionRepository(db_session)
-        deleted = await repo.delete(user_id=USER_ID, step_uuid=uuid4())
-        assert deleted == 0
+        await repo.delete(user_id=USER_ID, step_uuid=uuid4())
+        assert (await db_session.scalars(select(LearnerStepCompletion))).all() == []
 
 
 class TestGetCompletedStepUuids:

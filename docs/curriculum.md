@@ -42,8 +42,8 @@ retired content stops counting without deleting learner history.
 ## Repository-based verification
 
 One shared ownership check runs before profile README (Phase 0), repository
-forks (Phases 1/2), Journal API (Phase 3), deployment architecture (Phase 4),
-DevOps (Phase 5), and security scanning (Phase 6) checks. The public repository
+forks (Phases 1/2), Journal API (Phase 3), DevOps (Phase 5), and security scanning
+(Phase 6) checks. The public repository
 must belong to the signed-in learner's numeric GitHub ID. Existing fork, CI,
 file, deployment-description, GHCR, CodeQL, and rubric requirements still apply.
 
@@ -57,7 +57,13 @@ rewritten.
 ## Editing curriculum
 
 1. Edit the YAML files.
-2. Run `cd packages/learn-to-cloud-shared && uv run poe check`.
-3. Commit both the YAML changes and regenerated `curriculum.json`.
+2. From `packages/learn-to-cloud-shared`, run:
+   ```bash
+   uv run python scripts/validate_content.py
+   uv run python scripts/compile_curriculum.py
+   uv run python scripts/generate_yaml_schemas.py
+   ```
+3. Run `uv run poe check` from the repository root.
+4. Commit the YAML changes, regenerated `curriculum.json`, and any schema changes.
 
 Adding or removing curriculum content does not require a database migration.

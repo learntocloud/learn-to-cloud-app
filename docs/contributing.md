@@ -15,9 +15,9 @@ Install only the tools needed for the work you plan to do.
 | API, shared package, tests, and quality gates | Git, Docker with Compose, `uv` |
 | Frontend CSS changes | Node.js 20+, npm |
 | Local verification submissions | API environment and PostgreSQL |
-| Terraform and Azure operations | Terraform 1.5.x, Azure CLI, GitHub CLI |
+| Terraform and Azure operations | Terraform 1.16.1 (matching CI), Azure CLI, GitHub CLI |
 | Production database investigation | Azure CLI, PostgreSQL client |
-| Dog-food browser testing | Node.js 20+, npm, Playwright MCP and Chromium |
+| Dog-food browser testing | `uv`, Playwright Python API and Chromium |
 | Optional Copilot MCP integrations | Aspire CLI and the configured npm MCP servers |
 
 `uv` installs and selects Python 3.13 from `api/.python-version`; a matching
@@ -107,7 +107,8 @@ and Terraform using HashiCorp's
 Install GitHub CLI using its
 [Linux instructions](https://github.com/cli/cli/blob/trunk/docs/install_linux.md)
 if `gh` is not already available.
-Infrastructure work should use Terraform 1.5.x to match CI.
+Infrastructure work should use Terraform 1.16.1 to match CI and the `~> 1.16`
+constraint in `infra/provider.tf`.
 
 ```bash
 az login
@@ -135,18 +136,19 @@ diagnostics, Azure-backed verification, and production database queries.
 Install the browser tooling used by the dog-food agent:
 
 ```bash
-npm install -g @playwright/mcp@latest
-playwright-mcp install-browser chromium --with-deps
+uv run --with playwright playwright install chromium
 ```
 
-The root `.mcp.json` also defines optional Context7, Tavily, Azure, and Aspire
-servers. Install them only when using those Copilot integrations:
+The root `.mcp.json` also defines optional Context7, Tavily, Azure, Aspire, and
+Playwright servers. Install them only when using those Copilot integrations:
 
 ```bash
 npm install -g \
   @upstash/context7-mcp@latest \
   tavily-mcp@latest \
-  @azure/mcp@latest
+  @azure/mcp@latest \
+  @playwright/mcp@latest
+playwright-mcp install-browser chromium --with-deps
 curl -sSL https://aspire.dev/install.sh | bash
 ```
 
@@ -161,15 +163,17 @@ of truth for quality-gate commands. The tasks are defined in the root
 # This runs the prek hooks against every file in the workspace.
 uv run poe static
 
-# Test suites (with coverage gates) plus the verification import smoke test.
+# Test suites with coverage gates.
 uv run poe test
 
-# Everything above, in order. Run this before opening a pull request.
+# Static checks, installed-package smoke testing, and tests.
+# Run this before opening a pull request.
 uv run poe check
 ```
 
-Continuous integration runs the exact same `uv run poe` tasks, so a green
-`uv run poe check` locally means the same checks will pass in CI.
+Continuous integration runs the same `uv run poe` tasks, plus curriculum
+artifact/schema checks, migration checks, and path-selected Terraform checks.
+Run those additional checks when changing their inputs.
 
 ### Running checks against a single project
 
@@ -242,15 +246,14 @@ or invoke the agent directly with `@dog-food`. The agent will:
 
 ### Prerequisites
 
-Install the Playwright MCP server and Chromium before the first run:
+Install Chromium for the agent's Playwright Python API before the first run:
 
 ```bash
-npm install -g @playwright/mcp@latest
-playwright-mcp install-browser chromium --with-deps
+uv run --with playwright playwright install chromium
 ```
 
-The MCP server is configured in `.mcp.json` for the Copilot CLI and
-`.vscode/mcp.json` for VS Code. The database must contain at least one user;
+The agent runs browser scripts with `uv run --with playwright python`.
+The database must contain at least one user;
 `scripts/dogfood_session.py` commits an authenticated session for an existing
 local account. It requires development settings and a loopback database and
 refuses production targets. Missing accounts and database errors are failures,
@@ -263,15 +266,11 @@ The agent runs on both x86_64 and ARM64 Linux because it uses **Chromium**, not
 the `chrome` channel. Google Chrome has no ARM64 Linux build, and pointing the
 MCP server at it there fails at launch.
 
-Two things must stay in sync, so change them together:
-
-- The `--browser chromium` arg in `.mcp.json` and `.vscode/mcp.json`.
-- The documented `playwright-mcp install-browser chromium` setup command.
-
-Install the browser through `playwright-mcp`, not a separately installed
-`playwright` CLI. The MCP server bundles its own playwright-core and resolves a
-specific browser revision; a standalone CLI may install a different one, and the
-MCP server then reports the browser as not installed.
+For optional browser use through the MCP servers in `.mcp.json` and
+`.vscode/mcp.json`, install Chromium through
+`playwright-mcp install-browser chromium`. That server uses a different
+Playwright distribution; its browser installation is separate from the
+dog-food agent's Python API.
 
 ### Artifacts
 
@@ -282,9 +281,8 @@ Screenshots are saved to `.dogfood/` (gitignored). No artifacts pollute the repo
 | Component | File |
 |-----------|------|
 | Agent instructions | `.github/agents/dog-food.agent.md` |
-| MCP server config | `.mcp.json`, `.vscode/mcp.json` |
 | Session cookie generator | `scripts/dogfood_session.py` |
-| Chromium + MCP install | `playwright-mcp install-browser chromium --with-deps` |
+| Chromium install | `uv run --with playwright playwright install chromium` |
 
 ## Copilot Skills
 
@@ -453,30 +451,23 @@ mark the step span as a service error.
 ### Complete grading evidence
 
 Each rubric receives one complete, bounded packet for its published submission
-contract. `EvidencePolicy` owns required paths, optional named files, source
-directory rules, and limits. All selected files, including present optional
+contract. `EvidencePolicy` owns required paths, optional named files, and limits.
+All selected files, including present optional
 bonus evidence, are collected in full or no grading request is made. Selection
 never drops files by sort order or priority, truncates content, summarizes code,
-or chases imports. Phase 3 runs only its current-commit CI gate: it never
-collects repository source or requests LLM grading.
+or chases imports. Phases 3 and 5 use deterministic CI checks; they do not
+collect repository source or request LLM grading.
 The final prompt boundary validates task/source identity, selected paths,
 required groups, optional presence, full-content hashes, counts, byte totals,
-and truncation flags, including restored packets.
+and truncation flags on the in-process evidence packet.
 
 | Phase | Evidence contract | Files / item / total limits |
 | --- | --- | --- |
-| 4 (registered legacy workflow only) | Full configured deployment script (default `deploy.sh`) and full architecture description; retain the minimum-description gate. This is not an active curriculum assignment. | 2 / 30 KiB / 60 KiB |
-| 5 | Required: `Dockerfile`, `k8s/deployment.yaml`, `k8s/service.yaml`, at least one direct `.github/workflows/` `.yml`/`.yaml`, and at least one `infra/` `.tf`/`.tf.json`. Collect all matching workflow/Terraform source and all `k8s/` `.yml`/`.yaml`; optional `.dockerignore` and `k8s/secrets.yaml.example`. | 24 / 50 KiB / 200 KiB |
 | 6 | Required `.github/workflows/codeql.yml`; optional `.github/dependabot.yml` for bonus review. | 3 / 50 KiB / 75 KiB |
 | 7 | Complete submitted text as `career-reflection.md`, preserving the empty-text gate; no GitHub reads. | 1 / 20 KiB / 20 KiB |
 
 Supporting files aid interpretation but do not authorize inference about
-uncollected code or a whole-repository credential review. Phase 5 roots contain
-the submitted deployment, not alternate deployments: all matching provider
-files and nested modules inside `infra/` are included. `main.tf` is an example,
-not a requirement. `.terraform/`, state, plans, tfvars, credentials, READMEs,
-and unrelated types are excluded. External modules, generated artifacts, and
-scripts outside the roots are not automatically fetched or executed.
+uncollected code or a whole-repository credential review.
 Completeness is relative to this documented contract, not arbitrary layouts
 or a commit-atomic snapshot.
 
@@ -639,8 +630,7 @@ profile arguments override pending profile edits, while unrelated changes
 survive. Passing `None` explicitly clears the name/avatar. It does not commit:
 the caller owns commit/rollback for both flush and upsert, and flush failures
 propagate before the profile statement. A clean session still uses one
-INSERT/ON CONFLICT/RETURNING statement. In contrast, `get_or_create` returns
-an existing user's profile unchanged.
+INSERT/ON CONFLICT/RETURNING statement.
 
 #### Session reads
 
@@ -682,7 +672,6 @@ Choose the dependency for the data the route actually consumes:
 |------|---------|
 | `AuthenticatedUser` | Plain identity data: numeric user ID and GitHub username. Use it in helpers receiving an existing identity. |
 | `CurrentUser` | An `Annotated` alias that tells FastAPI to call `require_authenticated_user` and supply that identity to a protected route. |
-| `OptionalCurrentUser` | Supplies the same identity or `None` to a public route. |
 | `CurrentAccount` | Supplies the loaded `User` account to a protected route that needs profile fields or renders account-aware templates. |
 | `OptionalCurrentAccount` | Supplies that loaded account or `None` to a public route. |
 
@@ -692,7 +681,7 @@ Import these from `learn_to_cloud.core.auth`. Identity consumers access
 ID-only dependencies or a separate browser-user type. Pass accounts explicitly
 to templates and rendering helpers; do not look them up through `request.state`.
 
-All four aliases share `optional_authenticated_account`, which resolves the
+All three aliases share `optional_authenticated_account`, which resolves the
 session and loads the account in one short, committed transaction before route
 work. FastAPI caches this shared subdependency per request; a request-local cache
 also prevents repeat resolution and touches when the resolver is called directly.
@@ -848,17 +837,20 @@ See [Database Migrations](migrations.html) for more on how migrations work.
 ## Editing curriculum content
 
 Curriculum (phases, topics, steps, hands-on requirements) lives in
-packaged YAML under
+source-only YAML under
 `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases/`.
 To change it:
 
-1. Edit the YAML files. CI compiles them into the packaged curriculum artifact.
+1. Edit the YAML files.
 2. Validate locally:
    ```bash
    cd packages/learn-to-cloud-shared
    uv run python scripts/validate_content.py
+   uv run python scripts/compile_curriculum.py
+   uv run python scripts/generate_yaml_schemas.py
    ```
-3. Open a PR. CI runs the same validators.
+3. Commit the YAML, compiled artifact, and any generated schema changes, then
+   open a PR. CI runs the validators and rejects generated-file drift.
 
 See [Curriculum Architecture](curriculum.html) for the full packaged-artifact
 architecture.
@@ -877,5 +869,4 @@ also use the workflow's **Run workflow** action for a manual publish.
 
 Repository settings must keep **Pages > Build and deployment > Source** set to
 **GitHub Actions**. After publishing, verify the
-[documentation root](https://learntocloud.github.io/learn-to-cloud-app/) and
-[presentation](https://learntocloud.github.io/learn-to-cloud-app/scaling-with-github/).
+[documentation root](https://learntocloud.github.io/learn-to-cloud-app/).

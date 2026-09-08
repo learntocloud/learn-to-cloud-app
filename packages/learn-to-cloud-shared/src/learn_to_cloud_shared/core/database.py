@@ -141,30 +141,7 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession]:
             raise
 
 
-async def get_db_readonly(request: Request) -> AsyncGenerator[AsyncSession]:
-    """Read-only session — PostgreSQL rejects any write attempts.
-
-    Uses SET TRANSACTION READ ONLY so INSERT/UPDATE/DELETE raise
-    an immediate error instead of silently rolling back on close.
-    """
-    session_maker: async_sessionmaker[AsyncSession] = request.app.state.session_maker
-    async with session_maker() as session:
-        try:
-            await session.execute(text("SET TRANSACTION READ ONLY"))
-            yield session
-        except Exception:
-            try:
-                await session.rollback()
-            except Exception as rollback_err:
-                logger.warning(
-                    "db.rollback.failed",
-                    extra={"error.type": type(rollback_err).__name__},
-                )
-            raise
-
-
 DbSession = Annotated[AsyncSession, Depends(get_db)]
-DbSessionReadOnly = Annotated[AsyncSession, Depends(get_db_readonly)]
 
 
 async def init_db(engine: AsyncEngine, settings: DatabaseConfig) -> None:

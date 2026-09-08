@@ -43,13 +43,8 @@ class LearnerStepCompletionRepository:
         user_id: int,
         step_uuid: UUID,
         completed_at: datetime | None = None,
-    ) -> LearnerStepCompletion | None:
-        """Atomically create a completion record if it doesn't exist.
-
-        Returns the created row, or ``None`` if one already existed (either
-        from a prior call here or from the ``step_progress`` mirror
-        trigger).
-        """
+    ) -> None:
+        """Atomically create a completion record unless it already exists."""
         values: dict[str, object] = {"user_id": user_id, "step_uuid": step_uuid}
         if completed_at is not None:
             values["completed_at"] = completed_at
@@ -59,17 +54,14 @@ class LearnerStepCompletionRepository:
             .on_conflict_do_nothing(
                 index_elements=["user_id", "step_uuid"],
             )
-            .returning(LearnerStepCompletion)
         )
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        await self.db.execute(stmt)
 
-    async def delete(self, *, user_id: int, step_uuid: UUID) -> int:
+    async def delete(self, *, user_id: int, step_uuid: UUID) -> None:
         """Delete a single completion record, if present."""
-        result = await self.db.execute(
+        await self.db.execute(
             delete(LearnerStepCompletion).where(
                 LearnerStepCompletion.user_id == user_id,
                 LearnerStepCompletion.step_uuid == step_uuid,
             )
         )
-        return getattr(result, "rowcount", 0) or 0

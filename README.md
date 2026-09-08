@@ -91,7 +91,7 @@ timeout and overdue cleanup, with no workflow retries or checkpoints.
 | Service | URL |
 |---------|-----|
 | App | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs (requires `DEBUG=true`) |
+| API Docs | http://localhost:8000/docs (enabled in development or with `WEB_SECURITY__ENABLE_DOCS=true`) |
 | PostgreSQL | `127.0.0.1:55432` (user: `postgres`, password: `postgres`) |
 | Aspire Dashboard | http://localhost:18888 |
 
@@ -114,7 +114,7 @@ timeout and overdue cleanup, with no workflow retries or checkpoints.
 ├── infra/                # Terraform (Azure)
 └── .github/
     ├── workflows/        # CI/CD
-    ├── instructions/     # Copilot custom instructions
+    ├── copilot-instructions.md # Copilot custom instructions
     └── skills/           # Copilot agent skills
 ```
 

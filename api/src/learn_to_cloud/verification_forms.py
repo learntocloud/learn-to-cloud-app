@@ -35,7 +35,7 @@ _VALUE_SUBMISSION_TYPES = frozenset(
 
 def input_shape_for_submission_type(
     submission_type: SubmissionType,
-) -> VerificationInputShape | None:
+) -> VerificationInputShape:
     """Return the active HTTP form shape for a submission type."""
     if submission_type in {
         SubmissionType.PROFILE_README,
@@ -49,17 +49,15 @@ def input_shape_for_submission_type(
         return VerificationInputShape.VALUE
     if submission_type == SubmissionType.CAREER_REFLECTION:
         return VerificationInputShape.REFLECTION
-    return None
+    raise ValueError(f"Unsupported submission type: {submission_type!r}")
 
 
 def verification_submit_action(
     requirement_slug: str,
     submission_type: SubmissionType,
-) -> str | None:
+) -> str:
     """Build the HTMX submission URL for an active requirement type."""
     shape = input_shape_for_submission_type(submission_type)
-    if shape is None:
-        return None
     return f"/htmx/verifications/{requirement_slug}/submit/{shape.value}"
 
 

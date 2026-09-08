@@ -543,8 +543,7 @@ async def test_account_routes_use_current_loaded_profile(
         account = app.state.page_context.call_args.kwargs["user"]
         request, _, context = render.call_args.args
         assert context["user"] is account
-        assert request.state.user_id == account.id
-        assert request.state.github_username == account.github_username
+        assert request.state.auth_account is account
         assert "renamed-user" in response.text
     assert account.id == 42
     assert account.github_username == "renamed-user"
@@ -865,7 +864,7 @@ async def test_callback_profile_and_session_contract(
 @pytest.mark.integration
 @pytest.mark.parametrize("failure", ["upsert", "commit"])
 async def test_callback_postgres_failure_rolls_back_without_issuing_session(
-    app, github, test_engine, test_settings, telemetry_logs, caplog, failure
+    app, github, test_settings, telemetry_logs, caplog, failure
 ):
     from learn_to_cloud_shared.core.database import (
         create_engine,

@@ -15,7 +15,6 @@ import os
 from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -43,6 +42,7 @@ from sqlalchemy import (
     Text,
     create_engine,
     event,
+    func,
     inspect,
     select,
     text,
@@ -800,18 +800,11 @@ async def test_display_name_cutover_runtime_compatibility(
             async_engine, autoflush=False, expire_on_commit=False
         ) as db:
             repo = UserRepository(db)
-            created = await repo.get_or_create(
+            created = await repo.upsert(
                 7001, github_username="profile", display_name="  First  Last 李  "
             )
             assert isinstance(created, user_model)
             assert created.display_name == "  First  Last 李  "
-            existing = await repo.get_or_create(
-                7001, github_username="ignored", display_name="Ignored"
-            )
-            assert existing is created
-            assert existing.github_username == "profile"
-            assert existing.display_name == "  First  Last 李  "
-
             inserted = await repo.upsert(
                 7002, github_username="inserted", display_name="Original"
             )
@@ -834,7 +827,9 @@ async def test_display_name_cutover_runtime_compatibility(
             cleared = await repo.upsert(7002, github_username="updated")
             assert cleared is inserted
             assert (cleared.display_name, cleared.avatar_url) == (None, None)
-            stored_before = await repo.get_by_id(7004)
+            stored_before = await db.scalar(
+                select(user_model).where(user_model.id == 7004)
+            )
             assert stored_before is not None
             assert stored_before.display_name == "Stored Legacy"
             stored = await repo.upsert(
@@ -852,28 +847,20 @@ async def test_display_name_cutover_runtime_compatibility(
             await db.flush()
             normal.display_name = "Normal Write"
             await db.flush()
-            assert await repo.get_by_id(7003) is normal
+            assert (
+                await db.scalar(select(user_model).where(user_model.id == 7003))
+                is normal
+            )
             assert set(u.id for u in await repo.get_by_ids([7001, 7002, 7003])) == {
                 7001,
                 7002,
                 7003,
             }
             assert await repo.get_by_ids([]) == []
-            assert await repo.get_by_id(7999) is None
-            assert await repo.count() == 4
-
-            # Force the initial lookup miss of a concurrent insert, then execute
-            # the real ON CONFLICT DO NOTHING RETURNING and fallback SELECT.
-            start = len(statements)
-            with patch.object(repo, "get_by_id", AsyncMock(return_value=None)):
-                raced = await repo.get_or_create(
-                    7003, github_username="ignored", display_name="Ignored"
-                )
-            assert raced is normal
-            assert raced.github_username == "normal"
-            assert raced.display_name == "Normal Write"
-            assert "on conflict (id) do nothing returning" in statements[start]
-            assert statements[start + 1].startswith("select ")
+            assert (
+                await db.scalar(select(user_model).where(user_model.id == 7999)) is None
+            )
+            assert await db.scalar(select(func.count()).select_from(user_model)) == 4
 
             db.add(
                 LearnerStepCompletion(
@@ -887,9 +874,11 @@ async def test_display_name_cutover_runtime_compatibility(
             ).scalar_one()
             assert selected.display_name == "Normal Write"
             await repo.delete(7003)
-            assert await repo.get_by_id(7003) is None
+            assert (
+                await db.scalar(select(user_model).where(user_model.id == 7003)) is None
+            )
             assert await db.scalar(select(LearnerStepCompletion.user_id)) is None
-            assert await repo.count() == 3
+            assert await db.scalar(select(func.count()).select_from(user_model)) == 3
             await db.commit()
     finally:
         event.remove(

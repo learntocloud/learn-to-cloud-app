@@ -4,9 +4,8 @@ Compiles the authored curriculum YAML tree into a single canonical JSON
 artifact (``curriculum.json``) that ships as package data with the
 ``learn-to-cloud-shared`` wheel. The compiler is strict: it fails on
 missing, skipped, malformed, or inconsistent content instead of silently
-tolerating it (unlike ``content_yaml_loader.get_all_phases_from_yaml``,
-which is intentionally tolerant so the running app survives one bad
-file).
+tolerating it. Authoring validation can also collect errors from a
+partially loaded YAML tree.
 
 The artifact is:
 

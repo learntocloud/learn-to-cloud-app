@@ -7,12 +7,12 @@ Create an Alembic migration for the requested schema change.
 
 ## Before you start
 
-1. Check `api/models.py` for the current model definitions.
+1. Check `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/models.py` for the current model definitions.
 2. Check `api/alembic/versions/` for recent migrations to understand naming and patterns.
 
 ## Steps
 
-### 1. Update the model (`api/models.py`)
+### 1. Update the shared model (`packages/learn-to-cloud-shared/src/learn_to_cloud_shared/models.py`)
 - Use `Mapped[T]` and `mapped_column()` for all columns.
 - Use `TimestampMixin` if the table needs `created_at`/`updated_at`.
 - For enums, use `class MyEnum(str, PyEnum)` with `native_enum=False` in the column.

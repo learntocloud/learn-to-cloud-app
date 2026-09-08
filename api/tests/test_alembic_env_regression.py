@@ -138,10 +138,6 @@ def _run_alembic_upgrade(project: Path) -> subprocess.CompletedProcess[str]:
     """Run ``alembic upgrade head`` against the fixture project."""
     env_overrides = {
         "DATABASE__URL": f"sqlite:///{project / 'test.db'}",
-        "GITHUB__TOKEN": "test_github_token",
-        "LABS__VERIFICATION_SECRET": "test_ctf_secret_must_be_32_chars!",
-        "DEBUG": "true",
-        "USE_AZURE_POSTGRES": "false",
     }
     import os
 

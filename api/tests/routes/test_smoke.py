@@ -22,13 +22,12 @@ Marked @pytest.mark.smoke so they can be run separately:
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 from fastapi.responses import HTMLResponse
 from httpx import ASGITransport, AsyncClient
-from learn_to_cloud_shared.core.database import get_db, get_db_readonly
+from learn_to_cloud_shared.core.database import get_db
 from learn_to_cloud_shared.schemas import (
     DashboardData,
     LearningProgress,
@@ -64,13 +63,11 @@ def _fake_dashboard() -> DashboardData:
             PhaseSummaryData(
                 order=1,
                 name="Phase 1",
-                slug="phase1",
                 progress=PhaseProgressData(
                     learning=LearningProgress(steps_completed=0, steps_required=10),
                     verification=VerificationProgress(
                         requirements_verified=0, requirements_required=2
                     ),
-                    is_complete=False,
                     status="not_started",
                 ),
             ),
@@ -96,16 +93,12 @@ async def _patched_content():
     yaml_phases = get_all_phases_from_yaml()
     yaml_overview = tuple(
         PhaseOverview(
-            uuid=phase.uuid,
             order=phase.order,
             name=phase.name,
             slug=phase.slug,
             description=phase.description,
             short_description=phase.short_description,
-            topics=[
-                TopicOverview(uuid=t.uuid, slug=t.slug, name=t.name)
-                for t in phase.topics
-            ],
+            topics=[TopicOverview(slug=t.slug, name=t.name) for t in phase.topics],
         )
         for phase in yaml_phases
     )
@@ -143,14 +136,10 @@ async def anon_client(_patched_content):
     async def _override_get_db():
         yield mock_db
 
-    async def _override_get_db_readonly():
-        yield mock_db
-
     def _override_optional_user():
         return None
 
     app.dependency_overrides[get_db] = _override_get_db
-    app.dependency_overrides[get_db_readonly] = _override_get_db_readonly
     app.dependency_overrides[optional_authenticated_account] = _override_optional_user
 
     # Mark app as initialized so /ready doesn't 503
@@ -178,14 +167,10 @@ async def auth_client(_patched_content):
     async def _override_get_db():
         yield mock_db
 
-    async def _override_get_db_readonly():
-        yield mock_db
-
     def _override_current_user():
         return _fake_user()
 
     app.dependency_overrides[get_db] = _override_get_db
-    app.dependency_overrides[get_db_readonly] = _override_get_db_readonly
     app.dependency_overrides[optional_authenticated_account] = _override_current_user
 
     app.state.init_done = True
@@ -341,7 +326,6 @@ class TestAuthPageSmoke:
 
         # Build a PhaseProgress with empty topic progress
         detail = PhaseProgress(
-            phase_id=1,
             learning=LearningProgress(steps_completed=0, steps_required=0),
             verification=VerificationProgress(
                 requirements_verified=0, requirements_required=0
@@ -415,12 +399,10 @@ class TestAuthPageSmoke:
         req_slug = phase.hands_on_verification.requirements[0].slug
 
         verified_submission = SubmissionData(
-            id=uuid4(),
             submitted_value="https://github.com/testuser/repo",
             is_validated=True,
             validated_at=datetime(2024, 1, 2, tzinfo=UTC),
             verification_completed=True,
-            created_at=datetime(2024, 1, 2, tzinfo=UTC),
         )
         requirement = phase.hands_on_verification.requirements[0]
         feedback_tasks, feedback_passed = feedback_tasks_and_passed(
@@ -438,7 +420,6 @@ class TestAuthPageSmoke:
         )
 
         detail = PhaseProgress(
-            phase_id=1,
             learning=LearningProgress(steps_completed=0, steps_required=0),
             verification=VerificationProgress(
                 requirements_verified=1, requirements_required=1
