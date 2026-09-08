@@ -27,12 +27,9 @@
     >
         <div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full" aria-hidden="true"></div>
         <span class="text-sm text-gray-600 dark:text-gray-400">
-            Your submission is queued or being verified. You can return later to see the result.
+            Verification continues in the background. Leaving this page will not stop it.
+            Return later to see the result.
         </span>
-    </div>
-    {% elif card.kind == 'checking' %}
-    <div class="text-amber-600 dark:text-amber-400 text-sm p-2" role="status">
-        Verification is running. Refresh the page to check for results.
     </div>
     {% elif card.kind != 'passed' %}
     {% if card.kind == 'unavailable' %}

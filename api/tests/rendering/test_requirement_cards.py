@@ -252,7 +252,9 @@ class TestBuildRequirementCardContextCardState:
             in html
         )
         assert "token=" not in html
-        assert "queued or being verified" in html
+        assert "Verification continues in the background." in html
+        assert "Leaving this page will not stop it." in html
+        assert "Return later to see the result." in html
         assert "Analyzing your code" not in html
         assert 'hx-trigger="load delay:2s"' in html
 
