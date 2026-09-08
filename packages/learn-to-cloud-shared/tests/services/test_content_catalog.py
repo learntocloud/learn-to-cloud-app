@@ -11,6 +11,7 @@ Covers:
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
@@ -24,6 +25,7 @@ from learn_to_cloud_shared.content_catalog import (
 from learn_to_cloud_shared.content_compiler import (
     ARTIFACT_SCHEMA_VERSION,
     compile_curriculum_artifact,
+    compute_content_hash,
 )
 
 pytestmark = pytest.mark.unit
@@ -36,10 +38,15 @@ def _clear_catalog_cache():
     get_curriculum_catalog.cache_clear()
 
 
-@pytest.fixture
-def real_payload() -> dict:
-    """Compile the real authored curriculum for use as fake package data."""
+@pytest.fixture(scope="module")
+def compiled_payload() -> dict:
     return compile_curriculum_artifact()
+
+
+@pytest.fixture
+def real_payload(compiled_payload: dict) -> dict:
+    """Give each test an independent copy of the real compiled curriculum."""
+    return deepcopy(compiled_payload)
 
 
 class _FakeResource:
@@ -96,9 +103,12 @@ class TestLoadCurriculumCatalog:
             load_curriculum_catalog()
 
     def test_schema_version_mismatch_raises(self, real_payload: dict):
-        bad_payload = {**real_payload, "artifact_schema_version": 999}
+        real_payload["artifact_schema_version"] = ARTIFACT_SCHEMA_VERSION + 1
+        real_payload["content_hash"] = compute_content_hash(
+            {k: v for k, v in real_payload.items() if k != "content_hash"}
+        )
         with (
-            _patched_resource(json.dumps(bad_payload)),
+            _patched_resource(json.dumps(real_payload)),
             pytest.raises(CurriculumCatalogError, match="schema_version"),
         ):
             load_curriculum_catalog()
@@ -113,10 +123,9 @@ class TestLoadCurriculumCatalog:
 
     def test_tampered_payload_fails_hash_check(self, real_payload: dict):
         """Hand-editing a field without recomputing the hash must be caught."""
-        tampered = json.loads(json.dumps(real_payload))
-        tampered["phases"][0]["name"] = "Tampered Name"
+        real_payload["phases"][0]["name"] = "Tampered Name"
         with (
-            _patched_resource(json.dumps(tampered)),
+            _patched_resource(json.dumps(real_payload)),
             pytest.raises(CurriculumCatalogError, match="content_hash does not match"),
         ):
             load_curriculum_catalog()

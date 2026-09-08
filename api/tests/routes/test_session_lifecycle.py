@@ -627,14 +627,15 @@ async def test_login_waits_for_account_global_revocation_order(
             await release.wait()
             await repo.delete_all(42)
 
-    revocation = asyncio.create_task(revoke())
-    await acquired.wait()
-    issuance = asyncio.create_task(mint(second, test_settings))
-    await asyncio.sleep(0.03)
-    assert not issuance.done()
-    release.set()
-    await revocation
-    new = await issuance
+    async with asyncio.timeout(5), asyncio.TaskGroup() as tasks:
+        revocation = tasks.create_task(revoke())
+        await acquired.wait()
+        issuance = tasks.create_task(mint(second, test_settings))
+        await asyncio.sleep(0.03)
+        assert not issuance.done()
+        release.set()
+        await revocation
+        new = await issuance
     async with browser(second, old) as client:
         assert (await client.get("/api/user/me")).status_code == 401
     async with browser(first, new) as client:
@@ -741,15 +742,17 @@ async def test_account_deletion_serializes_with_submission_and_preserves_foreign
             inserted.set()
             await release.wait()
 
-    submission = asyncio.create_task(submit())
-    await asyncio.wait_for(inserted.wait(), timeout=5)
     async with browser(second, token) as client:
-        deletion = asyncio.create_task(client.delete("/api/user/me"))
-        await asyncio.sleep(0.03)
-        assert not deletion.done()
-        release.set()
-        await submission
-        assert (await deletion).status_code == 204
+        # Cancel and join lock-holding tasks before database teardown on failure.
+        async with asyncio.timeout(5), asyncio.TaskGroup() as tasks:
+            submission = tasks.create_task(submit())
+            await inserted.wait()
+            deletion = tasks.create_task(client.delete("/api/user/me"))
+            await asyncio.sleep(0.03)
+            assert not deletion.done()
+            release.set()
+            await submission
+            assert (await deletion).status_code == 204
     async with first.state.session_maker() as db:
         assert await db.get(User, 42) is None
         assert (

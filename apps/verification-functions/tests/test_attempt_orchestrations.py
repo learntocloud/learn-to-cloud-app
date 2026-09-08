@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from azure.durable_functions import RetryOptions
 from learn_to_cloud_shared.models import VerificationAttemptOutcome
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
     AttemptStatusRow,
@@ -51,10 +52,18 @@ import function_app
 
 
 class _RecordedCall:
-    def __init__(self, kind: str, name: str, payload: object) -> None:
+    def __init__(
+        self,
+        kind: str,
+        name: str,
+        payload: object,
+        *,
+        retry_options: RetryOptions | None = None,
+    ) -> None:
         self.kind = kind
         self.name = name
         self.payload = payload
+        self.retry_options = retry_options
 
     def as_tuple(self) -> tuple[str, str]:
         return (self.kind, self.name)
@@ -75,9 +84,11 @@ class _FakeOrchestrationContext:
         return _RecordedCall("activity", name, input_)
 
     def call_activity_with_retry(
-        self, name: str, retry_options: object, input_: object = None
+        self, name: str, retry_options: RetryOptions, input_: object = None
     ) -> _RecordedCall:
-        return _RecordedCall("activity_with_retry", name, input_)
+        return _RecordedCall(
+            "activity_with_retry", name, input_, retry_options=retry_options
+        )
 
 
 class _Raise:
@@ -88,9 +99,9 @@ class _Raise:
 Responder = Callable[[_RecordedCall], object]
 
 
-def _reflection_request() -> LLMGradingRequest:
+def _reflection_request(text: str = "Complete text 雲") -> LLMGradingRequest:
     task = CAREER_REFLECTION_RUBRIC_TASK
-    bundle = apply_evidence_cap(task, [("career-reflection.md", "Complete text 雲")])
+    bundle = apply_evidence_cap(task, [("career-reflection.md", text)])
     return LLMGradingRequest(
         task=task,
         message=build_text_rubric_message(
@@ -152,6 +163,53 @@ async def test_complete_restored_request_reaches_provider(historical):
 
     assert result == {"outcome": "content_filtered"}
     provider.assert_awaited_once_with(request_payload["message"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("text", "oversized"),
+    [
+        ("abcd", False),
+        ("éé", False),
+        ("🦊", False),
+        ("abcde", True),
+        ("ééé", True),
+        ("🦊a", True),
+    ],
+    ids=[
+        "ascii-boundary",
+        "two-byte-boundary",
+        "four-byte-boundary",
+        "ascii-oversized",
+        "two-byte-oversized",
+        "four-byte-oversized",
+    ],
+)
+async def test_restored_utf8_item_budget_is_checked_before_provider(text, oversized):
+    request = _reflection_request(text)
+    policy = request.task.evidence.model_copy(update={"max_file_size_bytes": 4})
+    task = request.task.model_copy(update={"evidence": policy})
+    prefix, raw = request.message.split("\n\n", 1)
+    message = json.loads(raw)
+    message["task"]["evidence_contract"] = policy.model_dump(mode="json")
+    assert message["evidence"]["total_bytes"] == len(text.encode("utf-8"))
+    assert message["evidence"]["total_bytes"] < policy.max_total_bytes
+    request_payload = request.model_dump(mode="json")
+    request_payload["task"] = task.model_dump(mode="json")
+    request_payload["message"] = f"{prefix}\n\n{json.dumps(message)}"
+    provider = AsyncMock(side_effect=function_app.ContentFilteredError())
+    with (
+        patch("function_app._attached_invocation_context", return_value=nullcontext()),
+        patch("function_app.grade_evidence", provider),
+    ):
+        result = await function_app.run_llm_grading({"request": request_payload}, None)
+
+    if oversized:
+        assert result == {"outcome": "error", "error_type": "evidence.item_limit"}
+        provider.assert_not_awaited()
+    else:
+        assert result == {"outcome": "content_filtered"}
+        provider.assert_awaited_once_with(request_payload["message"])
 
 
 @pytest.mark.asyncio
@@ -359,6 +417,10 @@ class TestAttemptOrchestration:
             ("activity_with_retry", "execute_requirement_verification"),
             ("activity_with_retry", "finalize_verification_attempt"),
         ]
+        retry_options = calls[1].retry_options
+        assert isinstance(retry_options, RetryOptions)
+        assert retry_options.max_number_of_attempts == 3
+        assert retry_options.first_retry_interval_in_milliseconds == 5000
         assert result == {"attempt_id": "a-1", "outcome": "succeeded"}
 
     def test_llm_sequence(self) -> None:
@@ -506,15 +568,35 @@ class TestAttemptOrchestration:
         )
         assert calls[-1].payload["error_type"] == "llm.unknown"
 
-    def test_prepare_failure_terminalizes(self) -> None:
+    @pytest.mark.parametrize(
+        ("fail_activity", "expected_activities", "terminal_source"),
+        [
+            (
+                "prepare_verification_attempt",
+                ["prepare_verification_attempt", "terminalize_verification_attempt"],
+                "orchestrator_prepare_exception",
+            ),
+            (
+                "execute_requirement_verification",
+                [
+                    "prepare_verification_attempt",
+                    "execute_requirement_verification",
+                    "terminalize_verification_attempt",
+                ],
+                "orchestrator_verification_exception",
+            ),
+        ],
+        ids=["prepare", "verify"],
+    )
+    def test_activity_failure_terminalizes(
+        self, fail_activity, expected_activities, terminal_source
+    ) -> None:
         payload = _prepared_payload(
             repo_fork_requirement(slug="fork", required_repo="owner/repo"),
             "https://github.com/alice/repo",
         )
         ctx = _FakeOrchestrationContext({"attempt_id": "a-1"})
-        responder = _make_responder(
-            payload, fail_activity="prepare_verification_attempt"
-        )
+        responder = _make_responder(payload, fail_activity=fail_activity)
         calls: list[_RecordedCall] = []
         with pytest.raises(RuntimeError, match="activity failed"):
             _drive(
@@ -523,37 +605,9 @@ class TestAttemptOrchestration:
                 calls=calls,
             )
         assert _sequence(calls) == [
-            ("activity_with_retry", "prepare_verification_attempt"),
-            ("activity_with_retry", "terminalize_verification_attempt"),
+            ("activity_with_retry", name) for name in expected_activities
         ]
-        assert calls[-1].payload["terminal_source"] == (
-            "orchestrator_prepare_exception"
-        )
-
-    def test_verify_failure_terminalizes(self) -> None:
-        payload = _prepared_payload(
-            repo_fork_requirement(slug="fork", required_repo="owner/repo"),
-            "https://github.com/alice/repo",
-        )
-        ctx = _FakeOrchestrationContext({"attempt_id": "a-1"})
-        responder = _make_responder(
-            payload, fail_activity="execute_requirement_verification"
-        )
-        calls: list[_RecordedCall] = []
-        with pytest.raises(RuntimeError, match="activity failed"):
-            _drive(
-                function_app._run_attempt_orchestration(ctx),
-                responder,
-                calls=calls,
-            )
-        assert _sequence(calls) == [
-            ("activity_with_retry", "prepare_verification_attempt"),
-            ("activity_with_retry", "execute_requirement_verification"),
-            ("activity_with_retry", "terminalize_verification_attempt"),
-        ]
-        assert calls[-1].payload["terminal_source"] == (
-            "orchestrator_verification_exception"
-        )
+        assert calls[-1].payload["terminal_source"] == terminal_source
 
 
 class TestVersionedOrchestratorRegistered:
