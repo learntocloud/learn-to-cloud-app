@@ -527,7 +527,7 @@ async def test_ownership_failure_keeps_native_diagnostics_and_correlation(
     tracer = engine_module._tracer
     error = error_type("Repository metadata parser failed")
 
-    async def fail_lookup(*_args):
+    def fail_lookup(*_args):
         raise error
 
     lookup = AsyncMock(side_effect=fail_lookup)
@@ -674,14 +674,14 @@ def _devops_job() -> PreparedVerificationAttempt:
 
 @pytest.mark.asyncio
 async def test_deployed_api_workflow_passes_through_deterministic_result(monkeypatch):
-    async def fake_validate(base_url):
-        assert base_url == "https://api.example.com"
-        return ValidationResult(is_valid=True, message="API is healthy")
-
-    monkeypatch.setattr(deployed_api_checks, "validate_deployed_api", fake_validate)
+    validate = AsyncMock(
+        return_value=ValidationResult(is_valid=True, message="API is healthy")
+    )
+    monkeypatch.setattr(deployed_api_checks, "validate_deployed_api", validate)
 
     result = await run_verification(_deployed_api_job())
 
+    validate.assert_awaited_once_with("https://api.example.com")
     assert result.validation_result.is_valid is True
     assert result.validation_result.message == "API is healthy"
     assert result.grading_requests == []
@@ -689,13 +689,14 @@ async def test_deployed_api_workflow_passes_through_deterministic_result(monkeyp
 
 @pytest.mark.asyncio
 async def test_deployed_api_workflow_fails_when_probe_fails(monkeypatch):
-    async def fake_validate(base_url):
-        return ValidationResult(is_valid=False, message="API unreachable")
-
-    monkeypatch.setattr(deployed_api_checks, "validate_deployed_api", fake_validate)
+    validate = AsyncMock(
+        return_value=ValidationResult(is_valid=False, message="API unreachable")
+    )
+    monkeypatch.setattr(deployed_api_checks, "validate_deployed_api", validate)
 
     result = await run_verification(_deployed_api_job())
 
+    validate.assert_awaited_once_with("https://api.example.com")
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
 
@@ -721,8 +722,8 @@ async def test_devops_workflow_uses_only_run_results(monkeypatch, passed, comple
 
 
 # ---------------------------------------------------------------------------
-# Phase 6/7 rubric workflows: security scanning (repo) and career reflection
-# (text-only) both gate then record a grading request.
+# Phase 6/7 rubric workflows: security scanning gates repository evidence;
+# career reflection prepares submitted text for grading.
 # ---------------------------------------------------------------------------
 
 
@@ -768,16 +769,17 @@ async def test_security_workflow_records_grading_request_when_gate_passes(monkey
     )
     from tests.fakes.repo_files import InMemoryRepoFiles
 
-    async def fake_gate(owner, repo):
-        return ValidationResult(is_valid=True, message="CodeQL green on main")
-
-    monkeypatch.setattr(security_checks, "verify_codeql_status", fake_gate)
+    gate = AsyncMock(
+        return_value=ValidationResult(is_valid=True, message="CodeQL green on main")
+    )
+    monkeypatch.setattr(security_checks, "verify_codeql_status", gate)
     repo_files = InMemoryRepoFiles(
         {".github/workflows/codeql.yml": "name: CodeQL\non: [push]\n"}
     )
 
     result = await run_verification(_security_job(), repo_files=repo_files)
 
+    gate.assert_awaited_once_with("learner", "sec-repo")
     assert result.validation_result.is_valid is True
     assert result.grading_requests is not None
     assert len(result.grading_requests) == 1
@@ -788,13 +790,14 @@ async def test_security_workflow_records_grading_request_when_gate_passes(monkey
 async def test_security_workflow_skips_grading_when_gate_fails(monkeypatch):
     from tests.fakes.repo_files import InMemoryRepoFiles
 
-    async def fake_gate(owner, repo):
-        return ValidationResult(is_valid=False, message="No CodeQL runs found")
-
-    monkeypatch.setattr(security_checks, "verify_codeql_status", fake_gate)
+    gate = AsyncMock(
+        return_value=ValidationResult(is_valid=False, message="No CodeQL runs found")
+    )
+    monkeypatch.setattr(security_checks, "verify_codeql_status", gate)
 
     result = await run_verification(_security_job(), repo_files=InMemoryRepoFiles({}))
 
+    gate.assert_awaited_once_with("learner", "sec-repo")
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
 
@@ -988,6 +991,7 @@ async def test_oversized_reflection_is_incomplete_without_any_repository_read():
         repo_files=repo,
     )
     assert result.validation_result.error_code == "evidence.item_limit"
+    assert not result.validation_result.is_valid
     assert not result.validation_result.verification_completed
     assert result.grading_requests == []
     repo.tree.assert_not_awaited()
@@ -1096,7 +1100,7 @@ async def test_engine_rechecks_collector_result_before_recording_grading(
     else:
         bundle = bundle.model_copy(update={"task_id": "other-task"})
     monkeypatch.setattr(
-        career_checks, "collect_career_reflection_evidence", lambda *_: bundle
+        career_checks, "collect_submitted_text_evidence", lambda *_: bundle
     )
     result = await run_verification(job)
     assert result.validation_result.error_code == "evidence.selection"
@@ -1157,20 +1161,6 @@ async def test_career_workflow_prepares_text_grading_in_one_step(monkeypatch):
     }
 
 
-@pytest.mark.asyncio
-async def test_career_workflow_skips_grading_when_gate_fails(monkeypatch):
-    def fake_gate(text):
-        return ValidationResult(is_valid=False, message="Your reflection was empty.")
-
-    monkeypatch.setattr(career_checks, "validate_career_reflection", fake_gate)
-    text = "A specific, first-person reflection on my target role and projects."
-
-    result = await run_verification(_career_job(text))
-
-    assert result.validation_result.is_valid is False
-    assert result.grading_requests == []
-
-
 # ---------------------------------------------------------------------------
 # Phase 0-2 gate-only workflows: profile README, repo fork, CTF and networking
 # tokens. All are deterministic (no grading) and require a GitHub username.
@@ -1195,10 +1185,8 @@ async def test_profile_readme_workflow_passes_through_validator(monkeypatch):
 
     sentinel = ValidationResult(is_valid=True, message="Profile README validated")
 
-    async def fake_readme(target, metadata=None):
-        return sentinel
-
-    monkeypatch.setattr(github_checks, "validate_profile_readme", fake_readme)
+    validate = AsyncMock(return_value=sentinel)
+    monkeypatch.setattr(github_checks, "validate_profile_readme", validate)
 
     job = _phase02_job(
         profile_readme_requirement(),
@@ -1206,6 +1194,7 @@ async def test_profile_readme_workflow_passes_through_validator(monkeypatch):
     )
     result = await run_verification(job)
 
+    validate.assert_awaited_once_with(job.target)
     assert result.validation_result is sentinel
     assert result.grading_requests == []
 
@@ -1214,10 +1203,8 @@ async def test_profile_readme_workflow_passes_through_validator(monkeypatch):
 async def test_repo_fork_workflow_passes_through_validator(monkeypatch):
     sentinel = ValidationResult(is_valid=True, message="Repository fork validated")
 
-    async def fake_fork(target, metadata=None):
-        return sentinel
-
-    monkeypatch.setattr(github_checks, "validate_repo_fork", fake_fork)
+    validate = AsyncMock(return_value=sentinel)
+    monkeypatch.setattr(github_checks, "validate_repo_fork", validate)
 
     job = _phase02_job(
         repo_fork_requirement(),
@@ -1225,6 +1212,7 @@ async def test_repo_fork_workflow_passes_through_validator(monkeypatch):
     )
     result = await run_verification(job)
 
+    validate.assert_awaited_once_with(job.target)
     assert result.validation_result is sentinel
     assert result.grading_requests == []
 
@@ -1258,15 +1246,15 @@ async def test_networking_token_workflow_passes_through_validator(monkeypatch):
         networking_token_requirement,
     )
 
-    def fake_net(token, username):
-        return ValidationResult(is_valid=False, message="Networking token invalid")
-
-    monkeypatch.setattr(tokens_checks, "verify_networking_token", fake_net)
+    sentinel = ValidationResult(is_valid=False, message="Networking token invalid")
+    verify = Mock(return_value=sentinel)
+    monkeypatch.setattr(tokens_checks, "verify_networking_token", verify)
 
     job = _phase02_job(networking_token_requirement(), "bad-token")
     result = await run_verification(job)
 
-    assert result.validation_result.is_valid is False
+    verify.assert_called_once_with("bad-token", "learner")
+    assert result.validation_result is sentinel
     assert result.grading_requests == []
 
 

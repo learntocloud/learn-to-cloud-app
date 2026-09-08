@@ -493,19 +493,23 @@ class TestCallbackIdentityContract:
         assert request.session == original
         assert "auth.login.success" not in caplog.text
 
-    async def test_commit_precedes_session_issuance(self, callback_context, caplog):
+    async def test_commit_precedes_cookie_issuance(self, callback_context, caplog):
         request, _, _, upsert = callback_context
         original = request.session.copy()
+        request.state.auth_cookie_issued = False
 
-        async def commit():
+        def commit():
             assert request.session == original
+            assert request.state.auth_cookie_issued is False
             upsert.assert_awaited_once()
+            assert "auth.login.success" not in caplog.text
 
         request._mock_db_session.commit.side_effect = commit
         with caplog.at_level("INFO", logger="learn_to_cloud.routes.auth_routes"):
             response = await callback(request)
         assert response.status_code == 302
         assert request.session == original
+        assert request.state.auth_cookie_issued is True
         assert AUTH_COOKIE_NAME in response.headers["set-cookie"]
         request._mock_db_session.commit.assert_awaited_once()
         assert [r.getMessage() for r in caplog.records] == ["auth.login.success"]

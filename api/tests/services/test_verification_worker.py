@@ -68,27 +68,34 @@ async def test_shutdown_terminalizes_active_attempt_and_propagates_cancellation(
 ):
     sessions, _, run, fail, *_ = dependencies
     entered = asyncio.Event()
+    attempt_id = uuid4()
 
-    async def wait(*args, **kwargs):
+    async def wait(claimed_attempt_id, *, session_maker):
         entered.set()
+        assert claimed_attempt_id == attempt_id
+        assert session_maker is sessions
         await asyncio.Event().wait()
 
     run.side_effect = wait
     task = asyncio.create_task(
-        worker._execute(uuid4(), sessions, VerificationWorkerConfig())
+        worker._execute(attempt_id, sessions, VerificationWorkerConfig())
     )
-    await entered.wait()
+    await asyncio.wait_for(entered.wait(), timeout=5)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
+    run.assert_awaited_once_with(attempt_id, session_maker=sessions)
     assert fail.await_args.kwargs["error_code"] == "verification_interrupted"
 
 
 async def test_execution_deadline_cancels_work(dependencies):
     sessions, _, run, fail, *_ = dependencies
     cancelled = asyncio.Event()
+    attempt_id = uuid4()
 
-    async def wait(*args, **kwargs):
+    async def wait(claimed_attempt_id, *, session_maker):
+        assert claimed_attempt_id == attempt_id
+        assert session_maker is sessions
         try:
             await asyncio.Event().wait()
         finally:
@@ -96,8 +103,9 @@ async def test_execution_deadline_cancels_work(dependencies):
 
     run.side_effect = wait
     await worker._execute(
-        uuid4(), sessions, VerificationWorkerConfig(execution_timeout_seconds=1)
+        attempt_id, sessions, VerificationWorkerConfig(execution_timeout_seconds=1)
     )
+    run.assert_awaited_once_with(attempt_id, session_maker=sessions)
     assert cancelled.is_set()
     assert fail.await_args.kwargs["error_code"] == "verification_timeout"
 
@@ -116,18 +124,20 @@ async def test_failed_finalization_is_visible_and_not_retried(dependencies, capl
 async def test_claim_is_committed_before_execution(dependencies):
     sessions, db, _, _, expire, repo = dependencies
     attempt_id = uuid4()
+    config = VerificationWorkerConfig()
     repo.claim_pending.return_value = attempt_id
 
-    async def execute(*args):
+    def execute(claimed_attempt_id, session_maker, worker_config):
+        assert claimed_attempt_id == attempt_id
+        assert session_maker is sessions
+        assert worker_config is config
         db.commit.assert_awaited_once()
         raise asyncio.CancelledError
 
     with patch.object(worker, "_execute", side_effect=execute) as execute_mock:
         with pytest.raises(asyncio.CancelledError):
-            await worker.run_verification_worker(sessions, VerificationWorkerConfig())
-    execute_mock.assert_awaited_once_with(
-        attempt_id, sessions, VerificationWorkerConfig()
-    )
+            await worker.run_verification_worker(sessions, config)
+    execute_mock.assert_awaited_once_with(attempt_id, sessions, config)
     expire.assert_awaited_once()
 
 

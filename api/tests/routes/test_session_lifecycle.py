@@ -434,10 +434,12 @@ async def test_no_connection_held_during_route_or_provider_work(
     first, _ = session_apps
     token = await mint(first, test_settings)
     active = 0
+    checkouts = 0
 
     def checked_out(*_args):
-        nonlocal active
+        nonlocal active, checkouts
         active += 1
+        checkouts += 1
 
     def checked_in(*_args):
         nonlocal active
@@ -452,7 +454,7 @@ async def test_no_connection_held_during_route_or_provider_work(
         assert active == 0
         return {"id": current_user.user_id}
 
-    async def profile(*_args, **_kwargs):
+    def profile(*_args, **_kwargs):
         assert active == 0
         return httpx2.Response(
             200,
@@ -462,7 +464,8 @@ async def test_no_connection_held_during_route_or_provider_work(
 
     github = AsyncMock()
     github.get.side_effect = profile
-    github.authorize_access_token.return_value = {"access_token": "private-token"}
+    oauth_token = {"access_token": "private-token"}
+    github.authorize_access_token.return_value = oauth_token
     event.listen(test_engine.sync_engine, "checkout", checked_out)
     event.listen(test_engine.sync_engine, "checkin", checked_in)
     try:
@@ -470,7 +473,11 @@ async def test_no_connection_held_during_route_or_provider_work(
             oauth.create_client.return_value = github
             async with browser(first, token) as client:
                 assert (await client.get("/remote")).status_code == 200
-                assert (await client.get("/auth/callback")).status_code == 302
+                response = await client.get("/auth/callback")
+                assert response.status_code == 302
+                assert response.headers["location"] == "/dashboard"
+        github.get.assert_awaited_once_with("user", token=oauth_token)
+        assert checkouts > 0
         assert active == 0
     finally:
         event.remove(test_engine.sync_engine, "checkout", checked_out)

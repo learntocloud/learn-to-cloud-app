@@ -2,7 +2,7 @@
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
 from uuid import uuid4
 
 import pytest
@@ -132,7 +132,7 @@ def _gating_mock(
     so both call sites can be controlled independently in one mock.
     """
 
-    async def _fn(_db, _user_id, uuids):
+    def _fn(_db, _user_id, uuids):
         uuids = list(uuids)
         if uuids == [requirement_uuid]:
             return already_validated
@@ -330,7 +330,7 @@ class TestSequentialPhaseGating:
                     prereq_phase=3,
                     prereq_req_ids=["journal-pr-logging", "journal-pr-get-entry"],
                 ),
-            ),
+            ) as load_index,
             patch(
                 "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
                 new=_gating_mock(
@@ -338,7 +338,7 @@ class TestSequentialPhaseGating:
                     already_validated=False,
                     prereq_satisfied=False,
                 ),
-            ),
+            ) as gating,
         ):
             with pytest.raises(PriorPhaseNotCompleteError) as exc_info:
                 await create_verification_attempt(
@@ -353,6 +353,10 @@ class TestSequentialPhaseGating:
                 )
 
             assert "Phase 3" in str(exc_info.value)
+            assert gating.await_args_list == [
+                call(ANY, 123, [mock_requirement.uuid]),
+                call(ANY, 123, load_index.return_value.requirement_uuids_for_phase(3)),
+            ]
 
     @pytest.mark.asyncio
     async def test_submission_allowed_when_prior_phase_complete(self):
@@ -370,7 +374,7 @@ class TestSequentialPhaseGating:
                     prereq_phase=3,
                     prereq_req_ids=["journal-pr-logging"],
                 ),
-            ),
+            ) as load_index,
             patch(
                 "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
                 new=_gating_mock(
@@ -378,7 +382,7 @@ class TestSequentialPhaseGating:
                     already_validated=False,
                     prereq_satisfied=True,
                 ),
-            ),
+            ) as gating,
             patch(
                 "learn_to_cloud.services.submissions_service."
                 "VerificationAttemptRepository",
@@ -407,6 +411,10 @@ class TestSequentialPhaseGating:
             assert result.attempt_id == mock_attempt.id
             assert result.created is True
             mock_attempt_repo.create_or_get_active.assert_awaited_once()
+            assert gating.await_args_list == [
+                call(ANY, 123, [mock_requirement.uuid]),
+                call(ANY, 123, load_index.return_value.requirement_uuids_for_phase(3)),
+            ]
 
 
 @pytest.mark.unit

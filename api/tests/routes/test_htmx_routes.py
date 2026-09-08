@@ -406,10 +406,7 @@ class TestHtmxSubmitVerification:
         assert "location.reload()" in bytes(result.body).decode()
 
     async def test_legacy_route_refreshes_open_pages(self):
-        result = await htmx_submit_verification(
-            _mock_request(),
-            AuthenticatedUser(user_id=1, github_username="user"),
-        )
+        result = await htmx_submit_verification()
 
         assert result.status_code == 200
         assert result.headers["HX-Refresh"] == "true"
