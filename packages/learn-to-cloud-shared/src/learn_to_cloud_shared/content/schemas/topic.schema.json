@@ -188,7 +188,15 @@
         "read",
         "reflect",
         "review",
-        "watch"
+        "watch",
+        "Build:",
+        "Explore:",
+        "Note:",
+        "Practice:",
+        "Read:",
+        "Reflect:",
+        "Review:",
+        "Watch:"
       ],
       "title": "StepAction",
       "type": "string"
@@ -223,6 +231,7 @@
       "type": "string"
     }
   },
+  "additionalProperties": false,
   "description": "A topic within a phase.\n\nDisplay order is determined by the topic's position in the parent\nphase's ``topics:`` slug list (in ``_phase.yaml``); the loader\ninjects ``order`` based on that position. Topic YAML files do not\ncarry an ``order`` field -- two sources of truth would inevitably\ndrift (issue #463).",
   "properties": {
     "description": {
@@ -247,10 +256,6 @@
       "title": "Name",
       "type": "string"
     },
-    "order": {
-      "title": "Order",
-      "type": "integer"
-    },
     "slug": {
       "title": "Slug",
       "type": "string"
@@ -266,7 +271,6 @@
     "slug",
     "name",
     "description",
-    "order",
     "learning_steps"
   ],
   "title": "Topic",
