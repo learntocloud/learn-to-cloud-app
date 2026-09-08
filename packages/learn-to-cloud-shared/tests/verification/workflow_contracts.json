@@ -1,0 +1,311 @@
+{
+  "profile_readme": {
+    "requires_username": true,
+    "steps": [
+      {
+        "check": "check_profile_readme",
+        "check_name": "profile_readme_check",
+        "task_id": "profile-readme-check",
+        "kwargs": {}
+      }
+    ],
+    "rubric": null,
+    "system_prompt": null
+  },
+  "repo_fork": {
+    "requires_username": true,
+    "steps": [
+      {
+        "check": "check_repo_fork",
+        "check_name": "repo_fork_check",
+        "task_id": "repo-fork-check",
+        "kwargs": {}
+      }
+    ],
+    "rubric": null,
+    "system_prompt": null
+  },
+  "ctf_token": {
+    "requires_username": true,
+    "steps": [
+      {
+        "check": "check_ctf_token",
+        "check_name": "ctf_token_check",
+        "task_id": "ctf-token-check",
+        "kwargs": {}
+      }
+    ],
+    "rubric": null,
+    "system_prompt": null
+  },
+  "networking_token": {
+    "requires_username": true,
+    "steps": [
+      {
+        "check": "check_networking_token",
+        "check_name": "networking_token_check",
+        "task_id": "networking-token-check",
+        "kwargs": {}
+      }
+    ],
+    "rubric": null,
+    "system_prompt": null
+  },
+  "journal_api_verifier": {
+    "requires_username": true,
+    "steps": [
+      {
+        "check": "check_github_ci_passing",
+        "check_name": "github_ci_passing",
+        "task_id": "journal-api-implementation-ci",
+        "kwargs": {}
+      }
+    ],
+    "rubric": null,
+    "system_prompt": null
+  },
+  "deployed_api": {
+    "requires_username": false,
+    "steps": [
+      {
+        "check": "check_deployed_api",
+        "check_name": "deployed_api_check",
+        "task_id": "deployed-api-check",
+        "kwargs": {}
+      }
+    ],
+    "rubric": null,
+    "system_prompt": null
+  },
+  "devops_analysis": {
+    "requires_username": true,
+    "steps": [
+      {
+        "check": "check_devops_pipeline",
+        "check_name": "devops_pipeline",
+        "task_id": "devops-pipeline",
+        "kwargs": {}
+      }
+    ],
+    "rubric": null,
+    "system_prompt": null
+  },
+  "security_scanning": {
+    "requires_username": true,
+    "steps": [
+      {
+        "check": "check_codeql_status",
+        "check_name": "codeql_status",
+        "task_id": "codeql-status-gate",
+        "kwargs": {}
+      },
+      {
+        "check": "check_security_scanning_review",
+        "check_name": "security_scanning_review",
+        "task_id": "security-scanning-rubric",
+        "kwargs": {
+          "task": {
+            "id": "security-scanning-rubric",
+            "phase_id": 6,
+            "requirement_slug": "security-scanning",
+            "name": "Security Scanning Rubric Review",
+            "criteria": [
+              {
+                "id": "python-analysis",
+                "label": "Python analysis",
+                "instruction": "The CodeQL workflow includes Python in its languages or build-mode configuration.",
+                "kind": "required"
+              },
+              {
+                "id": "workflow-triggers",
+                "label": "Security scan triggers",
+                "instruction": "The workflow runs on push and pull requests to the default branch and on a schedule.",
+                "kind": "quality"
+              },
+              {
+                "id": "query-suite",
+                "label": "Deliberate query suite",
+                "instruction": "The workflow selects a deliberate query suite such as security-extended rather than relying only on defaults.",
+                "kind": "quality"
+              },
+              {
+                "id": "pinned-actions",
+                "label": "Pinned CodeQL actions",
+                "instruction": "github/codeql-action steps are pinned to a tag or SHA.",
+                "kind": "quality"
+              },
+              {
+                "id": "dependabot",
+                "label": "Dependabot updates",
+                "instruction": "Dependabot has a version key and at least one updates entry.",
+                "kind": "bonus"
+              }
+            ],
+            "grading_instructions": [
+              "Grade only the repository evidence provided.",
+              "Dependabot is optional bonus work. Its absence must not fail a required criterion.",
+              "Do not re-grade whether a scan ran or passed because a separate deterministic gate proves that."
+            ],
+            "evidence": {
+              "source": "repo_files",
+              "path_patterns": [
+                ".github/workflows/codeql.yml",
+                ".github/dependabot.yml"
+              ],
+              "required_files": [
+                ".github/workflows/codeql.yml"
+              ],
+              "optional_files": [
+                ".github/dependabot.yml"
+              ],
+              "directory_rules": [],
+              "criterion_evidence": {
+                "python-analysis": [
+                  ".github/workflows/codeql.yml"
+                ],
+                "workflow-triggers": [
+                  ".github/workflows/codeql.yml"
+                ],
+                "query-suite": [
+                  ".github/workflows/codeql.yml"
+                ],
+                "pinned-actions": [
+                  ".github/workflows/codeql.yml"
+                ],
+                "dependabot": [
+                  ".github/dependabot.yml"
+                ]
+              },
+              "max_files": 3,
+              "max_file_size_bytes": 51200,
+              "max_total_bytes": 76800,
+              "redact_patterns": []
+            },
+            "grader": {
+              "kind": "llm_rubric",
+              "rubric_id": "phase6-security-scanning-v3",
+              "prompt_version": "2026-09-06",
+              "passing_score": 0.75,
+              "model": "gpt-5-mini"
+            }
+          }
+        }
+      }
+    ],
+    "rubric": {
+      "kind": "llm_rubric",
+      "rubric_id": "phase6-security-scanning-v3",
+      "prompt_version": "2026-09-06",
+      "passing_score": 0.75,
+      "model": "gpt-5-mini"
+    },
+    "system_prompt": null
+  },
+  "career_reflection": {
+    "requires_username": false,
+    "steps": [
+      {
+        "check": "check_career_reflection",
+        "check_name": "career_reflection",
+        "task_id": "career-reflection-rubric",
+        "kwargs": {
+          "task": {
+            "id": "career-reflection-rubric",
+            "phase_id": 7,
+            "requirement_slug": "career-reflection",
+            "name": "Career Reflection Review",
+            "criteria": [
+              {
+                "id": "complete-responses",
+                "label": "All reflections completed",
+                "instruction": "All three reflection questions have substantive answers.",
+                "kind": "required"
+              },
+              {
+                "id": "personal-specificity",
+                "label": "Specific and personal",
+                "instruction": "Each answer draws on the learner's experience, projects, or target roles instead of giving generic advice.",
+                "kind": "required"
+              },
+              {
+                "id": "behavioral-example",
+                "label": "Concrete behavioral example",
+                "instruction": "The behavioral answer describes a situation, the learner's actions, and the outcome.",
+                "kind": "required"
+              },
+              {
+                "id": "target-role",
+                "label": "Target role and skills",
+                "instruction": "The target-role answer names a real role and specific skills the learner has or needs to build.",
+                "kind": "required"
+              },
+              {
+                "id": "project-interest",
+                "label": "Specific project interest",
+                "instruction": "The project answer describes a specific project and why it interests the learner.",
+                "kind": "required"
+              },
+              {
+                "id": "original-submission",
+                "label": "Original and substantive",
+                "instruction": "The answers are not empty, copied, placeholder, or obviously low effort.",
+                "kind": "required"
+              }
+            ],
+            "grading_instructions": [
+              "Grade only the full submitted reflection text provided."
+            ],
+            "evidence": {
+              "source": "submitted_text",
+              "path_patterns": [],
+              "required_files": [
+                "career-reflection.md"
+              ],
+              "optional_files": [],
+              "directory_rules": [],
+              "criterion_evidence": {
+                "complete-responses": [
+                  "career-reflection.md"
+                ],
+                "personal-specificity": [
+                  "career-reflection.md"
+                ],
+                "behavioral-example": [
+                  "career-reflection.md"
+                ],
+                "target-role": [
+                  "career-reflection.md"
+                ],
+                "project-interest": [
+                  "career-reflection.md"
+                ],
+                "original-submission": [
+                  "career-reflection.md"
+                ]
+              },
+              "max_files": 1,
+              "max_file_size_bytes": 20480,
+              "max_total_bytes": 20480,
+              "redact_patterns": []
+            },
+            "grader": {
+              "kind": "llm_rubric",
+              "rubric_id": "phase7-career-reflection-v2",
+              "prompt_version": "2026-09-06",
+              "passing_score": 0.6,
+              "model": "gpt-5-mini"
+            }
+          }
+        }
+      }
+    ],
+    "rubric": {
+      "kind": "llm_rubric",
+      "rubric_id": "phase7-career-reflection-v2",
+      "prompt_version": "2026-09-06",
+      "passing_score": 0.6,
+      "model": "gpt-5-mini"
+    },
+    "system_prompt": null
+  }
+}

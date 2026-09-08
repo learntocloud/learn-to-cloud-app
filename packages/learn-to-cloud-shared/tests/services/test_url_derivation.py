@@ -54,7 +54,6 @@ class TestIsDerivable:
             SubmissionType.NETWORKING_TOKEN,
             SubmissionType.DEPLOYED_API,
             SubmissionType.CAREER_REFLECTION,
-            SubmissionType.DEPLOYMENT_ARCHITECTURE,
         ],
     )
     def test_non_derivable_types(self, sub_type: SubmissionType):
@@ -179,17 +178,9 @@ class TestDeriveSubmissionValue:
             SubmissionType.NETWORKING_TOKEN,
             SubmissionType.DEPLOYED_API,
             SubmissionType.CAREER_REFLECTION,
-            SubmissionType.DEPLOYMENT_ARCHITECTURE,
         ],
     )
     def test_non_derived_type_is_rejected(self, submission_type: SubmissionType):
-        req = _req(
-            submission_type,
-            required_repo=(
-                "learntocloud/journal-starter"
-                if submission_type == SubmissionType.DEPLOYMENT_ARCHITECTURE
-                else None
-            ),
-        )
+        req = _req(submission_type)
         with pytest.raises(ValueError, match="not server-derived"):
             derive_submission_value(req, "alice")

@@ -36,7 +36,6 @@ _REPO_TARGET_TYPES: frozenset[SubmissionType] = frozenset(
         SubmissionType.JOURNAL_API_VERIFIER,
         SubmissionType.DEVOPS_ANALYSIS,
         SubmissionType.SECURITY_SCANNING,
-        SubmissionType.DEPLOYMENT_ARCHITECTURE,
     }
 )
 

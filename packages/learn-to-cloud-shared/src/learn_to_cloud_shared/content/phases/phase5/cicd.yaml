@@ -37,8 +37,14 @@ learning_steps:
 - uuid: 59da8a18-206b-42d0-9e59-636a8ae46515
   order: 4
   action: 'Practice:'
-  description: 'Extend your workflow to build a Docker image and push it to a container registry on successful builds. Use this as a reference:'
-  code: "name: Build and Push\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      \n      - name: Build Docker image\n        run: docker build -t myapp:${{ github.sha }} .\n      \n      - name: Login to Registry\n        run: echo ${{ secrets.REGISTRY_PASSWORD }} | docker login -u ${{ secrets.REGISTRY_USER }} --password-stdin\n      \n      - name: Push image\n        run: docker push myapp:${{ github.sha }}"
+  description: >-
+    Extend `.github/workflows/ci.yml` rather than replacing its tests. Name the
+    existing test job `test` and add a `build` job that depends on it with
+    `needs: test`. Build your Docker image and publish it to your container
+    registry with a commit-specific tag. Use exact job IDs and matching
+    display names (`name: test` and `name: build`). Keep registry credentials
+    out of source control. In the capstone, you will add a `deploy` job with
+    `needs: build` to deploy that image to Kubernetes and confirm rollout.
   title: Add Docker image build and push to your workflow
   slug: phase5-topic2-practice-add-docker-image-build
 - uuid: ccc8eee2-a5ee-480c-8efe-4eb8c3c7dadd

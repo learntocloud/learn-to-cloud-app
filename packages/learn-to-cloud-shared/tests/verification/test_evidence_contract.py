@@ -10,14 +10,6 @@ import pytest
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification import evidence as evidence_module
 from learn_to_cloud_shared.verification import repo_files as repo_files_module
-from learn_to_cloud_shared.verification.deployment_architecture import (
-    collect_deployment_architecture_evidence,
-    deployment_architecture_task,
-)
-from learn_to_cloud_shared.verification.devops_analysis import (
-    check_required_devops_files,
-    verify_required_devops_files,
-)
 from learn_to_cloud_shared.verification.evidence import (
     EVIDENCE_ERROR_CODES,
     EvidenceError,
@@ -39,18 +31,16 @@ from learn_to_cloud_shared.verification.security_scanning import (
 )
 from learn_to_cloud_shared.verification.tasks import (
     CAREER_REFLECTION_RUBRIC_TASK,
-    DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
-    DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
     SECURITY_SCANNING_RUBRIC_TASK,
 )
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
     EvidenceDirectoryRule,
 )
+from tests.fakes.legacy_devops import DEVOPS_IMPLEMENTATION_RUBRIC_TASK
 from tests.fakes.repo_files import InMemoryRepoFiles
 
 TASKS = [
-    DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
     DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
     SECURITY_SCANNING_RUBRIC_TASK,
     CAREER_REFLECTION_RUBRIC_TASK,
@@ -173,13 +163,9 @@ async def test_phase5_ignores_unrelated_files_before_necessary_source():
         ),
     ],
 )
-def test_typed_gate_and_collector_agree_on_irrelevant_directory(root, irrelevant):
+def test_collector_rejects_irrelevant_directory(root, irrelevant):
     files = [path for path in _devops_files() if not path.startswith(root)]
     files.extend(irrelevant)
-    result = check_required_devops_files(files)
-    assert not result.is_valid
-    assert result.verification_completed
-    assert result.error_code == "evidence.required_missing"
     with pytest.raises(EvidenceError, match="evidence.required_missing"):
         resolve_evidence_selection(files, DEVOPS_IMPLEMENTATION_RUBRIC_TASK)
 
@@ -279,46 +265,6 @@ def test_invalid_configuration_is_not_a_learner_failure(updates):
     with pytest.raises(EvidenceError, match="evidence.configuration") as caught:
         apply_evidence_cap(task, [("career-reflection.md", "text")])
     assert not caught.value.to_validation_result().verification_completed
-
-
-@pytest.mark.parametrize("item", ["script", "description", "total", "count"])
-async def test_phase4_uses_shared_limits_for_both_complete_items(item):
-    task = _with_policy(
-        DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK,
-        max_files=1 if item == "count" else 2,
-        max_file_size_bytes=10,
-        max_total_bytes=10 if item == "total" else 20,
-    )
-    script = "x" * (11 if item == "script" else 6)
-    description = "y" * (11 if item == "description" else 6)
-    code = {"total": "total_limit", "count": "file_limit"}.get(item, "item_limit")
-    with pytest.raises(EvidenceError, match=f"evidence.{code}"):
-        await collect_deployment_architecture_evidence(
-            "owner",
-            "repo",
-            description,
-            task=task,
-            repo_files=InMemoryRepoFiles({"deploy.sh": script}),
-        )
-
-
-async def test_phase4_configured_script_is_the_only_repository_read():
-    task = deployment_architecture_task(
-        DEPLOYMENT_ARCHITECTURE_RUBRIC_TASK, "scripts/provision.sh"
-    )
-    repo = InMemoryRepoFiles(
-        {"scripts/provision.sh": "deploy", "scripts/dependency.sh": "ignored"}
-    )
-    bundle = await collect_deployment_architecture_evidence(
-        "owner",
-        "repo",
-        "Architecture",
-        task,
-        deploy_script_path="scripts/provision.sh",
-        repo_files=repo,
-    )
-    validate_evidence_bundle(task, bundle)
-    assert repo.file_reads == ["scripts/provision.sh"]
 
 
 @pytest.mark.parametrize(
@@ -475,7 +421,7 @@ async def test_wrong_source_is_configuration_failure_before_repository_access():
     assert not repo.file_reads
 
 
-@pytest.mark.parametrize("boundary", ["tree", "collector", "required_gate"])
+@pytest.mark.parametrize("boundary", ["tree", "collector"])
 async def test_truncated_github_tree_is_never_trusted(monkeypatch, boundary):
     monkeypatch.setattr(
         repo_files_module,
@@ -491,17 +437,14 @@ async def test_truncated_github_tree_is_never_trusted(monkeypatch, boundary):
         ),
     )
     repo = GitHubRepoFiles()
-    if boundary == "required_gate":
-        result = await verify_required_devops_files("owner", "repo", repo)
-    else:
-        with pytest.raises(EvidenceError, match="evidence.selection") as caught:
-            if boundary == "tree":
-                await repo.tree("owner", "repo")
-            else:
-                await collect_repo_pattern_evidence(
-                    repo, "owner", "repo", DEVOPS_IMPLEMENTATION_RUBRIC_TASK
-                )
-        result = caught.value.to_validation_result()
+    with pytest.raises(EvidenceError, match="evidence.selection") as caught:
+        if boundary == "tree":
+            await repo.tree("owner", "repo")
+        else:
+            await collect_repo_pattern_evidence(
+                repo, "owner", "repo", DEVOPS_IMPLEMENTATION_RUBRIC_TASK
+            )
+    result = caught.value.to_validation_result()
     assert not result.verification_completed
     assert not result.is_valid
     assert result.error_code == "evidence.selection"

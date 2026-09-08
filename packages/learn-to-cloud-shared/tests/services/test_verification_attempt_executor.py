@@ -29,9 +29,6 @@ from learn_to_cloud_shared.verification.github_errors import (
 from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud_shared.verification.repo_files import GitHubRepoFiles
 from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle, EvidenceItem
-from learn_to_cloud_shared.verification.tasks.phase5 import (
-    DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
-)
 from learn_to_cloud_shared.verification_attempt_executor import (
     AttemptNotRunnableError,
     finalize_verification_attempt,
@@ -45,6 +42,9 @@ from learn_to_cloud_shared.verification_attempt_snapshot import (
 )
 from learn_to_cloud_shared.verification_workflow import (
     VerificationRunResult,
+)
+from tests.fakes.legacy_devops import (
+    DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
 )
 from tests.fakes.repo_ref import InMemoryRepoRef
 from tests.fakes.workflow_runs import InMemoryWorkflowRuns

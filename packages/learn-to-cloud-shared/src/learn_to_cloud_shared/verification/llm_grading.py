@@ -1,6 +1,6 @@
 """Apply durable LLM grading decisions to verification job results.
 
-Migrated engine profiles record their grading requests on the verify result
+Migrated engine workflows record their grading requests on the verify result
 via the engine's rubric-review steps, so evidence collection and prompt
 assembly live in the engine, not here. This module now only merges the
 grader's decisions back into the run result and formats grader-outage and

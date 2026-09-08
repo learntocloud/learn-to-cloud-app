@@ -352,6 +352,33 @@ Rendering preserves the distinction between failed learner work and incomplete
 verification. Operational logs and spans stay at the existing request/service
 boundaries; browser telemetry context remains in `core/templates.py`.
 
+### Verification checks and workflows
+
+The shared package separates workflow configuration from execution:
+
+| Module under `verification/` | Responsibility |
+| --- | --- |
+| `core.py` | Typed check callables, steps, results, contexts, and workflows. |
+| `checks/` | Focused adapters around domain validators and evidence collectors. |
+| `workflows.py` | Ordered steps, username requirements, and rubric configuration per submission type. |
+| `engine.py` | Ownership preflight, execution, evidence flow, aggregation, safe step telemetry, and grading preparation. |
+| `execution.py` | Persisted message/result projection, not the engine core. |
+
+To add a check, define a public async function in a focused check module and
+reference it directly from a `Step` in `workflows.py`. Every step callable
+accepts a `StepContext` and returns a `StepResult`. Bind configuration such as
+rubric tasks with `functools.partial` and typed keyword-only arguments.
+Give each step a stable `name` for telemetry and a `task_id`; the engine calls
+`await step.check(context)` without a check registry or dispatch-only params.
+Extend the check and workflow tests, including the fixed workflow contracts.
+Importing the workflows fully initializes them; no startup registration call
+or required check import order is needed.
+
+Keep execution and step telemetry in the engine. Provider error classification
+stays in domain helpers; domain validators do not depend on engine contracts.
+Import extracted symbols from their owning modules, not through `engine.py`.
+The worker's `engine.run_verification` entry point is unchanged.
+
 ### Repository verification ownership
 
 The worker calls `run_verification` in the shared verification engine for every
@@ -402,6 +429,14 @@ keep their existing completed learner-failure behavior; transient GHCR failures
 remain incomplete. Response-status telemetry never includes provider bodies,
 headers, tokens, repository links, or learner endpoint URLs.
 
+Unexpected check or ownership-preflight exceptions still propagate. Their
+`verification.step` span records `verification.step.result=error`, class-only
+`error.type`, and ERROR status, never an exception message or stack trace.
+Automatic exception recording and status descriptions stay disabled.
+Cancellation is not converted into an error result. Expected provider failures
+keep their existing bounded classifications; ordinary learner failures do not
+mark the step span as a service error.
+
 ### Complete grading evidence
 
 Each rubric receives one complete, bounded packet for its published submission
@@ -409,20 +444,19 @@ contract. `EvidencePolicy` owns required paths, optional named files, source
 directory rules, and limits. All selected files, including present optional
 bonus evidence, are collected in full or no grading request is made. Selection
 never drops files by sort order or priority, truncates content, summarizes code,
-or chases imports. Tests remain CI's responsibility, not Phase 3 LLM evidence.
+or chases imports. Phase 3 runs only its current-commit CI gate: it never
+collects repository source or requests LLM grading.
 The final prompt boundary validates task/source identity, selected paths,
 required groups, optional presence, full-content hashes, counts, byte totals,
 and truncation flags, including restored packets.
 
 | Phase | Evidence contract | Files / item / total limits |
 | --- | --- | --- |
-| 3 | Required: `api/main.py`, `api/routers/journal_router.py`, `api/models/entry.py`, `api/services/entry_service.py`, `api/services/llm_service.py`, `.devcontainer/devcontainer.json`, `.github/workflows/ci.yml`, `pyproject.toml`. Optional: `api/config.py`, `api/repositories/interface_repository.py`, `api/repositories/postgres_repository.py`. | 12 / 35 KiB / 140 KiB |
-| 4 (registered legacy profile only) | Full configured deployment script (default `deploy.sh`) and full architecture description; retain the minimum-description gate. This is not an active curriculum assignment. | 2 / 30 KiB / 60 KiB |
+| 4 (registered legacy workflow only) | Full configured deployment script (default `deploy.sh`) and full architecture description; retain the minimum-description gate. This is not an active curriculum assignment. | 2 / 30 KiB / 60 KiB |
 | 5 | Required: `Dockerfile`, `k8s/deployment.yaml`, `k8s/service.yaml`, at least one direct `.github/workflows/` `.yml`/`.yaml`, and at least one `infra/` `.tf`/`.tf.json`. Collect all matching workflow/Terraform source and all `k8s/` `.yml`/`.yaml`; optional `.dockerignore` and `k8s/secrets.yaml.example`. | 24 / 50 KiB / 200 KiB |
 | 6 | Required `.github/workflows/codeql.yml`; optional `.github/dependabot.yml` for bonus review. | 3 / 50 KiB / 75 KiB |
 | 7 | Complete submitted text as `career-reflection.md`, preserving the empty-text gate; no GitHub reads. | 1 / 20 KiB / 20 KiB |
 
-Phase 3 uses canonical `ci.yml` and `pyproject.toml`, not alternate filenames.
 Supporting files aid interpretation but do not authorize inference about
 uncollected code or a whole-repository credential review. Phase 5 roots contain
 the submitted deployment, not alternate deployments: all matching provider

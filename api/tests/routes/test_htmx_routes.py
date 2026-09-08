@@ -744,13 +744,13 @@ class TestHtmxSubmitVerification:
         assert isinstance(result, HTMLResponse)
         mock_start.assert_awaited_once_with(attempt_submission.attempt_id)
 
-    async def test_deployment_architecture_is_rejected_by_value_route(self):
+    async def test_repo_fork_is_rejected_by_value_route(self):
         from learn_to_cloud_shared_test_support.requirement_factories import (
-            deployment_architecture_requirement,
+            repo_fork_requirement,
         )
 
-        requirement = deployment_architecture_requirement(
-            slug="deployment-architecture",
+        requirement = repo_fork_requirement(
+            slug="repo-fork",
             required_repo="learntocloud/journal-starter",
         )
         request = _mock_request(form_items=[("submitted_value", "description")])
@@ -769,19 +769,19 @@ class TestHtmxSubmitVerification:
             result = await htmx_submit_value_verification(
                 request,
                 current_user,
-                requirement_slug="deployment-architecture",
+                requirement_slug="repo-fork",
             )
 
         assert isinstance(result, HTMLResponse)
         mock_create.assert_not_awaited()
 
-    async def test_deployment_architecture_is_rejected_by_reflection_route(self):
+    async def test_repo_fork_is_rejected_by_reflection_route(self):
         from learn_to_cloud_shared_test_support.requirement_factories import (
-            deployment_architecture_requirement,
+            repo_fork_requirement,
         )
 
-        requirement = deployment_architecture_requirement(
-            slug="deployment-architecture",
+        requirement = repo_fork_requirement(
+            slug="repo-fork",
             required_repo="learntocloud/journal-starter",
         )
         request = _mock_request(form_items=[("answers", "description")])
@@ -800,7 +800,7 @@ class TestHtmxSubmitVerification:
             result = await htmx_submit_reflection_verification(
                 request,
                 current_user,
-                requirement_slug="deployment-architecture",
+                requirement_slug="repo-fork",
             )
 
         assert isinstance(result, HTMLResponse)

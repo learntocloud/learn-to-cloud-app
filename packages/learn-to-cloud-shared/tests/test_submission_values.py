@@ -29,7 +29,6 @@ from learn_to_cloud_shared.submission_values import (
         (SubmissionType.CTF_TOKEN, SubmissionValueKind.TOKEN),
         (SubmissionType.DEPLOYED_API, SubmissionValueKind.DEPLOYED_URL),
         (SubmissionType.CAREER_REFLECTION, SubmissionValueKind.TEXT),
-        (SubmissionType.DEPLOYMENT_ARCHITECTURE, SubmissionValueKind.TEXT),
     ],
 )
 def test_value_kind_for_submission_type(

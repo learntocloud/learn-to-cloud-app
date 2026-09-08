@@ -19,18 +19,11 @@ learning_steps:
   order: 1
   action: 'Build:'
   title: Containerize the Application
-  description: Write a `Dockerfile` at the root of your repository that packages your Journal API into a container image. Also create a `.dockerignore` to exclude non-production files.
+  description: Package your Journal API as a Docker image that you can run locally and deploy to Kubernetes.
   checklist:
-  - Use `python:3.12-slim` as the base image (matches the dev container's Python version)
-  - Install `uv` (not pip) and run `uv sync` to install dependencies
-  - Commit `uv.lock` to your repo for reproducible builds
-  - Set `PYTHONPATH` to your app directory so imports resolve correctly
-  - Expose port 8000
-  - "Use `uvicorn api.main:app --host 0.0.0.0 --port 8000` as the entry point"
-  - "Create `.dockerignore` to exclude `.git/`, `tests/`, `.devcontainer/`"
-  tips:
-  - type: note
-    text: Docker is not available inside the dev container by default. To build locally, run `docker build` on your host machine. Alternatively, use `az acr build --registry <name> --image journal-api:latest .` to build remotely in Azure Container Registry without needing local Docker.
+  - Use a suitable Python base image and reproducible dependency installation.
+  - Keep secrets and unnecessary files out of the image.
+  - Configure the container to start the API and accept traffic on port 8000.
   done_when: "`docker build` succeeds and `docker run` starts the API listening on port 8000."
   slug: phase5-topic6-build-containerize-the-application
 
@@ -38,23 +31,11 @@ learning_steps:
   order: 2
   action: 'Build:'
   title: Infrastructure as Code
-  description: Create Terraform configuration files in an `infra/` directory to provision your cloud infrastructure. Provider-specific filenames and nested modules are supported. The filenames below are examples, not required names.
+  description: Use Terraform to provision the infrastructure needed to run your containerized application on your chosen cloud provider.
   checklist:
-  - "**Container registry** — e.g., Azure Container Registry"
-  - "**Managed Kubernetes cluster** — e.g., AKS"
-  - "**Managed PostgreSQL 15 database** — e.g., Azure Database for PostgreSQL Flexible Server"
-  - "**IAM/role bindings** — so your K8s cluster can pull images from the registry"
-  - "**`main.tf`** — core resource definitions"
-  - "**`variables.tf`** — input variable declarations"
-  - "**`providers.tf`** — cloud provider and Terraform version config"
-  - "**`outputs.tf`** — export registry URL, DB connection string, kubeconfig"
-  - "**`terraform.tfvars`** — your variable values (add to `.gitignore`)"
-  - "**Run `database_setup.sql`** against your PostgreSQL instance after provisioning"
-  tips:
-  - type: note
-    text: Azure PostgreSQL requires `?sslmode=require` appended to your `DATABASE_URL`. The local dev format without SSL will not work in the cloud.
-  - type: tip
-    text: If Terraform fails with `LocationIsOfferRestricted` for PostgreSQL, try a different Azure region (e.g., `centralus`, `westus2`).
+  - Provision a container registry, managed Kubernetes cluster, and managed PostgreSQL database.
+  - Configure the permissions and networking needed to pull images and connect to the database.
+  - Initialize the database schema and protect credentials and Terraform state.
   done_when: "`terraform apply` completes, all resources exist, and you can connect to the database."
   slug: phase5-topic6-build-infrastructure-as-code
 
@@ -62,23 +43,17 @@ learning_steps:
   order: 3
   action: 'Build:'
   title: CI/CD Pipeline
-  description: Apply the GitHub Actions workflow you built in the CI/CD Pipelines topic. It should trigger on every push to `main` with at least three jobs.
+  description: Extend `.github/workflows/ci.yml` from the CI/CD topic so pushes to `main` test, build, and deploy your application.
   checklist:
-  - "**Test job** — Run linting and tests with a PostgreSQL 15 service container, run `database_setup.sql` before pytest, install `uv` using `astral-sh/setup-uv`"
-  - "**Build & Push job** — Build the Docker image and push it to your cloud container registry, tagged with commit SHA and `latest`"
-  - "**Public verification copy** — Also push the image as `ghcr.io/<your-github-username>/journal-api:latest` so automated verification can confirm the build succeeded"
-  - "**Public GHCR package** — After the first push, open the package settings on GitHub and change the package visibility to public"
-  - "**Deploy job** — Connect to your K8s cluster, `sed`-substitute the image placeholder, apply manifests from `k8s/`"
-  - "**`AZURE_CREDENTIALS` secret** — output of `az ad sp create-for-rbac --sdk-auth`"
-  - "**`ACR_LOGIN_SERVER` secret** — your ACR login server URL"
-  - "**`ACR_USERNAME` secret** — ACR username"
-  - "**`ACR_PASSWORD` secret** — ACR password"
-  - "**`AZURE_RESOURCE_GROUP` secret** — your resource group name"
-  - "**`AKS_CLUSTER_NAME` secret** — your AKS cluster name"
+  - "**`test`** - Run linting and tests with the dependencies they need."
+  - "**`build`** - Use `needs: test` to build and publish a commit-tagged container image after tests pass."
+  - "**`deploy`** - Use `needs: build` to deploy that image to Kubernetes and wait for rollout to succeed."
+  - "Use these exact job IDs and display names (`name: test`, `name: build`, `name: deploy`), with one of each and no matrix suffixes."
+  - Use secure cloud authentication and keep credentials out of the repository.
   tips:
   - type: note
-    text: Keep your cloud registry and IAM-based Kubernetes pull path for the real deployment. The public GHCR image is an additional copy used only by automated verification; private GHCR packages cannot be verified.
-  done_when: Pushing to `main` triggers the workflow, all three jobs pass, and your image is pushed to the registry.
+    text: Choose the actions and commands that fit your deployment. Your registry does not need to be public for verification.
+  done_when: Pushing to `main` triggers the workflow, all three jobs pass, and Kubernetes runs the newly built image.
   slug: phase5-topic6-build-cicd-pipeline
 
 - uuid: cddc7d25-1801-4d27-86a8-ba8317bbab8f
@@ -86,19 +61,13 @@ learning_steps:
   action: 'Build:'
   title: Container Orchestration
   description: >-
-    Write Kubernetes manifests in a `k8s/` directory to deploy and expose your
-    containerized application. First, add a `GET /health` endpoint to `api/main.py`
-    that returns `{"status": "healthy"}`.
+    Write Kubernetes YAML manifests to deploy and expose your containerized
+    application. Apply them from the pipeline using `kubectl`.
   checklist:
-  - "**`deployment.yaml`** — use `IMAGE_PLACEHOLDER` as the image reference (CI/CD substitutes with real tag)"
-  - "**Environment from Secret** — reference `journal-api-secrets` via `envFrom` for `DATABASE_URL`, `OPENAI_API_KEY`, etc."
-  - "**Health probes** — configure liveness and readiness probes pointing to `/health` on port 8000"
-  - "**`secrets.yaml.example`** — show required keys (never commit real values)"
-  - "**`service.yaml`** — create a `LoadBalancer` or `NodePort` service routing port 80 → container port 8000"
-  tips:
-  - type: note
-    text: When creating your `DATABASE_URL` secret for the cloud database, remember to append `?sslmode=require` to the connection string.
-  done_when: "`kubectl get pods` shows your app running, and `curl http://<EXTERNAL-IP>/health` returns `{\"status\": \"healthy\"}`."
+  - Create a Deployment using the image published by your pipeline and a Service that exposes the API.
+  - Supply application configuration securely without committing real credentials.
+  - Configure health probes and make the deploy job fail if rollout does not succeed.
+  done_when: Kubernetes runs your app, health probes pass, and you can create and analyze a journal entry through the deployed API.
   slug: phase5-topic6-build-container-orchestration
 
 - uuid: c77ee2ee-9913-49b5-8e46-e9258129e06e
@@ -131,50 +100,35 @@ learning_steps:
 - uuid: e080abdc-bf94-4e6b-a78e-33294ef28595
   order: 7
   action: 'Build:'
-  title: Required Project Structure
+  title: Review Your Delivery Setup
   description: >-
-    Required files are `Dockerfile`, `k8s/deployment.yaml`, and `k8s/service.yaml`.
-    Also include at least one `.yml` or `.yaml` workflow directly in
-    `.github/workflows/` and at least one `.tf` or `.tf.json` Terraform source
-    file anywhere under `infra/`. A README, state file, or unrelated file alone
-    does not satisfy either source requirement. Verification reads all matching
-    workflow and Terraform source files, all `.yaml` and `.yml` files under
-    `k8s/`, and the required files in full. It also reads `.dockerignore` and
-    `k8s/secrets.yaml.example` in full when present; those two are optional
-    evidence, not mandatory verification gates. The tree below is an example:
-    Terraform filenames such as `main.tf` are not universal requirements.
-    Steps 1-4 are verified automatically when you submit your repo URL.
-  code: "your-journal-starter/\n  ├── Dockerfile              # Step 1: Container definition\n  ├── .dockerignore            # Step 1: Exclude non-production files from build\n  ├── .github/\n  │   └── workflows/          # Step 3: CI/CD pipeline configs\n  │       └── *.yml\n  ├── infra/                   # Step 2: Terraform IaC configs\n  │   ├── main.tf\n  │   ├── variables.tf\n  │   ├── outputs.tf\n  │   └── providers.tf\n  ├── k8s/                     # Step 4: Kubernetes manifests\n  │   ├── deployment.yaml\n  │   ├── service.yaml\n  │   └── secrets.yaml.example # Example secrets (never commit real values)\n  ├── api/                     # Your FastAPI app code\n  └── README.md                # Step 6: Documentation"
+    Confirm that your Docker image, Terraform infrastructure, Kubernetes
+    manifests, and delivery pipeline work together. Document how to deploy,
+    observe, and troubleshoot the application. Apart from the workflow path
+    and job names used for verification, organize the files to suit your project.
   slug: phase5-topic6-build-required-project-structure
   tips:
-  - type: important
-    text: >-
-      These roots must contain the deployment you are submitting, not several
-      alternative deployments or unrelated examples. Put non-submitted examples
-      outside the evidence roots. Provider-specific filenames and nested modules
-      inside `infra/` are included; the verifier does not infer which provider
-      folder is active. `.terraform/`, state, plan, tfvars, credential files,
-      README files, and unrelated file types are excluded. Never commit real
-      credentials in source or manifests. External modules, generated artifacts,
-      and scripts outside these roots are not automatically fetched or executed.
-      The published file-type rules are deterministic, not a search for a
-      passing implementation or support for arbitrary repository layouts.
   - type: note
     text: >-
-      All selected evidence is reviewed together in full. If internal limits
-      prevent this, verification is incomplete and your work has not been
-      judged as failed. Report the service issue; retrying unchanged may not
-      help, and you should not shrink or split otherwise valid work.
+      Automated verification uses run and job results only. It does not read
+      source files, commands, or logs, or use AI review. A green job does not
+      prove what its commands do; implementing these practices and checking
+      the deployed application remain your responsibility.
 
 - uuid: 1a7cde59-eecf-4078-ab74-d9a2a54f4351
   order: 8
   action: 'Practice:'
   title: Submit the DevOps capstone for verification
-  description: Push the completed implementation to your fork's `main` branch. Automated verification reviews the container build, Terraform, CI/CD workflow, Kubernetes manifests, and secret handling. It also confirms that the workflow published `ghcr.io/<your-github-username>/journal-api:latest` and that the GHCR package is public.
+  description: >-
+    Push your completed implementation to your fork. The latest run of
+    `.github/workflows/ci.yml` must succeed on your current `main` commit,
+    with exactly one successful job named `test`, `build`, and `deploy`.
+    A failed, skipped, or missing job does not pass. Submit your fork for
+    verification after the run finishes.
   tips:
   - type: note
-    text: Keep your cloud registry and IAM-based Kubernetes image pull as the real deployment path. The public GHCR image is an additional copy used only for automated verification.
-  done_when: Your completed work is on `main`, the latest CI/CD run passes, and the public GHCR verification image is available.
+    text: Choose Re-run all jobs if you rerun a workflow. Verification reads only the latest attempt, so rerunning just failed jobs may leave required jobs missing.
+  done_when: The latest run and all three required jobs succeed on your current `main` commit, and your submission passes.
   slug: phase5-topic6-practice-submit-verification
 - uuid: c43d5d38-c50f-40eb-af1b-c77cb41c4be2
   order: 9

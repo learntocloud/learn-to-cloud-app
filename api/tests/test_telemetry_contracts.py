@@ -4,6 +4,7 @@ import ast
 import json
 import re
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -144,15 +145,46 @@ def _dict_keys(
     return keys if len(keys) == len(node.keys) else None
 
 
+def _application_python_files(root: Path) -> Iterator[Path]:
+    """Scan authored Python, not dependencies or generated package copies."""
+    for directory, subdirectories, filenames in root.walk():
+        subdirectories[:] = [
+            name
+            for name in subdirectories
+            if name not in {".venv", ".python_packages", "build"}
+        ]
+        for name in filenames:
+            if name.endswith(".py"):
+                yield directory / name
+
+
+@pytest.mark.parametrize("dependency_directory", [".venv", ".python_packages", "build"])
+def test_application_scan_excludes_generated_dependencies(
+    tmp_path, monkeypatch, dependency_directory
+):
+    source = tmp_path / "app" / "main.py"
+    source.parent.mkdir()
+    source.write_text(
+        'logger.info("app.event", extra={"verification.reason": "example"})\n'
+        'logger.exception("app.failure")\n'
+    )
+    dependency = tmp_path / dependency_directory / "lib" / "vendor.py"
+    dependency.parent.mkdir(parents=True)
+    dependency.write_bytes(b'\xef\xbb\xbflogger.exception("vendor.failure")\n')
+    monkeypatch.setitem(globals(), "_PYTHON_TELEMETRY_ROOTS", (tmp_path,))
+
+    assert list(_application_python_files(tmp_path)) == [source]
+    assert _application_attribute_names() == ({"verification.reason"}, [])
+    assert _exception_log_events() == {"app.failure"}
+
+
 def _application_attribute_names() -> tuple[set[str], list[str]]:
     attributes: set[str] = set()
     unresolved: list[str] = []
     log_methods = {"critical", "debug", "error", "exception", "info", "warning"}
 
     for root in _PYTHON_TELEMETRY_ROOTS:
-        for path in root.rglob("*.py"):
-            if ".venv" in path.parts:
-                continue
+        for path in _application_python_files(root):
             tree = ast.parse(path.read_text())
             bindings: dict[str, set[str]] = {}
             log_aliases: set[str] = set()
@@ -253,9 +285,7 @@ def _application_attribute_names() -> tuple[set[str], list[str]]:
 def _exception_log_events() -> set[str]:
     events: set[str] = set()
     for root in _PYTHON_TELEMETRY_ROOTS:
-        for path in root.rglob("*.py"):
-            if ".venv" in path.parts:
-                continue
+        for path in _application_python_files(root):
             tree = ast.parse(path.read_text())
             for node in ast.walk(tree):
                 if (
@@ -342,9 +372,7 @@ def test_raw_exception_details_are_limited_to_application_boundaries():
 def test_application_code_does_not_explicitly_record_raw_span_exceptions():
     calls: list[str] = []
     for root in _PYTHON_TELEMETRY_ROOTS:
-        for path in root.rglob("*.py"):
-            if ".venv" in path.parts:
-                continue
+        for path in _application_python_files(root):
             tree = ast.parse(path.read_text())
             for node in ast.walk(tree):
                 if (

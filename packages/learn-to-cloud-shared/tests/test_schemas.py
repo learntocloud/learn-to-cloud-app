@@ -27,11 +27,11 @@ def test_known_submission_types_matches_union() -> None:
         "devops_analysis",
         "security_scanning",
         "career_reflection",
-        "deployment_architecture",
     }
     # A type the DB CHECK allows but the union doesn't know must be absent,
     # so the content loader treats it as unknown (issue #603).
     assert "ci_status" not in KNOWN_HANDS_ON_SUBMISSION_TYPES
+    assert "deployment_architecture" not in KNOWN_HANDS_ON_SUBMISSION_TYPES
 
 
 def test_input_length_range_must_be_ordered() -> None:

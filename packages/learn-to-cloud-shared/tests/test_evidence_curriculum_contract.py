@@ -4,10 +4,11 @@ import pytest
 
 from learn_to_cloud_shared.content_catalog import load_curriculum_catalog
 from learn_to_cloud_shared.verification.ci_status import CAPSTONE_WORKFLOW_FILE
-from learn_to_cloud_shared.verification.tasks import VerificationTask
-from learn_to_cloud_shared.verification.tasks.phase5 import (
-    DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
+from learn_to_cloud_shared.verification.devops_analysis import (
+    DEVOPS_REQUIRED_JOBS,
+    DEVOPS_WORKFLOW_FILE,
 )
+from learn_to_cloud_shared.verification.tasks import VerificationTask
 from learn_to_cloud_shared.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
 )
@@ -21,12 +22,6 @@ pytestmark = pytest.mark.unit
 @pytest.mark.parametrize(
     ("task", "topic_slug", "required", "optional"),
     [
-        (
-            DEVOPS_IMPLEMENTATION_RUBRIC_TASK,
-            "capstone",
-            {"Dockerfile", "k8s/deployment.yaml", "k8s/service.yaml"},
-            {".dockerignore", "k8s/secrets.yaml.example"},
-        ),
         (
             SECURITY_SCANNING_RUBRIC_TASK,
             "capstone",
@@ -53,41 +48,22 @@ def test_named_evidence_is_published(
         assert f"`{path}`" in topic.model_dump_json()
 
 
-def test_published_source_rules_and_boundaries() -> None:
+def test_devops_run_and_job_contract_is_published() -> None:
     catalog = load_curriculum_catalog()
-    task = DEVOPS_IMPLEMENTATION_RUBRIC_TASK
     requirement = catalog.requirements_by_slug["devops-implementation"]
     topic = catalog.topics_by_phase_and_slug[("phase5", "capstone")]
+    assert str(requirement.uuid) == "623a87ae-156f-42da-a83c-09241d523e00"
+    assert requirement.submission_type == "devops_analysis"
     for text in (requirement.description, topic.model_dump_json()):
-        for rule in (
-            "`.github/workflows/`",
-            "`.yml`",
-            "`.yaml`",
-            "`infra/`",
-            "`.tf`",
-            "`.tf.json`",
-            "`k8s/`",
-            "`.terraform/`",
-        ):
-            assert rule in text
-        assert "directly" in text
-        assert "nested" in text
-        assert "outside" in text
-        assert "not" in text
-    assert task.evidence.max_files == 24
-    assert task.evidence.max_file_size_bytes == 50 * 1024
-    assert task.evidence.max_total_bytes == 200 * 1024
-    rules = {rule.root: rule for rule in task.evidence.directory_rules}
-    assert set(rules) == {".github/workflows/", "infra/", "k8s/"}
-    assert set(rules[".github/workflows/"].suffixes) == {".yml", ".yaml"}
-    assert not rules[".github/workflows/"].recursive
-    assert rules[".github/workflows/"].required
-    assert set(rules["infra/"].suffixes) == {".tf", ".tf.json"}
-    assert rules["infra/"].recursive
-    assert rules["infra/"].required
-    assert ".terraform" in rules["infra/"].excluded_directories
-    assert set(rules["k8s/"].suffixes) == {".yml", ".yaml"}
-    assert rules["k8s/"].recursive
+        assert f"`.github/workflows/{DEVOPS_WORKFLOW_FILE}`" in text
+        assert "latest run" in text
+        assert "current `main` commit" in text
+        for job in DEVOPS_REQUIRED_JOBS:
+            assert f"`{job}`" in text
+        assert "Re-run all jobs" in text
+        assert "run and job results" in text
+        assert "public GHCR" not in text
+        assert "Required evidence" not in text
 
 
 def test_capstone_workflow_and_local_responsibilities_are_published() -> None:

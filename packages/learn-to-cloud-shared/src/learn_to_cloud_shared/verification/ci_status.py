@@ -5,17 +5,17 @@ from __future__ import annotations
 import logging
 import re
 from json import JSONDecodeError
-from typing import Literal
 
 import httpx
 from opentelemetry import trace
-from pydantic import Field, ValidationError
+from pydantic import ValidationError
 
-from learn_to_cloud_shared.schemas import FrozenModel, TaskResult, ValidationResult
+from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.verification.github_errors import github_error_to_result
 from learn_to_cloud_shared.verification.github_http import RETRIABLE_EXCEPTIONS
 from learn_to_cloud_shared.verification.repo_ref import RepoRef, default_repo_ref
 from learn_to_cloud_shared.verification.workflow_runs import (
+    WorkflowRun,
     WorkflowRuns,
     default_workflow_runs,
 )
@@ -26,18 +26,6 @@ _RUN_INSTRUCTIONS = (
     "Open Actions > Verify capstone > Run workflow, select main, "
     "and submit again after it succeeds."
 )
-
-
-class _CapstoneRun(FrozenModel):
-    id: int = Field(gt=0)
-    run_number: int = Field(gt=0)
-    head_branch: str = Field(min_length=1)
-    event: str = Field(min_length=1)
-    head_sha: str = Field(pattern=r"^[0-9a-f]{40}$")
-    status: Literal[
-        "queued", "requested", "waiting", "pending", "in_progress", "completed"
-    ]
-    conclusion: str | None
 
 
 def _invalid_metadata() -> ValidationResult:
@@ -67,7 +55,7 @@ async def verify_ci_status(
     try:
         latest_run = await runs.latest_run(owner, repo, CAPSTONE_WORKFLOW_FILE)
         run = (
-            _CapstoneRun.model_validate(latest_run, strict=True)
+            WorkflowRun.model_validate(latest_run, strict=True)
             if latest_run is not None
             else None
         )
