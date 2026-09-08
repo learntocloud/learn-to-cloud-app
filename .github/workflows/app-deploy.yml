@@ -96,64 +96,8 @@ jobs:
     with:
       force_all: ${{ github.event_name == 'workflow_dispatch' }}
 
-  stop_legacy_verification:
-    needs: [changes, quality]
-    if: >-
-      needs.changes.outputs.app == 'true' ||
-      needs.changes.outputs.infra == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Azure CLI Login
-        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Stop legacy verification before infrastructure changes
-        run: |
-          set -euo pipefail
-          : "${AZURE_ENV_NAME:?AZURE_ENV_NAME repository variable is required}"
-          resource_group="rg-ltc-${AZURE_ENV_NAME}"
-          function_app="func-ltc-verification-${AZURE_ENV_NAME}"
-
-          # Lookup errors, including missing permissions, must fail deployment.
-          function_id=$(
-            az resource list \
-              --resource-group "$resource_group" \
-              --resource-type Microsoft.Web/sites \
-              --query "[?name=='$function_app'].id" \
-              --output tsv
-          )
-          if [[ -z "$function_id" ]]; then
-            echo "Legacy verification Function App is absent."
-            exit 0
-          fi
-
-          az functionapp stop --ids "$function_id"
-          for i in {1..30}; do
-            state=$(
-              az rest --method get \
-                --url "https://management.azure.com${function_id}?api-version=2024-04-01" \
-                --query properties.state --output tsv
-            )
-            if [[ -z "$state" ]]; then
-              echo "::error::Azure did not return the Function App state." >&2
-              exit 1
-            fi
-            echo "Legacy verification Function App state: $state"
-            if [[ "$state" == "Stopped" ]]; then
-              echo "Legacy verification Function App is stopped."
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "::error::Legacy verification Function App did not stop." >&2
-          exit 1
-
   infrastructure:
-    needs: [changes, quality, stop_legacy_verification]
+    needs: [changes, quality]
     if: needs.changes.outputs.infra == 'true'
     uses: ./.github/workflows/infra-deploy.yml
     with:
@@ -167,11 +111,10 @@ jobs:
       !cancelled() &&
       needs.changes.result == 'success' &&
       needs.quality.result == 'success' &&
-      needs.stop_legacy_verification.result == 'success' &&
       (needs.infrastructure.result == 'success' || needs.infrastructure.result == 'skipped') &&
       (needs.changes.outputs.app == 'true' ||
        needs.changes.outputs.infra == 'true')
-    needs: [changes, quality, stop_legacy_verification, infrastructure]
+    needs: [changes, quality, infrastructure]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:

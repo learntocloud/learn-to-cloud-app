@@ -138,8 +138,6 @@ Pushes to `main` select deployment work by changed paths:
 `app-deploy.yml` remains the single production entry point so combined releases
 are ordered and production deployments do not overlap. Application-only releases
 read Terraform outputs but do not plan or apply infrastructure. CI is unchanged.
-The legacy Functions shutdown remains a temporary prerequisite until the
-verification-worker cutover is confirmed complete.
 
 For manual runs of **Application Deploy**, choose `application` (the default),
 `infrastructure`, or `all`. A manual **Infrastructure Deploy** run remains
