@@ -127,7 +127,16 @@ jobs:
 
           az functionapp stop --ids "$function_id"
           for i in {1..30}; do
-            state=$(az functionapp show --ids "$function_id" --query state --output tsv)
+            state=$(
+              az rest --method get \
+                --url "https://management.azure.com${function_id}?api-version=2024-04-01" \
+                --query properties.state --output tsv
+            )
+            if [[ -z "$state" ]]; then
+              echo "::error::Azure did not return the Function App state." >&2
+              exit 1
+            fi
+            echo "Legacy verification Function App state: $state"
             if [[ "$state" == "Stopped" ]]; then
               echo "Legacy verification Function App is stopped."
               exit 0
