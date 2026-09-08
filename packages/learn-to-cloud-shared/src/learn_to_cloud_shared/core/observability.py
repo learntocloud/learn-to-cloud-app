@@ -1,10 +1,9 @@
 """Single-pipeline Azure Monitor and OTLP configuration.
 
-The API calls this before constructing FastAPI. Azure Monitor owns FastAPI
-instrumentation in production; local OTLP configures it explicitly. HTTPX and
-SQLAlchemy remain application-owned because the Azure distro does not bundle
-those instrumentations. Verification Functions reuse only the dependency setup
-and their host-owned OTLP pipeline.
+Azure Monitor owns FastAPI instrumentation in production; local OTLP configures
+it explicitly with SDK defaults. HTTPX and SQLAlchemy are application-owned.
+Production Functions use the worker-owned Azure pipeline; local Functions export
+app logs directly to OTLP while the host owns framework logs.
 """
 
 from __future__ import annotations
@@ -12,14 +11,15 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any
-from urllib.parse import urlsplit
 
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor, RequestInfo
 from opentelemetry.sdk.resources import Resource
+from opentelemetry.trace import Span
 
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE
 
 logger = logging.getLogger(__name__)
+_OTLP_HANDLER_NAME = "learn_to_cloud.otlp"
 
 _telemetry_enabled: bool = False
 _dependency_tracing_enabled: bool = False
@@ -27,42 +27,17 @@ _fastapi_instrumented: bool = False
 _httpx_instrumented: bool = False
 
 
-def _httpx_origin(request: Any) -> str:
-    url = request.url
-    if isinstance(url, tuple):
-        scheme, host, port, _ = url
-        scheme_text = scheme.decode() if isinstance(scheme, bytes) else scheme
-        host_text = host.decode() if isinstance(host, bytes) else host
-        return (
-            f"{scheme_text}://{host_text}:{port}"
-            if port is not None
-            else f"{scheme_text}://{host_text}"
-        )
-
-    parsed = urlsplit(str(url))
-    host = parsed.hostname or ""
-    if ":" in host:
-        host = f"[{host}]"
-    return (
-        f"{parsed.scheme}://{host}:{parsed.port}"
-        if parsed.port is not None
-        else f"{parsed.scheme}://{host}"
-    )
-
-
-def _sanitize_httpx_span(span: Any, request: Any) -> None:
+def _sanitize_httpx_span(span: Span, request: RequestInfo) -> None:
     if not span.is_recording():
         return
 
-    origin = _httpx_origin(request)
-    span.set_attribute("http.target", "/")
-    span.set_attribute("http.url", origin)
-    span.set_attribute("url.full", origin)
-    span.set_attribute("url.path", "/")
+    url = request.url.copy_with(username="", password="", query=None, fragment=None)
+    span.set_attribute("http.url", str(url))
+    span.set_attribute("url.full", str(url))
     span.set_attribute("url.query", "")
 
 
-async def _sanitize_async_httpx_span(span: Any, request: Any) -> None:
+async def _sanitize_async_httpx_span(span: Span, request: RequestInfo) -> None:
     _sanitize_httpx_span(span, request)
 
 
@@ -163,7 +138,9 @@ def _configure_otlp_exporters(
     log_provider = LoggerProvider(resource=resource)
     log_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter_cls()))
     set_logger_provider(log_provider)
-    logging.getLogger().addHandler(LoggingHandler(logger_provider=log_provider))
+    handler = LoggingHandler(logger_provider=log_provider)
+    handler.set_name(_OTLP_HANDLER_NAME)
+    logging.getLogger().addHandler(handler)
 
     from opentelemetry import metrics
     from opentelemetry.sdk.metrics import MeterProvider
@@ -286,8 +263,19 @@ def configure_observability() -> bool:
 
 
 def configure_otlp_observability() -> bool:
-    """Set up OTLP without adding an application-owned Azure exporter."""
-    return _configure_observability(allow_azure_monitor=False)
+    """Export Functions app logs once, without forwarding them to the host."""
+    if not _configure_observability(allow_azure_monitor=False):
+        return False
+
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        if handler.get_name() == _OTLP_HANDLER_NAME:
+            for name in (APP_LOGGER_NAMESPACE, "learn_to_cloud_shared"):
+                app_logger = logging.getLogger(name)
+                app_logger.addHandler(handler)
+                app_logger.propagate = False
+            root.removeHandler(handler)
+    return True
 
 
 def instrument_database(engine: Any) -> None:

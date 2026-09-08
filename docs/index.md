@@ -12,7 +12,7 @@ Architecture, contributor, and operations documentation for the
 - [Curriculum architecture](curriculum.html)
 - [Progression system](progression-system.html)
 - [Database migrations](migrations.html)
-- [Telemetry schema](observability/telemetry-schema.html)
+- [Telemetry](contributing.html#telemetry)
 - [Contributing](contributing.html)
 - [Authentication and sessions](contributing.html#authentication-and-sessions)
 - [GitHub Powering Your AI SDLC presentation](scaling-with-github/)

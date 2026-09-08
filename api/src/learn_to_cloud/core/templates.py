@@ -52,23 +52,17 @@ def _static_url_context(request: Request) -> dict[str, object]:
     return {"static_url": static_url, "logout_all_csrf": csrf_token(request)}
 
 
-def _frontend_telemetry_context(request: Request) -> dict[str, object]:
+def _frontend_telemetry_context(_request: Request) -> dict[str, object]:
     """Inject browser telemetry config when frontend telemetry is enabled."""
     settings = get_web_settings()
     conn_str = settings.frontend_telemetry.applicationinsights_connection_string
     if not conn_str:
         return {"frontend_telemetry": None}
 
-    route = request.scope.get("route")
-    route_path = getattr(route, "path", None)
-    if not isinstance(route_path, str):
-        route_path = "/unmatched"
-
     return {
         "frontend_telemetry": {
             "connection_string": conn_str,
             "sampling_percentage": settings.frontend_telemetry.sampling_percentage,
-            "route_path": route_path,
         }
     }
 

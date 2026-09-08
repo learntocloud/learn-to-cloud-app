@@ -4,6 +4,13 @@ These guides cover the first response to production alerts. Run queries in the
 Application Insights **Logs** blade unless a section says to use the Log
 Analytics workspace. Replace `dev` if the alert came from another environment.
 
+Start with the action or error, follow its operation/attempt ID through related
+telemetry, then use `verification.attempt.id` to look up the saved submission
+and feedback in the database when authorized. Do not duplicate those payloads
+in logs or public incident notes. Native URL paths and unexpected exception
+details are available; query credentials are removed from URL fields. See
+[Telemetry](../contributing.html#telemetry) for the collection boundaries.
+
 ## Signal contracts
 
 | Alert resource | Canonical source | Audit result |
@@ -209,7 +216,7 @@ requires a separately scoped retention decision, not an assumed timer.
 A persisted OAuth identity that differs from the validated provider identity is
 an application invariant failure. It should not commit or issue a new session;
 investigate it through the existing unhandled-exception guide above.
-See the [telemetry schema](../observability/telemetry-schema.html) for reason values.
+See [Authentication and sessions](../contributing.html#authentication-and-sessions).
 
 ## Ignored optional profile names and staged schema rollout
 

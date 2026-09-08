@@ -118,6 +118,24 @@ class _Tracer:
         return span
 
 
+@pytest.fixture
+def step_spans(monkeypatch):
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    monkeypatch.setattr(
+        engine_module, "_tracer", provider.get_tracer(engine_module.__name__)
+    )
+    yield exporter
+    provider.shutdown()
+
+
 def _job(requirement=None) -> PreparedVerificationAttempt:
     requirement = requirement or repo_fork_requirement()
     return PreparedVerificationAttempt(
@@ -193,42 +211,40 @@ async def test_run_verification_uses_declared_steps(monkeypatch):
         "verification.check.name": "github_repository_ownership",
         "verification.step.result": "passed",
     }
-    name, span, options = tracer.spans[-1]
+    name, span, _ = tracer.spans[-1]
     assert name == "verification.step"
     assert span.attributes == {
         "verification.check.name": "test_gate_pass",
         "verification.task.id": "gate",
         "verification.step.result": "passed",
     }
-    assert options["record_exception"] is False
-    assert options["set_status_on_exception"] is False
 
 
 @pytest.mark.asyncio
-async def test_step_span_records_error_type_without_exception_details(monkeypatch):
+async def test_step_span_records_native_exception(monkeypatch, step_spans):
     async def _explode(context: StepContext) -> StepResult:
-        raise RuntimeError("sensitive failure details")
+        raise RuntimeError("Unexpected step failure")
 
     monkeypatch.setattr(
         engine_module,
         "workflow_for",
         lambda _t: _workflow(_step(_explode, "explode", name="exploding")),
     )
-    tracer = _Tracer()
-    monkeypatch.setattr(engine_module, "_tracer", tracer)
-
-    with pytest.raises(RuntimeError, match="sensitive failure details"):
+    with pytest.raises(RuntimeError, match="Unexpected step failure"):
         await run_verification(_job())
 
-    _, span, _ = tracer.spans[-1]
+    span = step_spans.get_finished_spans()[-1]
     assert span.attributes == {
         "verification.check.name": "exploding",
         "verification.task.id": "explode",
-        "verification.step.result": "error",
-        "error.type": "RuntimeError",
     }
     assert span.status is not None
     assert span.status.status_code is StatusCode.ERROR
+    (event,) = span.events
+    assert event.name == "exception"
+    assert event.attributes["exception.type"] == "RuntimeError"
+    assert event.attributes["exception.message"] == "Unexpected step failure"
+    assert "_explode" in event.attributes["exception.stacktrace"]
 
 
 @pytest.mark.asyncio
@@ -560,23 +576,11 @@ async def test_ownership_exports_bounded_telemetry(
 
 
 @pytest.mark.parametrize("error_type", [RuntimeError, asyncio.CancelledError])
-async def test_ownership_exception_exports_only_safe_error_state(
-    monkeypatch, repository_metadata, caplog, error_type
+async def test_ownership_failure_keeps_native_diagnostics_and_correlation(
+    monkeypatch, repository_metadata, caplog, error_type, step_spans
 ):
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
-        InMemorySpanExporter,
-    )
-
-    exporter = InMemorySpanExporter()
-    provider = TracerProvider()
-    provider.add_span_processor(SimpleSpanProcessor(exporter))
-    tracer = provider.get_tracer(engine_module.__name__)
-    monkeypatch.setattr(engine_module, "_tracer", tracer)
-    error = error_type(
-        "private-provider-body private-token https://github.com/private-owner/private-repo"
-    )
+    tracer = engine_module._tracer
+    error = error_type("Repository metadata parser failed")
 
     async def fail_lookup(*_args):
         raise error
@@ -591,62 +595,43 @@ async def test_ownership_exception_exports_only_safe_error_state(
     monkeypatch.setattr(engine_module, "record_evidence_decision", evidence_decision)
     job = _job()
 
-    try:
-        with (
-            caplog.at_level(logging.INFO),
-            tracer.start_as_current_span(
-                "verification.attempt",
-                attributes={"verification.attempt.id": str(job.id)},
-                record_exception=False,
-                set_status_on_exception=False,
-            ),
-            pytest.raises(error_type) as raised,
-        ):
-            await run_verification(job)
+    with (
+        caplog.at_level(logging.INFO),
+        tracer.start_as_current_span(
+            "verification.attempt",
+            attributes={"verification.attempt.id": str(job.id)},
+        ),
+        pytest.raises(error_type) as raised,
+    ):
+        await run_verification(job)
 
-        assert raised.value is error
-        assert "fail_lookup" in {
-            frame.name for frame in traceback.extract_tb(raised.value.__traceback__)
-        }
-        lookup.assert_awaited_once_with(job.target.owner, job.target.repo)
-        step.assert_not_awaited()
-        counter.add.assert_not_called()
-        evidence_decision.assert_not_called()
-        ownership_span, attempt_span = exporter.get_finished_spans()
-        assert ownership_span.name == "verification.step"
-        assert ownership_span.instrumentation_scope.name == engine_module.__name__
-        assert ownership_span.parent.span_id == attempt_span.context.span_id
-        assert ownership_span.context.trace_id == attempt_span.context.trace_id
-        assert attempt_span.attributes["verification.attempt.id"] == str(job.id)
-        expected_attributes = {
-            "verification.check.name": "github_repository_ownership",
-        }
-        if error_type is RuntimeError:
-            expected_attributes.update(
-                {"verification.step.result": "error", "error.type": "RuntimeError"}
-            )
-        assert dict(ownership_span.attributes) == expected_attributes
-        assert ownership_span.status.status_code is (
-            StatusCode.ERROR if error_type is RuntimeError else StatusCode.UNSET
-        )
-        exported = caplog.text
-        for span in (ownership_span, attempt_span):
-            assert span.status.description is None
-            assert not span.events
-            exported += span.to_json()
-        for sentinel in (
-            "private-provider-body",
-            "private-token",
-            "private-owner",
-            "private-repo",
-            "exception.message",
-            "exception.stacktrace",
-            "verification.evidence.assembled",
-            "verification.attempt.completed",
-        ):
-            assert sentinel not in exported
-    finally:
-        provider.shutdown()
+    assert raised.value is error
+    assert "fail_lookup" in {
+        frame.name for frame in traceback.extract_tb(raised.value.__traceback__)
+    }
+    lookup.assert_awaited_once_with(job.target.owner, job.target.repo)
+    step.assert_not_awaited()
+    counter.add.assert_not_called()
+    evidence_decision.assert_not_called()
+    ownership_span, attempt_span = step_spans.get_finished_spans()
+    assert ownership_span.name == "verification.step"
+    assert ownership_span.parent.span_id == attempt_span.context.span_id
+    assert ownership_span.context.trace_id == attempt_span.context.trace_id
+    assert attempt_span.attributes["verification.attempt.id"] == str(job.id)
+    assert ownership_span.attributes["verification.check.name"] == (
+        "github_repository_ownership"
+    )
+    assert ownership_span.status.status_code == (
+        StatusCode.ERROR if error_type is RuntimeError else StatusCode.UNSET
+    )
+    if error_type is RuntimeError:
+        (event,) = ownership_span.events
+        assert event.attributes["exception.message"] == str(error)
+        assert "fail_lookup" in event.attributes["exception.stacktrace"]
+    else:
+        assert not ownership_span.events
+    assert not attempt_span.events
+    assert "verification.attempt.completed" not in caplog.text
 
 
 # ---------------------------------------------------------------------------

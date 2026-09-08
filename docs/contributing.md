@@ -361,7 +361,7 @@ The shared package separates workflow configuration from execution:
 | `core.py` | Typed check callables, steps, results, contexts, and workflows. |
 | `checks/` | Focused adapters around domain validators and evidence collectors. |
 | `workflows.py` | Ordered steps, username requirements, and rubric configuration per submission type. |
-| `engine.py` | Ownership preflight, execution, evidence flow, aggregation, safe step telemetry, and grading preparation. |
+| `engine.py` | Ownership preflight, execution, evidence flow, aggregation, step tracing, and grading preparation. |
 | `execution.py` | Persisted message/result projection, not the engine core. |
 
 To add a check, define a public async function in a focused check module and
@@ -752,7 +752,45 @@ Session rejections use bounded reasons without exception details; expected
 expiry, unknown-session, and cutover outcomes are informational, not automatic
 compromise warnings. Ordinary anonymous access emits no event. Failed OAuth attempts do not clear an
 existing valid login or unrelated authorization state.
-See the [telemetry schema](observability/telemetry-schema.html).
+See [Telemetry](#telemetry).
+
+### Telemetry
+
+Use OpenTelemetry/Application Insights for requests, dependencies, timing,
+correlation and unexpected exception diagnostics. Add application events for
+meaningful actions and saved outcomes, not another copy of every SDK signal.
+There is no global field registry: keep fields useful and review them with the
+code. Preserve event names and fields used by alerts. Unique attempt IDs belong
+in logs/traces, not metric dimensions.
+
+Telemetry explains what happened; the database holds submitted values and
+feedback. Investigate using the operation ID and `verification.attempt.id`,
+then look up the database record when authorized. Not every fetched file or
+grading prompt is stored there; some failures need reproduction. Do not
+deliberately attach credentials, cookies, submitted bodies, evidence, or model
+prompts/results to logs or spans. SQL parameter hiding and small URL filters
+remain because OAuth/polling query values are credentials the SDK does not
+automatically remove. Normal paths and native exception details are useful;
+we do not guarantee redaction of public profile values or arbitrary error text.
+
+The browser SDK collects dependencies and errors without cookies or browser
+storage. Two HTMX hooks record page views because SDK history tracking counts
+HTMX's `replaceState` and `pushState` twice. Do not enable both approaches.
+Provider error classification still controls learner feedback and incomplete
+verification; it is not a reason to suppress unrelated programming errors.
+
+Azure Monitor owns FastAPI instrumentation in production. Local OTLP configures
+the same instrumentation explicitly with SDK defaults. Keep the default ASGI
+receive/send spans rather than replacing Azure Monitor's setup just to reduce
+trace noise.
+
+Local Functions send application logs directly through the existing OTLP
+handler, without forwarding the same records to the Functions host. The host
+still collects framework logs. Leave `PYTHON_ENABLE_OPENTELEMETRY` unset:
+runtime 1.2.1 crashes async invocations with that flag
+([upstream issue](https://github.com/Azure/azure-functions-python-worker/issues/1881)).
+Production continues to use `PYTHON_APPLICATIONINSIGHTS_ENABLE_TELEMETRY=true`
+and its worker-owned Azure Monitor pipeline.
 
 ## Conventions
 

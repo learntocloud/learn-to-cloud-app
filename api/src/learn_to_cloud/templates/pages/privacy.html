@@ -3,7 +3,7 @@
 
 {% block page_header %}
 <h1 class="page-title">Privacy Policy</h1>
-<p class="mt-3 text-sm text-gray-500 dark:text-gray-400">Last updated: September 5, 2026</p>
+<p class="mt-3 text-sm text-gray-500 dark:text-gray-400">Last updated: September 8, 2026</p>
 {% endblock %}
 
 {% block page_body %}
@@ -21,7 +21,7 @@
     <section>
         <h2>Data We Collect</h2>
         <p>
-            When you sign in with GitHub, we collect only the following from your <strong>public</strong> GitHub profile:
+            During sign-in, we read your GitHub profile and save these fields:
         </p>
         <ul>
             <li><strong>GitHub user ID</strong> — used as your account identifier</li>
@@ -30,18 +30,18 @@
             <li><strong>Avatar URL</strong> — shown in the navigation bar</li>
         </ul>
         <p>
-            We do <strong>not</strong> collect your email address, password, private repositories, or any other personal
-            profile information beyond what is listed above.
+            We do not save other fields from the profile response or request your GitHub password.
         </p>
         <p>
-            We collect basic browser telemetry, such as page views, performance timings, and client-side errors, to
-            diagnose reliability issues. Browser telemetry is not linked to your GitHub account, username, or internal
-            user ID. Profile names are not included in browser telemetry.
+            We collect browser page views, request outcomes, performance timings, and client-side errors to
+            diagnose reliability issues. We do not set a GitHub account identity in browser telemetry.
+            Normal URL paths and error details are included; query values are removed from URL fields.
         </p>
         <p>
-            We also collect server diagnostics to investigate failures. We do not deliberately log profile payloads,
-            and database query parameters are hidden, but database error messages may include public GitHub profile
-            values such as your username, display name, or avatar URL.
+            Server diagnostics record actions, outcomes, timing, and errors. Attempt IDs let authorized maintainers
+            look up submission details in the database without copying them into routine logs. We do not deliberately
+            log credentials or submission payloads, and database query parameters are hidden. Ordinary error
+            diagnostics may include public GitHub profile values.
         </p>
     </section>
 
@@ -49,18 +49,17 @@
         <h2>GitHub OAuth Scope</h2>
         <p>
             We request the <code>read:user</code>
-            OAuth scope, which grants read-only access to your public profile information. We do not request access to
-            your repositories, organizations, or any private data. Your GitHub access token is used only during
-            sign-in and is never stored.
+            OAuth scope to read your profile. We do not request repository or organization scopes for sign-in.
+            Your GitHub access token is used during sign-in and is not saved in our database or session cookies.
         </p>
     </section>
 
     <section>
         <h2>Data You Submit</h2>
         <p>
-            As part of hands-on verification, you voluntarily submit URLs and tokens (such as GitHub repository URLs,
-            deployed application URLs, and CTF tokens) to prove completion of exercises. This submitted data is stored
-            alongside your account.
+            Verification submissions include URLs, lab tokens, and reflection text. We store submitted values,
+            learning progress, verification outcomes, and feedback alongside your account. Verification can also
+            fetch repository files and send selected evidence to automated grading.
         </p>
     </section>
 
@@ -71,7 +70,7 @@
             <li>Identify your account and maintain your session</li>
             <li>Track your learning progress across phases</li>
             <li>Verify completion of hands-on exercises</li>
-            <li>Compute anonymous, aggregate community statistics</li>
+            <li>Compute aggregate community statistics and display graduates' public usernames and avatars</li>
             <li>Diagnose server and client-side errors and performance issues</li>
         </ul>
     </section>
@@ -81,8 +80,7 @@
         <ul>
             <li>We do not sell or rent your personal information; service providers below process data to operate the platform</li>
             <li>We do not use your data for advertising, recruiting, or marketing purposes</li>
-            <li>We do not send unsolicited emails (we don't even collect your email)</li>
-            <li>We do not scrape or crawl GitHub profiles beyond your own authenticated data</li>
+            <li>We do not send unsolicited emails</li>
             <li>We do not store your GitHub access token</li>
         </ul>
     </section>
@@ -102,10 +100,9 @@
     <section>
         <h2>Data Retention &amp; Deletion</h2>
         <p>
-            Your data is retained as long as your account exists. You can permanently delete your account and all
-            associated data (progress and submissions) at any time from your
-            <a href="/account">Account page</a>.
-            Deletion is immediate and irreversible.
+            Your account-linked database records are retained while your account exists. Deleting your account
+            from the <a href="/account">Account page</a> removes your profile, progress, submissions, feedback,
+            and sessions from the active application database. This cannot be undone through the app.
         </p>
         <p>
             Sessions stop working after 7 days without authenticated activity or 30 days after sign-in.
@@ -115,8 +112,10 @@
             cannot authenticate while waiting for cleanup.
         </p>
         <p>
-            Account deletion does not remove existing diagnostic logs. Those logs follow the telemetry
-            service's separate retention settings and have restricted access.
+            Account deletion does not erase database backups, existing diagnostic logs, or verification history
+            held by workflow and grading services. Those records have separate retention settings.
+            Already-running verification work is not cancelled, and data on GitHub or your own deployments
+            is not deleted.
         </p>
     </section>
 
@@ -127,7 +126,8 @@
         </p>
         <ul>
             <li><strong>GitHub API</strong> — to sign you in and verify repositories and profiles you submit</li>
-            <li><strong>Azure OpenAI</strong> — to analyze code you submit for verification (code is not stored by the LLM)</li>
+            <li><strong>Microsoft Foundry / Azure OpenAI</strong> — to grade selected code, reflection text, and related metadata; service storage and abuse monitoring follow Microsoft's data-handling terms</li>
+            <li><strong>Azure Durable Task Scheduler</strong> — to run verification workflows and retain their inputs and results</li>
             <li><strong>Azure Application Insights</strong> — to collect server and browser diagnostics</li>
         </ul>
     </section>

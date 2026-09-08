@@ -17,6 +17,7 @@ from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
 from learn_to_cloud.rendering.htmx_responses import render_step_toggle
 from learn_to_cloud.rendering.page_content import (
     COMMUNITY_LINKS,
+    FAQS,
     HELP_LINKS,
 )
 from learn_to_cloud.rendering.requirement_cards import (
@@ -78,6 +79,44 @@ def _base_ctx(**overrides: object) -> dict[str, object]:
 
 def _render(template_name: str, **ctx: object) -> str:
     return _ENV.get_template(template_name).render(**_base_ctx(**ctx))
+
+
+@pytest.mark.unit
+def test_privacy_describes_diagnostics_and_separate_retention():
+    html = _render("pages/privacy.html")
+    assert "request outcomes" in html
+    assert "client-side errors" in html
+    assert "query values are removed from URL fields" in html
+    assert "Attempt IDs" in html
+    assert "reflection text" in html
+    assert "does not erase database backups" in html
+    assert "Azure Durable Task Scheduler" in html
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("page", ["account", "faq"])
+def test_account_deletion_copy_scopes_removal_to_active_database(page):
+    html = _render(f"pages/{page}.html", faqs=FAQS)
+    assert "active" in html and "application database" in html
+    assert 'href="/privacy"' in html
+
+
+@pytest.mark.unit
+def test_browser_sdk_collects_errors_without_persistent_tracking():
+    html = _render(
+        "pages/privacy.html",
+        frontend_telemetry={
+            "connection_string": "InstrumentationKey=synthetic",
+            "sampling_percentage": 100,
+        },
+    )
+    assert "cookieCfg: { enabled: false }" in html
+    assert "isStorageUseDisabled: true" in html
+    assert "enableUnhandledPromiseRejectionTracking: true" in html
+    assert "disableAjaxTracking: true" not in html
+    assert "disableFetchTracking: true" not in html
+    assert "disableExceptionTracking: true" not in html
+    assert "enableAutoRouteTracking: true" not in html
 
 
 @pytest.mark.unit

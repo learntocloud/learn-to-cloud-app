@@ -1,10 +1,23 @@
 """Unit tests for observability instrumentation helpers."""
 
+import logging
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
+import httpx
 import pytest
+from opentelemetry.instrumentation.httpx import AsyncOpenTelemetryTransport, RequestInfo
+from opentelemetry.instrumentation.logging.handler import LoggingHandler
+from opentelemetry.sdk._logs import LoggerProvider
+from opentelemetry.sdk._logs.export import (
+    InMemoryLogRecordExporter,
+    SimpleLogRecordProcessor,
+)
 from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import StatusCode
 
 from learn_to_cloud_shared.core import observability
 
@@ -111,12 +124,18 @@ def test_build_resource_maps_function_instance_identity():
 
 
 @pytest.mark.unit
-def test_configure_observability_uses_azure_monitor_when_connection_string_set():
+@pytest.mark.parametrize("otlp_endpoint", ["", "http://localhost:4317"])
+def test_configure_observability_uses_azure_monitor_when_connection_string_set(
+    otlp_endpoint,
+):
     resource = MagicMock(spec=Resource)
     with (
         patch.dict(
             "os.environ",
-            {"APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test"},
+            {
+                "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test",
+                "OTEL_EXPORTER_OTLP_ENDPOINT": otlp_endpoint,
+            },
             clear=True,
         ),
         patch(
@@ -329,6 +348,80 @@ def test_configure_azure_monitor_uses_distro_instrumentation_defaults():
 
 
 @pytest.mark.unit
+def test_local_functions_export_app_logs_once_without_host_forwarding():
+    root = logging.getLogger()
+    original_handlers = root.handlers[:]
+    app_loggers = [
+        logging.getLogger(name) for name in ("learn_to_cloud", "learn_to_cloud_shared")
+    ]
+    original_loggers = [
+        (logger, logger.handlers[:], logger.propagate, logger.level)
+        for logger in app_loggers
+    ]
+    exporter = InMemoryLogRecordExporter()
+    provider = LoggerProvider()
+    provider.add_log_record_processor(SimpleLogRecordProcessor(exporter))
+    handler = LoggingHandler(logger_provider=provider)
+    handler.set_name(observability._OTLP_HANDLER_NAME)
+    host_handler = MagicMock(spec=logging.Handler)
+    host_handler.level = logging.NOTSET
+    root.handlers = [handler, host_handler]
+    try:
+        with patch.object(observability, "_configure_observability", return_value=True):
+            assert observability.configure_otlp_observability() is True
+            assert observability.configure_otlp_observability() is True
+
+        for app_logger in app_loggers:
+            app_logger.setLevel(logging.INFO)
+            logging.getLogger(f"{app_logger.name}.verification").info(
+                "verification.attempt.completed",
+                extra={"verification.attempt.id": "attempt-probe"},
+            )
+
+        records = exporter.get_finished_logs()
+        assert len(records) == 2
+        for record in records:
+            assert record.log_record.body == "verification.attempt.completed"
+            assert record.log_record.attributes["verification.attempt.id"] == (
+                "attempt-probe"
+            )
+        host_handler.handle.assert_not_called()
+        logging.getLogger("azure.functions").warning("framework-probe")
+        host_handler.handle.assert_called_once()
+        assert host_handler.handle.call_args.args[0].getMessage() == "framework-probe"
+        assert root.handlers == [host_handler]
+    finally:
+        root.handlers = original_handlers
+        for app_logger, handlers, propagate, level in original_loggers:
+            app_logger.handlers = handlers
+            app_logger.propagate = propagate
+            app_logger.setLevel(level)
+        provider.shutdown()
+
+
+@pytest.mark.unit
+def test_failed_local_setup_does_not_change_log_routing():
+    root = logging.getLogger()
+    handlers = root.handlers[:]
+    app_logger = logging.getLogger("learn_to_cloud")
+    propagation = app_logger.propagate
+    with patch.object(observability, "_configure_observability", return_value=False):
+        assert observability.configure_otlp_observability() is False
+    assert root.handlers == handlers
+    assert app_logger.propagate is propagation
+
+
+@pytest.mark.unit
+def test_fastapi_instrumentation_is_process_wide_and_idempotent():
+    with patch(
+        "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor"
+    ) as instrumentor:
+        assert observability.configure_fastapi_instrumentation() is True
+        assert observability.configure_fastapi_instrumentation() is True
+    instrumentor.return_value.instrument.assert_called_once_with()
+
+
+@pytest.mark.unit
 def test_configure_otlp_uses_env_driven_exporter_defaults():
     resource = observability._build_resource()
     with (
@@ -476,20 +569,66 @@ def test_httpx_instrumentation_is_process_wide_and_idempotent():
 
 
 @pytest.mark.unit
-def test_httpx_hook_keeps_only_dependency_origin():
+def test_httpx_hook_preserves_dependency_path_without_credentials():
     span = MagicMock()
     span.is_recording.return_value = True
-    request = SimpleNamespace(url="https://api.example.com/users/123?token=sensitive")
+    request = RequestInfo(
+        b"GET",
+        httpx.URL(
+            "https://user:password@api.example.com/users/123?token=sensitive#secret"
+        ),
+        None,
+        None,
+        None,
+    )
 
     observability._sanitize_httpx_span(span, request)
 
     assert span.set_attribute.call_args_list == [
-        call("http.target", "/"),
-        call("http.url", "https://api.example.com"),
-        call("url.full", "https://api.example.com"),
-        call("url.path", "/"),
+        call("http.url", "https://api.example.com/users/123"),
+        call("url.full", "https://api.example.com/users/123"),
         call("url.query", ""),
     ]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("failed", [False, True])
+async def test_httpx_exports_native_dependency_without_query_credentials(failed):
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+    def respond(request):
+        assert request.url.params["token"] == "query-credential-sentinel"
+        if failed:
+            raise httpx.ConnectError("Connection failed", request=request)
+        return httpx.Response(200)
+
+    transport = AsyncOpenTelemetryTransport(
+        httpx.MockTransport(respond),
+        tracer_provider=provider,
+        request_hook=observability._sanitize_async_httpx_span,
+    )
+    try:
+        async with httpx.AsyncClient(transport=transport) as client:
+            url = "https://example.com/users/123?token=query-credential-sentinel"
+            if failed:
+                with pytest.raises(httpx.ConnectError, match="Connection failed"):
+                    await client.get(url)
+            else:
+                assert (await client.get(url)).status_code == 200
+        (span,) = exporter.get_finished_spans()
+        assert span.name == "GET"
+        assert span.attributes["url.full"] == "https://example.com/users/123"
+        assert span.end_time >= span.start_time
+        assert "query-credential-sentinel" not in span.to_json()
+        assert span.status.status_code == (
+            StatusCode.ERROR if failed else StatusCode.UNSET
+        )
+        if failed:
+            assert any(event.name == "exception" for event in span.events)
+    finally:
+        provider.shutdown()
 
 
 @pytest.mark.unit
