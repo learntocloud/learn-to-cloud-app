@@ -4,16 +4,23 @@
 # Run all: prek run --all-files
 
 repos:
-  # Ruff - Python linting and formatting
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.5
+  # Ruff - use the workspace version for linting and formatting
+  - repo: local
     hooks:
       - id: ruff
         name: ruff lint
+        entry: uv run --project api ruff check --force-exclude
+        language: system
+        types_or: [python, pyi, jupyter]
+        require_serial: true
         args: [--fix]
         files: ^(api|packages/learn-to-cloud-shared(-test-support)?)/
       - id: ruff-format
         name: ruff format
+        entry: uv run --project api ruff format --force-exclude
+        language: system
+        types_or: [python, pyi, jupyter, markdown]
+        require_serial: true
         files: ^(api|packages/learn-to-cloud-shared(-test-support)?)/
 
   # ty - Python type checking
