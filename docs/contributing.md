@@ -779,10 +779,10 @@ HTMX's `replaceState` and `pushState` twice. Do not enable both approaches.
 Provider error classification still controls learner feedback and incomplete
 verification; it is not a reason to suppress unrelated programming errors.
 
-The API configures FastAPI instrumentation once for both Azure Monitor and local
-OTLP, excluding low-level ASGI receive/send spans while retaining request spans,
-metrics, dependencies and errors. Azure Monitor's automatic FastAPI setup is
-disabled because it does not forward that exclusion option.
+Azure Monitor owns FastAPI instrumentation in production. Local OTLP configures
+the same instrumentation explicitly with SDK defaults. Keep the default ASGI
+receive/send spans rather than replacing Azure Monitor's setup just to reduce
+trace noise.
 
 Local Functions send application logs directly through the existing OTLP
 handler, without forwarding the same records to the Functions host. The host

@@ -1,7 +1,6 @@
 """Unit tests for observability instrumentation helpers."""
 
 import logging
-from functools import partial
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
@@ -125,12 +124,18 @@ def test_build_resource_maps_function_instance_identity():
 
 
 @pytest.mark.unit
-def test_configure_observability_uses_azure_monitor_when_connection_string_set():
+@pytest.mark.parametrize("otlp_endpoint", ["", "http://localhost:4317"])
+def test_configure_observability_uses_azure_monitor_when_connection_string_set(
+    otlp_endpoint,
+):
     resource = MagicMock(spec=Resource)
     with (
         patch.dict(
             "os.environ",
-            {"APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test"},
+            {
+                "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test",
+                "OTEL_EXPORTER_OTLP_ENDPOINT": otlp_endpoint,
+            },
             clear=True,
         ),
         patch(
@@ -156,9 +161,7 @@ def test_configure_observability_uses_azure_monitor_when_connection_string_set()
         request_hook=observability._sanitize_httpx_span,
         async_request_hook=observability._sanitize_async_httpx_span,
     )
-    fastapi_instrumentor.return_value.instrument.assert_called_once_with(
-        exclude_spans=["receive", "send"]
-    )
+    fastapi_instrumentor.assert_not_called()
     assert observability._telemetry_enabled is True
     assert configured is True
 
@@ -195,9 +198,7 @@ def test_configure_observability_uses_otlp_when_endpoint_set():
         request_hook=observability._sanitize_httpx_span,
         async_request_hook=observability._sanitize_async_httpx_span,
     )
-    fastapi_instrumentor.return_value.instrument.assert_called_once_with(
-        exclude_spans=["receive", "send"]
-    )
+    fastapi_instrumentor.return_value.instrument.assert_called_once_with()
     assert observability._telemetry_enabled is True
     assert configured is True
 
@@ -330,7 +331,7 @@ def test_configure_observability_noops_when_already_enabled():
 
 
 @pytest.mark.unit
-def test_configure_azure_monitor_leaves_fastapi_to_the_application():
+def test_configure_azure_monitor_uses_distro_instrumentation_defaults():
     resource = observability._build_resource()
     with patch(
         "azure.monitor.opentelemetry.configure_azure_monitor"
@@ -342,7 +343,7 @@ def test_configure_azure_monitor_leaves_fastapi_to_the_application():
     assert kwargs["enable_live_metrics"] is True
     assert kwargs["enable_trace_based_sampling_for_logs"] is False
     assert kwargs["logger_name"] == "learn_to_cloud"
-    assert kwargs["instrumentation_options"] == {"fastapi": {"enabled": False}}
+    assert "instrumentation_options" not in kwargs
     assert kwargs["resource"] is resource
 
 
@@ -417,84 +418,7 @@ def test_fastapi_instrumentation_is_process_wide_and_idempotent():
     ) as instrumentor:
         assert observability.configure_fastapi_instrumentation() is True
         assert observability.configure_fastapi_instrumentation() is True
-    instrumentor.return_value.instrument.assert_called_once_with(
-        exclude_spans=["receive", "send"]
-    )
-
-
-@pytest.mark.unit
-async def test_fastapi_keeps_request_errors_and_metrics_without_asgi_spans():
-    import fastapi
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    from opentelemetry.sdk.metrics import MeterProvider
-    from opentelemetry.sdk.metrics.export import InMemoryMetricReader
-    from opentelemetry.trace import SpanKind
-
-    exporter = InMemorySpanExporter()
-    provider = TracerProvider()
-    provider.add_span_processor(SimpleSpanProcessor(exporter))
-    reader = InMemoryMetricReader()
-    meters = MeterProvider(metric_readers=[reader])
-    instrumentor = FastAPIInstrumentor()
-    try:
-        with patch.object(
-            instrumentor,
-            "instrument",
-            side_effect=partial(
-                instrumentor.instrument,
-                tracer_provider=provider,
-                meter_provider=meters,
-            ),
-        ):
-            assert observability.configure_fastapi_instrumentation() is True
-        app = fastapi.FastAPI()
-
-        @app.post("/probe/{probe_id}")
-        async def probe(probe_id: str, request: fastapi.Request):
-            body = await request.body()
-            if probe_id == "error":
-                raise RuntimeError("Native request failure")
-            return {"bytes": len(body)}
-
-        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
-        async with httpx.AsyncClient(
-            transport=transport, base_url="http://testserver"
-        ) as client:
-            assert (await client.post("/probe/ok", content="body")).status_code == 200
-            assert (await client.post("/probe/error", content="body")).status_code == (
-                500
-            )
-
-        success, failure = exporter.get_finished_spans()
-        for span in (success, failure):
-            assert span.kind == SpanKind.SERVER
-            assert span.name == "POST /probe/{probe_id}"
-            assert span.end_time >= span.start_time
-        assert success.status.status_code == StatusCode.UNSET
-        assert failure.status.status_code == StatusCode.ERROR
-        assert any(
-            event.name == "exception"
-            and event.attributes["exception.type"] == "RuntimeError"
-            and event.attributes["exception.stacktrace"]
-            for event in failure.events
-        )
-        data = reader.get_metrics_data()
-        durations = [
-            point
-            for resource in data.resource_metrics
-            for scope in resource.scope_metrics
-            for metric in scope.metrics
-            if metric.name == "http.server.duration"
-            for point in metric.data.data_points
-        ]
-        assert sum(point.count for point in durations) == 2
-        assert {point.attributes["http.target"] for point in durations} == {
-            "/probe/{probe_id}"
-        }
-    finally:
-        instrumentor.uninstrument()
-        provider.shutdown()
-        meters.shutdown()
+    instrumentor.return_value.instrument.assert_called_once_with()
 
 
 @pytest.mark.unit

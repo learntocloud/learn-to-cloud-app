@@ -1,9 +1,9 @@
 """Single-pipeline Azure Monitor and OTLP configuration.
 
-The API configures FastAPI explicitly so both exporters omit ASGI internal
-spans. HTTPX and SQLAlchemy are also application-owned. Production Functions
-use the worker-owned Azure pipeline; local Functions export app logs directly
-to OTLP while the host owns framework logs.
+Azure Monitor owns FastAPI instrumentation in production; local OTLP configures
+it explicitly with SDK defaults. HTTPX and SQLAlchemy are application-owned.
+Production Functions use the worker-owned Azure pipeline; local Functions export
+app logs directly to OTLP while the host owns framework logs.
 """
 
 from __future__ import annotations
@@ -69,8 +69,6 @@ def _configure_azure_monitor(resource: Resource) -> None:
         enable_live_metrics=True,
         enable_trace_based_sampling_for_logs=False,
         logger_name=APP_LOGGER_NAMESPACE,
-        # The distro does not forward FastAPI's exclude_spans option.
-        instrumentation_options={"fastapi": {"enabled": False}},
         resource=resource,
     )
 
@@ -183,11 +181,14 @@ def _configure_observability(*, allow_azure_monitor: bool) -> bool:
     )
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
     resource = _build_resource()
+    instrument_fastapi_for_otlp = False
+
     try:
         if conn_str:
             _configure_azure_monitor(resource)
         elif otlp_endpoint:
             _configure_otlp(resource)
+            instrument_fastapi_for_otlp = allow_azure_monitor
         else:
             logger.error(
                 "telemetry.configure.failed",
@@ -204,14 +205,14 @@ def _configure_observability(*, allow_azure_monitor: bool) -> bool:
         return False
 
     _telemetry_enabled = True
-    if allow_azure_monitor:
+    if instrument_fastapi_for_otlp:
         configure_fastapi_instrumentation()
     configure_dependency_instrumentation()
     return True
 
 
 def configure_fastapi_instrumentation() -> bool:
-    """Instrument requests without low-level ASGI receive/send spans."""
+    """Instrument FastAPI when the Azure Monitor distro is not active."""
     global _fastapi_instrumented
 
     if _fastapi_instrumented:
@@ -220,7 +221,7 @@ def configure_fastapi_instrumentation() -> bool:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
     try:
-        FastAPIInstrumentor().instrument(exclude_spans=["receive", "send"])
+        FastAPIInstrumentor().instrument()
     except Exception as exc:
         logger.warning(
             "telemetry.fastapi.failed",
