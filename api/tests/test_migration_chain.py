@@ -48,6 +48,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import InternalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session, registry
 
@@ -178,6 +179,88 @@ def test_api_worker_cutover_closes_only_unfinished_attempts(
             attempt = db.get(VerificationAttempt, attempt_id)
             assert attempt is not None
             assert attempt.outcome is not None
+
+
+@pytest.mark.parametrize("function_exists", [True, False])
+def test_orphan_typed_value_function_roundtrip(
+    alembic_runner, alembic_engine, function_exists
+) -> None:
+    previous = "0062_api_verification_worker"
+    cleanup = "0063_drop_orphan_typed_value_function"
+    alembic_runner.migrate_up_to(previous)
+    definition_query = text(
+        "SELECT pg_get_functiondef("
+        "to_regprocedure('public.set_typed_submitted_value()'))"
+    )
+    step_uuid = uuid4()
+    attempt_id = uuid4()
+    with Session(alembic_engine) as db:
+        definition = db.scalar(definition_query)
+        assert definition is not None
+        db.add(User(id=85102, github_username="function-cleanup"))
+        db.flush()
+        db.add(LearnerStepCompletion(user_id=85102, step_uuid=step_uuid))
+        db.add(
+            VerificationAttempt(
+                id=attempt_id,
+                user_id=85102,
+                requirement_uuid=uuid4(),
+                snapshot_source="reconstructed",
+                submission_value_kind="github_url",
+                submitted_value="https://github.com/function-cleanup/repo",
+                outcome="succeeded",
+                completed_at=datetime.now(UTC),
+            )
+        )
+        if not function_exists:
+            db.execute(text("DROP FUNCTION public.set_typed_submitted_value()"))
+        db.commit()
+
+    alembic_runner.migrate_up_to(cleanup)
+    with Session(alembic_engine) as db:
+        assert db.scalar(definition_query) is None
+        assert db.get(User, 85102) is not None
+        assert db.get(LearnerStepCompletion, (85102, step_uuid)) is not None
+        attempt = db.get(VerificationAttempt, attempt_id)
+        assert attempt is not None
+        assert attempt.outcome == "succeeded"
+
+    alembic_runner.migrate_down_to(previous)
+    with alembic_engine.connect() as conn:
+        assert conn.scalar(definition_query) == definition
+    alembic_runner.migrate_up_to(cleanup)
+    with alembic_engine.connect() as conn:
+        assert conn.scalar(definition_query) is None
+
+
+def test_orphan_typed_value_function_refuses_to_drop_dependents(
+    alembic_runner, alembic_engine
+) -> None:
+    previous = "0062_api_verification_worker"
+    alembic_runner.migrate_up_to(previous)
+    with alembic_engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TRIGGER unexpected_typed_value_dependency "
+                "BEFORE INSERT ON users FOR EACH ROW "
+                "EXECUTE FUNCTION public.set_typed_submitted_value()"
+            )
+        )
+
+    with pytest.raises(InternalError, match="other objects depend"):
+        alembic_runner.migrate_up_to("0063_drop_orphan_typed_value_function")
+
+    with alembic_engine.connect() as conn:
+        assert conn.scalar(text("SELECT version_num FROM alembic_version")) == previous
+        assert (
+            conn.scalar(
+                text(
+                    "SELECT count(*) FROM pg_trigger "
+                    "WHERE tgname = 'unexpected_typed_value_dependency'"
+                )
+            )
+            == 1
+        )
 
 
 def test_contract_removes_legacy_database_objects(

@@ -3,7 +3,6 @@ uuid: ddd726e7-818e-4672-b33a-579718b1a8f3
 slug: capstone
 name: 'Capstone: Secure Cloud Deployment'
 description: Deploy your Phase 3 Journal API on your chosen cloud. You own the architecture, service choices, and deployment approach. Use the earlier topics as references, not a deployment recipe. Researching what you do not yet know is part of this project.
-short_description: Deploy the Journal API over HTTPS with private database connectivity, secure administration, and live cloud AI analysis.
 learning_objectives:
 - uuid: a8283b86-24bb-4e2e-8a20-7679cd19741a
   text: Choose and justify a cloud architecture with separate application and database tiers.

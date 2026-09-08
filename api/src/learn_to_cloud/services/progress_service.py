@@ -16,7 +16,6 @@ Step completion and verification state come from their authoritative tables.
 Curriculum shape comes from the packaged in-memory catalog.
 """
 
-import logging
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from uuid import UUID
@@ -44,8 +43,6 @@ from learn_to_cloud_shared.schemas import (
     VerificationProgress,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-
-logger = logging.getLogger(__name__)
 
 
 def _count_by_phase(

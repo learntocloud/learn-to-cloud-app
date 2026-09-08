@@ -118,9 +118,7 @@ def feedback_tasks_and_passed(
     return tasks, passed
 
 
-def _feedback_criterion(raw: object) -> FeedbackCriterionContext:
-    if not isinstance(raw, dict):
-        raise TypeError("Feedback criterion must be an object")
+def _feedback_criterion(raw: dict) -> FeedbackCriterionContext:
     kind = raw.get("kind", "required")
     if kind not in {"required", "quality", "bonus"}:
         kind = "required"

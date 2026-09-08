@@ -99,10 +99,10 @@ function validateIssueUrl(href, expectations) {
     };
 
     console.log(JSON.stringify(output, null, 2));
-    process.exit(output.ok ? 0 : 2);
+    process.exitCode = output.ok ? 0 : 2;
   } catch (err) {
     console.error("ERROR:", err && err.message ? err.message : err);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     await browser.close();
   }

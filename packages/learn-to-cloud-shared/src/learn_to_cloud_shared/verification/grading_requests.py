@@ -68,12 +68,7 @@ def _validated_evidence_payload(
     except ValidationError as exc:
         raise EvidenceError("evidence.selection") from exc
     validate_evidence_bundle(task, bundle)
-    payload = bundle.model_dump(mode="json")
-    payload["optional_presence"] = {
-        path: any(item.path == path for item in bundle.items)
-        for path in task.evidence.optional_files
-    }
-    return payload
+    return bundle.model_dump(mode="json")
 
 
 def validate_grading_request(request: LLMGradingRequest) -> None:

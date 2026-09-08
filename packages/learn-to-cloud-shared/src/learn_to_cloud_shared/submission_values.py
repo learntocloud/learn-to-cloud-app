@@ -120,15 +120,12 @@ def submitted_value_from_raw(
 
     match kind:
         case SubmissionValueKind.GITHUB_URL:
-            _validate_github_url(value)
             return GitHubUrlValue(value)
         case SubmissionValueKind.TOKEN:
             return TokenValue(value)
         case SubmissionValueKind.DEPLOYED_URL:
-            _validate_http_url(value, field_name="deployed API URL")
             return DeployedUrlValue(value)
         case SubmissionValueKind.TEXT:
-            _validate_text(value)
             return TextValue(value)
 
 

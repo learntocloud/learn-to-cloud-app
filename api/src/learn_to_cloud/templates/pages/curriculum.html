@@ -79,7 +79,7 @@
                     {% endif %}
                 </div>
                 <span id="phase-{{ phase.order }}-description" class="mt-2 block max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
-                    {{ phase.short_description | default(phase.description) }}
+                    {{ phase.short_description }}
                 </span>
                 <span id="phase-{{ phase.order }}-topic-count" class="mt-3 block text-xs text-gray-500 dark:text-gray-400">
                     {{ phase.topics | length }} topic{% if phase.topics | length != 1 %}s{% endif %}

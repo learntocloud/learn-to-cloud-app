@@ -77,20 +77,13 @@ class TestCodeQLStatusCheck:
         assert "still" in result.message
 
     async def test_run_succeeded_on_current_head_passes(self):
+        # CodeQL alerts do not fail the run; conclusion success is what matters.
         runs = InMemoryWorkflowRuns(_run())
         result = await verify_codeql_status(
             _TEST_OWNER, _TEST_REPO, runs, InMemoryRepoRef(_HEAD)
         )
         assert result.is_valid
         assert "#10" in result.message
-
-    async def test_successful_run_with_findings_still_passes(self):
-        # CodeQL alerts do not fail the run; conclusion success is what matters.
-        runs = InMemoryWorkflowRuns(_run(conclusion="success"))
-        result = await verify_codeql_status(
-            _TEST_OWNER, _TEST_REPO, runs, InMemoryRepoRef(_HEAD)
-        )
-        assert result.is_valid
 
     async def test_green_but_stale_head_is_rejected(self):
         runs = InMemoryWorkflowRuns(_run(head_sha="oldsha000"))

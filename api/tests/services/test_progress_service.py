@@ -47,7 +47,6 @@ def _make_step(step_id: str, order: int = 0) -> LearningStep:
 
 
 def _make_topic(
-    topic_id: str = "phase0-topic1",
     steps: list[str] | None = None,
 ) -> Topic:
     step_ids = steps if steps is not None else ["s1", "s2", "s3"]
@@ -430,7 +429,7 @@ class TestFetchPhaseProgress:
             journal_api_verifier_requirement,
         )
 
-        topic = _make_topic(topic_id="phase3-topic1", steps=["s1", "s2"])
+        topic = _make_topic(steps=["s1", "s2"])
         req = journal_api_verifier_requirement(slug="req1", name="R", description="d")
         phase = _make_phase(3, topics=[topic])
         phase = phase.model_copy(
@@ -469,7 +468,7 @@ class TestFetchPhaseProgress:
             journal_api_verifier_requirement,
         )
 
-        topic = _make_topic(topic_id="phase3-topic1", steps=["s1", "s2"])
+        topic = _make_topic(steps=["s1", "s2"])
         req = journal_api_verifier_requirement(slug="req1", name="R", description="d")
         phase = _make_phase(3, topics=[topic])
         phase = phase.model_copy(
@@ -525,8 +524,8 @@ class TestFetchPhaseProgress:
 @pytest.mark.unit
 class TestFindFirstIncompleteStep:
     def test_returns_first_unchecked_step_in_topic_order(self):
-        first_topic = _make_topic("t1", steps=["s1", "s2"])
-        second_topic = _make_topic("t2", steps=["s3"])
+        first_topic = _make_topic(steps=["s1", "s2"])
+        second_topic = _make_topic(steps=["s3"])
         phase = _make_phase(0, topics=[first_topic, second_topic])
         completed = {first_topic.learning_steps[0].uuid}
 
@@ -538,7 +537,7 @@ class TestFindFirstIncompleteStep:
         assert step.slug == "s2"
 
     def test_returns_none_when_every_step_checked(self):
-        topic = _make_topic("t1", steps=["s1", "s2"])
+        topic = _make_topic(steps=["s1", "s2"])
         phase = _make_phase(0, topics=[topic])
         completed = {s.uuid for s in topic.learning_steps}
 
@@ -553,7 +552,7 @@ class TestFindFirstIncompleteStep:
 class TestResolveContinueDestination:
     @pytest.mark.asyncio
     async def test_links_to_first_incomplete_steps_topic(self):
-        topic = _make_topic("t1", steps=["s1", "s2"])
+        topic = _make_topic(steps=["s1", "s2"])
         phase = _make_phase(3, topics=[topic])
 
         with patch(
@@ -568,7 +567,7 @@ class TestResolveContinueDestination:
 
     @pytest.mark.asyncio
     async def test_falls_back_to_verification_workspace_when_all_steps_checked(self):
-        topic = _make_topic("t1", steps=["s1"])
+        topic = _make_topic(steps=["s1"])
         phase = _with_requirement(_make_phase(3, topics=[topic]))
         completed = {s.uuid for s in topic.learning_steps}
 

@@ -351,7 +351,6 @@ async def htmx_submit_reflection_verification(
 
 @router.post("/github/submit", response_class=HTMLResponse)
 async def htmx_submit_verification(
-    request: Request,
     current_user: CurrentUser,
 ) -> HTMLResponse:
     """Refresh a page that still contains the retired submission form."""

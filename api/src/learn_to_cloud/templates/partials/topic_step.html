@@ -15,7 +15,6 @@
     x-data="{ expanded: {{ 'true' if initially_open else 'false' }} }"
 >
     <div class="flex items-start gap-2 py-4 sm:items-center">
-        {% if user %}
         <label class="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md hover:bg-gray-100 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-700 dark:hover:bg-gray-800">
             <span class="sr-only">Mark {{ step_label }} complete</span>
             <input
@@ -36,11 +35,6 @@
                 @keydown.enter.stop
             >
         </label>
-        {% else %}
-        <span class="flex h-11 w-11 shrink-0 items-center justify-center" aria-hidden="true">
-            <span class="h-5 w-5 rounded border-2 border-gray-300 dark:border-gray-600"></span>
-        </span>
-        {% endif %}
 
         <span class="mt-2.5 sm:mt-0">{{ step_number_badge(step.order, is_completed) }}</span>
 
