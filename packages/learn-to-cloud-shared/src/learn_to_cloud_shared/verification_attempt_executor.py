@@ -1,28 +1,10 @@
-"""Prepare, finalize, and terminalize verification attempts.
-
-Every trusted input comes from the attempt row. The Durable input carries only
-the attempt id, so a leaked function key or buggy caller cannot smuggle in a
-forged requirement.
-
-Trust boundary and idempotency:
-
-1. :func:`prepare_verification_attempt` loads the attempt, validates its
-   payload version / snapshot provenance / hash / value kind / active state,
-   deserializes the stored typed requirement snapshot, and returns a
-   :class:`PreparedVerificationAttempt` the verify/grade activities run
-   unchanged.
-2. :func:`finalize_verification_attempt` writes the terminal outcome with a
-   compare-and-set (``UPDATE ... WHERE outcome IS NULL RETURNING``) so replays
-   and competing finalizers never overwrite a result.
-3. :func:`terminalize_verification_attempt` is the authoritative failure path
-   (orchestrator/activity exception, or the stale-attempt reconciler): it
-   compare-and-sets a ``server_error`` / ``cancelled`` outcome.
-"""
+"""Load trusted attempt snapshots and commit outcomes without overwriting results."""
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -30,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE
 from learn_to_cloud_shared.models import VerificationAttemptOutcome
 from learn_to_cloud_shared.repositories.verification_attempt_repository import (
-    AttemptTerminalState,
     FinalizeResult,
     VerificationAttemptRepository,
 )
@@ -58,7 +39,7 @@ from learn_to_cloud_shared.verification_workflow import (
 logger = logging.getLogger(f"{APP_LOGGER_NAMESPACE}.verification_attempt_executor")
 
 _SNAPSHOT_SOURCE_SUBMITTED = "submitted"
-_ORCHESTRATOR_TERMINAL_SOURCE = "orchestrator"
+_WORKER_TERMINAL_SOURCE = "api_worker"
 _VALIDATION_ERROR_CODES = EVIDENCE_ERROR_CODES | {
     "authentication",
     "authorization",
@@ -87,12 +68,9 @@ class AttemptNotRunnableError(AttemptPreparationError):
 
 @dataclass(frozen=True, slots=True)
 class AttemptPreparation:
-    """A prepared attempt ready for the verify/grade/finalize activities."""
+    """A validated attempt ready for execution."""
 
     attempt: PreparedVerificationAttempt
-
-    def to_payload(self) -> dict[str, object]:
-        return {"attempt": self.attempt.to_payload()}
 
 
 async def prepare_verification_attempt(
@@ -100,13 +78,7 @@ async def prepare_verification_attempt(
     *,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> AttemptPreparation:
-    """Validate and prepare an attempt for execution.
-
-    Loads only the granted identity/snapshot columns, then enforces every
-    trust check before returning a runnable job. Any failure raises an
-    :class:`AttemptPreparationError` subclass so the orchestrator converts it
-    into a terminal outcome instead of leaving the attempt hanging.
-    """
+    """Load and validate the stored snapshot before verification."""
     async with session_maker() as db:
         repo = VerificationAttemptRepository(db)
         state = await repo.get_prepare_state(attempt_id)
@@ -202,7 +174,7 @@ async def finalize_verification_attempt(
         outcome=VerificationAttemptOutcome(outcome),
         error_code=error_code,
         validation_message=validation_message,
-        terminal_source=_ORCHESTRATOR_TERMINAL_SOURCE,
+        terminal_source=_WORKER_TERMINAL_SOURCE,
         feedback_json=feedback_json,
     )
 
@@ -216,11 +188,7 @@ async def terminalize_verification_attempt(
     terminal_source: str,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> FinalizeResult:
-    """Compare-and-set a failure/cancellation outcome.
-
-    Used by the orchestrator's exception path and the stale-attempt
-    reconciler. Never overwrites an already-terminal attempt.
-    """
+    """Record a failure or cancellation without overwriting a terminal outcome."""
     normalized = (
         outcome
         if isinstance(outcome, VerificationAttemptOutcome)
@@ -237,28 +205,53 @@ async def terminalize_verification_attempt(
     )
 
 
-async def terminalize_unstarted_verification_attempt(
-    attempt_id: UUID,
+async def expire_verification_attempts(
     *,
-    error_code: str,
-    validation_message: str,
-    terminal_source: str,
+    queued_before: datetime,
+    started_before: datetime,
     session_maker: async_sessionmaker[AsyncSession],
-) -> FinalizeResult | None:
-    """Terminalize a pre-start failure without racing a Functions claim."""
+) -> None:
+    """Expire abandoned work without rerunning it or overwriting results."""
+    results: list[FinalizeResult] = []
     async with session_maker() as db:
-        result = await VerificationAttemptRepository(db).finalize_unstarted(
-            attempt_id,
-            outcome=VerificationAttemptOutcome.SERVER_ERROR,
-            error_code=error_code,
-            validation_message=validation_message,
-            terminal_source=terminal_source,
+        repo = VerificationAttemptRepository(db)
+        attempts = await repo.lock_overdue(
+            queued_before=queued_before, started_before=started_before
         )
-        if result is not None:
-            await db.commit()
-    if result is not None:
+        for attempt in attempts:
+            results.append(
+                await repo.finalize(
+                    attempt.id,
+                    outcome=VerificationAttemptOutcome.SERVER_ERROR,
+                    error_code="verification_timeout",
+                    validation_message=(
+                        "Verification could not finish. This attempt was not counted. "
+                        "Please try again."
+                    ),
+                    terminal_source="api_worker",
+                    feedback_json=None,
+                )
+            )
+        await db.commit()
+    for attempt, result in zip(attempts, results, strict=True):
+        if result.won:
+            started = attempt.started_at
+            completed_at = result.state.completed_at
+            if completed_at is None:
+                raise RuntimeError("A finalized attempt must have a completion time")
+            logger.warning(
+                "verification.attempt.stuck",
+                extra={
+                    "verification.attempt.id": str(attempt.id),
+                    "verification.attempt.age_seconds": int(
+                        (completed_at - (started or attempt.created_at)).total_seconds()
+                    ),
+                    "verification.stuck.reason": (
+                        "execution_beyond_limit" if started else "queued_beyond_limit"
+                    ),
+                },
+            )
         _log_canonical_completion(result)
-    return result
 
 
 async def _finalize(
@@ -286,23 +279,6 @@ async def _finalize(
     return result
 
 
-def _failure_stage(state: AttemptTerminalState) -> str | None:
-    if state.outcome not in {VerificationAttemptOutcome.SERVER_ERROR.value}:
-        return None
-    source = state.terminal_source or ""
-    if source.startswith("orchestrator_"):
-        return source.removeprefix("orchestrator_").removesuffix("_exception")
-    if source in {"start_failure", "api_start_failure"}:
-        return "start"
-    if source == "poller":
-        return "status"
-    if source == "reconciler":
-        return "reconciliation"
-    if source == _ORCHESTRATOR_TERMINAL_SOURCE:
-        return "verification"
-    return None
-
-
 def _log_canonical_completion(result: FinalizeResult) -> None:
     if not result.won:
         return
@@ -313,9 +289,6 @@ def _log_canonical_completion(result: FinalizeResult) -> None:
         "verification.error.code": state.error_code,
         "verification.terminal.source": state.terminal_source,
     }
-    failure_stage = _failure_stage(state)
-    if failure_stage is not None:
-        extra["verification.failure.stage"] = failure_stage
     log = (
         logger.warning
         if state.outcome == VerificationAttemptOutcome.SERVER_ERROR.value

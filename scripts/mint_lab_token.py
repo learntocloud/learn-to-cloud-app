@@ -28,6 +28,8 @@ from datetime import UTC, datetime
 from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.verification.token_base import (
     ACCEPTED_CHALLENGE_TYPES,
+)
+from learn_to_cloud_shared.verification.token_base import (
     REQUIRED_CHALLENGES as NETWORKING_REQUIRED_CHALLENGES,
 )
 
@@ -106,9 +108,9 @@ def main() -> None:
     secret = get_worker_settings().labs.verification_secret
     if not secret:
         print(
-            "LABS__VERIFICATION_SECRET is not set. Copy "
-            "apps/verification-functions/local.settings.example.json to "
-            "local.settings.json, or export the variable, then retry.",
+            "LABS__VERIFICATION_SECRET is not set. Configure the documented "
+            "local development secret in api/.env and run from api/, "
+            "or export the variable, then retry.",
             file=sys.stderr,
         )
         raise SystemExit(1)

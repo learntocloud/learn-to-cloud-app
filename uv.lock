@@ -7,7 +7,6 @@ members = [
     "learn-to-cloud-api",
     "learn-to-cloud-shared",
     "learn-to-cloud-shared-test-support",
-    "learn-to-cloud-verification-functions",
     "learn-to-cloud-workspace",
 ]
 
@@ -266,49 +265,6 @@ wheels = [
 ]
 
 [[package]]
-name = "azure-functions"
-version = "2.3.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "werkzeug" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/46/13/fba9acea1d5ebcd849487b11ba4fe1a4e15d77fb10859c09371c31977116/azure_functions-2.3.0.tar.gz", hash = "sha256:32136bae3285680edd2b2d1786c37d381a9ba4c23332dcd590e354190dbe6c9a", size = 174394, upload-time = "2026-08-28T16:14:38.061Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/9f/782dd3799adbab974b02284c5b1e0736f6952ebe3b918f595e71aa99bc70/azure_functions-2.3.0-py3-none-any.whl", hash = "sha256:9eb166cd83875dd88996c5f23a46f8edbbc78c0f9c41926bfdf960be54b6c889", size = 129381, upload-time = "2026-08-28T16:14:39.513Z" },
-]
-
-[[package]]
-name = "azure-functions-durable"
-version = "1.7.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "azure-functions" },
-    { name = "furl" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-sdk" },
-    { name = "python-dateutil" },
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/79/6b/b72e813b6b5bd3f9a4fa5282df69c00834e3a094efb9fe9fdd1213944ad6/azure_functions_durable-1.7.0.tar.gz", hash = "sha256:8ba754a44fa57fbb2c314d48fea38a3cf4b43919ff2f6df42ef42b7c8f4a8d52", size = 207994, upload-time = "2026-07-30T22:16:05.769Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/49/b8/d4c080510e79176bc85054c472eb2badcea92b16bea90a6bebc771db53f0/azure_functions_durable-1.7.0-py3-none-any.whl", hash = "sha256:0c492d4dc6ce4099d618afd59db6e96e50b2edd8e4e8ad05faf4e24090fc8d09", size = 165516, upload-time = "2026-07-30T22:16:07.007Z" },
-]
-
-[[package]]
-name = "azure-functions-runtime"
-version = "1.2.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-functions" },
-    { name = "azurefunctions-extensions-base" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/d0/09/5328c4780fc6600fdad106cfef8855c3f0c95eb6624fcdf95c36b6b6fcfa/azure_functions_runtime-1.2.1.tar.gz", hash = "sha256:e6f9f7db2e96d4b1bb0ad8344a6f1dd5bb034eb25b2bbcc4a16a862cccf865f6", size = 34114, upload-time = "2026-07-21T16:24:08.019Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/48/fb/ec54de9f9502c4a9fc790e6533c252d0a3f369e469f5d9f624d1afcd6076/azure_functions_runtime-1.2.1-py3-none-any.whl", hash = "sha256:179bdd6385aeb5dacab98fe5fa332f3ba907f2addeafd1ee7ea53e1bf5862477", size = 40511, upload-time = "2026-07-21T16:24:09.065Z" },
-]
-
-[[package]]
 name = "azure-identity"
 version = "1.25.3"
 source = { registry = "https://pypi.org/simple" }
@@ -378,15 +334,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/39/7e/834d7bfcf999ab89d1bd3a5d235ece6824686da2f3d315e2162c613fe43d/azure_storage_blob-12.30.1.tar.gz", hash = "sha256:7a24f978c51d56a0375beebffcbe8453e59ae390d2695705848edc75083e4184", size = 624787, upload-time = "2026-08-27T19:12:54.967Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/90/f06915ccf78a6d965901aae093bd7e88e486c52e0773202656fb29c2304a/azure_storage_blob-12.30.1-py3-none-any.whl", hash = "sha256:7dc09c37f4f58508e20532b4b4c178f4763f41b01e0b9063835b994fd9d2a7b3", size = 438131, upload-time = "2026-08-27T19:12:56.796Z" },
-]
-
-[[package]]
-name = "azurefunctions-extensions-base"
-version = "1.2.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/06/08/fe48dc01e2bf60e90398845b6689dfb3427822d3ff18c2b2c0d99af6ffa7/azurefunctions_extensions_base-1.2.0.tar.gz", hash = "sha256:a7728620432937e21b1891bd0e2cee5072127f6bad86fbe54e834d02c994e8a2", size = 20019, upload-time = "2026-05-12T18:14:03.571Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c3/5a/9fa7cf715eb14f5f2b47cf14755bb96436c68cb9db9a13a89083dbaa217d/azurefunctions_extensions_base-1.2.0-py3-none-any.whl", hash = "sha256:ecb8d5e6b698a139c293edde9fee88ec2aea34932a4394020c50e6ecc8a219f9", size = 13328, upload-time = "2026-05-12T18:14:02.566Z" },
 ]
 
 [[package]]
@@ -648,19 +595,6 @@ wheels = [
 ]
 
 [[package]]
-name = "furl"
-version = "2.1.4"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "orderedmultidict" },
-    { name = "six" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/53/e4/203a76fa2ef46cdb0a618295cc115220cbb874229d4d8721068335eb87f0/furl-2.1.4.tar.gz", hash = "sha256:877657501266c929269739fb5f5980534a41abd6bbabcb367c136d1d3b2a6015", size = 57526, upload-time = "2025-03-09T05:36:21.175Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/8c/dce3b1b7593858eba995b2dfdb833f872c7f863e3da92aab7128a6b11af4/furl-2.1.4-py2.py3-none-any.whl", hash = "sha256:da34d0b34e53ffe2d2e6851a7085a05d96922b5b578620a37377ff1dbeeb11c8", size = 27550, upload-time = "2025-03-09T05:36:19.928Z" },
-]
-
-[[package]]
 name = "googleapis-common-protos"
 version = "1.75.2"
 source = { registry = "https://pypi.org/simple" }
@@ -888,6 +822,9 @@ name = "learn-to-cloud-api"
 version = "0.1.0"
 source = { editable = "api" }
 dependencies = [
+    { name = "agent-framework-core" },
+    { name = "agent-framework-foundry" },
+    { name = "agent-framework-openai" },
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "authlib" },
@@ -900,6 +837,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "learn-to-cloud-shared" },
     { name = "markdown" },
+    { name = "openai" },
     { name = "opentelemetry-api" },
     { name = "psycopg2-binary" },
     { name = "pydantic" },
@@ -927,11 +865,14 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "agent-framework-core", specifier = ">=1.16.0" },
+    { name = "agent-framework-foundry", specifier = ">=1.3.0" },
+    { name = "agent-framework-openai", specifier = ">=1.14.1" },
     { name = "alembic", specifier = ">=1.18.5" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "authlib", specifier = ">=1.7.0" },
     { name = "azure-core", specifier = ">=1.41.0" },
-    { name = "azure-identity", specifier = ">=1.25.2" },
+    { name = "azure-identity", specifier = ">=1.25.3" },
     { name = "fastapi", specifier = ">=0.141.1,<1" },
     { name = "httpx", specifier = ">=0.28.1,<1" },
     { name = "httpx2", specifier = ">=2.12.0" },
@@ -939,6 +880,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.0" },
     { name = "learn-to-cloud-shared", editable = "packages/learn-to-cloud-shared" },
     { name = "markdown", specifier = ">=3.5.0" },
+    { name = "openai", specifier = ">=2.54.0,<3" },
     { name = "opentelemetry-api", specifier = ">=1.43.0,<1.44.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.12" },
     { name = "pydantic", specifier = ">=2.13.3,<3" },
@@ -1058,59 +1000,6 @@ requires-dist = [{ name = "learn-to-cloud-shared", editable = "packages/learn-to
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "ruff", specifier = "==0.16.5" },
-    { name = "ty", specifier = "==0.0.77" },
-]
-
-[[package]]
-name = "learn-to-cloud-verification-functions"
-version = "0.1.0"
-source = { editable = "apps/verification-functions" }
-dependencies = [
-    { name = "agent-framework-core" },
-    { name = "agent-framework-foundry" },
-    { name = "agent-framework-openai" },
-    { name = "azure-functions" },
-    { name = "azure-functions-durable" },
-    { name = "azure-functions-runtime" },
-    { name = "azure-identity" },
-    { name = "learn-to-cloud-shared" },
-    { name = "openai" },
-    { name = "opentelemetry-api" },
-    { name = "pydantic" },
-    { name = "sqlalchemy" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "learn-to-cloud-shared-test-support" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-    { name = "ty" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "agent-framework-core", specifier = ">=1.16.0" },
-    { name = "agent-framework-foundry", specifier = ">=1.3.0" },
-    { name = "agent-framework-openai", specifier = ">=1.14.1" },
-    { name = "azure-functions", specifier = ">=2.2.0" },
-    { name = "azure-functions-durable", specifier = ">=1.7.0" },
-    { name = "azure-functions-runtime", specifier = ">=1.2.1,<2" },
-    { name = "azure-identity", specifier = ">=1.25.3" },
-    { name = "learn-to-cloud-shared", editable = "packages/learn-to-cloud-shared" },
-    { name = "openai", specifier = ">=2.54.0,<3" },
-    { name = "opentelemetry-api", specifier = ">=1.43.0,<1.44.0" },
-    { name = "pydantic", specifier = ">=2.13.5,<3" },
-    { name = "sqlalchemy", specifier = ">=2.0.52,<3" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "learn-to-cloud-shared-test-support", editable = "packages/learn-to-cloud-shared-test-support" },
-    { name = "pytest", specifier = ">=9.1.1" },
-    { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "ruff", specifier = "==0.16.5" },
     { name = "ty", specifier = "==0.0.77" },
 ]
@@ -1654,18 +1543,6 @@ wheels = [
 ]
 
 [[package]]
-name = "orderedmultidict"
-version = "1.0.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "six" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5c/62/61ad51f6c19d495970230a7747147ce7ed3c3a63c2af4ebfdb1f6d738703/orderedmultidict-1.0.2.tar.gz", hash = "sha256:16a7ae8432e02cc987d2d6d5af2df5938258f87c870675c73ee77a0920e6f4a6", size = 13973, upload-time = "2025-11-18T08:00:42.649Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/6c/d8a02ffb24876b5f51fbd781f479fc6525a518553a4196bd0433dae9ff8e/orderedmultidict-1.0.2-py2.py3-none-any.whl", hash = "sha256:ab5044c1dca4226ae4c28524cfc5cc4c939f0b49e978efa46a6ad6468049f79b", size = 11897, upload-time = "2025-11-18T08:00:41.44Z" },
-]
-
-[[package]]
 name = "packaging"
 version = "26.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1976,18 +1853,6 @@ wheels = [
 ]
 
 [[package]]
-name = "python-dateutil"
-version = "2.9.0.post0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "six" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
-]
-
-[[package]]
 name = "python-dotenv"
 version = "1.2.3"
 source = { registry = "https://pypi.org/simple" }
@@ -2092,15 +1957,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ed/20/656d67f5b25ca9bda4e02b1de25867b2954e1d19e03648060f167ad0f4cc/ruff-0.16.5-py3-none-win32.whl", hash = "sha256:288b0a5f080492fe5635db849f9e2e84aa3cce7b7f0e955997d416c507c76a26", size = 10034250, upload-time = "2026-08-27T16:34:11.8Z" },
     { url = "https://files.pythonhosted.org/packages/5b/42/ee8e68a207b9127fcde6c3d7e197def432f346cb1af159e1fa14ca0d1cdc/ruff-0.16.5-py3-none-win_amd64.whl", hash = "sha256:ddc6385fb2137f616357ca03d6c74f4be987f80fed4008566b754f6032b8546f", size = 10516714, upload-time = "2026-08-27T16:34:13.963Z" },
     { url = "https://files.pythonhosted.org/packages/73/e3/7df5a396e445b9ba49ce9a9437439a4d80042c61c0ade199abf8d16de1ac/ruff-0.16.5-py3-none-win_arm64.whl", hash = "sha256:a64abe90968719b851bb7cedffaa8753fbdbdadab483089682db623f3edc587e", size = 10391564, upload-time = "2026-08-27T16:34:16.064Z" },
-]
-
-[[package]]
-name = "six"
-version = "1.17.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
 ]
 
 [[package]]
@@ -2352,18 +2208,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/22/36/fb521f0f2994c25509651f169efe5582dddd8713d57a0757ba87859372ef/websockets-17.1-cp313-cp313-win_amd64.whl", hash = "sha256:0340bbef6bfbe16da888b3983d666a4db4954ac3253c38f13bc7aba0c7db5a2f", size = 217784, upload-time = "2026-08-26T14:56:33.608Z" },
     { url = "https://files.pythonhosted.org/packages/68/92/9b8419584681a12a7534b746dfb2737c466efe2455483e2fbf8b941a04ec/websockets-17.1-cp313-cp313-win_arm64.whl", hash = "sha256:7a72efa3bf4fa3a6669a54420a472ad056da3973d827f10e3a536da463f926c2", size = 217715, upload-time = "2026-08-26T14:56:34.865Z" },
     { url = "https://files.pythonhosted.org/packages/41/63/23572870e01836a98346075b9e17a8bc24a6ddd9800a3204ceee58677f3c/websockets-17.1-py3-none-any.whl", hash = "sha256:f221081107b8c48184d99f7019604486376e7ef826037e70aad6b02540732c23", size = 211134, upload-time = "2026-08-26T17:25:31.397Z" },
-]
-
-[[package]]
-name = "werkzeug"
-version = "3.1.8"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "markupsafe" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/dd/b2/381be8cfdee792dd117872481b6e378f85c957dd7c5bca38897b08f765fd/werkzeug-3.1.8.tar.gz", hash = "sha256:9bad61a4268dac112f1c5cd4630a56ede601b6ed420300677a869083d70a4c44", size = 875852, upload-time = "2026-04-02T18:49:14.268Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/93/8c/2e650f2afeb7ee576912636c23ddb621c91ac6a98e66dc8d29c3c69446e1/werkzeug-3.1.8-py3-none-any.whl", hash = "sha256:63a77fb8892bf28ebc3178683445222aa500e48ebad5ec77b0ad80f8726b1f50", size = 226459, upload-time = "2026-04-02T18:49:12.72Z" },
 ]
 
 [[package]]

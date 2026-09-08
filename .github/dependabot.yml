@@ -14,7 +14,6 @@ updates:
       verification-runtime:
         patterns:
           - "agent-framework-*"
-          - "azure-functions*"
           - "openai"
       auth-runtime:
         patterns:
@@ -34,7 +33,6 @@ updates:
           - "*"
         exclude-patterns:
           - "agent-framework-*"
-          - "azure-functions*"
           - "openai"
           - "authlib"
           - "fastapi"

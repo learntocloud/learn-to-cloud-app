@@ -51,7 +51,7 @@ resource "azurerm_monitor_action_group" "critical" {
 # flows. This standard web test is the one signal that pings the app from
 # outside and pages when it is completely unreachable.
 #
-# It targets /health (pure liveness, always 200) and NOT /ready, which returns
+# It targets /health (process and worker liveness) and NOT /ready, which returns
 # 503 on transient DB/schema issues that already have their own alerts; pointing
 # the availability test at /ready would double-page and add noise.
 resource "azurerm_application_insights_standard_web_test" "availability" {
@@ -218,16 +218,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
   criteria {
     query                   = <<-QUERY
       traces
-      | where cloud_RoleName in (
-          "learn-to-cloud-api",
-          "ca-ltc-api-${var.environment}",
-          "learn-to-cloud-verification-functions",
-          "func-ltc-verification-${var.environment}"
-        )
-          or cloud_RoleName has "learn-to-cloud-api"
-          or cloud_RoleName has "ca-ltc-api"
-          or cloud_RoleName has "verification-functions"
-          or cloud_RoleName has "func-ltc-verification"
+      | where cloud_RoleName == "learn-to-cloud-api"
       | where message == "verification.attempt.completed"
       | extend
           Outcome = tostring(customDimensions["verification.outcome"]),
@@ -272,6 +263,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_llm_imme
   criteria {
     query                   = <<-QUERY
       traces
+      | where cloud_RoleName == "learn-to-cloud-api"
       | where message == "verification.llm_grading.failed"
       | extend ErrorType = tostring(customDimensions["error.type"])
       | where ErrorType in ("llm.configuration", "llm.authentication", "llm.authorization", "llm.response_validation", "llm.unknown")
@@ -316,6 +308,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_llm_tran
   criteria {
     query                   = <<-QUERY
       traces
+      | where cloud_RoleName == "learn-to-cloud-api"
       | where message == "verification.llm_grading.failed"
       | extend ErrorType = tostring(customDimensions["error.type"])
       | where ErrorType in ("llm.rate_limit", "llm.provider_unavailable", "llm.network", "llm.timeout")
@@ -349,7 +342,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
   name                = "alert-ltc-verification-attempt-stuck-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Alert when verification is active beyond its allowed limit. Response guide: https://github.com/learntocloud/learn-to-cloud-app/blob/main/docs/runbooks/alerts.md#verification-active-beyond-limit"
+  description         = "Alert when queued or executing verification exceeds its limit, or the API verification worker fails. Response guide: https://github.com/learntocloud/learn-to-cloud-app/blob/main/docs/runbooks/alerts.md#verification-active-beyond-limit"
   severity            = 2
   enabled             = true
   tags                = local.tags
@@ -361,27 +354,22 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
 
   criteria {
     query                   = <<-QUERY
-      traces
-      | where cloud_RoleName in (
-          "learn-to-cloud-verification-functions",
-          "func-ltc-verification-${var.environment}"
-        )
-          or cloud_RoleName has "verification-functions"
-          or cloud_RoleName has "func-ltc-verification"
-      | where message == "verification.attempt.stuck"
+      union traces, exceptions
+      | where cloud_RoleName == "learn-to-cloud-api"
+      | extend Event = coalesce(message, outerMessage)
+      | where Event in ("verification.attempt.stuck", "verification.worker.failed")
       | extend
           AttemptId = tostring(customDimensions["verification.attempt.id"]),
-          DurableStatus = tostring(customDimensions["verification.durable.status"]),
           AttemptAgeSeconds = toint(customDimensions["verification.attempt.age_seconds"]),
-          StuckReason = tostring(customDimensions["verification.stuck.reason"])
-      | where isnotempty(AttemptId)
+          StuckReason = iff(Event == "verification.worker.failed", "worker_failed", tostring(customDimensions["verification.stuck.reason"]))
+      | where Event == "verification.worker.failed" or isnotempty(AttemptId)
       | where StuckReason in (
-          "active_beyond_limit",
-          "status_query_failed",
-          "status_recheck_failed"
+          "queued_beyond_limit",
+          "execution_beyond_limit",
+          "worker_failed"
         )
-      | summarize arg_max(timestamp, DurableStatus, AttemptAgeSeconds) by AttemptId, StuckReason
-      | project timestamp, AttemptId, DurableStatus, AttemptAgeSeconds, StuckReason
+      | summarize arg_max(timestamp, AttemptAgeSeconds) by AttemptId, StuckReason
+      | project timestamp, AttemptId, AttemptAgeSeconds, StuckReason
     QUERY
     time_aggregation_method = "Count"
     operator                = "GreaterThanOrEqual"
@@ -391,9 +379,9 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
       name     = "StuckReason"
       operator = "Include"
       values = [
-        "active_beyond_limit",
-        "status_query_failed",
-        "status_recheck_failed",
+        "queued_beyond_limit",
+        "execution_beyond_limit",
+        "worker_failed",
       ]
     }
 
@@ -432,9 +420,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "schema_drift" {
   criteria {
     query                   = <<-QUERY
       traces
-      | where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-${var.environment}")
-          or cloud_RoleName has "learn-to-cloud-api"
-          or cloud_RoleName has "ca-ltc-api"
+      | where cloud_RoleName == "learn-to-cloud-api"
       | where message in (
           "health.ready.schema_drift",
           "health.ready.schema_drift_check_failed"

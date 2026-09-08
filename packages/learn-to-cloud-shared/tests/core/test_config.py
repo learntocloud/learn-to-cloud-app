@@ -14,7 +14,7 @@ from learn_to_cloud_shared.core.config import (
     LabsConfig,
     OAuthConfig,
     SessionConfig,
-    VerificationFunctionsConfig,
+    VerificationWorkerConfig,
     WebSecurityConfig,
     WebSettings,
     WorkerSettings,
@@ -154,39 +154,22 @@ class TestWebSettingsValidation:
             environment="production",
             oauth=OAuthConfig(client_id="id", client_secret="secret"),
             session=SessionConfig(secret_key="a-real-secret-not-the-default"),
-            verification_functions=VerificationFunctionsConfig(
-                base_url="https://functions.example.test",
-                token_scope="api://verification/.default",
-            ),
         )
         assert s.environment is Environment.PRODUCTION
         assert s.is_development is False
 
-    def test_production_requires_verification_functions_base_url(self):
-        with pytest.raises(ValidationError, match="VERIFICATION_FUNCTIONS__BASE_URL"):
-            WebSettings(
-                database=DatabaseConfig(url="postgresql+asyncpg://localhost/test"),
-                environment="production",
-                oauth=OAuthConfig(client_id="id", client_secret="secret"),
-                session=SessionConfig(secret_key="a-real-secret-not-the-default"),
-                verification_functions=VerificationFunctionsConfig(
-                    token_scope="api://verification/.default"
-                ),
-            )
-
-    def test_production_requires_verification_functions_token_scope(self):
-        with pytest.raises(
-            ValidationError, match="VERIFICATION_FUNCTIONS__TOKEN_SCOPE"
-        ):
-            WebSettings(
-                database=DatabaseConfig(url="postgresql+asyncpg://localhost/test"),
-                environment="production",
-                oauth=OAuthConfig(client_id="id", client_secret="secret"),
-                session=SessionConfig(secret_key="a-real-secret-not-the-default"),
-                verification_functions=VerificationFunctionsConfig(
-                    base_url="https://functions.example.test"
-                ),
-            )
+    @pytest.mark.parametrize(
+        "field",
+        [
+            "poll_interval_seconds",
+            "execution_timeout_seconds",
+            "queue_timeout_seconds",
+            "shutdown_timeout_seconds",
+        ],
+    )
+    def test_worker_limits_must_be_positive(self, field):
+        with pytest.raises(ValidationError):
+            VerificationWorkerConfig(**{field: 0})
 
 
 @pytest.mark.unit
@@ -234,10 +217,6 @@ class TestAllowedOrigins:
             environment="production",
             oauth=OAuthConfig(client_id="id", client_secret="secret"),
             session=SessionConfig(secret_key="prod-secret"),
-            verification_functions=VerificationFunctionsConfig(
-                base_url="https://functions.example.test",
-                token_scope="api://verification/.default",
-            ),
         )
         assert "http://localhost:3000" not in s.allowed_origins
 

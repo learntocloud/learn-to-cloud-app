@@ -70,18 +70,20 @@ Source of truth is `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/con
 (`phases[].hands_on_verification.requirements`). If a slug here does not match a
 requirement card in the app, trust the artifact and report the drift.
 
-| Phase | Requirement slug | Submission type | Needs Functions? | Input |
-|-------|------------------|-----------------|------------------|-------|
-| 0 | `profile-readme` | `profile_readme` | Yes | Auto-derived |
-| 1 | `linux-ctfs-fork` | `repo_fork` | Yes | Auto-derived |
-| 1 | `linux-ctfs-token` | `ctf_token` | Yes | Minted locally (see below) |
-| 2 | `networking-lab-fork` | `repo_fork` | Yes | Auto-derived |
-| 2 | `networking-lab-token` | `networking_token` | Yes | Minted locally (see below) |
-| 3 | `journal-api-implementation` | `journal_api_verifier` | Yes | Auto-derived |
-| 4 | `deployed-journal-api` | `deployed_api` | Yes | User-provided URL |
-| 5 | `devops-implementation` | `devops_analysis` | Yes | Auto-derived |
-| 6 | `security-scanning` | `security_scanning` | Yes | Auto-derived |
-| 7 | `career-reflection` | `career_reflection` | Yes | Three answers, 200 characters minimum each |
+All submissions run through the background worker inside the API.
+
+| Phase | Requirement slug | Submission type | Input |
+|-------|------------------|-----------------|-------|
+| 0 | `profile-readme` | `profile_readme` | Auto-derived |
+| 1 | `linux-ctfs-fork` | `repo_fork` | Auto-derived |
+| 1 | `linux-ctfs-token` | `ctf_token` | Minted locally (see below) |
+| 2 | `networking-lab-fork` | `repo_fork` | Auto-derived |
+| 2 | `networking-lab-token` | `networking_token` | Minted locally (see below) |
+| 3 | `journal-api-implementation` | `journal_api_verifier` | Auto-derived |
+| 4 | `deployed-journal-api` | `deployed_api` | User-provided URL |
+| 5 | `devops-implementation` | `devops_analysis` | Auto-derived |
+| 6 | `security-scanning` | `security_scanning` | Auto-derived |
+| 7 | `career-reflection` | `career_reflection` | Three answers, 200 characters minimum each |
 
 Auto-derived values come from the authenticated GitHub user, and the field is
 rendered read-only. If a prefilled repository is not the one you were asked to
@@ -135,9 +137,9 @@ that don't say what to do next, flows that made you guess.
 | Item | Value |
 |------|-------|
 | API | healthy / failed, PID |
-| Functions | healthy / not needed / failed, PID |
+| API worker | live / failed; attempt progress observed or not exercised |
 | Processes stopped | Yes/No |
-| Logs | `/tmp/dogfood-api.log`, `/tmp/dogfood-functions.log` |
+| Logs | `.dogfood/api.log` |
 ````
 
 This report is evidence of what was found, not proof the app is healthy.

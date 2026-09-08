@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - 'api/**'
-      - 'apps/verification-functions/**'
       - 'infra/**'
       - 'packages/learn-to-cloud-shared/**'
       - 'pyproject.toml'
@@ -75,7 +74,6 @@ jobs:
           filters: |
             app:
               - 'api/**'
-              - 'apps/verification-functions/**'
               - 'packages/learn-to-cloud-shared/**'
               - 'pyproject.toml'
               - 'uv.lock'
@@ -91,8 +89,56 @@ jobs:
     with:
       force_all: ${{ github.event_name == 'workflow_dispatch' }}
 
-  infrastructure:
+  stop_legacy_verification:
     needs: [changes, quality]
+    if: >-
+      needs.changes.outputs.app == 'true' ||
+      needs.changes.outputs.infra == 'true' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Azure CLI Login
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Stop legacy verification before infrastructure changes
+        run: |
+          set -euo pipefail
+          : "${AZURE_ENV_NAME:?AZURE_ENV_NAME repository variable is required}"
+          resource_group="rg-ltc-${AZURE_ENV_NAME}"
+          function_app="func-ltc-verification-${AZURE_ENV_NAME}"
+
+          # Lookup errors, including missing permissions, must fail deployment.
+          function_id=$(
+            az resource list \
+              --resource-group "$resource_group" \
+              --resource-type Microsoft.Web/sites \
+              --query "[?name=='$function_app'].id" \
+              --output tsv
+          )
+          if [[ -z "$function_id" ]]; then
+            echo "Legacy verification Function App is absent."
+            exit 0
+          fi
+
+          az functionapp stop --ids "$function_id"
+          for i in {1..30}; do
+            state=$(az functionapp show --ids "$function_id" --query state --output tsv)
+            if [[ "$state" == "Stopped" ]]; then
+              echo "Legacy verification Function App is stopped."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Legacy verification Function App did not stop." >&2
+          exit 1
+
+  infrastructure:
+    needs: [changes, quality, stop_legacy_verification]
     if: needs.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/infra-deploy.yml
     with:
@@ -103,11 +149,12 @@ jobs:
     if: >-
       always() &&
       needs.quality.result == 'success' &&
+      needs.stop_legacy_verification.result == 'success' &&
       (needs.infrastructure.result == 'success' || needs.infrastructure.result == 'skipped') &&
       (needs.changes.outputs.app == 'true' ||
        needs.changes.outputs.infra == 'true' ||
        github.event_name == 'workflow_dispatch')
-    needs: [changes, quality, infrastructure]
+    needs: [changes, quality, stop_legacy_verification, infrastructure]
     runs-on: ubuntu-latest
     outputs:
       api_container_app_name: ${{ steps.outputs.outputs.api_container_app_name }}
@@ -124,7 +171,6 @@ jobs:
       verification_functions_postgres_role: ${{ steps.outputs.outputs.verification_functions_postgres_role }}
       api_url: ${{ steps.outputs.outputs.api_url }}
       smoke_auth_scope: ${{ steps.outputs.outputs.smoke_auth_scope }}
-      verification_functions_name: ${{ steps.outputs.outputs.verification_functions_name }}
     env:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -189,7 +235,6 @@ jobs:
           publish_output verification_functions_postgres_role verification_functions_postgres_role
           publish_output api_url api_url
           publish_output smoke_auth_scope smoke_auth_scope
-          publish_output verification_functions_name verification_functions_name
 
   deploy_app:
     needs: [changes, deployment_context]
@@ -205,49 +250,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version-file: "apps/verification-functions/pyproject.toml"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          version: "0.12.9"
-          enable-cache: true
-
       - name: Azure CLI Login
         uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Build verification Functions package
-        run: |
-          set -euo pipefail
-          rm -rf apps/verification-functions/.python_packages
-          python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version"
-          uv export \
-            --package learn-to-cloud-verification-functions \
-            --locked \
-            --no-dev \
-            --no-emit-project \
-            --no-editable \
-            --format requirements.txt \
-            --no-hashes \
-            --output-file /tmp/verification-functions-requirements.txt
-          uv pip install \
-            --python "$(which python)" \
-            --target apps/verification-functions/.python_packages/lib/site-packages \
-            -r /tmp/verification-functions-requirements.txt
-          cd apps/verification-functions
-          DATABASE__URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" \
-            PYTHONPATH="$PWD/.python_packages/lib/site-packages" \
-            python - <<'PY'
-          import asyncpg
-          import function_app
-          PY
 
       - name: Log in to ACR
         run: az acr login --name ${{ needs.deployment_context.outputs.container_registry_name }}
@@ -416,14 +424,6 @@ jobs:
             --tail 100 \
             --format text || true
           exit 1
-
-      - name: Deploy verification Functions
-        uses: Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656 # v1.5.7
-        with:
-          app-name: ${{ needs.deployment_context.outputs.verification_functions_name }}
-          package: apps/verification-functions
-          remote-build: false
-          respect-funcignore: true
 
       - name: Deploy to Container App
         env:

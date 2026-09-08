@@ -14,7 +14,6 @@ def test_docker_excludes_first_party_test_trees():
     for member in (
         "api",
         "packages/learn-to-cloud-shared",
-        "apps/verification-functions",
     ):
         assert f"/{member}/tests/" in patterns
 
@@ -27,7 +26,7 @@ def test_docker_resolves_the_development_workspace_manifest():
     assert dockerfile.index(f"COPY {manifest}") < dockerfile.index("RUN uv sync")
 
 
-def test_functions_deployment_applies_root_test_exclusion():
+def test_deployment_does_not_package_a_functions_host():
     workflow = yaml.safe_load((_ROOT / ".github/workflows/app-deploy.yml").read_text())
     deploys = [
         step
@@ -35,12 +34,7 @@ def test_functions_deployment_applies_root_test_exclusion():
         for step in job.get("steps", [])
         if step.get("uses", "").startswith("Azure/functions-action@")
     ]
-    assert len(deploys) == 1
-    inputs = deploys[0]["with"]
-    assert inputs["respect-funcignore"] is True
-    package = _ROOT / inputs["package"]
-    assert (package / "host.json").is_file()
-    assert "/tests/" in (package / ".funcignore").read_text().splitlines()
+    assert not deploys
 
 
 @pytest.mark.parametrize(

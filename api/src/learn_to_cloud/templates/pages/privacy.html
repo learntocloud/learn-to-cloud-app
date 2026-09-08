@@ -112,8 +112,8 @@
             cannot authenticate while waiting for cleanup.
         </p>
         <p>
-            Account deletion does not erase database backups, existing diagnostic logs, or verification history
-            held by workflow and grading services. Those records have separate retention settings.
+            Account deletion does not erase database backups, existing diagnostic logs, or data
+            retained by grading services. Those records have separate retention settings.
             Already-running verification work is not cancelled, and data on GitHub or your own deployments
             is not deleted.
         </p>
@@ -127,7 +127,6 @@
         <ul>
             <li><strong>GitHub API</strong> — to sign you in and verify repositories and profiles you submit</li>
             <li><strong>Microsoft Foundry / Azure OpenAI</strong> — to grade selected code, reflection text, and related metadata; service storage and abuse monitoring follow Microsoft's data-handling terms</li>
-            <li><strong>Azure Durable Task Scheduler</strong> — to run verification workflows and retain their inputs and results</li>
             <li><strong>Azure Application Insights</strong> — to collect server and browser diagnostics</li>
         </ul>
     </section>

@@ -2,8 +2,6 @@
 
 Azure Monitor owns FastAPI instrumentation in production; local OTLP configures
 it explicitly with SDK defaults. HTTPX and SQLAlchemy are application-owned.
-Production Functions use the worker-owned Azure pipeline; local Functions export
-app logs directly to OTLP while the host owns framework logs.
 """
 
 from __future__ import annotations
@@ -19,7 +17,6 @@ from opentelemetry.trace import Span
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE
 
 logger = logging.getLogger(__name__)
-_OTLP_HANDLER_NAME = "learn_to_cloud.otlp"
 
 _telemetry_enabled: bool = False
 _dependency_tracing_enabled: bool = False
@@ -44,16 +41,13 @@ async def _sanitize_async_httpx_span(span: Span, request: RequestInfo) -> None:
 def _build_resource() -> Resource:
     """Build the shared identity attached to every telemetry signal."""
     attributes = {
-        "service.name": os.getenv("OTEL_SERVICE_NAME") or APP_LOGGER_NAMESPACE,
+        "service.name": os.getenv("OTEL_SERVICE_NAME") or "learn-to-cloud-api",
     }
 
     if revision := os.getenv("CONTAINER_APP_REVISION"):
         attributes["service.version"] = revision
 
-    instance_id = os.getenv("CONTAINER_APP_REPLICA_NAME") or os.getenv(
-        "WEBSITE_INSTANCE_ID"
-    )
-    if instance_id:
+    if instance_id := os.getenv("CONTAINER_APP_REPLICA_NAME"):
         attributes["service.instance.id"] = instance_id
 
     return Resource(attributes=attributes)
@@ -64,6 +58,7 @@ def _configure_azure_monitor(resource: Resource) -> None:
     from azure.monitor.opentelemetry import (
         configure_azure_monitor as _configure_azure_monitor_sdk,
     )
+    from opentelemetry.instrumentation.logging.handler import LoggingHandler
 
     _configure_azure_monitor_sdk(
         enable_live_metrics=True,
@@ -71,6 +66,10 @@ def _configure_azure_monitor(resource: Resource) -> None:
         logger_name=APP_LOGGER_NAMESPACE,
         resource=resource,
     )
+    # The shared package is a sibling namespace, not a child of the API logger.
+    for handler in logging.getLogger(APP_LOGGER_NAMESPACE).handlers:
+        if isinstance(handler, LoggingHandler):
+            logging.getLogger("learn_to_cloud_shared").addHandler(handler)
 
 
 def _configure_otlp_grpc(resource: Resource) -> None:
@@ -139,7 +138,6 @@ def _configure_otlp_exporters(
     log_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter_cls()))
     set_logger_provider(log_provider)
     handler = LoggingHandler(logger_provider=log_provider)
-    handler.set_name(_OTLP_HANDLER_NAME)
     logging.getLogger().addHandler(handler)
 
     from opentelemetry import metrics
@@ -167,18 +165,14 @@ def _configure_otlp(resource: Resource) -> None:
         raise ValueError(f"Unsupported OTLP protocol: {protocol}")
 
 
-def _configure_observability(*, allow_azure_monitor: bool) -> bool:
-    """Set up one telemetry pipeline and report whether it is active."""
+def configure_observability() -> bool:
+    """Set up the API's Azure Monitor or local OTLP pipeline."""
     global _telemetry_enabled
 
     if _telemetry_enabled:
         return True
 
-    conn_str = (
-        os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-        if allow_azure_monitor
-        else None
-    )
+    conn_str = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
     resource = _build_resource()
     instrument_fastapi_for_otlp = False
@@ -188,7 +182,7 @@ def _configure_observability(*, allow_azure_monitor: bool) -> bool:
             _configure_azure_monitor(resource)
         elif otlp_endpoint:
             _configure_otlp(resource)
-            instrument_fastapi_for_otlp = allow_azure_monitor
+            instrument_fastapi_for_otlp = True
         else:
             logger.error(
                 "telemetry.configure.failed",
@@ -254,27 +248,6 @@ def configure_dependency_instrumentation() -> bool:
         return False
 
     _httpx_instrumented = True
-    return True
-
-
-def configure_observability() -> bool:
-    """Set up the API's Azure Monitor or local OTLP pipeline."""
-    return _configure_observability(allow_azure_monitor=True)
-
-
-def configure_otlp_observability() -> bool:
-    """Export Functions app logs once, without forwarding them to the host."""
-    if not _configure_observability(allow_azure_monitor=False):
-        return False
-
-    root = logging.getLogger()
-    for handler in list(root.handlers):
-        if handler.get_name() == _OTLP_HANDLER_NAME:
-            for name in (APP_LOGGER_NAMESPACE, "learn_to_cloud_shared"):
-                app_logger = logging.getLogger(name)
-                app_logger.addHandler(handler)
-                app_logger.propagate = False
-            root.removeHandler(handler)
     return True
 
 

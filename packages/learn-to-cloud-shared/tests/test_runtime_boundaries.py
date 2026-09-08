@@ -14,8 +14,6 @@ _RUNTIME_ROOTS = (
 _RUNTIME_FILES = sorted(
     [
         *(path for root in _RUNTIME_ROOTS for path in root.rglob("*.py")),
-        _ROOT / "apps/verification-functions/function_app.py",
-        _ROOT / "apps/verification-functions/verification_agents.py",
     ]
 )
 _TEST_MODULES = (
@@ -53,7 +51,7 @@ def test_runtime_imports_do_not_depend_on_test_support(path):
 
 @pytest.mark.parametrize(
     "member",
-    ["api", "packages/learn-to-cloud-shared", "apps/verification-functions"],
+    ["api", "packages/learn-to-cloud-shared"],
 )
 def test_shared_test_support_is_only_a_development_dependency(member):
     with (_ROOT / member / "pyproject.toml").open("rb") as manifest:

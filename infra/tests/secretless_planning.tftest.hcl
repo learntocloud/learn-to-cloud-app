@@ -45,35 +45,43 @@ variables {
   github_client_id                    = "test-github-client-id"
 }
 
-run "secretless_planning_invariants" {
+run "api_verification_worker" {
   command = plan
 
   plan_options {
     target = [
-      azurerm_storage_account.verification_functions,
-      azapi_resource.verification_functions,
+      azurerm_container_app.api_v5,
     ]
   }
 
   assert {
-    condition     = azurerm_storage_account.verification_functions.shared_access_key_enabled == false
-    error_message = "The Functions storage account must keep Shared Key disabled."
+    condition     = azurerm_container_app.api_v5.template[0].min_replicas == 1
+    error_message = "The API must keep a replica running to poll verification attempts."
   }
 
   assert {
-    condition     = azapi_resource.verification_functions.body.properties.functionAppConfig.deployment.storage.authentication.type == "UserAssignedIdentity"
-    error_message = "Function deployment storage must use the user-assigned identity."
+    condition     = azurerm_container_app.api_v5.template[0].max_replicas == 2
+    error_message = "API scaling must default to at most two replicas."
   }
 
   assert {
-    condition = !contains(
-      [
-        for setting in azapi_resource.verification_functions.body.properties.siteConfig.appSettings :
-        setting.name
-      ],
-      "AzureWebJobsStorage",
+    condition = (
+      azurerm_container_app.api_v5.template[0].container[0].cpu == 0.25 &&
+      azurerm_container_app.api_v5.template[0].container[0].memory == "0.5Gi"
     )
-    error_message = "The Function App must not use a connection-string AzureWebJobsStorage setting."
+    error_message = "The worker must preserve the existing API CPU and memory allocation."
   }
 
+  assert {
+    condition = one([
+      for setting in azurerm_container_app.api_v5.template[0].container[0].env :
+      setting.value if setting.name == "FOUNDRY_MODEL_DEPLOYMENT_NAME"
+    ]) == var.foundry_model_deployment_name
+    error_message = "The API worker must use the configured Foundry deployment."
+  }
+
+  assert {
+    condition     = azurerm_role_assignment.api_foundry.role_definition_name == "Foundry User"
+    error_message = "The API identity must be granted Foundry User."
+  }
 }

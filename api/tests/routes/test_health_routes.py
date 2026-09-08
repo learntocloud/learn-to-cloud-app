@@ -9,13 +9,19 @@ from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud.routes.health_routes import health, ready
 
 
+def _request():
+    request = MagicMock()
+    request.app.state.verification_worker = None
+    return request
+
+
 @pytest.mark.unit
 class TestHealthEndpoint:
     """Tests for GET /health."""
 
     async def test_health_returns_200_healthy(self):
         """Health endpoint returns status=healthy."""
-        result = await health()
+        result = await health(_request())
         assert result.status == "healthy"
         assert result.service == "learn-to-cloud-api"
 
@@ -23,11 +29,19 @@ class TestHealthEndpoint:
         """Health response includes the loaded artifact's identity fields."""
         catalog = get_curriculum_catalog()
 
-        result = await health()
+        result = await health(_request())
 
         assert result.curriculum_version == catalog.curriculum_version
         assert result.artifact_schema_version == catalog.artifact_schema_version
         assert result.content_hash == catalog.content_hash
+
+    async def test_health_fails_when_worker_stopped(self):
+        request = _request()
+        request.app.state.verification_worker = MagicMock()
+        request.app.state.verification_worker.done.return_value = True
+        with pytest.raises(HTTPException) as exc:
+            await health(request)
+        assert exc.value.status_code == 503
 
 
 @pytest.mark.unit
@@ -36,7 +50,7 @@ class TestReadyEndpoint:
 
     async def test_ready_returns_200_when_healthy(self):
         """Ready returns 200 when init_done=True and DB is reachable."""
-        request = MagicMock()
+        request = _request()
         request.app.state.init_error = None
         request.app.state.init_done = True
         request.app.state.alembic_code_head = None
@@ -57,7 +71,7 @@ class TestReadyEndpoint:
     async def test_ready_exposes_curriculum_artifact_identity(self):
         """Ready response includes the loaded artifact's identity fields."""
         catalog = get_curriculum_catalog()
-        request = MagicMock()
+        request = _request()
         request.app.state.init_error = None
         request.app.state.init_done = True
         request.app.state.alembic_code_head = None
@@ -74,7 +88,7 @@ class TestReadyEndpoint:
 
     async def test_ready_returns_503_when_init_error(self):
         """Ready returns 503 when init_error is set."""
-        request = MagicMock()
+        request = _request()
         request.app.state.init_error = "content load failed"
         request.app.state.init_done = False
 
@@ -86,7 +100,7 @@ class TestReadyEndpoint:
 
     async def test_ready_returns_503_when_init_not_done(self):
         """Ready returns 503 when background init hasn't finished."""
-        request = MagicMock()
+        request = _request()
         request.app.state.init_error = None
         request.app.state.init_done = False
 
@@ -98,7 +112,7 @@ class TestReadyEndpoint:
 
     async def test_ready_returns_503_when_db_check_fails(self):
         """Ready returns 503 when database connection check fails."""
-        request = MagicMock()
+        request = _request()
         request.app.state.init_error = None
         request.app.state.init_done = True
 
@@ -117,7 +131,7 @@ class TestReadyEndpoint:
 
     async def test_ready_logs_warning_on_schema_drift_but_still_200(self, caplog):
         """Ready logs a warning and still returns 200 when heads mismatch."""
-        request = MagicMock()
+        request = _request()
         request.app.state.init_error = None
         request.app.state.init_done = True
         request.app.state.alembic_code_head = "code_head_abc"
@@ -141,7 +155,7 @@ class TestReadyEndpoint:
 
     async def test_ready_no_warning_when_heads_match(self, caplog):
         """Ready logs nothing extra when DB head matches code head."""
-        request = MagicMock()
+        request = _request()
         request.app.state.init_error = None
         request.app.state.init_done = True
         request.app.state.alembic_code_head = "same_head"
@@ -165,7 +179,7 @@ class TestReadyEndpoint:
 
     async def test_ready_returns_200_when_drift_check_itself_fails(self, caplog):
         """A broken drift check never turns into a 503 for /ready."""
-        request = MagicMock()
+        request = _request()
         request.app.state.init_error = None
         request.app.state.init_done = True
         request.app.state.alembic_code_head = "code_head_abc"
@@ -189,7 +203,7 @@ class TestReadyEndpoint:
 
     async def test_ready_skips_drift_check_when_code_head_unknown(self):
         """No drift check runs if the code head couldn't be resolved at startup."""
-        request = MagicMock()
+        request = _request()
         request.app.state.init_error = None
         request.app.state.init_done = True
         request.app.state.alembic_code_head = None
@@ -208,6 +222,16 @@ class TestReadyEndpoint:
 
         assert result.status == "ready"
         mock_db_head.assert_not_called()
+
+    async def test_ready_fails_when_worker_stopped(self):
+        request = _request()
+        request.app.state.init_error = None
+        request.app.state.init_done = True
+        request.app.state.verification_worker = MagicMock()
+        request.app.state.verification_worker.done.return_value = True
+        with pytest.raises(HTTPException) as exc:
+            await ready(request)
+        assert exc.value.status_code == 503
 
 
 @pytest.mark.unit

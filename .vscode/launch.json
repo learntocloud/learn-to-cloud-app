@@ -11,7 +11,6 @@
       "cwd": "${workspaceFolder}/api",
       "envFile": "${workspaceFolder}/api/.env",
       "env": {
-        "VERIFICATION_FUNCTIONS__BASE_URL": "http://localhost:7071",
         "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317",
         "OTEL_SERVICE_NAME": "learn-to-cloud-api"
       },
@@ -24,31 +23,12 @@
       "request": "launch",
       "command": "npx @tailwindcss/cli -i src/learn_to_cloud/static/css/input.css -o src/learn_to_cloud/static/css/styles.css --watch",
       "cwd": "${workspaceFolder}/api"
-    },
-    {
-      "name": "Verification: Durable Functions",
-      "type": "debugpy",
-      "request": "attach",
-      "connect": {
-        "host": "localhost",
-        "port": 9091
-      },
-      "preLaunchTask": "func: host start",
-      "justMyCode": false
     }
   ],
   "compounds": [
     {
       "name": "API + Tailwind",
       "configurations": ["API: FastAPI (uvicorn)", "Tailwind: Watch"]
-    },
-    {
-      "name": "API + Verification",
-      "configurations": [
-        "Verification: Durable Functions",
-        "API: FastAPI (uvicorn)"
-      ],
-      "stopAll": true
     }
   ]
 }

@@ -39,8 +39,7 @@ provider "azurerm" {
   subscription_id                 = var.subscription_id
   resource_provider_registrations = "legacy"
 
-  # The Functions storage account has Shared Key disabled, so data-plane reads
-  # (queue properties) must use Entra ID.
+  # Keep Entra data-plane authentication while deleting legacy keyless storage.
   storage_use_azuread = true
 }
 
@@ -59,35 +58,22 @@ resource "random_string" "suffix" {
 }
 
 locals {
-  api_max_replicas                              = coalesce(var.api_max_replicas, 2)
-  api_min_replicas                              = coalesce(var.api_min_replicas, 0)
-  foundry_account_name                          = "ais-ltc-${var.environment}-${local.suffix}"
-  foundry_project_endpoint                      = "https://${local.foundry_account_name}.services.ai.azure.com/api/projects/${local.foundry_project_name}"
-  foundry_project_name                          = "ltc-verification-${var.environment}"
-  api_postgres_role                             = coalesce(var.postgres_api_runtime_role, "ltc_api_runtime_${var.environment}")
-  key_vault_name                                = "kv-ltc-${var.environment}-${local.suffix}"
-  migration_postgres_role                       = coalesce(var.postgres_migration_role, "ltc-postgres-migrations-${var.environment}")
-  postgres_backup_retention_days                = coalesce(var.postgres_backup_retention_days, 7)
-  postgres_geo_redundant_backup_enabled         = coalesce(var.postgres_geo_redundant_backup_enabled, false)
-  postgres_sku_name                             = coalesce(var.postgres_sku_name, "B_Standard_B1ms")
-  postgres_storage_mb                           = coalesce(var.postgres_storage_mb, 32768)
-  postgres_zone                                 = coalesce(var.postgres_zone, "3")
-  verification_functions_postgres_role          = coalesce(var.postgres_verification_functions_role, "ltc_verification_functions_${var.environment}")
-  verification_functions_storage_account_prefix = substr(replace("stltcfunc${lower(var.environment)}", "-", ""), 0, 18)
-  verification_functions_storage_account_name   = "${local.verification_functions_storage_account_prefix}${local.suffix}"
-  verification_functions_task_hub_name          = "verification-${var.environment}"
-  verification_functions_auth_app_name          = "ltc-verification-functions-${var.environment}"
-  verification_functions_auth_audience          = "api://${local.verification_functions_auth_app_name}"
-  verification_functions_auth_client_ids = {
-    dev = "0cf1cd1f-f7bd-4fa1-a995-1ed138da9ed8"
-  }
-  verification_functions_auth_client_id = coalesce(
-    var.verification_functions_auth_client_id,
-    lookup(local.verification_functions_auth_client_ids, var.environment, ""),
-  )
-  verification_functions_auth_scope = "${local.verification_functions_auth_audience}/.default"
-  smoke_auth_app_name               = "ltc-smoke-api-${var.environment}"
-  smoke_auth_audience               = "api://${local.smoke_auth_app_name}"
+  api_max_replicas                      = coalesce(var.api_max_replicas, 2)
+  api_min_replicas                      = coalesce(var.api_min_replicas, 1)
+  foundry_account_name                  = "ais-ltc-${var.environment}-${local.suffix}"
+  foundry_project_endpoint              = "https://${local.foundry_account_name}.services.ai.azure.com/api/projects/${local.foundry_project_name}"
+  foundry_project_name                  = "ltc-verification-${var.environment}"
+  api_postgres_role                     = coalesce(var.postgres_api_runtime_role, "ltc_api_runtime_${var.environment}")
+  key_vault_name                        = "kv-ltc-${var.environment}-${local.suffix}"
+  migration_postgres_role               = coalesce(var.postgres_migration_role, "ltc-postgres-migrations-${var.environment}")
+  postgres_backup_retention_days        = coalesce(var.postgres_backup_retention_days, 7)
+  postgres_geo_redundant_backup_enabled = coalesce(var.postgres_geo_redundant_backup_enabled, false)
+  postgres_sku_name                     = coalesce(var.postgres_sku_name, "B_Standard_B1ms")
+  postgres_storage_mb                   = coalesce(var.postgres_storage_mb, 32768)
+  postgres_zone                         = coalesce(var.postgres_zone, "3")
+  verification_functions_postgres_role  = coalesce(var.postgres_verification_functions_role, "ltc_verification_functions_${var.environment}")
+  smoke_auth_app_name                   = "ltc-smoke-api-${var.environment}"
+  smoke_auth_audience                   = "api://${local.smoke_auth_app_name}"
   smoke_auth_client_ids = {
     dev = "64227d45-f58e-4956-ba5a-d04e281fa1a1"
   }

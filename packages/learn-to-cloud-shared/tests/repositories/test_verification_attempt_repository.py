@@ -150,7 +150,7 @@ async def test_finalize_sets_terminal_state(
             outcome=VerificationAttemptOutcome.SUCCEEDED,
             error_code="verification_succeeded",
             validation_message=None,
-            terminal_source="orchestrator",
+            terminal_source="api_worker",
             feedback_json=[{"task": "a"}],
         )
         await db.commit()
@@ -169,7 +169,7 @@ async def test_finalize_is_compare_and_set(
             outcome=VerificationAttemptOutcome.SUCCEEDED,
             error_code="verification_succeeded",
             validation_message=None,
-            terminal_source="orchestrator",
+            terminal_source="api_worker",
             feedback_json=None,
         )
         await db.commit()
@@ -181,7 +181,7 @@ async def test_finalize_is_compare_and_set(
             outcome=VerificationAttemptOutcome.SERVER_ERROR,
             error_code="server_error",
             validation_message="late",
-            terminal_source="reconciler",
+            terminal_source="competing_finalizer",
             feedback_json=None,
         )
         await db.commit()
@@ -189,7 +189,7 @@ async def test_finalize_is_compare_and_set(
     assert first.won is True
     assert second.won is False
     assert second.state.outcome == "succeeded"
-    assert second.state.terminal_source == "orchestrator"
+    assert second.state.terminal_source == "api_worker"
 
 
 async def test_get_prepare_state_and_status(
@@ -225,47 +225,6 @@ async def test_mark_started_is_idempotent(
         status = await repo.get_status(attempt_id)
     assert status is not None
     assert status.started_at == first_started_at
-
-
-async def test_list_active_older_than_filters(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    now = utcnow()
-    old_active = await _insert_attempt(
-        session_maker, created_at=now - timedelta(hours=2)
-    )
-    await _insert_attempt(session_maker, created_at=now - timedelta(minutes=1))
-    await _insert_attempt(
-        session_maker, created_at=now - timedelta(hours=3), outcome="succeeded"
-    )
-
-    async with session_maker() as db:
-        rows = await VerificationAttemptRepository(db).list_active_older_than(
-            now - timedelta(hours=1), limit=10
-        )
-    ids = {row.id for row in rows}
-    assert old_active in ids
-    assert all(row.outcome is None for row in rows)
-    assert len(ids) == 1
-
-
-async def test_list_active_older_than_uses_started_at_when_present(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    now = utcnow()
-    attempt_id = await _insert_attempt(
-        session_maker, created_at=now - timedelta(hours=2)
-    )
-    async with session_maker() as db:
-        repo = VerificationAttemptRepository(db)
-        assert await repo.mark_started(attempt_id, started_at=now)
-        await db.commit()
-
-    async with session_maker() as db:
-        rows = await VerificationAttemptRepository(db).list_active_older_than(
-            now - timedelta(hours=1), limit=10
-        )
-    assert attempt_id not in {row.id for row in rows}
 
 
 def _create_kwargs(
@@ -463,73 +422,6 @@ async def test_create_or_get_active_serializes_concurrent_submits(
     assert count == 1
 
 
-async def test_finalize_unstarted_terminalizes_active_attempt(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    attempt_id = await _insert_attempt(session_maker)
-
-    async with session_maker() as db:
-        result = await VerificationAttemptRepository(db).finalize_unstarted(
-            attempt_id,
-            outcome="server_error",
-            error_code="durable_transport_error",
-            validation_message="Verification could not be started.",
-            terminal_source="api_start_failure",
-        )
-        await db.commit()
-    assert result is not None
-    assert result.won is True
-    assert result.state.outcome == "server_error"
-
-    async with session_maker() as db:
-        status = await VerificationAttemptRepository(db).get_status(attempt_id)
-    assert status is not None
-    assert status.outcome == "server_error"
-
-
-async def test_finalize_unstarted_returns_existing_terminal_attempt(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    attempt_id = await _insert_attempt(session_maker, outcome="succeeded")
-
-    async with session_maker() as db:
-        result = await VerificationAttemptRepository(db).finalize_unstarted(
-            attempt_id,
-            outcome="server_error",
-            error_code="durable_transport_error",
-            validation_message="Verification could not be started.",
-            terminal_source="api_start_failure",
-        )
-    assert result is not None
-    assert result.won is False
-    assert result.state.outcome == "succeeded"
-
-    async with session_maker() as db:
-        status = await VerificationAttemptRepository(db).get_status(attempt_id)
-    assert status is not None
-
-
-async def test_finalize_unstarted_refuses_claimed_attempt(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    attempt_id = await _insert_attempt(session_maker, started_at=utcnow())
-
-    async with session_maker() as db:
-        result = await VerificationAttemptRepository(db).finalize_unstarted(
-            attempt_id,
-            outcome="server_error",
-            error_code="durable_transport_error",
-            validation_message="Verification could not be started.",
-            terminal_source="api_start_failure",
-        )
-    assert result is None
-
-    async with session_maker() as db:
-        status = await VerificationAttemptRepository(db).get_status(attempt_id)
-    assert status is not None
-    assert status.started_at is not None
-
-
 async def test_new_submission_follows_terminalized_pre_start_attempt(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
@@ -539,12 +431,13 @@ async def test_new_submission_follows_terminalized_pre_start_attempt(
         requirement_uuid=requirement_uuid,
     )
     async with session_maker() as db:
-        result = await VerificationAttemptRepository(db).finalize_unstarted(
+        result = await VerificationAttemptRepository(db).finalize(
             first_id,
             outcome="server_error",
-            error_code="durable_transport_error",
+            error_code="verification_timeout",
             validation_message="Verification could not be started.",
-            terminal_source="api_start_failure",
+            terminal_source="api_worker",
+            feedback_json=None,
         )
         await db.commit()
     assert result is not None and result.won

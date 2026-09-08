@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import httpx
 import openai
@@ -11,8 +13,8 @@ import pytest
 from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
 
-import verification_agents
-from verification_agents import (
+from learn_to_cloud.services import verification_grader
+from learn_to_cloud.services.verification_grader import (
     ContentFilteredError,
     LLMGradingError,
     _find_content_filter_error,
@@ -83,7 +85,9 @@ class _FakeAgent:
 
 def test_grade_evidence_translates_content_filter(monkeypatch) -> None:
     agent = _FakeAgent(_library_wrapped_filter_error())
-    monkeypatch.setattr(verification_agents, "get_verification_grader", lambda: agent)
+    monkeypatch.setattr(
+        verification_grader, "get_verification_grader", AsyncMock(return_value=agent)
+    )
 
     with pytest.raises(ContentFilteredError):
         asyncio.run(grade_evidence("grade this"))
@@ -91,7 +95,9 @@ def test_grade_evidence_translates_content_filter(monkeypatch) -> None:
 
 def test_grade_evidence_maps_unknown_errors_without_raw_detail(monkeypatch) -> None:
     agent = _FakeAgent(RuntimeError("network down"))
-    monkeypatch.setattr(verification_agents, "get_verification_grader", lambda: agent)
+    monkeypatch.setattr(
+        verification_grader, "get_verification_grader", AsyncMock(return_value=agent)
+    )
 
     with pytest.raises(LLMGradingError) as caught:
         asyncio.run(grade_evidence("grade this"))
@@ -102,7 +108,9 @@ def test_grade_evidence_maps_unknown_errors_without_raw_detail(monkeypatch) -> N
 def test_grade_evidence_propagates_cancellation(monkeypatch) -> None:
     cancellation = asyncio.CancelledError("Grading was cancelled")
     agent = _FakeAgent(cancellation)
-    monkeypatch.setattr(verification_agents, "get_verification_grader", lambda: agent)
+    monkeypatch.setattr(
+        verification_grader, "get_verification_grader", AsyncMock(return_value=agent)
+    )
 
     with pytest.raises(asyncio.CancelledError) as caught:
         asyncio.run(grade_evidence("grade this"))
@@ -122,7 +130,9 @@ def test_grade_evidence_preserves_safe_provider_outage_category(
         body={"code": "service_unavailable", "message": "private provider response"},
     )
     agent = _FakeAgent(error)
-    monkeypatch.setattr(verification_agents, "get_verification_grader", lambda: agent)
+    monkeypatch.setattr(
+        verification_grader, "get_verification_grader", AsyncMock(return_value=agent)
+    )
 
     with pytest.raises(LLMGradingError) as caught:
         asyncio.run(grade_evidence("grade this"))
@@ -154,3 +164,93 @@ def test_classify_llm_error_uses_safe_categories(
     expected: str,
 ) -> None:
     assert classify_llm_error(exc).error_type == expected
+
+
+@pytest.mark.asyncio
+async def test_grader_closes_all_transports_and_can_restart(monkeypatch) -> None:
+    await verification_grader.close_verification_grader()
+    credential = SimpleNamespace(close=AsyncMock())
+    client = SimpleNamespace(
+        client=SimpleNamespace(close=AsyncMock()),
+        project_client=SimpleNamespace(close=AsyncMock()),
+    )
+    monkeypatch.setenv("FOUNDRY_PROJECT_ENDPOINT", "https://example.com")
+    monkeypatch.setenv("FOUNDRY_MODEL_DEPLOYMENT_NAME", "grader")
+    monkeypatch.setattr(
+        verification_grader, "_credential", Mock(return_value=credential)
+    )
+    factory = Mock(return_value=client)
+    monkeypatch.setattr(verification_grader, "FoundryChatClient", factory)
+    agent_factory = Mock(side_effect=[object(), object()])
+    monkeypatch.setattr(verification_grader, "Agent", agent_factory)
+
+    first = await verification_grader.get_verification_grader()
+    assert await verification_grader.get_verification_grader() is first
+    factory.assert_called_once()
+    await verification_grader.close_verification_grader()
+    client.client.close.assert_awaited_once()
+    client.project_client.close.assert_awaited_once()
+    credential.close.assert_awaited_once()
+    await verification_grader.close_verification_grader()
+    credential.close.assert_awaited_once()
+    assert await verification_grader.get_verification_grader() is not first
+    await verification_grader.close_verification_grader()
+    assert credential.close.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_grader_initialization_failure_closes_credential(monkeypatch) -> None:
+    await verification_grader.close_verification_grader()
+    credential = SimpleNamespace(close=AsyncMock())
+    monkeypatch.setenv("FOUNDRY_PROJECT_ENDPOINT", "https://example.com")
+    monkeypatch.setenv("FOUNDRY_MODEL_DEPLOYMENT_NAME", "grader")
+    monkeypatch.setattr(
+        verification_grader, "_credential", Mock(return_value=credential)
+    )
+    monkeypatch.setattr(
+        verification_grader, "FoundryChatClient", Mock(side_effect=ValueError())
+    )
+
+    with pytest.raises(ValueError):
+        await verification_grader.get_verification_grader()
+
+    credential.close.assert_awaited_once()
+    assert verification_grader._grader is None
+
+
+@pytest.mark.parametrize("development", [False, True])
+def test_credential_uses_api_environment(monkeypatch, development) -> None:
+    monkeypatch.setattr(
+        verification_grader,
+        "get_web_settings",
+        lambda: SimpleNamespace(is_development=development),
+    )
+    monkeypatch.setenv("AZURE_CLIENT_ID", "api-identity")
+    default = Mock()
+    managed = Mock()
+    monkeypatch.setattr(verification_grader, "DefaultAzureCredential", default)
+    monkeypatch.setattr(verification_grader, "ManagedIdentityCredential", managed)
+
+    verification_grader._credential()
+
+    if development:
+        default.assert_called_once_with()
+        managed.assert_not_called()
+    else:
+        managed.assert_called_once_with(client_id="api-identity")
+        default.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_foundry_supports_async_credentials_and_transport_cleanup() -> None:
+    from azure.identity.aio import ManagedIdentityCredential
+
+    credential = ManagedIdentityCredential()
+    client = FoundryChatClient(
+        project_endpoint="https://example.services.ai.azure.com/api/projects/test",
+        model="grader",
+        credential=credential,
+    )
+    await client.client.close()
+    await client.project_client.close()
+    await credential.close()

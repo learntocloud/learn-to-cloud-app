@@ -3,12 +3,8 @@
 These routes handle interactive HTMX requests (step toggles, form
 submissions, etc.) and return HTML partials instead of JSON.
 
-Async verifications use Durable Functions + HTMX polling:
-1. A shape-specific verification POST pre-validates and returns a spinner card
-    immediately (~100ms)
-2. Durable Functions runs verification and updates PostgreSQL job state
-3. Browser polls an API proxy that checks Durable orchestration status
-   without using PostgreSQL as the live status bus
+Verification submissions persist queued attempts and return a polling card.
+The worker processes attempts; authenticated polling reads their database state.
 """
 
 import logging
@@ -17,6 +13,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Form, Path, Query, Request
 from fastapi.responses import HTMLResponse
+from learn_to_cloud_shared.content_service import get_curriculum_catalog
 from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.requirements import get_requirement_by_slug
 from learn_to_cloud_shared.schemas import (
@@ -30,6 +27,7 @@ from learn_to_cloud_shared.submission_values import (
     submitted_value_from_raw,
 )
 from pydantic import BaseModel, ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
 from learn_to_cloud.core.auth import AuthenticatedUser, CurrentAccount, CurrentUser
 from learn_to_cloud.rendering.htmx_responses import (
@@ -39,11 +37,6 @@ from learn_to_cloud.rendering.htmx_responses import (
     render_step_toggle,
     render_unavailable,
     status_error_response,
-)
-from learn_to_cloud.services.durable_verification_client import (
-    DurableVerificationAuthError,
-    DurableVerificationConfigError,
-    DurableVerificationStatusError,
 )
 from learn_to_cloud.services.sessions_service import mutate_account
 from learn_to_cloud.services.steps_service import (
@@ -63,10 +56,6 @@ from learn_to_cloud.services.verification_attempt_service import (
     VerificationPollKind,
     poll_verification_attempt,
     submit_verification_attempt,
-)
-from learn_to_cloud.services.verification_status_tokens import (
-    VerificationStatusTokenError,
-    load_verification_status_token,
 )
 from learn_to_cloud.verification_forms import (
     DerivedVerificationForm,
@@ -176,10 +165,10 @@ async def _submit_canonical_verification(
     requirement: HandsOnRequirement,
     submitted_value: SubmittedValue,
 ) -> HTMLResponse:
-    """Create and start an attempt from a canonical submission value."""
+    """Queue an attempt from a canonical submission value."""
     requirement_slug = requirement.slug
     try:
-        result = await submit_verification_attempt(
+        attempt_id = await submit_verification_attempt(
             session_maker=request.app.state.session_maker,
             user_id=current_user.user_id,
             github_username=current_user.github_username,
@@ -188,6 +177,15 @@ async def _submit_canonical_verification(
         )
     except _USER_FACING_ERRORS as exc:
         return render_input_error(request, current_user, requirement, str(exc))
+    except (SQLAlchemyError, OSError) as exc:
+        logger.warning(
+            "verification.submit.database_unavailable",
+            extra={"error.type": type(exc).__name__},
+        )
+        return status_error_response(
+            "Unable to submit verification. Refresh the page and try again.",
+            status_code=503,
+        )
     except Exception as exc:
         logger.error(
             "htmx.submit.unexpected_error",
@@ -206,19 +204,11 @@ async def _submit_canonical_verification(
             ),
         )
 
-    if result.status_token is not None:
-        return render_processing(
-            request,
-            requirement,
-            result.status_token,
-            delay_seconds=INITIAL_VERIFICATION_STATUS_DELAY_SECONDS,
-        )
-    return render_unavailable(
+    return render_processing(
         request,
-        current_user,
         requirement,
-        result.unavailable_message
-        or "Verification could not be started. Please try again.",
+        attempt_id,
+        delay_seconds=INITIAL_VERIFICATION_STATUS_DELAY_SECONDS,
     )
 
 
@@ -376,56 +366,41 @@ async def htmx_submit_verification(
 @router.get("/verification/attempts/status", response_class=HTMLResponse)
 async def htmx_verification_attempt_status(
     request: Request,
-    token: Annotated[str, Query(max_length=4096)],
+    attempt_id: Annotated[UUID, Query()],
     current_user: CurrentUser,
 ) -> HTMLResponse:
-    """Return a polling card or reload trigger based on Durable attempt status."""
+    """Return a polling card or reload trigger for an owned persisted attempt."""
     user_id = current_user.user_id
-    try:
-        token_data = load_verification_status_token(
-            token,
-            expected_user_id=user_id,
-        )
-    except VerificationStatusTokenError:
-        return status_error_response(
-            "Verification status expired. Refresh the page to check for results.",
-            status_code=400,
-        )
-
     try:
         result = await poll_verification_attempt(
             session_maker=request.app.state.session_maker,
             user_id=user_id,
-            token_data=token_data,
+            attempt_id=attempt_id,
         )
-    except (
-        DurableVerificationAuthError,
-        DurableVerificationConfigError,
-        DurableVerificationStatusError,
-    ) as exc:
+    except (SQLAlchemyError, OSError) as exc:
         logger.warning(
-            "verification.status.durable_read_failed",
-            extra={
-                "verification.attempt.id": token_data.job_id,
-                "error.type": type(exc).__name__,
-                "verification.failure.kind": exc.failure_kind.value,
-                "http.response.status_code": exc.status_code,
-            },
+            "verification.status.database_unavailable",
+            extra={"error.type": type(exc).__name__},
         )
         return status_error_response(
             "Unable to load verification status. "
             "Refresh the page to check for results.",
-            status_code=502,
+            status_code=503,
         )
 
+    if result is None:
+        return status_error_response("Verification attempt not found.", status_code=404)
+
     if result.kind is VerificationPollKind.PROCESSING:
-        requirement = get_requirement_by_slug(token_data.requirement_slug)
+        requirement = get_curriculum_catalog().requirements_by_uuid.get(
+            result.requirement_uuid
+        )
         if requirement is None:
             return reload_page_response()
         return render_processing(
             request,
             requirement,
-            token,
+            attempt_id,
             delay_seconds=RUNNING_VERIFICATION_STATUS_DELAY_SECONDS,
         )
 

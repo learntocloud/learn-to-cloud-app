@@ -176,7 +176,6 @@ def _grading_requests_for(
             LLMGradingRequest(
                 task=task,
                 message=message,
-                thread_id=f"{job.id}-{task.id}",
                 allowed_evidence_refs=allowed_evidence_refs,
             )
         )

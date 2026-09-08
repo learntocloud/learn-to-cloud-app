@@ -1,8 +1,7 @@
-"""Serializable types shared by verification workflow activities."""
+"""Typed inputs and results for verification execution."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from uuid import UUID
@@ -10,14 +9,10 @@ from uuid import UUID
 from learn_to_cloud_shared.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
-    HandsOnRequirementAdapter,
     ValidationResult,
 )
 from learn_to_cloud_shared.submission_derivation import build_target
-from learn_to_cloud_shared.submission_values import (
-    SubmittedValue,
-    submitted_value_from_payload,
-)
+from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle
 
@@ -55,7 +50,7 @@ class GradingDisposition(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class PreparedVerificationAttempt:
-    """Serializable verification attempt input for workflow activities."""
+    """Validated attempt input loaded from its stored snapshot."""
 
     id: UUID
     user_id: int
@@ -63,39 +58,14 @@ class PreparedVerificationAttempt:
     requirement: HandsOnRequirement
     submitted_value: SubmittedValue
 
-    def to_payload(self) -> dict[str, object]:
-        return {
-            "id": str(self.id),
-            "user_id": self.user_id,
-            "github_username": self.github_username,
-            "requirement": self.requirement.model_dump(mode="json"),
-            "submission_value": self.submitted_value.to_payload(),
-        }
-
     @property
     def target(self) -> GitHubRepositoryTarget | None:
         return build_target(self.requirement, self.github_username)
 
-    @classmethod
-    def from_payload(cls, payload: Mapping[str, object]) -> PreparedVerificationAttempt:
-        github_username = payload.get("github_username")
-        requirement = HandsOnRequirementAdapter.validate_python(payload["requirement"])
-        return cls(
-            id=UUID(_expect_str(payload["id"], "id")),
-            user_id=_expect_int(payload["user_id"], "user_id"),
-            github_username=(
-                _expect_str(github_username, "github_username")
-                if github_username is not None
-                else None
-            ),
-            requirement=requirement,
-            submitted_value=submitted_value_from_payload(payload["submission_value"]),
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class VerificationRunResult:
-    """Serializable result carried between verification activities."""
+    """Verification output with optional evidence awaiting rubric grading."""
 
     attempt: PreparedVerificationAttempt
     validation_result: ValidationResult
@@ -103,65 +73,6 @@ class VerificationRunResult:
     grading_requests: list[LLMGradingRequest] | None = None
     grading_disposition: GradingDisposition | None = None
     llm_error_type: str | None = None
-
-    def to_payload(self) -> dict[str, object]:
-        return {
-            "attempt": self.attempt.to_payload(),
-            "validation_result": self.validation_result.model_dump(mode="json"),
-            "evidence": (
-                [bundle.model_dump(mode="json") for bundle in self.evidence]
-                if self.evidence is not None
-                else None
-            ),
-            "grading_requests": (
-                [request.model_dump(mode="json") for request in self.grading_requests]
-                if self.grading_requests is not None
-                else None
-            ),
-            "grading_disposition": (
-                self.grading_disposition.value
-                if self.grading_disposition is not None
-                else None
-            ),
-            "llm_error_type": self.llm_error_type,
-        }
-
-    @classmethod
-    def from_payload(cls, payload: Mapping[str, object]) -> VerificationRunResult:
-        raw_evidence = payload.get("evidence")
-        evidence = (
-            [EvidenceBundle.model_validate(bundle) for bundle in raw_evidence]
-            if isinstance(raw_evidence, list)
-            else None
-        )
-        raw_requests = payload.get("grading_requests")
-        grading_requests = (
-            [LLMGradingRequest.model_validate(request) for request in raw_requests]
-            if isinstance(raw_requests, list)
-            else None
-        )
-        raw_disposition = payload.get("grading_disposition")
-        grading_disposition = (
-            GradingDisposition(_expect_str(raw_disposition, "grading_disposition"))
-            if raw_disposition is not None
-            else None
-        )
-        return cls(
-            attempt=PreparedVerificationAttempt.from_payload(
-                _expect_mapping(payload["attempt"])
-            ),
-            validation_result=ValidationResult.model_validate(
-                payload["validation_result"]
-            ),
-            evidence=evidence,
-            grading_requests=grading_requests,
-            grading_disposition=grading_disposition,
-            llm_error_type=(
-                _expect_str(payload["llm_error_type"], "llm_error_type")
-                if payload.get("llm_error_type") is not None
-                else None
-            ),
-        )
 
     def without_transport_data(self) -> VerificationRunResult:
         """Drop evidence and grading prompts before the database write."""
@@ -184,26 +95,3 @@ def code_for_outcome(outcome: str, fallback: str | None = None) -> str:
     if outcome == OUTCOME_FAILED:
         return fallback or VALIDATION_FAILED_ERROR_CODE
     return fallback or VERIFICATION_INCOMPLETE_ERROR_CODE
-
-
-def _expect_mapping(value: object) -> Mapping[str, object]:
-    if not isinstance(value, Mapping):
-        raise TypeError("Expected payload object")
-    payload: dict[str, object] = {}
-    for key, item in value.items():
-        if not isinstance(key, str):
-            raise TypeError("Expected string payload keys")
-        payload[key] = item
-    return payload
-
-
-def _expect_int(value: object, field_name: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        raise TypeError(f"Expected integer payload field: {field_name}")
-    return value
-
-
-def _expect_str(value: object, field_name: str) -> str:
-    if not isinstance(value, str):
-        raise TypeError(f"Expected string payload field: {field_name}")
-    return value

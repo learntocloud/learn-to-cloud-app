@@ -1,11 +1,4 @@
-"""LLM grading request/decision transport plus shared prompt builders.
-
-Kept dependency-light on purpose: it imports only schemas and task
-definitions, never ``verification_workflow``. That lets the workflow transport
-carry :class:`LLMGradingRequest`s on ``VerificationRunResult`` (so the engine
-can record grading requests on the verify result) without an import cycle,
-and keeps prompt construction shared with the grading activity.
-"""
+"""Typed rubric requests and decisions with validated prompt builders."""
 
 from __future__ import annotations
 
@@ -28,11 +21,10 @@ from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle
 
 
 class LLMGradingRequest(FrozenModel):
-    """One durable agent grading request."""
+    """One self-contained rubric grading request."""
 
     task: VerificationTask
     message: str
-    thread_id: str
     allowed_evidence_refs: list[str] = Field(default_factory=list)
 
 
@@ -86,7 +78,7 @@ def _validated_evidence_payload(
 
 
 def validate_grading_request(request: LLMGradingRequest) -> None:
-    """Recheck serialized requests immediately before invoking the grader."""
+    """Recheck prompt evidence immediately before invoking the grader."""
     try:
         payload = json.loads(request.message.split("\n\n", 1)[1])
         result = ValidationResult.model_validate(payload["deterministic_result"])

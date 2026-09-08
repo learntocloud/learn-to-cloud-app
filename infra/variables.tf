@@ -57,40 +57,13 @@ variable "postgres_migration_role" {
 }
 
 variable "postgres_verification_functions_role" {
-  description = "PostgreSQL role used by the verification Azure Functions app. Defaults to ltc_verification_functions_<environment>."
+  description = "Inert legacy role name required by historical migrations. Defaults to ltc_verification_functions_<environment>."
   type        = string
   default     = null
 
   validation {
     condition     = var.postgres_verification_functions_role == null || can(regex("^[A-Za-z_][A-Za-z0-9_]*$", var.postgres_verification_functions_role))
     error_message = "postgres_verification_functions_role must be a valid PostgreSQL role identifier using letters, numbers, and underscores, and must not start with a number."
-  }
-}
-
-variable "durable_task_scheduler_ip_allowlist" {
-  description = "CIDR ranges allowed to connect to the Durable Task Scheduler endpoint."
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
-
-  validation {
-    condition     = length(var.durable_task_scheduler_ip_allowlist) > 0
-    error_message = "durable_task_scheduler_ip_allowlist must include at least one IPv4, IPv6, or CIDR range."
-  }
-}
-
-variable "durable_task_dashboard_reader_group_object_ids_by_environment" {
-  description = "Microsoft Entra group object IDs allowed to view Durable Task Scheduler dashboard orchestration data, keyed by environment."
-  type        = map(list(string))
-  default = {
-    dev = ["2141d117-ca04-40c9-a8e2-a0af566791a3"]
-  }
-
-  validation {
-    condition = alltrue([
-      for object_id in flatten(values(var.durable_task_dashboard_reader_group_object_ids_by_environment)) :
-      can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", object_id))
-    ])
-    error_message = "durable_task_dashboard_reader_group_object_ids_by_environment values must be valid Microsoft Entra object IDs."
   }
 }
 
@@ -165,21 +138,6 @@ variable "github_client_id" {
   type        = string
 }
 
-variable "verification_functions_auth_client_id" {
-  description = "Client ID of the pre-created Entra app registration."
-  type        = string
-  default     = null
-
-  validation {
-    condition = (
-      var.verification_functions_auth_client_id == null
-      ? true
-      : length(trimspace(var.verification_functions_auth_client_id)) > 0
-    )
-    error_message = "verification_functions_auth_client_id must be non-empty when set."
-  }
-}
-
 variable "smoke_auth_client_id" {
   description = "Client ID of the pre-created Entra smoke API app registration."
   type        = string
@@ -234,13 +192,13 @@ variable "alert_emails" {
 }
 
 variable "api_min_replicas" {
-  description = "Minimum API Container App replicas. Defaults to 0 so the API can scale to zero."
+  description = "Minimum API Container App replicas. At least one replica must run the verification worker."
   type        = number
   default     = null
 
   validation {
-    condition     = var.api_min_replicas == null ? true : var.api_min_replicas >= 0
-    error_message = "api_min_replicas must be zero or greater."
+    condition     = var.api_min_replicas == null ? true : var.api_min_replicas >= 1
+    error_message = "api_min_replicas must be at least 1."
   }
 }
 

@@ -232,7 +232,7 @@ async def create_verification_attempt(
 ) -> VerificationAttemptSubmission:
     """Validate request preconditions and create the unified verification attempt.
 
-    Every submission type runs through Durable Functions. This validates the
+    Every submission type runs in the API worker. This validates the
     request, then -- inside one transaction, guarded by a transaction-scoped
     Postgres advisory lock on ``(user_id, requirement_uuid)`` -- creates or
     reuses the authoritative ``VerificationAttempt`` row.

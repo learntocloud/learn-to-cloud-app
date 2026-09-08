@@ -42,7 +42,7 @@ Report as a **defect** anything with objective evidence:
 - a JavaScript console error;
 - visible failure text such as `Internal Server Error`, `500`, `404`, or
   `Traceback`;
-- an interaction that never settles (stop waiting after 60 seconds);
+- an interaction that never settles (allow verification its configured queue and execution limits);
 - state that silently fails to persist across a reload;
 - a tool or script the workflow depends on that does not run.
 
@@ -56,41 +56,36 @@ more useful than a confident summary of two pages.
 
 ## Prepare the environment
 
-Run commands with Bash from `/workspaces/learn-to-cloud-app`.
+Run commands with Bash from the current repository root.
 
 Always redirect server output to a log file. The browser only ever shows a
 generic error page for a server fault; the traceback that explains it lands in
 the process output. Capturing it is what makes a report actionable instead of
 just "the page failed".
 
-1. Resolve any process listening on port 8000 and terminate that specific PID.
+1. Check whether port 8000 is available. Never terminate an unrelated listener
+   to free the port. Reuse a verified local development API only when authorized,
+   or report the conflict. Record whether you started or reused the process.
 2. Start the API from `api/` as a background process, logging to a known path:
 
    ```bash
+   mkdir -p ../.dogfood
    PYTHONUNBUFFERED=1 uv run uvicorn learn_to_cloud.main:app \
-     --host 127.0.0.1 --port 8000 > /tmp/dogfood-api.log 2>&1
+     --host 127.0.0.1 --port 8000 > ../.dogfood/api.log 2>&1
    ```
 
    `PYTHONUNBUFFERED=1` matters: application logs go to stdout, which Python
    block-buffers when redirected to a file, so without it the log can lag
    several requests behind what the browser is doing.
 
-3. Wait until `http://localhost:8000/health` returns a healthy response. If
-   startup fails, read `/tmp/dogfood-api.log`, report the error, clean up, and
-   stop.
-4. When the goal needs asynchronous verification, similarly free port 7071 and
-   start the Functions host from `apps/verification-functions/`:
-
-   ```bash
-   test -f local.settings.json || cp local.settings.example.json local.settings.json
-   PYTHONUNBUFFERED=1 uv run func start --port 7071 \
-     > /tmp/dogfood-functions.log 2>&1
-   ```
-
-   Confirm readiness from `/tmp/dogfood-functions.log`. Expected routes include
-   `verification/attempts/{attempt_id}/start` and
-   `verification/attempts/{instance_id}/status`; there is no Functions health
-   endpoint.
+3. Wait until `http://localhost:8000/ready` returns a healthy response. If
+   startup fails, read `.dogfood/api.log` from the repository root, report the
+   error, clean up only your own processes, and stop.
+4. Verification starts automatically inside the API: one sequential loop per
+   process claims pending attempts from PostgreSQL. Both `/health` and `/ready`
+   return 503 if that task has finished. Use the API log and attempt IDs to
+   investigate queued work, execution, and saved outcomes; no separate host is
+   needed.
 
 Do not use broad process-name termination. Record the exact PIDs you start so
 you can stop only those processes during cleanup.
@@ -110,7 +105,7 @@ uv run --with playwright playwright install chromium
 Then drive the browser from a script, for example:
 
 ```bash
-uv run --with playwright python /tmp/dogfood_drive.py
+uv run --with playwright python .dogfood/drive.py
 ```
 
 Keep the browser session in one script per interaction sequence so that cookies,
@@ -156,12 +151,13 @@ On any defect, before navigating away, read the tail of the relevant log so the
 lines are still near the end:
 
 ```bash
-tail -n 60 /tmp/dogfood-api.log
-tail -n 60 /tmp/dogfood-functions.log
+tail -n 60 .dogfood/api.log
 ```
 
-Report the exception type and the failing application frame, not just the
-rendered error page. Two specifics about these logs:
+Report the exception type and failing application frame when available, not just
+the rendered error page. Verification errors intentionally log bounded categories
+or `error.type` without provider responses or evidence; do not invent a traceback
+or expose submission data to fill that gap. Two specifics about these logs:
 
 - They hold application logs and unhandled-exception tracebacks, but no
   per-request access lines: `uvicorn.access` is pinned to `WARNING` in
@@ -237,24 +233,25 @@ worthless anywhere else.
    auto-derived submissions. If a prefilled field is read-only and holds
    something other than what the user asked you to test, report that and do not
    try to force it.
-4. Submit, then poll the card until it reaches success or failure. Stop after 60
-   seconds and report a timeout.
+4. Submit, then poll the card until it reaches success or failure. Allow the
+   configured queue and execution limits plus one polling interval (defaults:
+   600 + 180 + 5 seconds). If you stop observing earlier, report the attempt as
+   still pending, not a product timeout.
 5. Capture the final visible status and message, plus log evidence on any
-   failure or timeout. A timeout usually means the Functions host never picked
-   up the work or the orchestration raised, and only the logs distinguish them.
+   failure or timeout. Inspect `verification.attempt.started`,
+   `verification.attempt.completed`, `verification.attempt.stuck`, and
+   `verification.worker.failed` in the API log. Distinguish queued backlog,
+   execution failure, and a stopped worker; never include submitted evidence or
+   credentials in the report.
 6. Reset again afterwards, even when the submission failed.
 
 ## Cleanup
 
-Cleanup is mandatory. Stop only the PIDs you started, including when startup
-failed partway. Leave `/tmp/dogfood-api.log` and `/tmp/dogfood-functions.log` in
-place for the user to inspect; the next run overwrites them.
-
-Stop the Functions host with `kill -INT <pid>`, not a plain `kill`. The Core
-Tools host installs no `SIGTERM` handler, so `kill` leaves it holding port 7071
-until it is force-killed, and the leftover process silently blocks the next
-run's port bind. `SIGINT` shuts it down in about a second, and sending it to the
-`uv run` wrapper PID you recorded propagates to the host correctly.
+Cleanup is mandatory. Stop only the exact PIDs you started, including when
+startup failed partway. Use `kill -TERM <owned-pid>` and verify exit; never kill
+an unrelated listener or a reused server. API shutdown cancels its worker and
+closes grading clients. Leave `.dogfood/api.log` for the user to inspect, but
+remove browser scripts or artifacts containing session credentials.
 
 ## Reporting standard
 

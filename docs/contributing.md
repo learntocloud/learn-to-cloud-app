@@ -14,7 +14,7 @@ Install only the tools needed for the work you plan to do.
 |----------|----------------|
 | API, shared package, tests, and quality gates | Git, Docker with Compose, `uv` |
 | Frontend CSS changes | Node.js 20+, npm |
-| Local verification submissions | Node.js 20+, npm, Azure Functions Core Tools 4 |
+| Local verification submissions | API environment and PostgreSQL |
 | Terraform and Azure operations | Terraform 1.5.x, Azure CLI, GitHub CLI |
 | Production database investigation | Azure CLI, PostgreSQL client |
 | Dog-food browser testing | Node.js 20+, npm, Playwright MCP and Chromium |
@@ -44,7 +44,7 @@ Install the workspace and configure the repository's pre-commit hook:
 uv sync --all-packages --locked
 uv run prek install
 cp api/.env.example api/.env
-docker compose up -d db azurite dts aspire-dashboard
+docker compose up -d db aspire-dashboard
 cd api && uv run alembic upgrade head && cd ..
 ```
 
@@ -82,35 +82,21 @@ uv run python scripts/reset_local_submissions.py --yes
 
 ### Optional toolsets
 
-#### Frontend and verification worker
+#### Frontend
 
 Install Node.js 20 or newer using the
 [official Node.js installation instructions](https://nodejs.org/en/download).
-Then install frontend dependencies and Azure Functions Core Tools:
+Then install frontend dependencies:
 
 ```bash
 cd api && npm ci && cd ..
-npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
 node --version
 npm --version
-func --version
 ```
 
-Node.js is only required for Tailwind CSS changes and local Functions
-development. The API and Python test suites do not require it.
-
-Create the Functions-local environment before starting Core Tools:
-
-```bash
-UV_PROJECT_ENVIRONMENT="$PWD/apps/verification-functions/.venv" \
-  uv sync --project apps/verification-functions --locked
-```
-
-The Functions environment is intentionally separate from the workspace root
-environment. Python 3.13 uses this project-local environment to isolate
-application packages such as `protobuf` and `grpcio` from the worker's bundled
-dependencies. The VS Code Functions task creates and refreshes it automatically.
+Node.js is needed for Tailwind CSS changes and browser telemetry contract tests.
+Local verification uses the API environment; there is no separate worker host.
 
 #### Azure and Terraform
 
@@ -347,6 +333,33 @@ The top-level `learn_to_cloud/verification_forms.py` owns submission checking,
 input shapes, action URLs, and shared length limits. Form rendering uses that
 contract rather than duplicating its rules. Keep related display models and
 builders together, and import them directly from their owning modules.
+
+### Background verification
+
+The API lifespan starts one sequential verification loop per process. PostgreSQL
+stores the pending work; atomic claims prevent two replicas from executing the
+same attempt. Execution is a plain async function with a timeout, not a workflow
+engine. There are no workflow retries, checkpoints, external queues, or
+verification jobs. Existing provider-level retry policies remain separate.
+
+Overdue cleanup detects both attempts waiting too long for a claim and executions
+that outlive their limit, then saves a terminal outcome. A process crash does not
+resume its execution; cleanup lets the learner submit again. Production keeps
+one API replica available and allows at most two, without changing CPU or memory.
+
+`verification_worker` settings default to a 5-second poll interval, 180-second
+execution timeout, 600-second queue timeout, and 10-second shutdown timeout.
+These are worker limits, separate from provider SDK timeouts.
+
+For the migration cutover, stop the old verification host **before** running
+`0062_api_verification_worker`. That migration marks all active attempts as
+`server_error` with cause `verification_interrupted` and adds the pending-work
+index. Then start the API worker. It claims only attempts with no `started_at`;
+there is no replay, lease, or checkpoint migration.
+
+During this rollout, Terraform retains two inert legacy startup settings so the
+previous API image can still start before its replacement arrives. The new
+worker ignores them; they do not connect to the stopped verification host.
 
 Rendering preserves the distinction between failed learner work and incomplete
 verification. Operational logs and spans stay at the existing request/service
@@ -784,13 +797,22 @@ the same instrumentation explicitly with SDK defaults. Keep the default ASGI
 receive/send spans rather than replacing Azure Monitor's setup just to reduce
 trace noise.
 
-Local Functions send application logs directly through the existing OTLP
-handler, without forwarding the same records to the Functions host. The host
-still collects framework logs. Leave `PYTHON_ENABLE_OPENTELEMETRY` unset:
-runtime 1.2.1 crashes async invocations with that flag
-([upstream issue](https://github.com/Azure/azure-functions-python-worker/issues/1881)).
-Production continues to use `PYTHON_APPLICATIONINSIGHTS_ENABLE_TELEMETRY=true`
-and its worker-owned Azure Monitor pipeline.
+HTTP requests and background verification share the `learn-to-cloud-api` role,
+Azure Monitor pipeline in production, and local OTLP pipeline in Aspire.
+`verification.attempt.created` records accepted work;
+`verification.attempt.started` and the `verification.execute` span mark a claimed
+attempt. `verification.attempt.completed` is emitted only after the final outcome
+is saved. `verification.llm_grading.failed` retains bounded `error.type` categories;
+never attach prompts, evidence, fetched source, or credentials.
+
+`verification.attempt.stuck` includes `verification.attempt.age_seconds` and
+`verification.stuck.reason` (`queued_beyond_limit` or `execution_beyond_limit`).
+Fatal loop failures emit `verification.worker.failed` with only `error.type`,
+then re-raise; they do not emit raw exception details or the HTTP-only
+`unhandled.exception`. Both `/health` and `/ready` return 503 when the worker
+task has finished. Shutdown cancels the worker and closes the grader's clients.
+The existing stuck alert covers overdue work and worker failures; final-outcome
+and LLM alerts remain separate.
 
 ## Conventions
 

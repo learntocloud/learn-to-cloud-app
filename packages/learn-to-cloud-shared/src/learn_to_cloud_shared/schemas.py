@@ -365,8 +365,7 @@ HandsOnRequirement = Annotated[
 ]
 
 # Annotated unions don't expose ``model_validate``; use this adapter for
-# rehydrating requirements from JSON/dict payloads (e.g., durable
-# verification jobs).
+# loading requirements from saved attempt snapshots.
 HandsOnRequirementAdapter = TypeAdapter(HandsOnRequirement)
 
 

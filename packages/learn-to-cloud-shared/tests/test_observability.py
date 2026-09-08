@@ -76,11 +76,11 @@ def test_configure_observability_logs_missing_destination(
 
 
 @pytest.mark.unit
-def test_build_resource_uses_logger_namespace_without_platform_values():
+def test_build_resource_uses_api_role_without_platform_values():
     with patch.dict("os.environ", {}, clear=True):
         resource = observability._build_resource()
 
-    assert resource.attributes["service.name"] == "learn_to_cloud"
+    assert resource.attributes["service.name"] == "learn-to-cloud-api"
     assert "service.version" not in resource.attributes
     assert "service.instance.id" not in resource.attributes
 
@@ -93,7 +93,6 @@ def test_build_resource_maps_container_app_identity():
             "OTEL_SERVICE_NAME": "learn-to-cloud-api",
             "CONTAINER_APP_REVISION": "ca-ltc-api--rev42",
             "CONTAINER_APP_REPLICA_NAME": "ca-ltc-api--rev42-abc",
-            "WEBSITE_INSTANCE_ID": "function-instance",
         },
         clear=True,
     ):
@@ -102,25 +101,6 @@ def test_build_resource_maps_container_app_identity():
     assert resource.attributes["service.name"] == "learn-to-cloud-api"
     assert resource.attributes["service.version"] == "ca-ltc-api--rev42"
     assert resource.attributes["service.instance.id"] == "ca-ltc-api--rev42-abc"
-
-
-@pytest.mark.unit
-def test_build_resource_maps_function_instance_identity():
-    with patch.dict(
-        "os.environ",
-        {
-            "OTEL_SERVICE_NAME": "learn-to-cloud-verification-functions",
-            "WEBSITE_INSTANCE_ID": "function-instance",
-        },
-        clear=True,
-    ):
-        resource = observability._build_resource()
-
-    assert (
-        resource.attributes["service.name"] == "learn-to-cloud-verification-functions"
-    )
-    assert resource.attributes["service.instance.id"] == "function-instance"
-    assert "service.version" not in resource.attributes
 
 
 @pytest.mark.unit
@@ -201,45 +181,6 @@ def test_configure_observability_uses_otlp_when_endpoint_set():
     fastapi_instrumentor.return_value.instrument.assert_called_once_with()
     assert observability._telemetry_enabled is True
     assert configured is True
-
-
-@pytest.mark.unit
-def test_configure_otlp_observability_never_uses_azure_monitor():
-    resource = MagicMock(spec=Resource)
-    with (
-        patch.dict(
-            "os.environ",
-            {
-                "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test",
-                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317",
-            },
-            clear=True,
-        ),
-        patch(
-            "learn_to_cloud_shared.core.observability._build_resource",
-            return_value=resource,
-        ),
-        patch(
-            "learn_to_cloud_shared.core.observability._configure_azure_monitor"
-        ) as azure_monitor,
-        patch("learn_to_cloud_shared.core.observability._configure_otlp") as otlp,
-        patch(
-            "learn_to_cloud_shared.core.observability.HTTPXClientInstrumentor"
-        ) as httpx_instrumentor,
-        patch(
-            "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor"
-        ) as fastapi_instrumentor,
-    ):
-        configured = observability.configure_otlp_observability()
-
-    assert configured is True
-    azure_monitor.assert_not_called()
-    otlp.assert_called_once_with(resource)
-    httpx_instrumentor.return_value.instrument.assert_called_once_with(
-        request_hook=observability._sanitize_httpx_span,
-        async_request_hook=observability._sanitize_async_httpx_span,
-    )
-    fastapi_instrumentor.assert_not_called()
 
 
 @pytest.mark.unit
@@ -348,36 +289,53 @@ def test_configure_azure_monitor_uses_distro_instrumentation_defaults():
 
 
 @pytest.mark.unit
-def test_local_functions_export_app_logs_once_without_host_forwarding():
+@pytest.mark.parametrize("pipeline", ["azure", "otlp"])
+def test_api_and_shared_logs_use_one_exporter(pipeline):
     root = logging.getLogger()
-    original_handlers = root.handlers[:]
     app_loggers = [
         logging.getLogger(name) for name in ("learn_to_cloud", "learn_to_cloud_shared")
     ]
     original_loggers = [
         (logger, logger.handlers[:], logger.propagate, logger.level)
-        for logger in app_loggers
+        for logger in [root, *app_loggers]
     ]
     exporter = InMemoryLogRecordExporter()
     provider = LoggerProvider()
     provider.add_log_record_processor(SimpleLogRecordProcessor(exporter))
     handler = LoggingHandler(logger_provider=provider)
-    handler.set_name(observability._OTLP_HANDLER_NAME)
-    host_handler = MagicMock(spec=logging.Handler)
-    host_handler.level = logging.NOTSET
-    root.handlers = [handler, host_handler]
+    destination = app_loggers[0] if pipeline == "azure" else root
+    environment = (
+        {"APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test"}
+        if pipeline == "azure"
+        else {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317"}
+    )
     try:
-        with patch.object(observability, "_configure_observability", return_value=True):
-            assert observability.configure_otlp_observability() is True
-            assert observability.configure_otlp_observability() is True
+        for app_logger in [root, *app_loggers]:
+            app_logger.handlers = []
+            app_logger.propagate = True
+            app_logger.setLevel(logging.INFO)
+        with (
+            patch.dict("os.environ", environment, clear=True),
+            patch(
+                "azure.monitor.opentelemetry.configure_azure_monitor",
+                side_effect=lambda **kwargs: destination.addHandler(handler),
+            ),
+            patch.object(
+                observability,
+                "_configure_otlp",
+                side_effect=lambda resource: destination.addHandler(handler),
+            ),
+            patch.object(observability, "configure_fastapi_instrumentation"),
+            patch.object(observability, "configure_dependency_instrumentation"),
+        ):
+            assert observability.configure_observability() is True
+            assert observability.configure_observability() is True
 
         for app_logger in app_loggers:
-            app_logger.setLevel(logging.INFO)
             logging.getLogger(f"{app_logger.name}.verification").info(
                 "verification.attempt.completed",
                 extra={"verification.attempt.id": "attempt-probe"},
             )
-
         records = exporter.get_finished_logs()
         assert len(records) == 2
         for record in records:
@@ -385,30 +343,12 @@ def test_local_functions_export_app_logs_once_without_host_forwarding():
             assert record.log_record.attributes["verification.attempt.id"] == (
                 "attempt-probe"
             )
-        host_handler.handle.assert_not_called()
-        logging.getLogger("azure.functions").warning("framework-probe")
-        host_handler.handle.assert_called_once()
-        assert host_handler.handle.call_args.args[0].getMessage() == "framework-probe"
-        assert root.handlers == [host_handler]
     finally:
-        root.handlers = original_handlers
         for app_logger, handlers, propagate, level in original_loggers:
             app_logger.handlers = handlers
             app_logger.propagate = propagate
             app_logger.setLevel(level)
         provider.shutdown()
-
-
-@pytest.mark.unit
-def test_failed_local_setup_does_not_change_log_routing():
-    root = logging.getLogger()
-    handlers = root.handlers[:]
-    app_logger = logging.getLogger("learn_to_cloud")
-    propagation = app_logger.propagate
-    with patch.object(observability, "_configure_observability", return_value=False):
-        assert observability.configure_otlp_observability() is False
-    assert root.handlers == handlers
-    assert app_logger.propagate is propagation
 
 
 @pytest.mark.unit

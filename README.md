@@ -11,17 +11,17 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 - 🔐 Authentication via GitHub OAuth
 - 📊 Dashboard with progress visualization
 - 🐙 GitHub integration for project submissions
-- ⚙️ Async verification jobs powered by Durable Functions
+- ⚙️ Background verification inside the API container
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
 | **Backend** | Python 3.13+, FastAPI, SQLAlchemy (async), PostgreSQL |
-| **Verification** | Azure Durable Functions + shared Python package |
+| **Verification** | Sequential API background worker + shared Python package |
 | **Frontend** | HTMX, Jinja2 templates, Alpine.js, Tailwind CSS v4 |
 | **Auth** | GitHub OAuth (Authlib) |
-| **Infra** | Azure Container Apps, Azure Functions, Azure PostgreSQL, Terraform |
+| **Infra** | Azure Container Apps, Azure PostgreSQL, Terraform |
 | **CI/CD** | GitHub Actions |
 
 GitHub login establishes revocable, PostgreSQL-backed sessions. See
@@ -52,14 +52,13 @@ in the [Contributing Guide](docs/contributing.md#tooling-by-workflow).
 **1. Start local dependencies (Docker)**
 
 ```bash
-docker compose up -d db azurite dts aspire-dashboard
+docker compose up -d db aspire-dashboard
 ```
 
 **2. Install Python dependencies**
 
-This project is a single uv workspace. One command installs the API, the
-shared package, and the verification Functions worker into one shared
-virtual environment:
+This project is a single uv workspace. One command installs the API and shared
+packages into one virtual environment:
 
 ```bash
 uv sync --all-packages --locked
@@ -80,24 +79,13 @@ cd api && uv run python -m uvicorn learn_to_cloud.main:app --reload --port 8000
 
 Or use VS Code's debugger with the **"API: FastAPI (uvicorn)"** launch configuration.
 
-Start the verification worker when testing hands-on submissions:
-
-```bash
-cd apps/verification-functions
-uv run func start --port 7071
-```
-
-Or install the workspace's recommended Azure Functions extension and use
-VS Code's **"API + Verification"** compound launch configuration. It starts
-Core Tools and attaches the Python debugger to the Functions worker.
+The API starts verification automatically: one sequential background loop per
+API process atomically claims attempts from PostgreSQL. No separate host,
+external queue, or verification job is required. Attempts have an execution
+timeout and overdue cleanup, with no workflow retries or checkpoints.
 
 **Notes:**
-- The API does not start local dependencies for you. Run `docker compose up -d db azurite dts` first.
-- Verification submissions require the Durable Functions host on port `7071`.
-- Stop the Functions host with `Ctrl+C`, or `kill -INT <pid>` if you started it in
-  the background. The Core Tools host installs no `SIGTERM` handler, so a plain
-  `kill` leaves it holding port `7071` and blocks the next run; `SIGINT` shuts it
-  down in about a second and works on the `uv run` wrapper PID too.
+- The API does not start local dependencies for you. Run `docker compose up -d db aspire-dashboard` first.
 - Manage dependencies with `docker compose start` / `docker compose stop`.
 
 | Service | URL |
@@ -105,7 +93,6 @@ Core Tools and attaches the Python debugger to the Functions worker.
 | App | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs (requires `DEBUG=true`) |
 | PostgreSQL | `127.0.0.1:55432` (user: `postgres`, password: `postgres`) |
-| Durable Task Scheduler Dashboard | http://localhost:8082 |
 | Aspire Dashboard | http://localhost:18888 |
 
 ## Project Structure
@@ -122,8 +109,6 @@ Core Tools and attaches the Python debugger to the Functions worker.
 │   │       ├── templates/    # Jinja2 templates (HTMX)
 │   │       └── static/       # CSS, JS, images
 │   └── tests/
-├── apps/
-│   └── verification-functions/ # Durable Functions host for async verification jobs
 ├── packages/
 │   └── learn-to-cloud-shared/  # Shared domain, repositories, verification logic, and content
 ├── infra/                # Terraform (Azure)

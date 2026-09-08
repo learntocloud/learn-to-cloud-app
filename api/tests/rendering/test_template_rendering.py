@@ -90,7 +90,10 @@ def test_privacy_describes_diagnostics_and_separate_retention():
     assert "Attempt IDs" in html
     assert "reflection text" in html
     assert "does not erase database backups" in html
-    assert "Azure Durable Task Scheduler" in html
+    assert "Azure Durable Task Scheduler" not in html
+    assert "workflow and grading services" not in html
+    assert "retained by grading services" in html
+    assert "Microsoft Foundry / Azure OpenAI" in html
 
 
 @pytest.mark.unit

@@ -45,9 +45,6 @@ from learn_to_cloud.services.submissions_service import (
 from learn_to_cloud.services.verification_attempt_service import (
     INITIAL_VERIFICATION_STATUS_DELAY_SECONDS,
 )
-from learn_to_cloud.services.verification_status_tokens import (
-    create_verification_status_token,
-)
 
 VERIFICATION_HISTORY_PAGE_SIZE = 10
 
@@ -256,21 +253,11 @@ async def get_phase_verification_workspace(
             submission_context.feedback_by_req.get(requirement.slug)
         )
         active_attempt = active_attempts_by_slug.get(requirement.slug)
-        status_token = (
-            create_verification_status_token(
-                user_id=user_id,
-                job_id=active_attempt.id,
-                instance_id=str(active_attempt.id),
-                requirement_slug=requirement.slug,
-            )
-            if active_attempt is not None
-            else None
-        )
         if active_attempt is not None:
             card_contexts_by_req[requirement.slug] = (
                 build_checking_requirement_card_context(
                     requirement=requirement,
-                    verification_status_token=status_token,
+                    verification_attempt_id=active_attempt.id,
                     verification_status_delay_seconds=(
                         INITIAL_VERIFICATION_STATUS_DELAY_SECONDS
                     ),

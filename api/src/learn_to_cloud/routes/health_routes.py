@@ -51,13 +51,16 @@ async def _get_db_alembic_head(engine: AsyncEngine) -> str | None:
 
 
 @router.get("/health", summary="Health check")
-async def health() -> HealthResponse:
+async def health(request: Request) -> HealthResponse:
     """Health check endpoint.
 
     Includes the compiled curriculum artifact's identity (schema
     version, authored version, content hash) -- loaded once per process
     and guaranteed present because startup fails fast if it can't load.
     """
+    worker = getattr(request.app.state, "verification_worker", None)
+    if worker is not None and worker.done():
+        raise HTTPException(status_code=503, detail="Verification worker stopped")
     catalog = get_curriculum_catalog()
     return HealthResponse(
         status="healthy",
@@ -100,6 +103,10 @@ async def ready(request: Request) -> HealthResponse:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Starting",
         )
+
+    worker = getattr(request.app.state, "verification_worker", None)
+    if worker is not None and worker.done():
+        raise HTTPException(status_code=503, detail="Verification worker stopped")
 
     try:
         await check_db_connection(
