@@ -18,7 +18,7 @@ learn-to-cloud-shared = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "ruff==0.16.5",
+    "ruff==0.16.6",
     "ty==0.0.77",
 ]
 
