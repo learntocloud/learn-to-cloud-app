@@ -298,7 +298,11 @@ def test_restored_tampered_packet_is_rejected_at_prompt_construction(tamper):
     elif tamper == "hash":
         data["items"][0]["sha256"] = "wrong"
     elif tamper == "content":
-        data["items"][0]["content"] += "changed"
+        data["items"][0]["content"] = "codeql"
+        assert (
+            sum(len(item["content"].encode("utf-8")) for item in data["items"])
+            == data["total_bytes"]
+        )
     elif tamper == "total":
         data["total_bytes"] += 1
     elif tamper == "task":
@@ -397,6 +401,49 @@ def test_prompt_boundary_recomputes_all_budget_limits(field, value, code):
             task=limited_task,
             evidence=bundle.model_dump(mode="json"),
         )
+
+
+@pytest.mark.parametrize(
+    ("text", "oversized"),
+    [
+        ("abcd", False),
+        ("éé", False),
+        ("🦊", False),
+        ("abcde", True),
+        ("ééé", True),
+        ("🦊a", True),
+    ],
+    ids=[
+        "ascii-boundary",
+        "two-byte-boundary",
+        "four-byte-boundary",
+        "ascii-oversized",
+        "two-byte-oversized",
+        "four-byte-oversized",
+    ],
+)
+def test_restored_prompt_enforces_utf8_item_budget(text, oversized):
+    task = CAREER_REFLECTION_RUBRIC_TASK
+    bundle = apply_evidence_cap(task, [("career-reflection.md", text)])
+    restored = EvidenceBundle.model_validate(bundle.model_dump(mode="json"))
+    limited_task = _with_policy(task, max_file_size_bytes=4)
+    assert restored.items[0].sha256 == sha256(text.encode("utf-8")).hexdigest()
+    assert restored.total_bytes == len(text.encode("utf-8"))
+    assert restored.total_bytes < limited_task.evidence.max_total_bytes
+    kwargs = {
+        "requirement_slug": "reflection",
+        "requirement_name": "Reflection",
+        "deterministic_result": ValidationResult(is_valid=True, message="Passed"),
+        "task": limited_task,
+        "evidence": restored.model_dump(mode="json"),
+    }
+
+    if oversized:
+        with pytest.raises(EvidenceError, match="evidence.item_limit"):
+            build_text_rubric_message(**kwargs)
+    else:
+        message = build_text_rubric_message(**kwargs)
+        assert json.loads(message.split("\n\n", 1)[1])["evidence"] == kwargs["evidence"]
 
 
 def test_valid_legacy_packet_without_new_selection_fields_still_validates():

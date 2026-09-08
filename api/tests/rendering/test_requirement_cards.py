@@ -125,25 +125,6 @@ class TestBuildRequirementCardContext:
         assert isinstance(ctx, NotStartedCardContext)
         assert not hasattr(ctx, "graded_url")
 
-    def test_missing_required_repo_is_rejected_by_schema(self):
-        """Required repository configuration is enforced before rendering."""
-        from learn_to_cloud_shared.schemas import HandsOnRequirementAdapter
-        from pydantic import ValidationError
-
-        # Construct via TypeAdapter with raw dict so static analysis
-        # doesn't catch the deliberate validation error.
-        with pytest.raises(ValidationError):
-            HandsOnRequirementAdapter.validate_python(
-                {
-                    "uuid": "00000000-0000-0000-0000-000000000001",
-                    "id": "journal",
-                    "submission_type": "journal_api_verifier",
-                    "name": "Test",
-                    "description": "Test",
-                    "type_config": {},
-                }
-            )
-
 
 def _make_submission(
     *,

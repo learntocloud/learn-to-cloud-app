@@ -62,17 +62,15 @@ _PAGE_PATHS = [
     "/verifications",
     "/verifications/phase/1",
 ]
-_INVALID_IDENTITIES = (
-    [
-        pytest.param(
-            {"user_id": value, "github_username": "private-name"}, id=f"id-{index}"
-        )
+_LEGACY_IDENTITIES = {
+    **{
+        f"id-{index}": {"user_id": value, "github_username": "private-name"}
         for index, value in enumerate(
             [True, False, 42.0, 42.5, "42", "private-id", None, [], {}, 0, -1, 2**63]
         )
-    ]
-    + [
-        pytest.param({"user_id": 42, "github_username": value}, id=f"name-{index}")
+    },
+    **{
+        f"name-{index}": {"user_id": 42, "github_username": value}
         for index, value in enumerate(
             [
                 None,
@@ -86,16 +84,41 @@ _INVALID_IDENTITIES = (
                 "private\ud800name",
             ]
         )
-    ]
-    + [
-        pytest.param(
-            {"user_id": 42, "github_username": "testuser"},
-            id="complete-legacy-identity",
-        ),
-        pytest.param({"user_id": 42}, id="missing-name"),
-        pytest.param({"github_username": "private-name"}, id="missing-id"),
-    ]
+    },
+    "complete-legacy-identity": {"user_id": 42, "github_username": "testuser"},
+    "missing-name": {"user_id": 42},
+    "missing-id": {"github_username": "private-name"},
+}
+_LEGACY_ROUTE_IDENTITIES = {
+    "id-0",
+    "complete-legacy-identity",
+    "missing-name",
+    "missing-id",
+}
+_LEGACY_ROUTES = (
+    ("/", False, 200),
+    ("/curriculum", False, 200),
+    ("/api/user/me", False, 401),
+    ("/account", False, 303),
+    ("/account", True, 401),
+    ("/htmx/verification/attempts/status?token=private-token", False, 401),
+    ("/htmx/verification/attempts/status?token=private-token", True, 401),
 )
+# Exercise every payload on one route and each cleanup shape across route policies.
+_LEGACY_HTTP_CASES = [
+    pytest.param(
+        identity,
+        preserve_oauth,
+        path,
+        htmx,
+        status,
+        id=f"{path}-{htmx}-{status}-{preserve_oauth}-{identity_id}",
+    )
+    for path, htmx, status in _LEGACY_ROUTES
+    for preserve_oauth in (False, True)
+    for identity_id, identity in _LEGACY_IDENTITIES.items()
+    if path == "/" or identity_id in _LEGACY_ROUTE_IDENTITIES
+]
 
 
 def _session_cookie(session: dict, *, expired: bool = False) -> str:
@@ -319,6 +342,7 @@ async def test_htmx_endpoint_auth_failure(client, method, path, data, htmx):
 @pytest.mark.parametrize("path", _PAGE_PATHS)
 async def test_browser_pages_follow_login_with_get(client, github, path):
     response = await client.get(path, follow_redirects=True)
+    assert len(response.history) == 2
     first, login = response.history
     assert first.status_code == 303
     assert first.headers["location"] == "/auth/login"
@@ -375,6 +399,7 @@ async def test_page_policy_does_not_redirect_unrelated_errors(
 @pytest.mark.parametrize("method", ["POST", "DELETE"])
 async def test_browser_mutation_redirect_changes_method_to_get(client, method):
     response = await client.request(method, "/browser-mutation", follow_redirects=True)
+    assert len(response.history) == 2
     first, login = response.history
     assert first.request.method == method
     assert first.status_code == 303
@@ -404,6 +429,7 @@ async def test_logout_expires_cookie_and_is_repeatable(client, github, cookie_ki
 
     for _ in range(2):
         response = await client.post("/auth/logout", follow_redirects=True)
+        assert len(response.history) == 1
         (logout,) = response.history
         assert logout.request.method == "POST"
         assert logout.status_code == 303
@@ -532,22 +558,12 @@ async def test_authenticated_api_delete_keeps_204_contract(
     api_services[1].assert_awaited_once()
 
 
-@pytest.mark.parametrize("identity", _INVALID_IDENTITIES)
-@pytest.mark.parametrize("preserve_oauth", [False, True])
 @pytest.mark.parametrize(
-    ("path", "htmx", "status"),
-    [
-        ("/", False, 200),
-        ("/curriculum", False, 200),
-        ("/api/user/me", False, 401),
-        ("/account", False, 303),
-        ("/account", True, 401),
-        ("/htmx/verification/attempts/status?token=private-token", False, 401),
-        ("/htmx/verification/attempts/status?token=private-token", True, 401),
-    ],
+    ("identity", "preserve_oauth", "path", "htmx", "status"),
+    _LEGACY_HTTP_CASES,
 )
 async def test_malformed_identity_is_cleaned_over_http(
-    client, app, api_services, caplog, identity, preserve_oauth, path, htmx, status
+    client, api_services, caplog, identity, preserve_oauth, path, htmx, status
 ):
     caplog.set_level(logging.INFO)
     unrelated = (
@@ -572,6 +588,7 @@ async def test_malformed_identity_is_cleaned_over_http(
     assert response.headers.get_list("set-cookie")
     if preserve_oauth:
         cookie = client.cookies.get(SESSION_COOKIE_NAME)
+        assert cookie is not None
         cleaned = json.loads(b64decode(TimestampSigner(_SECRET).unsign(cookie)))
         assert cleaned == unrelated
     else:

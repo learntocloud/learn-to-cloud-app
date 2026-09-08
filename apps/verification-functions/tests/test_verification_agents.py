@@ -99,6 +99,39 @@ def test_grade_evidence_maps_unknown_errors_without_raw_detail(monkeypatch) -> N
     assert str(caught.value) == "llm.unknown"
 
 
+def test_grade_evidence_propagates_cancellation(monkeypatch) -> None:
+    cancellation = asyncio.CancelledError("Grading was cancelled")
+    agent = _FakeAgent(cancellation)
+    monkeypatch.setattr(verification_agents, "get_verification_grader", lambda: agent)
+
+    with pytest.raises(asyncio.CancelledError) as caught:
+        asyncio.run(grade_evidence("grade this"))
+
+    assert caught.value is cancellation
+
+
+@pytest.mark.parametrize("status", [502, 503, 504])
+def test_grade_evidence_preserves_safe_provider_outage_category(
+    monkeypatch, status
+) -> None:
+    request = httpx.Request("POST", "https://example.com")
+    response = httpx.Response(status, request=request)
+    error = openai.InternalServerError(
+        "private provider response",
+        response=response,
+        body={"code": "service_unavailable", "message": "private provider response"},
+    )
+    agent = _FakeAgent(error)
+    monkeypatch.setattr(verification_agents, "get_verification_grader", lambda: agent)
+
+    with pytest.raises(LLMGradingError) as caught:
+        asyncio.run(grade_evidence("grade this"))
+
+    assert caught.value.error_type == "llm.provider_unavailable"
+    assert caught.value.http_status == status
+    assert str(caught.value) == "llm.provider_unavailable"
+
+
 @pytest.mark.parametrize(
     ("exc", "expected"),
     [

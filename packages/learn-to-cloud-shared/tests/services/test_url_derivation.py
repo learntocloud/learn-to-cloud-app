@@ -7,7 +7,10 @@ is_derivable / fork_name_from_required_repo helpers.
 import pytest
 
 from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.schemas import HandsOnRequirement
+from learn_to_cloud_shared.schemas import (
+    HandsOnRequirement,
+    HandsOnRequirementAdapter,
+)
 from learn_to_cloud_shared.submission_derivation import (
     derive_submission_value,
     fork_name_from_required_repo,
@@ -154,22 +157,20 @@ class TestDeriveSubmissionValue:
         )
 
     def test_repo_fork_missing_required_repo_raises(self):
-        """Bypasses the factory's default to test the runtime guard.
-
-        Constructs the requirement via direct class with an explicit
-        empty required_repo would be rejected by Pydantic, so we test
-        that the runtime guard fires when required_repo is somehow empty
-        (defense in depth -- shouldn't happen via normal construction).
-        """
-        # Build a real requirement, then access via dict to simulate a
-        # corrupted state where required_repo ended up empty at runtime.
-        # Easier: just construct one without required_repo using None
-        # via the discriminator -- if pydantic rejects, we skip.
-        pytest.skip(
-            "required_repo is enforced at Pydantic construction since #470; "
-            "runtime guard remains as defense-in-depth but is unreachable "
-            "through normal construction."
+        req = HandsOnRequirementAdapter.validate_python(
+            {
+                "uuid": "00000000-0000-0000-0000-000000000001",
+                "slug": "req-1",
+                "submission_type": "repo_fork",
+                "name": "Test",
+                "description": "Test",
+                "type_config": {"required_repo": ""},
+            }
         )
+        with pytest.raises(
+            ValueError, match="Requirement 'req-1' is missing required_repo"
+        ):
+            derive_submission_value(req, "alice")
 
     @pytest.mark.parametrize(
         "submission_type",

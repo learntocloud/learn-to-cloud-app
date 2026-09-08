@@ -1,4 +1,4 @@
-"""Unit tests for schema-derived constants."""
+"""Unit tests for shared schema contracts."""
 
 from __future__ import annotations
 
@@ -7,10 +7,11 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from learn_to_cloud_shared.models import User
+from learn_to_cloud_shared.models import SubmissionType, User
 from learn_to_cloud_shared.schemas import (
     KNOWN_HANDS_ON_SUBMISSION_TYPES,
     CtfTokenConfig,
+    HandsOnRequirementAdapter,
     UserResponse,
 )
 
@@ -37,6 +38,38 @@ def test_known_submission_types_matches_union() -> None:
 def test_input_length_range_must_be_ordered() -> None:
     with pytest.raises(ValidationError, match="min_length cannot exceed max_length"):
         CtfTokenConfig(min_length=200, max_length=100)
+
+
+@pytest.mark.parametrize(
+    "submission_type",
+    [
+        SubmissionType.REPO_FORK,
+        SubmissionType.JOURNAL_API_VERIFIER,
+        SubmissionType.DEVOPS_ANALYSIS,
+        SubmissionType.SECURITY_SCANNING,
+    ],
+)
+def test_repo_requirement_requires_required_repo(
+    submission_type: SubmissionType,
+) -> None:
+    required_repo = "learntocloud/journal-starter"
+    payload = {
+        "uuid": "00000000-0000-0000-0000-000000000001",
+        "slug": "repo-check",
+        "submission_type": submission_type.value,
+        "name": "Repository check",
+        "description": "Test",
+        "type_config": {"required_repo": required_repo},
+    }
+    requirement = HandsOnRequirementAdapter.validate_python(payload)
+    assert requirement.type_config.model_dump()["required_repo"] == required_repo
+
+    payload["type_config"] = {}
+    with pytest.raises(ValidationError) as exc_info:
+        HandsOnRequirementAdapter.validate_python(payload)
+    assert [(error["loc"], error["type"]) for error in exc_info.value.errors()] == [
+        ((submission_type.value, "type_config", "required_repo"), "missing")
+    ]
 
 
 @pytest.mark.parametrize("name", [None, "  李 e\u0301  🛰️  ", "名" * 600])
