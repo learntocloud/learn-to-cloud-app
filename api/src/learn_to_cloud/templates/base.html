@@ -18,22 +18,16 @@
             window.appInsights = new Microsoft.ApplicationInsights.ApplicationInsights({
                 config: {
                     connectionString: {{ frontend_telemetry.connection_string | tojson }},
-                    disableCookiesUsage: true,
                     cookieCfg: { enabled: false },
                     isStorageUseDisabled: true,
                     enableSessionStorageBuffer: false,
-                    enableAutoRouteTracking: false,
-                    disableAjaxTracking: true,
-                    disableFetchTracking: true,
-                    disableExceptionTracking: true,
                     samplingPercentage: {{ frontend_telemetry.sampling_percentage | tojson }},
-                    enableUnhandledPromiseRejectionTracking: false
+                    enableUnhandledPromiseRejectionTracking: true
                 }
             });
-            window.appInsights.loadAppInsights();
         }
     </script>
-    <script defer src="{{ static_url('js/frontend-telemetry.js') }}"></script>
+    <script src="{{ static_url('js/frontend-telemetry.js') }}"></script>
     {% endif %}
 
     <!-- Apply dark class synchronously to prevent FOUC -->
@@ -156,7 +150,6 @@
 
     <main
         class="flex-1 w-full mx-auto max-w-content px-4 sm:px-6 lg:px-8 py-10 sm:py-12"
-        {% if frontend_telemetry %}data-telemetry-route="{{ frontend_telemetry.route_path }}"{% endif %}
     >
         {% block content %}{% endblock %}
     </main>

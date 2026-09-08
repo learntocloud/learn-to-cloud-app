@@ -1021,8 +1021,10 @@ async def test_malformed_identity_telemetry_has_no_private_values(
         )
         == status
     )
-    for attribute in ("http.target", "http.url", "url.full", "url.path"):
+    for attribute in ("http.target", "url.path"):
         assert server.attributes[attribute] == path
+    for attribute in ("http.url", "url.full"):
+        assert server.attributes[attribute] == f"http://testserver{path}"
     assert server.attributes["url.query"] == ""
     for span in spans:
         assert not any(event.name == "exception" for event in span.events)
@@ -1064,7 +1066,7 @@ async def test_malformed_identity_telemetry_has_no_private_values(
         ("GET", "/private-unmatched-probe", False, False, 404, None),
     ],
 )
-async def test_auth_request_telemetry_is_bounded_and_has_no_exception_events(
+async def test_auth_request_telemetry_keeps_paths_but_not_credentials(
     telemetry_client, auth_cookie, method, path, htmx, authenticated, status, route
 ):
     client, exporter = telemetry_client
@@ -1091,8 +1093,10 @@ async def test_auth_request_telemetry_is_bounded_and_has_no_exception_events(
         == status
     )
     assert server.status.status_code == StatusCode.UNSET
-    for attribute in ("http.target", "http.url", "url.full", "url.path"):
-        assert attributes[attribute] == (route or "/unmatched")
+    for attribute in ("http.target", "url.path"):
+        assert attributes[attribute] == path
+    for attribute in ("http.url", "url.full"):
+        assert attributes[attribute] == f"http://testserver{path}"
     assert attributes["url.query"] == ""
 
     for span in spans:
@@ -1102,8 +1106,6 @@ async def test_auth_request_telemetry_is_bounded_and_has_no_exception_events(
         )
     telemetry = "\n".join(span.to_json() for span in spans)
     for prohibited in (
-        "private-topic-probe",
-        "private-unmatched-probe",
         "private-token-probe",
         "testuser",
         cookie,

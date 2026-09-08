@@ -180,9 +180,11 @@ async def test_prepare_rejects_reconstructed_attempt(
         await prepare_verification_attempt(attempt.id, session_maker=session_maker)
 
 
+@pytest.mark.parametrize("passed", [False, True])
 async def test_finalize_is_compare_and_set_idempotent(
     session_maker: async_sessionmaker[AsyncSession],
     caplog: pytest.LogCaptureFixture,
+    passed: bool,
 ) -> None:
     attempt = await _create_attempt(session_maker)
     preparation = await prepare_verification_attempt(
@@ -191,8 +193,15 @@ async def test_finalize_is_compare_and_set_idempotent(
     run_result = VerificationRunResult(
         attempt=preparation.attempt,
         validation_result=ValidationResult(
-            is_valid=True,
-            message="Verified.",
+            is_valid=passed,
+            message="Submission validation details",
+            task_results=[
+                TaskResult(
+                    task_name="Check",
+                    passed=passed,
+                    feedback="Submission feedback sentinel",
+                )
+            ],
         ),
     )
 
@@ -209,8 +218,9 @@ async def test_finalize_is_compare_and_set_idempotent(
 
     assert first.won is True
     assert second.won is False
-    assert first.state.outcome == "succeeded"
-    assert second.state.outcome == "succeeded"
+    outcome = "succeeded" if passed else "failed"
+    assert first.state.outcome == outcome
+    assert second.state.outcome == outcome
     assert first.state.completed_at == second.state.completed_at
     records = [
         record
@@ -219,7 +229,15 @@ async def test_finalize_is_compare_and_set_idempotent(
     ]
     assert len(records) == 1
     assert records[0].__dict__["verification.attempt.id"] == str(attempt.id)
-    assert records[0].__dict__["verification.outcome"] == "succeeded"
+    assert records[0].__dict__["verification.outcome"] == outcome
+    async with session_maker() as db:
+        stored = await db.get(VerificationAttempt, attempt.id)
+        assert stored.submitted_value == attempt.submitted_value
+        assert stored.feedback_json[0]["feedback"] == "Submission feedback sentinel"
+    telemetry = str([vars(record) for record in records])
+    assert attempt.submitted_value not in telemetry
+    assert "Submission feedback sentinel" not in telemetry
+    assert "Submission validation details" not in telemetry
 
 
 async def test_finalize_persists_structured_criterion_feedback(

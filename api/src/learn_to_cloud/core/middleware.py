@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from fastapi.routing import iter_route_contexts
 from opentelemetry import trace
-from starlette.routing import Match
+from starlette.datastructures import URL
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
@@ -59,26 +58,10 @@ class SecurityHeadersMiddleware:
 
 
 class TelemetrySanitizationMiddleware:
-    """Replace request URL attributes with a bounded route template."""
+    """Keep credentials and query values out of request URL attributes."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
-
-    @staticmethod
-    def _route_template(scope: Scope) -> str:
-        partial_match: str | None = None
-        app = scope.get("app")
-        router = getattr(app, "router", None)
-        for route in iter_route_contexts(getattr(router, "routes", ())):
-            match, _ = route.matches(scope)
-            route_path = getattr(route, "path", None)
-            if not isinstance(route_path, str):
-                continue
-            if match is Match.FULL:
-                return route_path
-            if match is Match.PARTIAL and partial_match is None:
-                partial_match = route_path
-        return partial_match or "/unmatched"
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -87,11 +70,13 @@ class TelemetrySanitizationMiddleware:
 
         span = trace.get_current_span()
         if span.is_recording():
-            route_path = self._route_template(scope)
-            span.set_attribute("http.target", route_path)
-            span.set_attribute("http.url", route_path)
-            span.set_attribute("url.full", route_path)
-            span.set_attribute("url.path", route_path)
+            url = URL(scope=scope).replace(
+                query="", fragment="", username=None, password=None
+            )
+            span.set_attribute("http.target", url.path)
+            span.set_attribute("http.url", str(url))
+            span.set_attribute("url.full", str(url))
+            span.set_attribute("url.path", url.path)
             span.set_attribute("url.query", "")
 
         await self.app(scope, receive, send)

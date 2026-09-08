@@ -53,15 +53,18 @@ FAQS: list[tuple[str, str]] = [
     ),
     (
         "What data do you collect about me?",
-        "We only store information from your public GitHub profile: your GitHub user"
-        " ID, username, display name, and avatar URL. We do not collect your email"
-        " address, password, or any other personal information.",
+        "We store your GitHub ID, username, display name, avatar URL, learning"
+        " progress, submissions, and feedback. We also collect operational"
+        ' diagnostics. See our <a href="/privacy" class="text-blue-600'
+        ' dark:text-blue-400 underline">Privacy Policy</a> for details.',
     ),
     (
         "Can I delete my account?",
         'Yes. Go to your <a href="/account" class="text-blue-600 dark:text-blue-400'
-        ' underline">Account page</a>. Clicking "Delete Account" will permanently'
-        " remove your profile and all associated data (progress and submissions).",
+        ' underline">Account page</a> to remove your account-linked records from'
+        " the active application database. Backups, diagnostics, and workflow"
+        ' history have separate retention; see the <a href="/privacy"'
+        ' class="text-blue-600 dark:text-blue-400 underline">Privacy Policy</a>.',
     ),
     (
         "How can I support Learn to Cloud?",

@@ -1,6 +1,5 @@
 """Unit tests for template context processors."""
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -36,15 +35,12 @@ def test_frontend_telemetry_context_includes_connection_string(monkeypatch):
         conn_str,
     )
 
-    context = _frontend_telemetry_context(
-        MagicMock(scope={"route": SimpleNamespace(path="/phases/{phase_slug}")})
-    )
+    context = _frontend_telemetry_context(MagicMock())
 
     assert context == {
         "frontend_telemetry": {
             "connection_string": conn_str,
             "sampling_percentage": 100.0,
-            "route_path": "/phases/{phase_slug}",
         }
     }
 
@@ -64,6 +60,5 @@ def test_frontend_telemetry_context_includes_sampling_percentage(monkeypatch):
         "frontend_telemetry": {
             "connection_string": conn_str,
             "sampling_percentage": 10.0,
-            "route_path": "/unmatched",
         }
     }

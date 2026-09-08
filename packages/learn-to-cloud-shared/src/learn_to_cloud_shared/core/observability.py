@@ -12,10 +12,10 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any
-from urllib.parse import urlsplit
 
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor, RequestInfo
 from opentelemetry.sdk.resources import Resource
+from opentelemetry.trace import Span
 
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE
 
@@ -27,42 +27,17 @@ _fastapi_instrumented: bool = False
 _httpx_instrumented: bool = False
 
 
-def _httpx_origin(request: Any) -> str:
-    url = request.url
-    if isinstance(url, tuple):
-        scheme, host, port, _ = url
-        scheme_text = scheme.decode() if isinstance(scheme, bytes) else scheme
-        host_text = host.decode() if isinstance(host, bytes) else host
-        return (
-            f"{scheme_text}://{host_text}:{port}"
-            if port is not None
-            else f"{scheme_text}://{host_text}"
-        )
-
-    parsed = urlsplit(str(url))
-    host = parsed.hostname or ""
-    if ":" in host:
-        host = f"[{host}]"
-    return (
-        f"{parsed.scheme}://{host}:{parsed.port}"
-        if parsed.port is not None
-        else f"{parsed.scheme}://{host}"
-    )
-
-
-def _sanitize_httpx_span(span: Any, request: Any) -> None:
+def _sanitize_httpx_span(span: Span, request: RequestInfo) -> None:
     if not span.is_recording():
         return
 
-    origin = _httpx_origin(request)
-    span.set_attribute("http.target", "/")
-    span.set_attribute("http.url", origin)
-    span.set_attribute("url.full", origin)
-    span.set_attribute("url.path", "/")
+    url = request.url.copy_with(username="", password="", query=None, fragment=None)
+    span.set_attribute("http.url", str(url))
+    span.set_attribute("url.full", str(url))
     span.set_attribute("url.query", "")
 
 
-async def _sanitize_async_httpx_span(span: Any, request: Any) -> None:
+async def _sanitize_async_httpx_span(span: Span, request: RequestInfo) -> None:
     _sanitize_httpx_span(span, request)
 
 

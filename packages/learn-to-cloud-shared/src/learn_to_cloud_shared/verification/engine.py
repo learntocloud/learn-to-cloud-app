@@ -1,4 +1,4 @@
-"""Execute verification workflows, record safe telemetry, and prepare grading."""
+"""Execute verification workflows, trace steps, and prepare grading."""
 
 from __future__ import annotations
 
@@ -211,13 +211,6 @@ def _step_result_state(result: StepResult) -> str:
     return "failed"
 
 
-def _record_step_error(span: trace.Span, exc: Exception) -> None:
-    """Mark unexpected failures without exporting exception details."""
-    span.set_attribute("verification.step.result", "error")
-    span.set_attribute("error.type", type(exc).__name__)
-    span.set_status(Status(StatusCode.ERROR))
-
-
 async def _run_step(step: Step, context: StepContext) -> StepResult:
     with _tracer.start_as_current_span(
         "verification.step",
@@ -225,8 +218,6 @@ async def _run_step(step: Step, context: StepContext) -> StepResult:
             "verification.check.name": step.name,
             "verification.task.id": step.task_id,
         },
-        record_exception=False,
-        set_status_on_exception=False,
     ) as span:
         try:
             result = await step.check(context)
@@ -242,10 +233,6 @@ async def _run_step(step: Step, context: StepContext) -> StepResult:
                 stop_on_fail=True,
                 validation_result=exc.to_validation_result(),
             )
-        except Exception as exc:
-            _record_step_error(span, exc)
-            raise
-
         result_state = _step_result_state(result)
         span.set_attribute("verification.step.result", result_state)
         if result_state == "unavailable":
@@ -302,14 +289,8 @@ async def run_verification(
         with _tracer.start_as_current_span(
             "verification.step",
             attributes={"verification.check.name": "github_repository_ownership"},
-            record_exception=False,
-            set_status_on_exception=False,
         ) as span:
-            try:
-                ownership = await check_repository_ownership(target, job.user_id)
-            except Exception as exc:
-                _record_step_error(span, exc)
-                raise
+            ownership = await check_repository_ownership(target, job.user_id)
             if isinstance(ownership, ValidationResult):
                 span.set_attribute(
                     "verification.step.result",

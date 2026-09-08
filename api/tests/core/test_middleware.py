@@ -4,20 +4,17 @@ Tests ASGI middleware:
 - SecurityHeadersMiddleware adds security headers to HTTP responses
 - SecurityHeadersMiddleware skips non-HTTP scopes
 - SecurityHeadersMiddleware adds cache-control for static paths
-- TelemetrySanitizationMiddleware removes raw URLs and query strings
+- TelemetrySanitizationMiddleware preserves paths without query credentials
 """
 
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-from fastapi import APIRouter, FastAPI
-from fastapi.routing import APIRoute
 
 from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
     TelemetrySanitizationMiddleware,
 )
-from learn_to_cloud.core.routing import LoginRedirectRoute
 
 
 async def _noop_receive():
@@ -153,35 +150,36 @@ class TestSecurityHeadersMiddleware:
 
 @pytest.mark.unit
 class TestTelemetrySanitizationMiddleware:
+    @pytest.mark.parametrize("path", ["/steps/2ea4225e", "/unregistered/path"])
     @patch("learn_to_cloud.core.middleware.trace", autospec=True)
-    async def test_replaces_url_attributes_with_route_template(self, mock_trace):
+    async def test_preserves_path_without_query_credentials(self, mock_trace, path):
         span = MagicMock()
         span.is_recording.return_value = True
         mock_trace.get_current_span.return_value = span
 
-        app = FastAPI()
-        app.add_api_route("/steps/{step_uuid}", lambda: None)
         middleware = TelemetrySanitizationMiddleware(_make_app_that_sends_response)
         scope = {
             "type": "http",
+            "scheme": "https",
+            "headers": [(b"host", b"testserver")],
             "method": "GET",
-            "path": "/steps/2ea4225e",
+            "path": path,
             "query_string": b"token=sensitive",
-            "app": app,
         }
 
         await middleware(scope, _noop_receive, _noop_send)
 
         assert span.set_attribute.call_args_list == [
-            call("http.target", "/steps/{step_uuid}"),
-            call("http.url", "/steps/{step_uuid}"),
-            call("url.full", "/steps/{step_uuid}"),
-            call("url.path", "/steps/{step_uuid}"),
+            call("http.target", path),
+            call("http.url", f"https://testserver{path}"),
+            call("url.full", f"https://testserver{path}"),
+            call("url.path", path),
             call("url.query", ""),
         ]
+        assert scope["query_string"] == b"token=sensitive"
 
     @patch("learn_to_cloud.core.middleware.trace", autospec=True)
-    async def test_uses_fixed_value_for_unmatched_routes(self, mock_trace):
+    async def test_does_not_export_invalid_host_credentials(self, mock_trace):
         span = MagicMock()
         span.is_recording.return_value = True
         mock_trace.get_current_span.return_value = span
@@ -189,34 +187,13 @@ class TestTelemetrySanitizationMiddleware:
         middleware = TelemetrySanitizationMiddleware(_make_app_that_sends_response)
         scope = {
             "type": "http",
+            "scheme": "https",
+            "headers": [(b"host", b"username:password@testserver")],
             "path": "/arbitrary",
             "query_string": b"code=secret",
             "method": "GET",
-            "app": FastAPI(),
         }
 
         await middleware(scope, _noop_receive, _noop_send)
 
-        span.set_attribute.assert_any_call("url.full", "/unmatched")
-
-    @pytest.mark.parametrize("route_class", [APIRoute, LoginRedirectRoute])
-    @pytest.mark.parametrize("method", ["GET", "POST"])
-    def test_resolves_nested_router_prefixes_for_full_and_partial_matches(
-        self, route_class, method
-    ):
-        app = FastAPI()
-        child = APIRouter(prefix="/child", route_class=route_class)
-        child.add_api_route("/items/{item_id}", lambda: None, methods=["GET"])
-        parent = APIRouter(prefix="/parent")
-        parent.include_router(child, prefix="/nested")
-        app.include_router(parent, prefix="/api")
-        scope = {
-            "type": "http",
-            "method": method,
-            "path": "/api/parent/nested/child/items/private-item",
-            "app": app,
-        }
-
-        assert TelemetrySanitizationMiddleware._route_template(scope) == (
-            "/api/parent/nested/child/items/{item_id}"
-        )
+        span.set_attribute.assert_any_call("url.full", "/arbitrary")
