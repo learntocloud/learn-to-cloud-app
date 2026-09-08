@@ -70,7 +70,7 @@ def _fake_phase(*, order: int = 1, name: str = "Phase 1", slug: str = "phase1"):
     return phase
 
 
-def _fake_topic(*, topic_id: str = "topic-1", slug: str = "linux-basics"):
+def _fake_topic(*, slug: str = "linux-basics"):
     """Build a minimal mock topic object."""
     topic = MagicMock()
     topic.uuid = uuid4()

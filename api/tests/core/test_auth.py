@@ -5,7 +5,8 @@ from importlib import import_module, util
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import Request
+from fastapi import FastAPI, Request
+from httpx import ASGITransport, AsyncClient
 from learn_to_cloud_shared.core.config import OAuthConfig
 from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.repositories.auth_session_repository import (
@@ -17,7 +18,9 @@ from starlette.datastructures import State
 from learn_to_cloud.core.auth import (
     AuthenticatedUser,
     AuthenticationRequired,
+    CurrentUser,
     IdentityRejectionReason,
+    OptionalCurrentUser,
     init_oauth,
     oauth,
     optional_authenticated_account,
@@ -56,7 +59,7 @@ def _make_request(session: dict | None = None, headers: dict | None = None) -> R
 class TestOptionalAuthenticatedAccount:
     """Test session account resolution."""
 
-    async def test_loaded_account_is_cached_and_populates_telemetry(self):
+    async def test_loaded_account_is_cached_without_duplicate_identity_state(self):
         request = _make_request()
         request.cookies[AUTH_COOKIE_NAME] = "A" * 43
         account = User(id=42, github_username="current-name")
@@ -83,8 +86,42 @@ class TestOptionalAuthenticatedAccount:
                 == AuthenticatedUser(42, "current-name")
             )
             repository.return_value.resolve_and_touch.assert_awaited_once()
-        assert request.state.user_id == 42
-        assert request.state.github_username == "current-name"
+        assert request.state.auth_account is account
+        assert not hasattr(request.state, "user_id")
+        assert not hasattr(request.state, "github_username")
+
+    @pytest.mark.parametrize("path", ["/optional", "/required", "/both"])
+    async def test_one_account_override_serves_optional_and_required_paths(self, path):
+        app = FastAPI()
+        account = User(id=42, github_username="current-name")
+        calls = []
+
+        def account_source():
+            calls.append(account)
+            return account
+
+        @app.get("/optional")
+        async def optional(user: OptionalCurrentUser):
+            return user
+
+        @app.get("/required")
+        async def required(user: CurrentUser):
+            return user
+
+        @app.get("/both")
+        async def both(optional: OptionalCurrentUser, required: CurrentUser):
+            assert optional == required
+            return required
+
+        app.dependency_overrides[optional_authenticated_account] = account_source
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            response = await client.get(path)
+
+        assert response.status_code == 200
+        assert response.json() == {"user_id": 42, "github_username": "current-name"}
+        assert calls == [account]
 
     @pytest.mark.parametrize("failure", ["lookup", "commit"])
     async def test_store_failure_is_not_cached_as_anonymous(self, failure):

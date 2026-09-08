@@ -63,11 +63,24 @@ line-length = 88
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "PLC0415"]
+select = ["E", "F", "I", "UP", "PLC0415", "ARG001", "RUF029"]
+preview = true
+explicit-preview-rules = true
 
 [tool.ruff.lint.per-file-ignores]
-"src/learn_to_cloud_shared/core/observability.py" = ["PLC0415"]
 "tests/**" = ["PLC0415"]
+# HTTPX instrumentation awaits its async request hook.
+"src/learn_to_cloud_shared/core/observability.py" = ["PLC0415", "RUF029"]
+# The engine awaits every CheckFn, including checks that finish immediately.
+"src/learn_to_cloud_shared/verification/checks/career.py" = ["RUF029"]
+"src/learn_to_cloud_shared/verification/checks/tokens.py" = ["RUF029"]
+# Execution-order/exception fakes use that same contract without inspecting input.
+"tests/verification/test_engine.py" = ["ARG001", "RUF029"]
+# SQLAlchemy listeners receive session/execution metadata as well as observed data.
+"tests/repositories/test_user_repository.py" = ["ARG001"]
+# HTTPX passes a request even when a transport fake only models retry/error behavior.
+"tests/verification/test_github_http.py" = ["ARG001"]
+"tests/verification/test_repo_files.py" = ["ARG001"]
 
 [tool.coverage.run]
 source = ["src/learn_to_cloud_shared"]

@@ -117,17 +117,14 @@ def test_exception_handlers_are_registered_for_their_dispatch_types():
     assert app.exception_handlers[Exception] is global_exception_handler
 
 
-@pytest.mark.asyncio
-async def test_global_exception_handler_logs_once_and_returns_500(
+def test_global_exception_handler_logs_once_and_returns_500(
     caplog: pytest.LogCaptureFixture,
 ):
     request = _request(path="/api/crash", method="POST")
+    exc = RuntimeError("boom")
 
     with caplog.at_level("ERROR", logger="learn_to_cloud.main"):
-        try:
-            raise RuntimeError("boom")
-        except RuntimeError as exc:
-            response = await global_exception_handler(request, exc)
+        response = global_exception_handler(request, exc)
 
     assert response.status_code == 500
     assert json.loads(bytes(response.body)) == {
@@ -139,13 +136,13 @@ async def test_global_exception_handler_logs_once_and_returns_500(
     assert len(records) == 1
     record = records[0]
     assert record.exc_info is not None
+    assert record.exc_info[1] is exc
     assert "exc_type" not in record.__dict__
     assert "path" not in record.__dict__
     assert "method" not in record.__dict__
 
 
-@pytest.mark.asyncio
-async def test_validation_exception_handler_preserves_422_response():
+def test_validation_exception_handler_preserves_422_response():
     exc = RequestValidationError(
         [
             {
@@ -157,7 +154,7 @@ async def test_validation_exception_handler_preserves_422_response():
         ]
     )
 
-    response = await validation_exception_handler(
+    response = validation_exception_handler(
         _request(path="/api/users", method="POST"),
         exc,
     )
@@ -211,17 +208,20 @@ async def test_lifespan_cancels_worker_before_closing_clients(fake_app):
         finally:
             stopped.set()
 
-    async def close():
+    def close():
         assert stopped.is_set()
 
     with (
         patch("learn_to_cloud.main.run_verification_worker", side_effect=run),
-        patch("learn_to_cloud.main.close_verification_grader", side_effect=close),
+        patch(
+            "learn_to_cloud.main.close_verification_grader", side_effect=close
+        ) as close_mock,
     ):
         async with lifespan(fake_app):
             await asyncio.sleep(0)
             assert not fake_app.state.verification_worker.done()
     assert fake_app.state.verification_worker.cancelled()
+    close_mock.assert_awaited_once()
 
 
 async def test_lifespan_still_closes_clients_when_worker_failed(fake_app):

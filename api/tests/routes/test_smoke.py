@@ -28,7 +28,7 @@ import pytest
 import pytest_asyncio
 from fastapi.responses import HTMLResponse
 from httpx import ASGITransport, AsyncClient
-from learn_to_cloud_shared.core.database import get_db, get_db_readonly
+from learn_to_cloud_shared.core.database import get_db
 from learn_to_cloud_shared.schemas import (
     DashboardData,
     LearningProgress,
@@ -84,8 +84,8 @@ def _fake_dashboard() -> DashboardData:
     )
 
 
-@pytest_asyncio.fixture
-async def _patched_content():
+@pytest.fixture
+def _patched_content():
     """Route smoke tests don't run against a real DB; redirect content reads
     to the authored YAML loader so routes get a real curriculum tree."""
     from learn_to_cloud_shared.content_yaml_loader import (
@@ -110,23 +110,20 @@ async def _patched_content():
         for phase in yaml_phases
     )
 
-    def _curriculum_overview():
-        return yaml_overview
-
     def _phase_by_slug(slug):
         return next((p for p in yaml_phases if p.slug == slug), None)
 
     with (
         patch(
             "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
-            side_effect=_curriculum_overview,
+            return_value=yaml_overview,
         ),
         patch(
             "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
             side_effect=_phase_by_slug,
         ),
     ):
-        yield yaml_phases
+        yield
 
 
 @pytest_asyncio.fixture
@@ -140,17 +137,13 @@ async def anon_client(_patched_content):
 
     mock_db = AsyncMock()
 
-    async def _override_get_db():
-        yield mock_db
-
-    async def _override_get_db_readonly():
-        yield mock_db
+    def _override_get_db():
+        return mock_db
 
     def _override_optional_user():
         return None
 
     app.dependency_overrides[get_db] = _override_get_db
-    app.dependency_overrides[get_db_readonly] = _override_get_db_readonly
     app.dependency_overrides[optional_authenticated_account] = _override_optional_user
 
     # Mark app as initialized so /ready doesn't 503
@@ -175,17 +168,13 @@ async def auth_client(_patched_content):
 
     mock_db = AsyncMock()
 
-    async def _override_get_db():
-        yield mock_db
-
-    async def _override_get_db_readonly():
-        yield mock_db
+    def _override_get_db():
+        return mock_db
 
     def _override_current_user():
         return _fake_user()
 
     app.dependency_overrides[get_db] = _override_get_db
-    app.dependency_overrides[get_db_readonly] = _override_get_db_readonly
     app.dependency_overrides[optional_authenticated_account] = _override_current_user
 
     app.state.init_done = True

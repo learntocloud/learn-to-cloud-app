@@ -47,6 +47,7 @@ async def user(session_maker: async_sessionmaker[AsyncSession]) -> int:
 
 async def _insert_attempt(
     session_maker: async_sessionmaker[AsyncSession],
+    user_id: int,
     *,
     attempt_id: UUID | None = None,
     requirement_uuid: UUID | None = None,
@@ -54,7 +55,6 @@ async def _insert_attempt(
     completed_at=None,
     started_at=None,
     outcome: str | None = None,
-    user_id: int = USER_ID,
     feedback_json: list[dict] | None = None,
     validation_message: str | None = None,
     error_code: str | None = None,
@@ -92,6 +92,7 @@ async def test_community_activity_uses_distinct_projects_and_completion_time(
 
     await _insert_attempt(
         session_maker,
+        user,
         requirement_uuid=current_requirement,
         created_at=now - timedelta(days=1),
         completed_at=now - timedelta(hours=1),
@@ -99,6 +100,7 @@ async def test_community_activity_uses_distinct_projects_and_completion_time(
     )
     await _insert_attempt(
         session_maker,
+        user,
         requirement_uuid=current_requirement,
         created_at=now - timedelta(hours=2),
         completed_at=now - timedelta(hours=1),
@@ -106,6 +108,7 @@ async def test_community_activity_uses_distinct_projects_and_completion_time(
     )
     await _insert_attempt(
         session_maker,
+        user,
         requirement_uuid=completed_after_window_requirement,
         created_at=now - timedelta(days=8),
         completed_at=now - timedelta(hours=1),
@@ -143,7 +146,7 @@ def _submitted_value(
 async def test_finalize_sets_terminal_state(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
-    attempt_id = await _insert_attempt(session_maker)
+    attempt_id = await _insert_attempt(session_maker, user)
     async with session_maker() as db:
         result = await VerificationAttemptRepository(db).finalize(
             attempt_id,
@@ -162,7 +165,7 @@ async def test_finalize_sets_terminal_state(
 async def test_finalize_is_compare_and_set(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
-    attempt_id = await _insert_attempt(session_maker)
+    attempt_id = await _insert_attempt(session_maker, user)
     async with session_maker() as db:
         first = await VerificationAttemptRepository(db).finalize(
             attempt_id,
@@ -195,7 +198,7 @@ async def test_finalize_is_compare_and_set(
 async def test_get_prepare_state_and_status(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
-    attempt_id = await _insert_attempt(session_maker)
+    attempt_id = await _insert_attempt(session_maker, user)
     async with session_maker() as db:
         repo = VerificationAttemptRepository(db)
         prepare = await repo.get_prepare_state(attempt_id)
@@ -210,7 +213,7 @@ async def test_get_prepare_state_and_status(
 async def test_mark_started_is_idempotent(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
-    attempt_id = await _insert_attempt(session_maker)
+    attempt_id = await _insert_attempt(session_maker, user)
     first_started_at = utcnow()
     async with session_maker() as db:
         repo = VerificationAttemptRepository(db)
@@ -230,6 +233,7 @@ async def test_mark_started_is_idempotent(
 def _create_kwargs(
     *,
     id: UUID,
+    user_id: int,
     requirement_uuid: UUID,
     submitted_value: SubmittedValue,
     requirement_snapshot: dict | None = None,
@@ -239,7 +243,7 @@ def _create_kwargs(
     what it cares about."""
     return {
         "id": id,
-        "user_id": USER_ID,
+        "user_id": user_id,
         "requirement_uuid": requirement_uuid,
         "artifact_schema_version": 1,
         "curriculum_version": 1,
@@ -263,6 +267,7 @@ async def test_create_or_get_active_creates_new_attempt(
         attempt, created = await VerificationAttemptRepository(db).create_or_get_active(
             **_create_kwargs(
                 id=attempt_id,
+                user_id=user,
                 requirement_uuid=requirement_uuid,
                 submitted_value=_submitted_value(),
             )
@@ -299,6 +304,7 @@ async def test_create_or_get_active_omits_traceparent_from_insert(
             await VerificationAttemptRepository(db).create_or_get_active(
                 **_create_kwargs(
                     id=uuid4(),
+                    user_id=user,
                     requirement_uuid=uuid4(),
                     submitted_value=_submitted_value(),
                 )
@@ -324,6 +330,7 @@ async def test_create_or_get_active_returns_existing_active_attempt(
         ).create_or_get_active(
             **_create_kwargs(
                 id=first_id,
+                user_id=user,
                 requirement_uuid=requirement_uuid,
                 submitted_value=_submitted_value(
                     "https://github.com/attemptrepo/first"
@@ -338,6 +345,7 @@ async def test_create_or_get_active_returns_existing_active_attempt(
         ).create_or_get_active(
             **_create_kwargs(
                 id=second_id,
+                user_id=user,
                 requirement_uuid=requirement_uuid,
                 submitted_value=_submitted_value(
                     "https://github.com/attemptrepo/second"
@@ -365,7 +373,7 @@ async def test_create_or_get_active_raises_for_succeeded_attempt(
 ) -> None:
     requirement_uuid = uuid4()
     await _insert_attempt(
-        session_maker, requirement_uuid=requirement_uuid, outcome="succeeded"
+        session_maker, user, requirement_uuid=requirement_uuid, outcome="succeeded"
     )
 
     async with session_maker() as db:
@@ -373,6 +381,7 @@ async def test_create_or_get_active_raises_for_succeeded_attempt(
             await VerificationAttemptRepository(db).create_or_get_active(
                 **_create_kwargs(
                     id=uuid4(),
+                    user_id=user,
                     requirement_uuid=requirement_uuid,
                     submitted_value=_submitted_value(),
                 )
@@ -396,6 +405,7 @@ async def test_create_or_get_active_serializes_concurrent_submits(
             ).create_or_get_active(
                 **_create_kwargs(
                     id=uuid4(),
+                    user_id=user,
                     requirement_uuid=requirement_uuid,
                     submitted_value=_submitted_value(
                         f"https://github.com/attemptrepo/{value}"
@@ -428,6 +438,7 @@ async def test_new_submission_follows_terminalized_pre_start_attempt(
     requirement_uuid = uuid4()
     first_id = await _insert_attempt(
         session_maker,
+        user,
         requirement_uuid=requirement_uuid,
     )
     async with session_maker() as db:
@@ -447,6 +458,7 @@ async def test_new_submission_follows_terminalized_pre_start_attempt(
         attempt, created = await VerificationAttemptRepository(db).create_or_get_active(
             **_create_kwargs(
                 id=second_id,
+                user_id=user,
                 requirement_uuid=requirement_uuid,
                 submitted_value=_submitted_value(),
             )
@@ -473,14 +485,16 @@ async def test_get_succeeded_requirement_uuids_only_counts_succeeded(
     succeeded_req = uuid4()
     failed_req = uuid4()
     await _insert_attempt(
-        session_maker, requirement_uuid=succeeded_req, outcome="succeeded"
+        session_maker, user, requirement_uuid=succeeded_req, outcome="succeeded"
     )
-    await _insert_attempt(session_maker, requirement_uuid=failed_req, outcome="failed")
+    await _insert_attempt(
+        session_maker, user, requirement_uuid=failed_req, outcome="failed"
+    )
 
     async with session_maker() as db:
         result = await VerificationAttemptRepository(
             db
-        ).get_succeeded_requirement_uuids(USER_ID)
+        ).get_succeeded_requirement_uuids(user)
 
     assert result == {succeeded_req}
 
@@ -491,21 +505,21 @@ async def test_count_succeeded_for_requirements_filters_to_candidates(
     succeeded_req = uuid4()
     other_succeeded_req = uuid4()
     await _insert_attempt(
-        session_maker, requirement_uuid=succeeded_req, outcome="succeeded"
+        session_maker, user, requirement_uuid=succeeded_req, outcome="succeeded"
     )
     await _insert_attempt(
-        session_maker, requirement_uuid=other_succeeded_req, outcome="succeeded"
+        session_maker, user, requirement_uuid=other_succeeded_req, outcome="succeeded"
     )
 
     async with session_maker() as db:
         count = await VerificationAttemptRepository(
             db
-        ).count_succeeded_for_requirements(USER_ID, [succeeded_req])
+        ).count_succeeded_for_requirements(user, [succeeded_req])
     assert count == 1
 
 
 async def test_count_succeeded_for_requirements_empty_input_returns_zero(
-    session_maker: async_sessionmaker[AsyncSession], user: int
+    session_maker: async_sessionmaker[AsyncSession],
 ) -> None:
     async with session_maker() as db:
         count = await VerificationAttemptRepository(
@@ -518,11 +532,11 @@ async def test_are_all_requirements_succeeded_true_when_all_succeeded(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
     a, b = uuid4(), uuid4()
-    await _insert_attempt(session_maker, requirement_uuid=a, outcome="succeeded")
-    await _insert_attempt(session_maker, requirement_uuid=b, outcome="succeeded")
+    await _insert_attempt(session_maker, user, requirement_uuid=a, outcome="succeeded")
+    await _insert_attempt(session_maker, user, requirement_uuid=b, outcome="succeeded")
     async with session_maker() as db:
         assert await VerificationAttemptRepository(db).are_all_requirements_succeeded(
-            USER_ID, [a, b]
+            user, [a, b]
         )
 
 
@@ -530,15 +544,15 @@ async def test_are_all_requirements_succeeded_false_when_one_missing(
     session_maker: async_sessionmaker[AsyncSession], user: int
 ) -> None:
     a, b = uuid4(), uuid4()
-    await _insert_attempt(session_maker, requirement_uuid=a, outcome="succeeded")
+    await _insert_attempt(session_maker, user, requirement_uuid=a, outcome="succeeded")
     async with session_maker() as db:
         assert not await VerificationAttemptRepository(
             db
-        ).are_all_requirements_succeeded(USER_ID, [a, b])
+        ).are_all_requirements_succeeded(user, [a, b])
 
 
 async def test_are_all_requirements_succeeded_empty_list_is_true(
-    session_maker: async_sessionmaker[AsyncSession], user: int
+    session_maker: async_sessionmaker[AsyncSession],
 ) -> None:
     async with session_maker() as db:
         assert await VerificationAttemptRepository(db).are_all_requirements_succeeded(
@@ -551,13 +565,13 @@ async def test_get_active_for_requirements_excludes_terminal(
 ) -> None:
     active_req = uuid4()
     terminal_req = uuid4()
-    active_id = await _insert_attempt(session_maker, requirement_uuid=active_req)
+    active_id = await _insert_attempt(session_maker, user, requirement_uuid=active_req)
     await _insert_attempt(
-        session_maker, requirement_uuid=terminal_req, outcome="succeeded"
+        session_maker, user, requirement_uuid=terminal_req, outcome="succeeded"
     )
     async with session_maker() as db:
         rows = await VerificationAttemptRepository(db).get_active_for_requirements(
-            USER_ID, [active_req, terminal_req]
+            user, [active_req, terminal_req]
         )
     assert {row.requirement_uuid for row in rows} == {active_req}
     assert rows[0].id == active_id
@@ -570,24 +584,26 @@ async def test_get_latest_terminal_for_requirements_returns_newest_and_skips_act
     now = utcnow()
     await _insert_attempt(
         session_maker,
+        user,
         requirement_uuid=req,
         created_at=now - timedelta(hours=2),
         outcome="failed",
     )
     latest_id = await _insert_attempt(
         session_maker,
+        user,
         requirement_uuid=req,
         created_at=now - timedelta(hours=1),
         outcome="succeeded",
     )
     # A newer *active* attempt for the same requirement must not shadow the
     # latest terminal one -- active attempts are excluded from this read.
-    await _insert_attempt(session_maker, requirement_uuid=req, created_at=now)
+    await _insert_attempt(session_maker, user, requirement_uuid=req, created_at=now)
 
     async with session_maker() as db:
         rows = await VerificationAttemptRepository(
             db
-        ).get_latest_terminal_for_requirements(USER_ID, [req])
+        ).get_latest_terminal_for_requirements(user, [req])
 
     assert len(rows) == 1
     assert rows[0].id == latest_id
@@ -595,7 +611,7 @@ async def test_get_latest_terminal_for_requirements_returns_newest_and_skips_act
 
 
 async def test_get_latest_terminal_for_requirements_empty_input(
-    session_maker: async_sessionmaker[AsyncSession], user: int
+    session_maker: async_sessionmaker[AsyncSession],
 ) -> None:
     async with session_maker() as db:
         rows = await VerificationAttemptRepository(
@@ -609,7 +625,7 @@ async def test_list_terminal_history_is_scoped_ordered_paginated_and_safe(
 ) -> None:
     req = uuid4()
     other_req = uuid4()
-    other_user_id = USER_ID + 1
+    other_user_id = user + 1
     now = utcnow()
 
     async with session_maker() as db:
@@ -621,6 +637,7 @@ async def test_list_terminal_history_is_scoped_ordered_paginated_and_safe(
 
     oldest_id = await _insert_attempt(
         session_maker,
+        user,
         requirement_uuid=req,
         created_at=now - timedelta(hours=3),
         outcome="failed",
@@ -629,6 +646,7 @@ async def test_list_terminal_history_is_scoped_ordered_paginated_and_safe(
     )
     middle_id = await _insert_attempt(
         session_maker,
+        user,
         requirement_uuid=req,
         created_at=now - timedelta(hours=2),
         outcome="server_error",
@@ -636,39 +654,42 @@ async def test_list_terminal_history_is_scoped_ordered_paginated_and_safe(
     )
     newest_id = await _insert_attempt(
         session_maker,
+        user,
         requirement_uuid=req,
         created_at=now - timedelta(hours=1),
         outcome="succeeded",
     )
     await _insert_attempt(
         session_maker,
+        user,
         requirement_uuid=req,
         created_at=now,
     )
     await _insert_attempt(
         session_maker,
+        user,
         requirement_uuid=other_req,
         outcome="succeeded",
     )
     await _insert_attempt(
         session_maker,
+        other_user_id,
         requirement_uuid=req,
         outcome="succeeded",
-        user_id=other_user_id,
     )
 
     async with session_maker() as db:
         first_page = await VerificationAttemptRepository(
             db
         ).list_terminal_history_for_requirements(
-            USER_ID,
+            user,
             [req],
             limit=2,
         )
         second_page = await VerificationAttemptRepository(
             db
         ).list_terminal_history_for_requirements(
-            USER_ID,
+            user,
             [req],
             limit=2,
             offset=2,
@@ -685,7 +706,7 @@ async def test_list_terminal_history_is_scoped_ordered_paginated_and_safe(
 
 
 async def test_list_terminal_history_validates_pagination(
-    session_maker: async_sessionmaker[AsyncSession], user: int
+    session_maker: async_sessionmaker[AsyncSession],
 ) -> None:
     async with session_maker() as db:
         repository = VerificationAttemptRepository(db)
@@ -709,34 +730,38 @@ class TestListPhaseCompletions:
         self, session_maker: async_sessionmaker[AsyncSession], user: int
     ) -> None:
         req = uuid4()
-        await _insert_attempt(session_maker, requirement_uuid=req, outcome="succeeded")
+        await _insert_attempt(
+            session_maker, user, requirement_uuid=req, outcome="succeeded"
+        )
 
         async with session_maker() as db:
             completions = await VerificationAttemptRepository(
                 db
             ).list_phase_completions({0: 1}, {req: 0})
 
-        assert (0, USER_ID) in completions
+        assert (0, user) in completions
 
     async def test_failed_attempt_does_not_count(
         self, session_maker: async_sessionmaker[AsyncSession], user: int
     ) -> None:
         req = uuid4()
-        await _insert_attempt(session_maker, requirement_uuid=req, outcome="failed")
+        await _insert_attempt(
+            session_maker, user, requirement_uuid=req, outcome="failed"
+        )
 
         async with session_maker() as db:
             completions = await VerificationAttemptRepository(
                 db
             ).list_phase_completions({0: 1}, {req: 0})
 
-        assert (0, USER_ID) not in completions
+        assert (0, user) not in completions
 
     async def test_partial_completion_excluded(
         self, session_maker: async_sessionmaker[AsyncSession], user: int
     ) -> None:
         req_a, req_b = uuid4(), uuid4()
         await _insert_attempt(
-            session_maker, requirement_uuid=req_a, outcome="succeeded"
+            session_maker, user, requirement_uuid=req_a, outcome="succeeded"
         )
         # req_b never attempted -- phase 0 needs both to complete.
 
@@ -745,10 +770,11 @@ class TestListPhaseCompletions:
                 db
             ).list_phase_completions({0: 2}, {req_a: 0, req_b: 0})
 
-        assert (0, USER_ID) not in completions
+        assert (0, user) not in completions
 
     async def test_empty_counts_returns_empty(
-        self, session_maker: async_sessionmaker[AsyncSession], user: int
+        self,
+        session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         async with session_maker() as db:
             assert (
@@ -763,11 +789,13 @@ class TestListPhaseCompletions:
         map (as if the catalog no longer knows about it) must not produce a
         phantom completion."""
         req = uuid4()
-        await _insert_attempt(session_maker, requirement_uuid=req, outcome="succeeded")
+        await _insert_attempt(
+            session_maker, user, requirement_uuid=req, outcome="succeeded"
+        )
 
         async with session_maker() as db:
             completions = await VerificationAttemptRepository(
                 db
             ).list_phase_completions({0: 1}, {})
 
-        assert (0, USER_ID) not in completions
+        assert (0, user) not in completions

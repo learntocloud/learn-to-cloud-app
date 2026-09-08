@@ -10,7 +10,7 @@ from learn_to_cloud_shared_test_support.requirement_factories import make_requir
 
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
-from learn_to_cloud_shared.submission_values import submitted_value_from_raw
+from learn_to_cloud_shared.submission_values import TextValue, submitted_value_from_raw
 from learn_to_cloud_shared.verification.checks import career as career_checks
 from learn_to_cloud_shared.verification.checks import (
     deployed_api as deployed_api_checks,
@@ -31,13 +31,14 @@ from learn_to_cloud_shared.verification_workflow import PreparedVerificationAtte
 from tests.fakes.repo_files import InMemoryRepoFiles
 
 
-def _context(submission_type):
+def _context(submission_type, *, raw_value=None):
     requirement = make_requirement(submission_type)
-    raw_value = (
-        "https://api.example.com"
-        if submission_type is SubmissionType.DEPLOYED_API
-        else "https://github.com/learner/test-repo"
-    )
+    if raw_value is None:
+        raw_value = (
+            "https://api.example.com"
+            if submission_type is SubmissionType.DEPLOYED_API
+            else "https://github.com/learner/test-repo"
+        )
     value = submitted_value_from_raw(requirement, raw_value)
     job = PreparedVerificationAttempt(
         id=uuid4(),
@@ -151,44 +152,52 @@ async def test_deterministic_results_preserve_identity_and_arguments(
 
 
 @pytest.mark.parametrize(
-    ("passed", "completed"),
-    [(True, True), (False, True), (False, False), (True, False)],
+    "text",
+    ["A thoughtful reflection answer.", "## Question 0?\n\nMy answer includes a 🦊."],
 )
-async def test_career_check_validates_before_preparing_grading(
-    monkeypatch, passed, completed
-):
-    context = _context(SubmissionType.CAREER_REFLECTION)
-    validation = ValidationResult(
-        is_valid=passed,
-        verification_completed=completed,
-        message="Reflection feedback",
-    )
-    validate = Mock(return_value=validation)
-    collect = Mock(wraps=career_checks.collect_career_reflection_evidence)
-    monkeypatch.setattr(career_checks, "validate_career_reflection", validate)
-    monkeypatch.setattr(career_checks, "collect_career_reflection_evidence", collect)
+async def test_career_check_prepares_complete_text_evidence(text):
+    context = _context(SubmissionType.CAREER_REFLECTION, raw_value=text)
 
     result = await career_checks.check_career_reflection(
         context, task=CAREER_REFLECTION_RUBRIC_TASK
     )
 
-    validate.assert_called_once_with(context.submitted_value.text)
-    assert result.validation_result is validation
-    assert result.passed is passed
-    if passed and completed:
-        collect.assert_called_once_with(
-            context.submitted_value.text, CAREER_REFLECTION_RUBRIC_TASK
+    assert result.passed
+    assert result.validation_result.is_valid
+    assert result.validation_result.verification_completed
+    assert result.validation_result.message == (
+        "Reflection received. Reviewing your answers."
+    )
+    assert not result.stop_on_fail
+    assert result.grading_task is CAREER_REFLECTION_RUBRIC_TASK
+    (bundle,) = result.evidence
+    assert bundle.task_id == CAREER_REFLECTION_RUBRIC_TASK.id
+    assert bundle.source == "submitted_text"
+    assert bundle.selected_paths == ["career-reflection.md"]
+    (item,) = bundle.items
+    assert item.path == "career-reflection.md"
+    assert item.content == text
+    assert not item.truncated
+    assert bundle.total_bytes == len(text.encode("utf-8"))
+
+
+@pytest.mark.parametrize("text", ["", "   ", "\n\t"])
+def test_career_text_rejects_blank_input_before_verification(text):
+    with pytest.raises(ValueError, match="canonical text"):
+        TextValue(text)
+    with pytest.raises(ValueError, match="cannot be empty"):
+        submitted_value_from_raw(
+            make_requirement(SubmissionType.CAREER_REFLECTION), text
         )
-        assert len(result.evidence) == 1
-        assert result.evidence[0].task_id == CAREER_REFLECTION_RUBRIC_TASK.id
-        assert result.evidence[0].items[0].content == context.submitted_value.text
-        assert result.grading_task is CAREER_REFLECTION_RUBRIC_TASK
-        assert not result.stop_on_fail
-    else:
-        collect.assert_not_called()
-        assert result.evidence == []
-        assert result.grading_task is None
-        assert result.stop_on_fail
+
+
+async def test_career_check_rejects_evidence_exceeding_byte_limit():
+    task = CAREER_REFLECTION_RUBRIC_TASK
+    text = "🦊" * (task.evidence.max_file_size_bytes // 4 + 1)
+    context = _context(SubmissionType.CAREER_REFLECTION, raw_value=text)
+
+    with pytest.raises(EvidenceError, match="evidence.item_limit"):
+        await career_checks.check_career_reflection(context, task=task)
 
 
 async def test_career_check_rejects_non_text_values():

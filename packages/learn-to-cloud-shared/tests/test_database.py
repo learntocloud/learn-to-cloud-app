@@ -6,7 +6,7 @@ Covers the module-specific logic that isn't exercised by integration tests:
 - Credential shutdown cleanup (close_credential)
 - Pool checkout event (transaction state cleanup + safety net)
 - Health check timeout behavior
-- get_db / get_db_readonly commit/rollback semantics
+- get_db commit/rollback semantics
 """
 
 import asyncio
@@ -193,7 +193,7 @@ class TestCheckDbConnection:
 
 
 # ===========================================================================
-# get_db / get_db_readonly commit / rollback
+# get_db commit / rollback
 # ===========================================================================
 
 
@@ -264,55 +264,3 @@ class TestGetDbDependency:
         # The original ValueError should propagate, not the rollback error
         with pytest.raises(ValueError, match="original"):
             await gen.athrow(ValueError("original"))
-
-
-class TestGetDbReadonlyDependency:
-    """Verify get_db_readonly does NOT commit."""
-
-    def _make_mock_request(self):
-        mock_session = AsyncMock(
-            spec_set=["commit", "rollback", "execute", "__aenter__", "__aexit__"],
-        )
-        mock_session.commit = AsyncMock()
-        mock_session.rollback = AsyncMock()
-        mock_session.execute = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=False)
-
-        mock_session_maker = MagicMock()
-        mock_session_maker.return_value = mock_session
-
-        mock_request = MagicMock()
-        mock_request.app.state.session_maker = mock_session_maker
-
-        return mock_request, mock_session
-
-    async def test_no_commit_on_success(self):
-        """get_db_readonly should NOT call commit."""
-        from learn_to_cloud_shared.core.database import get_db_readonly
-
-        mock_request, mock_session = self._make_mock_request()
-
-        gen = get_db_readonly(mock_request)
-        session = await gen.__anext__()
-        assert session is mock_session
-
-        with pytest.raises(StopAsyncIteration):
-            await gen.__anext__()
-
-        mock_session.commit.assert_not_awaited()
-        mock_session.rollback.assert_not_awaited()
-
-    async def test_rollback_on_exception(self):
-        """get_db_readonly should rollback on exception."""
-        from learn_to_cloud_shared.core.database import get_db_readonly
-
-        mock_request, mock_session = self._make_mock_request()
-
-        gen = get_db_readonly(mock_request)
-        await gen.__anext__()
-
-        with pytest.raises(ValueError):
-            await gen.athrow(ValueError("boom"))
-
-        mock_session.rollback.assert_awaited_once()

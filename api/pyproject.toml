@@ -81,11 +81,15 @@ preview = true
 explicit-preview-rules = true
 
 [tool.ruff.lint.per-file-ignores]
-# Enforce cleanup rules in rendering helpers first; wider adoption needs interface review.
-"!src/learn_to_cloud/rendering/**" = ["ARG001", "RUF029"]
 "tests/**" = ["PLC0415"]
 "alembic/**" = ["PLC0415"]
-"src/learn_to_cloud/core/observability.py" = ["PLC0415"]
+# Starlette passes an exception even when the 404 response does not use it.
+"src/learn_to_cloud/main.py" = ["ARG001"]
+# ASGI callbacks must accept scope/receive/send and return awaitables.
+"tests/core/test_middleware.py" = ["ARG001", "RUF029"]
+# SQLAlchemy listeners receive connection/execution metadata as well as SQL.
+"tests/services/test_dashboard_service.py" = ["ARG001"]
+"tests/test_migration_chain.py" = ["ARG001"]
 
 [tool.ty.environment]
 # Use the current Python interpreter to resolve third-party imports

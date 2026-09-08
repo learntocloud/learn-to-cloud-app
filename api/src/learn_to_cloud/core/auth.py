@@ -138,8 +138,6 @@ async def optional_authenticated_account(request: Request) -> User | None:
         return None
     account = resolved.user
     request.state.auth_account = account
-    request.state.user_id = account.id
-    request.state.github_username = account.github_username
     return account
 
 

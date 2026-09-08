@@ -153,7 +153,7 @@ app = fastapi.FastAPI(
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(
+def validation_exception_handler(
     _request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """Handler for request validation errors."""
@@ -164,9 +164,7 @@ async def validation_exception_handler(
 
 
 @app.exception_handler(404)
-async def not_found_handler(
-    request: Request, exc: Exception
-) -> HTMLResponse | JSONResponse:
+def not_found_handler(request: Request, exc: Exception) -> HTMLResponse | JSONResponse:
     """Render nice 404 page for browsers, JSON for API clients."""
     if request.url.path.startswith("/api/"):
         return JSONResponse(
@@ -182,9 +180,9 @@ async def not_found_handler(
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
+def global_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
     """Last-resort handler for unhandled exceptions."""
-    logger.exception("unhandled.exception")
+    logger.error("unhandled.exception", exc_info=exc)
     return JSONResponse(
         status_code=500,
         content={"detail": "An unexpected error occurred. Please try again."},

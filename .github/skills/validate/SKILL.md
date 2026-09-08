@@ -18,7 +18,10 @@ files belonging to the current task.
 Before changing a function signature or removing `async`, trace its callers,
 dependency declarations, callback contracts, and test mocks. Ruff's `ARG001`
 (unused function arguments) and preview `RUF029` (unneeded `async`) are enforced
-for API rendering helpers; elsewhere, include these checks in the diff review.
+across all three workspace packages, including tests. The file-specific
+exceptions and their callable contracts are documented in
+[contributing](../../../docs/contributing.md#unused-arguments-and-async-interfaces).
+Review new code in those files manually for the exempted rules.
 Remove genuinely unused parameters and unnecessary `async`, updating callers
 and mocks together. Preserve authentication dependencies, required callback
 parameters, async interfaces, and fixtures that execute for their side effects.
