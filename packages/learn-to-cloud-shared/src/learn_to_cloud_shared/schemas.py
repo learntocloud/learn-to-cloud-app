@@ -7,7 +7,7 @@ appropriate.
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Literal, Self, get_args
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
 from pydantic import (
@@ -26,7 +26,7 @@ from learn_to_cloud_shared.models import SubmissionType
 class StepAction(StrEnum):
     """Categorical action label for a learning step.
 
-    Drives the colored action badge in the step UI. Authored in YAML as
+    Drives the action label in the step UI. Authored in YAML as
     ``action: 'Practice:'`` (capitalized, trailing colon) for readability;
     the schema validator normalizes to the lowercase enum value at load
     time. The trailing colon is purely a YAML-author affordance and
@@ -46,33 +46,6 @@ class StepAction(StrEnum):
     def label(self) -> str:
         """Display label shown inside the badge (e.g. ``Practice``)."""
         return self.value.capitalize()
-
-    @property
-    def badge_classes(self) -> str:
-        """Tailwind utility classes for the action's colored pill."""
-        return _ACTION_BADGE_CLASSES[self]
-
-
-_ACTION_BADGE_CLASSES: dict[StepAction, str] = {
-    StepAction.EXPLORE: (
-        "bg-purple-100 text-purple-700 dark:bg-purple-800/40 dark:text-purple-300"
-    ),
-    StepAction.PRACTICE: (
-        "bg-blue-100 text-blue-700 dark:bg-blue-800/40 dark:text-blue-300"
-    ),
-    StepAction.REFLECT: (
-        "bg-amber-100 text-amber-700 dark:bg-amber-800/40 dark:text-amber-300"
-    ),
-    StepAction.BUILD: (
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-800/40 dark:text-emerald-300"
-    ),
-    StepAction.READ: ("bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"),
-    StepAction.WATCH: ("bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"),
-    StepAction.REVIEW: (
-        "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-    ),
-    StepAction.NOTE: ("bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"),
-}
 
 
 class TipType(StrEnum):
@@ -369,23 +342,6 @@ HandsOnRequirement = Annotated[
 HandsOnRequirementAdapter = TypeAdapter(HandsOnRequirement)
 
 
-# The submission types this code version can render, derived from the
-# discriminated union's members so it can never drift from the union. Used by
-# the content loader as a tolerant reader: during a rolling deploy the DB may
-# already hold a newer submission_type this revision doesn't know, and those
-# rows must be ignored rather than 500 the whole page.
-def _known_submission_types() -> frozenset[str]:
-    union = get_args(HandsOnRequirement)[0]
-    tags: set[str] = set()
-    for member in get_args(union):
-        literal = get_args(member.model_fields["submission_type"].annotation)[0]
-        tags.add(literal.value if isinstance(literal, SubmissionType) else str(literal))
-    return frozenset(tags)
-
-
-KNOWN_HANDS_ON_SUBMISSION_TYPES: frozenset[str] = _known_submission_types()
-
-
 class HealthResponse(BaseModel):
     """Health check response."""
 
@@ -394,14 +350,6 @@ class HealthResponse(BaseModel):
     curriculum_version: int | None = None
     artifact_schema_version: int | None = None
     content_hash: str | None = None
-
-
-class StepCompletionResult(FrozenModel):
-    """Result of completing a step (service-layer response model)."""
-
-    topic_slug: str
-    step_slug: str
-    completed_at: datetime
 
 
 class ProviderOption(FrozenModel):
@@ -498,15 +446,6 @@ class Topic(FrozenModel):
     learning_objectives: list[LearningObjective] = Field(default_factory=list)
 
 
-class PhaseCapstoneOverview(FrozenModel):
-    """High-level capstone overview for a phase (public summary)."""
-
-    title: str
-    summary: str
-    includes: list[str] = Field(default_factory=list)
-    topic_slug: str | None = None
-
-
 class PhaseHandsOnVerificationOverview(FrozenModel):
     """High-level hands-on verification overview for a phase (public summary)."""
 
@@ -536,8 +475,6 @@ class Phase(FrozenModel):
     description: str = ""
     short_description: str = ""
     order: int = 0
-    objectives: list[str] = Field(default_factory=list)
-    capstone: PhaseCapstoneOverview | None = None
     hands_on_verification: PhaseHandsOnVerificationOverview | None = None
     topic_slugs: list[str] = Field(default_factory=list)
     topics: list[Topic] = Field(default_factory=list)
@@ -546,7 +483,6 @@ class Phase(FrozenModel):
 class TopicOverview(FrozenModel):
     """Browse-level topic summary: name only, no steps/objectives."""
 
-    uuid: UUID
     slug: str
     name: str
 
@@ -557,7 +493,6 @@ class PhaseOverview(FrozenModel):
     No topics-with-steps, no requirements: only what those pages render.
     """
 
-    uuid: UUID
     order: int
     name: str
     slug: str
@@ -635,7 +570,6 @@ class PhaseProgressData(FrozenModel):
 
     learning: LearningProgress
     verification: VerificationProgress
-    is_complete: bool
     status: str  # "not_started", "in_progress", "completed"
 
 
@@ -650,7 +584,6 @@ class PhaseSummaryData(FrozenModel):
 
     order: int
     name: str
-    slug: str
     progress: PhaseProgressData | None = None
 
 
@@ -745,7 +678,6 @@ class PhaseProgress(FrozenModel):
     provides per-topic breakdown.
     """
 
-    phase_id: int
     learning: LearningProgress
     verification: VerificationProgress
     topic_progress: dict[UUID, TopicProgressData] | None = None
@@ -802,7 +734,6 @@ class PhaseProgress(FrozenModel):
 class UserProgress(FrozenModel):
     """Complete progress summary for a user."""
 
-    user_id: int
     phases: dict[int, PhaseProgress]
     total_phases: int
 
@@ -860,51 +791,14 @@ class UserProgress(FrozenModel):
 
 
 class SubmissionData(FrozenModel):
-    """Submission data (service-layer response model).
+    """Learner-facing state from the latest terminal verification attempt."""
 
-    After Phase D.2 + D.3 of #461 / #465 the denormalized
-    ``requirement_id`` / ``submission_type`` / ``phase_id`` columns
-    are gone from the underlying ``submissions`` table and nothing
-    in the app reads them off ``SubmissionData`` either -- callers
-    that need them have the corresponding ``HandsOnRequirement``
-    in scope.
-
-    Sourced from the latest terminal ``verification_attempts`` row.
-    """
-
-    id: UUID
     submitted_value: str
-    extracted_username: str | None = None
     is_validated: bool
     validated_at: datetime | None = None
     verification_completed: bool = False
-    feedback_json: list[dict] | None = None
     validation_message: str | None = None
     error_code: str | None = None
-    cloud_provider: str | None = None
-    created_at: datetime
-    updated_at: datetime | None = None
-
-
-class SubmissionResult(FrozenModel):
-    """Result of a submission validation."""
-
-    submission: SubmissionData
-    is_valid: bool
-    message: str
-    username_match: bool | None = None
-    repo_exists: bool | None = None
-    task_results: list["TaskResult"] | None = None
-
-    @computed_field
-    @property
-    def is_server_error(self) -> bool:
-        """Whether this failure was caused by a server-side error.
-
-        True when validation failed but verification never completed
-        (e.g. external service timeout).
-        """
-        return not self.is_valid and not self.submission.verification_completed
 
 
 class TaskResult(FrozenModel):

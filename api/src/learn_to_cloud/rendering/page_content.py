@@ -148,42 +148,36 @@ COMMUNITY_LINKS: list[dict[str, str]] = [
         "url": DISCORD_URL,
         "label": "Discord",
         "description": "Chat with other learners and get help in real time.",
-        "color": "text-indigo-500 dark:text-indigo-400",
         "icon": _DISCORD_SVG,
     },
     {
         "url": DISCUSSIONS_URL,
         "label": "GitHub Discussions",
         "description": "Ask questions and connect with other learners.",
-        "color": "text-indigo-500 dark:text-indigo-400",
         "icon": _DISCUSSIONS_SVG,
     },
     {
         "url": YOUTUBE_URL,
         "label": "YouTube",
         "description": "Watch cloud learning videos and project walkthroughs.",
-        "color": "text-red-600 dark:text-red-400",
         "icon": _YOUTUBE_SVG,
     },
     {
         "url": GITHUB_REPOSITORY_URL,
         "label": "GitHub",
         "description": "Explore the project, contribute, or report a problem.",
-        "color": "text-gray-800 dark:text-gray-200",
         "icon": _GITHUB_SVG,
     },
     {
         "url": MADEBYGPS_X_URL,
         "label": "Follow @madebygps",
         "description": "Follow the creator of Learn to Cloud.",
-        "color": "text-gray-800 dark:text-gray-200",
         "icon": _X_SVG,
     },
     {
         "url": LEARN_TO_CLOUD_X_URL,
         "label": "Follow @learntocloud",
         "description": "Get project news and community updates.",
-        "color": "text-gray-800 dark:text-gray-200",
         "icon": _X_SVG,
     },
 ]
@@ -192,30 +186,9 @@ HELP_LINKS: list[dict[str, str]] = [
     {
         "url": DISCORD_URL,
         "label": "Discord",
-        "color": "text-indigo-500 dark:text-indigo-400",
-        "icon": _DISCORD_SVG,
-    },
-    {
-        "url": MADEBYGPS_X_URL,
-        "label": "Follow @madebygps",
-        "color": "text-gray-800 dark:text-gray-200",
-        "icon": _X_SVG,
-    },
-    {
-        "url": LEARN_TO_CLOUD_X_URL,
-        "label": "Follow @learntocloud",
-        "color": "text-gray-800 dark:text-gray-200",
-        "icon": _X_SVG,
     },
     {
         "url": "https://github.com/learntocloud/learn-to-cloud-app/issues/new",
         "label": "Report an Issue",
-        "color": "text-orange-500 dark:text-orange-400",
-        "icon": (
-            '<svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none"'
-            ' viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">'
-            '<path stroke-linecap="round" stroke-linejoin="round"'
-            ' d="M12 9v2m0 4h.01M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg>'
-        ),
     },
 ]

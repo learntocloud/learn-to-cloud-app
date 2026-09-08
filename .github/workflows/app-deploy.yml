@@ -47,10 +47,7 @@ defaults:
 
 env:
   AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
-  AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
   AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-  TF_VAR_environment: ${{ vars.AZURE_ENV_NAME }}
-  TF_VAR_location: ${{ vars.AZURE_LOCATION }}
   ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
 jobs:
@@ -228,7 +225,6 @@ jobs:
             python -m learn_to_cloud_shared.runtime_package_check
 
           docker run --rm -i \
-            -e DATABASE__URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" \
             "$REGISTRY/migrations:$GITHUB_SHA" \
             python - <<'PY'
           from learn_to_cloud_shared.runtime_package_check import main

@@ -1,6 +1,6 @@
 """Rendered-HTML tests for phase and dashboard progress states."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import PropertyMock, patch
@@ -41,7 +41,6 @@ def test_step_toggle_uses_explicit_account_without_request_state(completed):
         if topic.learning_steps
     )
     step = topic.learning_steps[0]
-    request = Request({"type": "http", "path": "/"})
     account = User(id=42, github_username="current-user")
     with patch.object(
         Request,
@@ -50,7 +49,7 @@ def test_step_toggle_uses_explicit_account_without_request_state(completed):
         side_effect=AssertionError("Rendering must not read request state"),
     ):
         response = render_step_toggle(
-            request, account, topic, step, {step.uuid} if completed else set()
+            account, topic, step, {step.uuid} if completed else set()
         )
     html = bytes(response.body).decode()
     assert 'type="checkbox"' in html
@@ -61,6 +60,20 @@ def test_step_toggle_uses_explicit_account_without_request_state(completed):
         assert 'hx-post="/htmx/steps/complete"' in html
     assert 'id="topic-progress" hx-swap-oob="true"' in html
     assert f"{int(completed)}/{len(topic.learning_steps)} steps checked" in html
+
+
+@pytest.mark.unit
+def test_code_blocks_keep_independent_clipboard_targets():
+    html = _ENV.from_string(
+        '{% from "macros/code_block.html" import copy_code %}'
+        '{{ copy_code("first command") }}{{ copy_code("second command") }}'
+    ).render()
+
+    assert html.count('x-data="copyButton"') == 2
+    assert html.count('x-ref="code"') == 2
+    assert html.count("copy($refs.code.textContent)") == 2
+    assert "first command" in html
+    assert "second command" in html
 
 
 def _base_ctx(**overrides: object) -> dict[str, object]:
@@ -187,13 +200,11 @@ def _submission(
     validated_at: datetime | None = None,
 ) -> SubmissionData:
     return SubmissionData(
-        id=uuid4(),
         is_validated=is_validated,
         verification_completed=verification_completed,
         validation_message=validation_message,
         submitted_value=submitted_value,
         validated_at=validated_at,
-        created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
 
@@ -1011,6 +1022,11 @@ def test_dashboard_help_section_links_to_discord():
     html = _render("pages/dashboard.html", dashboard=dashboard, help_links=HELP_LINKS)
 
     assert 'href="https://discord.gg/st7g2Hp77r"' in html
+    assert (
+        'href="https://github.com/learntocloud/learn-to-cloud-app/issues/new"' in html
+    )
+    assert 'href="https://x.com/madebygps"' not in html
+    assert 'href="https://x.com/learntocloud"' not in html
     assert "Ask the Community" not in html
     assert "Project updates" not in html
 

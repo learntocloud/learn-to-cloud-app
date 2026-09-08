@@ -1,24 +1,24 @@
 """Verification form preparation contracts."""
 
-from datetime import UTC, datetime
 from unittest.mock import patch
-from uuid import uuid4
 
 import pytest
+from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import SubmissionData
 from learn_to_cloud_shared_test_support.requirement_factories import (
     career_reflection_requirement,
     ctf_token_requirement,
     deployed_api_requirement,
+    make_requirement,
     networking_token_requirement,
     repo_fork_requirement,
 )
 
+from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.verification_forms import (
     DeployedUrlFormContext,
     ReflectionFormContext,
     TokenFormContext,
-    UnsupportedFormContext,
     build_verification_form_context,
 )
 from learn_to_cloud.verification_forms import (
@@ -50,11 +50,9 @@ def test_deployed_form_preserves_the_submitted_url(submitted_value):
     requirement = deployed_api_requirement(min_length=8, max_length=512)
     submission = (
         SubmissionData(
-            id=uuid4(),
             submitted_value=submitted_value,
             is_validated=False,
             verification_completed=True,
-            created_at=datetime(2024, 1, 1, tzinfo=UTC),
         )
         if submitted_value is not None
         else None
@@ -85,17 +83,25 @@ def test_reflection_form_shares_answer_limits_and_preserves_question_order():
     )
 
 
-def test_unsupported_requirement_has_no_submission_form():
-    with patch(
-        "learn_to_cloud.rendering.verification_forms.verification_submit_action",
-        return_value=None,
-    ):
-        form = build_verification_form_context(repo_fork_requirement(), "learner", None)
+@pytest.mark.parametrize("submission_type", list(SubmissionType))
+def test_every_submission_type_has_a_renderable_form(submission_type):
+    requirement = make_requirement(submission_type)
+    form = build_verification_form_context(requirement, "learner", None)
 
-    assert isinstance(form, UnsupportedFormContext)
-    assert (
-        form.message == "Verification is not currently available for this requirement."
+    assert form.action == verification_submit_action(requirement.slug, submission_type)
+    html = templates.get_template(form.template).render(
+        requirement=requirement,
+        verification_form=form,
     )
+    assert "<input" in html or "<textarea" in html
+
+
+def test_submission_action_rejects_a_missing_input_shape():
+    with (
+        patch("learn_to_cloud.verification_forms._VALUE_SUBMISSION_TYPES", frozenset()),
+        pytest.raises(ValueError, match="Unsupported submission type"),
+    ):
+        verification_submit_action("test-req", SubmissionType.CTF_TOKEN)
 
 
 def test_active_requirement_without_a_form_model_raises():

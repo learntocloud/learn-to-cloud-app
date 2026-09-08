@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
@@ -29,10 +27,8 @@ from learn_to_cloud_shared.verification.repo_files import RepoFiles
 from learn_to_cloud_shared.verification.repository_ownership import (
     check_repository_ownership,
 )
-from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle
 from learn_to_cloud_shared.verification.workflows import workflow_for
 from learn_to_cloud_shared.verification_workflow import (
-    GradingDisposition,
     PreparedVerificationAttempt,
     VerificationRunResult,
 )
@@ -97,19 +93,7 @@ def _aggregate(step_results: list[StepResult]) -> ValidationResult:
             }
         )
 
-    task_results = [r.task_result for r in step_results if r.task_result is not None]
-    passed = all(r.passed for r in step_results)
-    message = (
-        "Verification succeeded."
-        if passed
-        else "Verification failed. Review the task feedback and try again."
-    )
-    return ValidationResult(
-        is_valid=passed,
-        message=message,
-        task_results=task_results or None,
-        verification_completed=True,
-    )
+    raise ValueError("Workflow completed without a validation result")
 
 
 def _grading_requests_for(
@@ -182,20 +166,20 @@ def _grading_requests_for(
     return requests
 
 
-def _grading_disposition_for(
+def _validate_grading_requests(
     workflow: VerificationWorkflow,
     step_results: list[StepResult],
     grading_requests: list[LLMGradingRequest],
-) -> GradingDisposition:
-    """Explain why this run will or will not enter LLM grading."""
+) -> None:
+    """Require grading requests exactly when a rubric's gates have passed."""
     if workflow.rubric is None:
         if grading_requests:
             raise ValueError("Non-rubric workflow produced grading requests")
-        return GradingDisposition.NOT_REQUIRED
+        return
     if grading_requests:
-        return GradingDisposition.REQUESTED
+        return
     if any(not result.passed for result in step_results):
-        return GradingDisposition.SKIPPED_GATE_FAILED
+        return
     raise ValueError("Rubric workflow completed without a grading request")
 
 
@@ -229,7 +213,6 @@ async def _run_step(step: Step, context: StepContext) -> StepResult:
                 record_evidence_decision(exc.code)
             result = StepResult(
                 passed=False,
-                stop_on_fail=True,
                 validation_result=exc.to_validation_result(),
             )
         result_state = _step_result_state(result)
@@ -246,12 +229,8 @@ async def run_verification(
 ) -> VerificationRunResult:
     """Check repository ownership, then run the assignment's verification steps.
 
-    Steps run in order; a failed gate with ``stop_on_fail`` short-circuits the
-    rest. Evidence bundles accumulate across steps, are visible to later steps
-    via ``evidence_so_far``, and are carried on the returned run result.
-
-    Every result records both its LLM grading requests and a
-    ``grading_disposition`` explaining why grading was requested or skipped.
+    Steps run in order; a failed gate short-circuits the rest. Successful rubric
+    steps contribute complete evidence to the returned grading requests.
     An unregistered type (which the exhaustiveness test forbids) returns a
     clean error result.
     """
@@ -265,9 +244,7 @@ async def run_verification(
                 username_match=False,
                 repo_exists=False,
             ),
-            evidence=None,
             grading_requests=[],
-            grading_disposition=(GradingDisposition.SKIPPED_UNKNOWN_SUBMISSION_TYPE),
         )
 
     if workflow.requires_username and not job.github_username:
@@ -278,9 +255,7 @@ async def run_verification(
                 message="GitHub username is required for this verification",
                 username_match=False,
             ),
-            evidence=None,
             grading_requests=[],
-            grading_disposition=GradingDisposition.SKIPPED_MISSING_USERNAME,
         )
 
     target = job.target
@@ -301,11 +276,6 @@ async def run_verification(
                     attempt=job,
                     validation_result=ownership,
                     grading_requests=[],
-                    grading_disposition=(
-                        GradingDisposition.SKIPPED_GATE_FAILED
-                        if workflow.rubric is not None
-                        else GradingDisposition.NOT_REQUIRED
-                    ),
                 )
             span.set_attribute("verification.step.result", "passed")
             target = ownership
@@ -318,17 +288,10 @@ async def run_verification(
     )
 
     step_results: list[StepResult] = []
-    bundles: list[EvidenceBundle] = []
     for step in workflow.steps:
         result = await _run_step(step, context)
         step_results.append(result)
-        if result.evidence:
-            bundles.extend(result.evidence)
-            context = replace(
-                context,
-                evidence_so_far=(*context.evidence_so_far, *result.evidence),
-            )
-        if not result.passed and result.stop_on_fail:
+        if not result.passed:
             break
 
     deterministic_result = _aggregate(step_results)
@@ -346,14 +309,10 @@ async def run_verification(
                 validation_result=deterministic_result,
             )
         )
-    grading_disposition = _grading_disposition_for(
-        workflow, step_results, grading_requests
-    )
+    _validate_grading_requests(workflow, step_results, grading_requests)
 
     return VerificationRunResult(
         attempt=job,
         validation_result=deterministic_result,
-        evidence=bundles or None,
         grading_requests=grading_requests,
-        grading_disposition=grading_disposition,
     )

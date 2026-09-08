@@ -51,14 +51,12 @@ async def check_security_scanning_review(
     except (GitHubServerError, httpx.HTTPStatusError, httpx.RequestError) as exc:
         return StepResult(
             passed=False,
-            stop_on_fail=True,
             validation_result=github_error_to_result(
                 exc, event="security_scanning.repo_file_error"
             ),
         )
     return StepResult(
         passed=True,
-        stop_on_fail=False,
         evidence=[bundle],
         grading_task=task,
     )

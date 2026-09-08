@@ -25,7 +25,6 @@ from learn_to_cloud_shared.verification.tasks import LLMGradingDecision, RubricC
 from learn_to_cloud_shared.verification.tasks.phase7 import (
     CAREER_REFLECTION_RUBRIC_TASK,
 )
-from learn_to_cloud_shared.verification_attempt_executor import AttemptPreparation
 from learn_to_cloud_shared.verification_workflow import (
     LLM_ERROR_TYPES,
     PreparedVerificationAttempt,
@@ -83,6 +82,25 @@ def _decision(*, passed: bool = True, score: float = 1.0) -> LLMGradingDecision:
     )
 
 
+async def test_grading_rejects_missing_evidence_contract(execution):
+    request = _reflection_request()
+    prefix, body = request.message.split("\n\n", 1)
+    payload = json.loads(body)
+    del payload["task"]["evidence_contract"]
+    execution.verify.return_value = replace(
+        execution.result,
+        grading_requests=[
+            request.model_copy(update={"message": f"{prefix}\n\n{json.dumps(payload)}"})
+        ],
+    )
+
+    finalized = await _execute(execution)
+
+    execution.grade.assert_not_awaited()
+    assert finalized.validation_result.error_code == "evidence.selection"
+    assert not finalized.validation_result.verification_completed
+
+
 @pytest.fixture
 def execution(monkeypatch):
     requirement = devops_analysis_requirement(slug="devops")
@@ -101,7 +119,7 @@ def execution(monkeypatch):
         grading_requests=[_reflection_request()],
     )
     calls = Mock()
-    prepare = AsyncMock(return_value=AttemptPreparation(attempt=attempt))
+    prepare = AsyncMock(return_value=attempt)
     verify = AsyncMock(return_value=run_result)
     grade = AsyncMock(return_value=_decision())
     finalize = AsyncMock()
@@ -187,7 +205,6 @@ async def test_grading_preserves_rubric_feedback_and_threshold(
         assert criterion.label
         assert criterion.status == ("met" if passed else "not_met")
     assert finalized.grading_requests is None
-    assert finalized.evidence is None
     assert [call[0] for call in execution.calls.mock_calls] == [
         "prepare_verification_attempt",
         "run_verification",
@@ -287,7 +304,6 @@ async def test_evidence_failure_keeps_code_and_drops_prompts(
     )
     assert finalized.validation_result.task_results is None
     assert finalized.llm_error_type is None
-    assert finalized.evidence is None
     assert finalized.grading_requests is None
     execution.grade.assert_not_awaited()
     assert caplog.records == []

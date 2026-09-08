@@ -8,7 +8,6 @@ def validation_step_result(result: ValidationResult) -> StepResult:
     """Wrap the authoritative result without copying it."""
     return StepResult(
         passed=result.is_valid,
-        stop_on_fail=True,
         validation_result=result,
     )
 

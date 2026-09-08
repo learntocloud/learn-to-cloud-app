@@ -134,18 +134,14 @@ def _make_submission(
     error_code: str | None = None,
     submitted_value: str = "https://github.com/alice/repo",
 ):
-    from datetime import UTC, datetime
-
     from learn_to_cloud_shared.schemas import SubmissionData
 
     return SubmissionData(
-        id=uuid4(),
         submitted_value=submitted_value,
         is_validated=is_validated,
         verification_completed=verification_completed,
         validation_message=validation_message,
         error_code=error_code,
-        created_at=datetime(2024, 1, 1, tzinfo=UTC),
     )
 
 
@@ -164,10 +160,9 @@ class TestBuildRequirementCardContextCardState:
         )
 
         assert isinstance(ctx, FailedCardContext)
-        assert ctx.error_code == "evidence.required_missing"
         assert ctx.error_message == "Add the required pyproject.toml."
 
-    def test_evidence_failure_exposes_code_without_partial_feedback(self):
+    def test_evidence_failure_preserves_guidance_without_partial_feedback(self):
         from learn_to_cloud.rendering.feedback import FeedbackTaskContext
 
         ctx = build_requirement_card_context(
@@ -191,7 +186,6 @@ class TestBuildRequirementCardContextCardState:
         )
 
         assert isinstance(ctx, UnavailableCardContext)
-        assert ctx.error_code == "evidence.total_limit"
         assert "Retrying unchanged work may not help." in ctx.message
         assert ctx.feedback_tasks == []
         assert ctx.feedback_passed == 0
@@ -254,6 +248,7 @@ class TestBuildRequirementCardContextCardState:
         assert "token=" not in html
         assert "queued or being verified" in html
         assert "Analyzing your code" not in html
+        assert "Refresh the page to check for results." not in html
         assert 'hx-trigger="load delay:2s"' in html
 
     def test_no_submission_is_not_started(self):

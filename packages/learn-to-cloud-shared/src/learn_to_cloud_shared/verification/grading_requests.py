@@ -15,7 +15,6 @@ from learn_to_cloud_shared.verification.tasks import (
     LLMGradingDecision,
     RubricCriterion,
     VerificationTask,
-    require_llm_rubric_grader,
 )
 from learn_to_cloud_shared.verification.tasks.base import EvidenceBundle
 
@@ -36,7 +35,7 @@ class LLMGradingDecisionPayload(FrozenModel):
 
 
 def _task_payload(task: VerificationTask) -> dict[str, object]:
-    grader = require_llm_rubric_grader(task)
+    grader = task.grader
     return {
         "id": task.id,
         "name": task.name,
@@ -85,8 +84,6 @@ def validate_grading_request(request: LLMGradingRequest) -> None:
         evidence = payload["evidence"]
         message_task = payload["task"]
         expected_task = _task_payload(request.task)
-        if "evidence_contract" not in message_task:
-            expected_task.pop("evidence_contract")
         if message_task != expected_task:
             raise EvidenceError("evidence.selection")
         validated = _validated_evidence_payload(request.task, evidence, result)

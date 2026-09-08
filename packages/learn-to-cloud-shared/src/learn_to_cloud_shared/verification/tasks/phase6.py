@@ -77,7 +77,6 @@ SECURITY_SCANNING_RUBRIC_TASK = VerificationTask(
     ],
     evidence=EvidencePolicy(
         source="repo_files",
-        path_patterns=[CODEQL_WORKFLOW_PATH, *DEPENDABOT_CONFIG_PATHS],
         required_files=[CODEQL_WORKFLOW_PATH],
         optional_files=list(DEPENDABOT_CONFIG_PATHS),
         criterion_evidence={
@@ -99,8 +98,5 @@ SECURITY_SCANNING_RUBRIC_TASK = VerificationTask(
         rubric_id="phase6-security-scanning-v3",
         prompt_version="2026-09-06",
         passing_score=0.75,
-        model="gpt-5-mini",
     ),
 )
-
-PHASE6_LLM_TASKS = [SECURITY_SCANNING_RUBRIC_TASK]

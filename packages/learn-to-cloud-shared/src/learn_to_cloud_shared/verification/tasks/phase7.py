@@ -91,9 +91,5 @@ CAREER_REFLECTION_RUBRIC_TASK = VerificationTask(
         rubric_id="phase7-career-reflection-v2",
         prompt_version="2026-09-06",
         passing_score=0.6,
-        model="gpt-5-mini",
     ),
 )
-
-PHASE7_TASKS: list[VerificationTask] = []
-PHASE7_LLM_TASKS = [CAREER_REFLECTION_RUBRIC_TASK]

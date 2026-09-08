@@ -144,7 +144,6 @@ def _phase_progress(
     requirements_required: int = 1,
 ) -> PhaseProgress:
     return PhaseProgress(
-        phase_id=0,
         learning=LearningProgress(
             steps_completed=steps_completed, steps_required=steps_required
         ),
@@ -166,7 +165,6 @@ class TestPhaseProgressToData:
         )
         data = phase_progress_to_data(progress)
         assert data.status == "completed"
-        assert data.is_complete is True
 
     def test_in_progress_from_steps(self):
         progress = _phase_progress(
@@ -297,9 +295,7 @@ class TestFetchUserProgress:
         from learn_to_cloud_shared.requirements import RequirementIndex
         from learn_to_cloud_shared.schemas import PhaseOverview
 
-        phase_overview = (
-            PhaseOverview(uuid=uuid4(), name="Phase 0", slug="phase0", order=0),
-        )
+        phase_overview = (PhaseOverview(name="Phase 0", slug="phase0", order=0),)
         step_uuid = uuid4()
         fake_catalog = MagicMock(
             active_step_uuids=frozenset({step_uuid}),
@@ -335,7 +331,6 @@ class TestFetchUserProgress:
             ),
         ):
             result = await fetch_user_progress(AsyncMock(), user_id=1)
-            assert result.user_id == 1
             assert result.phases[0].learning.steps_completed == 1
             assert result.phases[0].learning.steps_required == 3
 
@@ -354,8 +349,8 @@ class TestFetchUserProgress:
         from learn_to_cloud_shared.schemas import PhaseOverview
 
         phase_overview = (
-            PhaseOverview(uuid=uuid4(), name="Phase 0", slug="phase0", order=0),
-            PhaseOverview(uuid=uuid4(), name="Phase 1", slug="phase1", order=1),
+            PhaseOverview(name="Phase 0", slug="phase0", order=0),
+            PhaseOverview(name="Phase 1", slug="phase1", order=1),
         )
         current_step_uuid = uuid4()
         stale_step_uuid = uuid4()

@@ -1,6 +1,11 @@
 # Azure Deployment Plan
 
-> **Status:** Ready for Validation
+> **Status:** Historical
+>
+> This records the frontend telemetry implementation, not current deployment
+> instructions. Resource names, validation commands, and rollout status below
+> describe that work at the time. See [Deployment](../README.md#deployment) for
+> the supported deployment workflow.
 
 Generated: 2026-05-07
 

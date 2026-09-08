@@ -240,7 +240,6 @@ async def topic_page(
             user=account,
             topic=topic,
             steps=topic.learning_steps,
-            phase_slug=phase_slug,
             phase_name=phase.name,
             phase_id=phase.order,
             completed_steps=completed_step_uuids,

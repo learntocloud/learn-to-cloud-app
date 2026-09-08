@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from hashlib import sha256
-from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 import httpx
@@ -14,7 +13,6 @@ from learn_to_cloud_shared.schemas import FrozenModel, ValidationResult
 from learn_to_cloud_shared.verification.github_errors import GitHubServerError
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
-    EvidenceDirectoryRule,
     EvidenceItem,
     EvidencePolicy,
     VerificationTask,
@@ -116,35 +114,12 @@ def _valid_path(path: str) -> bool:
 def validate_evidence_policy(policy: EvidencePolicy) -> None:
     """Reject contradictory configuration independently of learner content."""
     named = [*policy.required_files, *policy.optional_files]
-    roots = [rule.root for rule in policy.directory_rules]
     if (
         min(policy.max_files, policy.max_file_size_bytes, policy.max_total_bytes) <= 0
         or len(named) != len(set(named))
         or any(not _valid_path(path) for path in named)
-        or len(roots) != len(set(roots))
-        or any(
-            not rule.root.endswith("/")
-            or not _valid_path(rule.root[:-1])
-            or not rule.suffixes
-            or any(
-                not suffix.startswith(".") or "/" in suffix for suffix in rule.suffixes
-            )
-            for rule in policy.directory_rules
-        )
     ):
         raise EvidenceError("evidence.configuration")
-
-
-def matches_directory_rule(path: str, rule: EvidenceDirectoryRule) -> bool:
-    if not _valid_path(path) or not path.startswith(rule.root):
-        return False
-    relative = path[len(rule.root) :]
-    parts = PurePosixPath(relative).parts
-    return (
-        (rule.recursive or len(parts) == 1)
-        and not any(part in rule.excluded_directories for part in parts[:-1])
-        and path.endswith(rule.suffixes)
-    )
 
 
 def missing_required_evidence(
@@ -152,31 +127,12 @@ def missing_required_evidence(
     policy: EvidencePolicy,
 ) -> list[str]:
     inventory = set(paths)
-    return [
-        *[path for path in policy.required_files if path not in inventory],
-        *[
-            f"{rule.root} ({', '.join(rule.suffixes)} source)"
-            for rule in policy.directory_rules
-            if rule.required
-            and not any(matches_directory_rule(path, rule) for path in inventory)
-        ],
-    ]
+    return [path for path in policy.required_files if path not in inventory]
 
 
 def _allowed_path(path: str, policy: EvidencePolicy) -> bool:
-    if not _valid_path(path):
-        return False
-    if policy.required_files or policy.optional_files or policy.directory_rules:
-        return (
-            path in policy.required_files
-            or path in policy.optional_files
-            or any(
-                matches_directory_rule(path, rule) for rule in policy.directory_rules
-            )
-        )
-    return not policy.path_patterns or any(
-        path.startswith(pattern) if pattern.endswith("/") else path == pattern
-        for pattern in policy.path_patterns
+    return _valid_path(path) and (
+        path in policy.required_files or path in policy.optional_files
     )
 
 
@@ -202,7 +158,7 @@ def validate_evidence_bundle(task: VerificationTask, bundle: EvidenceBundle) -> 
     policy = task.evidence
     validate_evidence_policy(policy)
     paths = [item.path for item in bundle.items]
-    selected = bundle.selected_paths if bundle.selected_paths is not None else paths
+    selected = bundle.selected_paths
     if (
         bundle.task_id != task.id
         or bundle.source != policy.source
@@ -215,10 +171,7 @@ def validate_evidence_bundle(task: VerificationTask, bundle: EvidenceBundle) -> 
     ):
         raise EvidenceError("evidence.selection")
     expected_presence = {path: path in paths for path in policy.optional_files}
-    # Old valid in-flight bundles have neither new inventory field.
-    if (
-        bundle.selected_paths is not None or bundle.optional_presence
-    ) and bundle.optional_presence != expected_presence:
+    if bundle.optional_presence != expected_presence:
         raise EvidenceError("evidence.selection")
     if len(paths) > policy.max_files:
         raise EvidenceError("evidence.file_limit")
@@ -306,8 +259,6 @@ async def collect_repo_file_evidence(
     paths: list[str],
     task: VerificationTask,
     branch: str = "main",
-    *,
-    inventory: list[str] | None = None,
 ) -> EvidenceBundle:
     """Resolve presence first, then read every selected file in full."""
     fetched: list[tuple[str, str]] = []
@@ -318,11 +269,7 @@ async def collect_repo_file_evidence(
             raise EvidenceError("evidence.configuration")
         if len(paths) != len(set(paths)):
             raise EvidenceError("evidence.configuration")
-        all_files = (
-            inventory
-            if inventory is not None
-            else await repo_files.tree(owner, repo, branch)
-        )
+        all_files = await repo_files.tree(owner, repo, branch)
         selection = resolve_evidence_selection(all_files, task)
         selected = selection.paths
         if paths and set(selected) - set(paths):
@@ -364,47 +311,6 @@ async def collect_repo_file_evidence(
         total_bytes=bundle.total_bytes,
     )
     return bundle
-
-
-def select_repo_paths(
-    all_files: Iterable[str],
-    patterns: Iterable[str],
-    *,
-    max_files: int,
-) -> list[str]:
-    """Legacy helper with all-or-nothing selection, never priority dropping."""
-    patterns = list(patterns)
-    selected = sorted(
-        {
-            path
-            for path in all_files
-            if any(
-                path.startswith(pattern) if pattern.endswith("/") else path == pattern
-                for pattern in patterns
-            )
-        }
-    )
-    if len(selected) > max_files:
-        raise EvidenceError("evidence.file_limit")
-    return selected
-
-
-async def collect_repo_pattern_evidence(
-    repo_files: RepoFiles,
-    owner: str,
-    repo: str,
-    task: VerificationTask,
-    branch: str = "main",
-) -> EvidenceBundle:
-    """Discover only declared source groups using a complete repository tree."""
-    return await collect_repo_file_evidence(
-        repo_files,
-        owner,
-        repo,
-        [],
-        task,
-        branch,
-    )
 
 
 def collect_submitted_text_evidence(

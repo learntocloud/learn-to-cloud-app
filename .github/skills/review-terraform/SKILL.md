@@ -17,9 +17,8 @@ Check:
 - provider and lock-file-only updates produce no infrastructure changes
 - Terraform formatting, validation, and tests pass
 
-For Function App `authsettingsV2`, prefer updating the existing child resource
-with `azapi_update_resource`. For risky identity changes, separate the platform
-gate from application deployment.
+For risky identity changes, separate the platform gate from application
+deployment.
 
 Use the `plan-terraform` skill when planning an open pull request against remote
 state. Production applies must run through `app-deploy.yml`, which calls the

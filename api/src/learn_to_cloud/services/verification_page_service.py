@@ -249,9 +249,6 @@ async def get_phase_verification_workspace(
 
     card_contexts_by_req: dict[str, RequirementCardContext] = {}
     for requirement in requirements:
-        feedback_tasks, feedback_passed = feedback_tasks_and_passed(
-            submission_context.feedback_by_req.get(requirement.slug)
-        )
         active_attempt = active_attempts_by_slug.get(requirement.slug)
         if active_attempt is not None:
             card_contexts_by_req[requirement.slug] = (
@@ -261,11 +258,12 @@ async def get_phase_verification_workspace(
                     verification_status_delay_seconds=(
                         INITIAL_VERIFICATION_STATUS_DELAY_SECONDS
                     ),
-                    feedback_tasks=feedback_tasks,
-                    feedback_passed=feedback_passed,
                 )
             )
         else:
+            feedback_tasks, feedback_passed = feedback_tasks_and_passed(
+                submission_context.feedback_by_req.get(requirement.slug)
+            )
             card_contexts_by_req[requirement.slug] = build_requirement_card_context(
                 requirement=requirement,
                 github_username=github_username,

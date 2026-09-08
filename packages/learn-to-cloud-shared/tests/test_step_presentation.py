@@ -18,20 +18,6 @@ class TestStepAction:
         assert StepAction.PRACTICE.label == "Practice"
         assert StepAction.WATCH.label == "Watch"
 
-    def test_badge_classes_defined_for_every_member(self):
-        for action in StepAction:
-            assert action.badge_classes, f"missing badge classes for {action!r}"
-
-    def test_explore_practice_reflect_get_distinct_colors(self):
-        # The three "highlighted" actions must not collapse into the gray
-        # bucket — the original template explicitly singled them out.
-        colors = {
-            StepAction.EXPLORE.badge_classes,
-            StepAction.PRACTICE.badge_classes,
-            StepAction.REFLECT.badge_classes,
-        }
-        assert len(colors) == 3
-
 
 @pytest.mark.unit
 class TestNormalizeStepActionOnLearningStep:

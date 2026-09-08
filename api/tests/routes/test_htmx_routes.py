@@ -91,7 +91,6 @@ class TestHtmxCompleteStep:
 
     async def test_complete_step_calls_service_and_renders(self):
         """Completing a step calls the service and returns HTML."""
-        request = _mock_request()
         mock_db = AsyncMock()
         step_uuid = uuid4()
         mock_topic = MagicMock()
@@ -105,7 +104,7 @@ class TestHtmxCompleteStep:
             patch(
                 "learn_to_cloud.routes.htmx_routes.complete_step",
                 autospec=True,
-                return_value=(MagicMock(), mock_topic, {step_uuid}),
+                return_value=(mock_topic, mock_step, {step_uuid}),
             ) as mock_complete,
             patch(
                 "learn_to_cloud.routes.htmx_routes.render_step_toggle",
@@ -114,21 +113,17 @@ class TestHtmxCompleteStep:
             ) as mock_render,
         ):
             result = await htmx_complete_step(
-                request,
                 mock_db,
                 account=account,
                 step_uuid=step_uuid,
             )
 
         mock_complete.assert_awaited_once_with(mock_db, 1, step_uuid)
-        mock_render.assert_called_once_with(
-            request, account, mock_topic, mock_step, {step_uuid}
-        )
+        mock_render.assert_called_once_with(account, mock_topic, mock_step, {step_uuid})
         assert isinstance(result, HTMLResponse)
 
     async def test_complete_step_returns_hx_refresh_on_validation_error(self):
         """StepValidationError triggers HX-Refresh for stale page reload."""
-        request = _mock_request()
         mock_db = AsyncMock()
         step_uuid = uuid4()
 
@@ -138,7 +133,6 @@ class TestHtmxCompleteStep:
             side_effect=StepValidationError("step not found"),
         ):
             result = await htmx_complete_step(
-                request,
                 mock_db,
                 account=User(id=1, github_username="user"),
                 step_uuid=step_uuid,
@@ -153,7 +147,6 @@ class TestHtmxUncompleteStep:
 
     async def test_uncomplete_step_calls_service(self):
         """Uncompleting a step calls the service and returns HTML."""
-        request = _mock_request()
         mock_db = AsyncMock()
         step_uuid = uuid4()
         mock_topic = MagicMock()
@@ -167,7 +160,7 @@ class TestHtmxUncompleteStep:
             patch(
                 "learn_to_cloud.routes.htmx_routes.uncomplete_step",
                 autospec=True,
-                return_value=(1, mock_topic, mock_step, set()),
+                return_value=(mock_topic, mock_step, set()),
             ) as mock_uncomplete,
             patch(
                 "learn_to_cloud.routes.htmx_routes.render_step_toggle",
@@ -176,21 +169,17 @@ class TestHtmxUncompleteStep:
             ) as mock_render,
         ):
             result = await htmx_uncomplete_step(
-                request,
                 step_uuid,
                 mock_db,
                 account=account,
             )
 
         mock_uncomplete.assert_awaited_once_with(mock_db, 1, step_uuid)
-        mock_render.assert_called_once_with(
-            request, account, mock_topic, mock_step, set()
-        )
+        mock_render.assert_called_once_with(account, mock_topic, mock_step, set())
         assert isinstance(result, HTMLResponse)
 
     async def test_uncomplete_step_returns_hx_refresh_on_validation_error(self):
         """StepValidationError triggers HX-Refresh."""
-        request = _mock_request()
         mock_db = AsyncMock()
         step_uuid = uuid4()
 
@@ -200,7 +189,6 @@ class TestHtmxUncompleteStep:
             side_effect=StepValidationError("step not found"),
         ):
             result = await htmx_uncomplete_step(
-                request,
                 step_uuid,
                 mock_db,
                 account=User(id=1, github_username="user"),
@@ -510,36 +498,32 @@ class TestHtmxSubmitVerification:
         assert record.__dict__["verification.requirement.slug"] == "req-1"
         assert "user_id" not in record.__dict__
 
-    async def test_submit_unexpected_error_renders_server_error(self):
+    async def test_submit_unexpected_error_renders_server_error(self, _patch_templates):
         """Unexpected exceptions render a server error card."""
+        from learn_to_cloud_shared_test_support.requirement_factories import (
+            profile_readme_requirement,
+        )
+
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
+        requirement = profile_readme_requirement(slug="req-1")
 
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="test",
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
-                new_callable=AsyncMock,
-                side_effect=RuntimeError("boom"),
-            ),
+        with patch(
+            "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("boom"),
         ):
             result = await _submit_canonical_verification(
                 request,
                 current_user,
-                MagicMock(slug="req-1"),
+                requirement,
                 GitHubUrlValue("https://github.com/user/user"),
             )
 
-        # Should render a server error card, not crash
-        assert result is not None
+        assert result.status_code == 200
+        card = _patch_templates.TemplateResponse.call_args.args[2]["card"]
+        assert card.kind == "unavailable"
+        assert "This attempt was not counted" in card.message
 
     @pytest.mark.parametrize("error_type", [SQLAlchemyError, ConnectionRefusedError])
     async def test_submit_database_unavailable_returns_503(

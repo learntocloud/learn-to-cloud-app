@@ -9,30 +9,17 @@ from pydantic import ValidationError
 
 from learn_to_cloud_shared.models import SubmissionType, User
 from learn_to_cloud_shared.schemas import (
-    KNOWN_HANDS_ON_SUBMISSION_TYPES,
     CtfTokenConfig,
     HandsOnRequirementAdapter,
     UserResponse,
 )
 
 
-def test_known_submission_types_matches_union() -> None:
-    """The derived constant must list exactly the union's submission types."""
-    assert KNOWN_HANDS_ON_SUBMISSION_TYPES == {
-        "profile_readme",
-        "repo_fork",
-        "ctf_token",
-        "networking_token",
-        "journal_api_verifier",
-        "deployed_api",
-        "devops_analysis",
-        "security_scanning",
-        "career_reflection",
-    }
-    # A type the DB CHECK allows but the union doesn't know must be absent,
-    # so the content loader treats it as unknown (issue #603).
-    assert "ci_status" not in KNOWN_HANDS_ON_SUBMISSION_TYPES
-    assert "deployment_architecture" not in KNOWN_HANDS_ON_SUBMISSION_TYPES
+@pytest.mark.parametrize("submission_type", ["ci_status", "deployment_architecture"])
+def test_unknown_submission_type_is_rejected(submission_type: str) -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        HandsOnRequirementAdapter.validate_python({"submission_type": submission_type})
+    assert [error["type"] for error in exc_info.value.errors()] == ["union_tag_invalid"]
 
 
 def test_input_length_range_must_be_ordered() -> None:

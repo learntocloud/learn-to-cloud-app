@@ -57,9 +57,6 @@ class RequirementIndex:
     def requirements_for_phase(self, phase_order: int) -> list[HandsOnRequirement]:
         return self.by_phase_order.get(phase_order, [])
 
-    def requirement_slugs_for_phase(self, phase_order: int) -> list[str]:
-        return [req.slug for req in self.requirements_for_phase(phase_order)]
-
     def requirement_uuids_for_phase(self, phase_order: int) -> list[UUID]:
         return [req.uuid for req in self.requirements_for_phase(phase_order)]
 

@@ -28,38 +28,6 @@ class _RequirementCardBase:
     feedback_tasks: list[FeedbackTaskContext]
     feedback_passed: int
 
-    @property
-    def feedback_has_structured_criteria(self) -> bool:
-        return any(task.criteria for task in self.feedback_tasks)
-
-    @property
-    def feedback_required_total(self) -> int:
-        return sum(
-            criterion.kind == "required"
-            for task in self.feedback_tasks
-            for criterion in task.criteria
-        )
-
-    @property
-    def feedback_required_passed(self) -> int:
-        return sum(
-            criterion.kind == "required" and criterion.status == "met"
-            for task in self.feedback_tasks
-            for criterion in task.criteria
-        )
-
-    @property
-    def feedback_required_unmet(self) -> int:
-        return self.feedback_required_total - self.feedback_required_passed
-
-    @property
-    def feedback_suggestions(self) -> int:
-        return sum(
-            criterion.kind != "required" and criterion.status != "met"
-            for task in self.feedback_tasks
-            for criterion in task.criteria
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class NotStartedCardContext(_RequirementCardBase):
@@ -85,7 +53,6 @@ class FailedCardContext(_RequirementCardBase):
 
     verification_form: VerificationFormContext
     error_message: str
-    error_code: str | None = None
     kind: Literal["failed"] = field(init=False, default="failed")
 
 
@@ -95,7 +62,6 @@ class UnavailableCardContext(_RequirementCardBase):
 
     verification_form: VerificationFormContext
     message: str
-    error_code: str | None = None
     kind: Literal["unavailable"] = field(init=False, default="unavailable")
 
 
@@ -174,7 +140,6 @@ def build_requirement_card_context(
             error_message=(
                 submission.validation_message or "Verification did not pass."
             ),
-            error_code=submission.error_code,
         )
     return UnavailableCardContext(
         requirement=requirement,
@@ -184,7 +149,6 @@ def build_requirement_card_context(
         message=incomplete_verification_message(
             submission.validation_message, submission.error_code
         ),
-        error_code=submission.error_code,
     )
 
 
@@ -193,15 +157,12 @@ def build_checking_requirement_card_context(
     requirement: HandsOnRequirement,
     verification_attempt_id: UUID,
     verification_status_delay_seconds: int,
-    feedback_tasks: list[FeedbackTaskContext] | None = None,
-    feedback_passed: int = 0,
 ) -> CheckingCardContext:
     """Build the active-attempt card variant."""
-    tasks, passed = prepare_card_feedback(feedback_tasks, feedback_passed)
     return CheckingCardContext(
         requirement=requirement,
-        feedback_tasks=tasks,
-        feedback_passed=passed,
+        feedback_tasks=[],
+        feedback_passed=0,
         verification_attempt_id=verification_attempt_id,
         verification_status_delay_seconds=verification_status_delay_seconds,
     )

@@ -1,10 +1,10 @@
 """Integration tests for UserRepository."""
 
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
-from sqlalchemy import event, select
+from sqlalchemy import event, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
@@ -12,36 +12,6 @@ from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 
 pytestmark = pytest.mark.integration
-
-
-class TestGetOrCreate:
-    async def test_creates_new_user(self, db_session: AsyncSession):
-        repo = UserRepository(db_session)
-        user = await repo.get_or_create(
-            12345,
-            display_name="Alice",
-            github_username="alice",
-            avatar_url="https://example.com/alice.png",
-        )
-
-        assert user.id == 12345
-        assert user.display_name == "Alice"
-        assert user.github_username == "alice"
-
-    async def test_returns_existing_user_on_conflict(self, db_session: AsyncSession):
-        repo = UserRepository(db_session)
-        user1 = await repo.get_or_create(
-            12345, display_name="Alice", github_username="alice"
-        )
-        user2 = await repo.get_or_create(
-            12345, display_name="Bob", github_username="bob"
-        )
-
-        assert user1.id == user2.id
-        # Should return the existing user, not overwrite
-        assert user2 is user1
-        assert user2.display_name == "Alice"
-        assert user2.github_username == "alice"
 
 
 class TestUpsert:
@@ -148,7 +118,7 @@ class TestUpsert:
         assert returned.display_name == "Provider"
         assert returned.is_admin is True
         await db_session.commit()
-        assert await UserRepository(db_session).count() == 1
+        assert await db_session.scalar(select(func.count()).select_from(User)) == 1
 
     async def test_flush_failure_stops_before_upsert(self, test_engine: AsyncEngine):
         async with AsyncSession(test_engine, autoflush=False) as db:
@@ -158,7 +128,7 @@ class TestUpsert:
                     await UserRepository(db).upsert(99999, github_username="provider")
                 execute.assert_not_awaited()
             await db.rollback()
-            assert await UserRepository(db).count() == 0
+            assert await db.scalar(select(func.count()).select_from(User)) == 0
 
     async def test_caller_rollback_undoes_flush_and_upsert(
         self, test_engine: AsyncEngine
@@ -209,22 +179,10 @@ class TestUpsert:
                 assert statements[0].startswith("insert into users")
                 assert "on conflict (id) do update" in statements[0]
                 assert "returning" in statements[0]
-            statements.clear()
-            await repo.get_or_create(99998, github_username="new", display_name="New")
-            assert len(statements) == 2
-            statements.clear()
-            await repo.get_or_create(
-                99998, github_username="ignored", display_name="Ignored"
-            )
-            assert len(statements) == 1
-            assert statements[0].startswith("select ")
         finally:
             event.remove(connection.sync_connection, "before_cursor_execute", record)
 
-    @pytest.mark.parametrize("operation", ["upsert", "get_or_create"])
-    async def test_concurrent_identity_is_unique(
-        self, test_engine: AsyncEngine, operation
-    ):
+    async def test_concurrent_identity_is_unique(self, test_engine: AsyncEngine):
         barrier = asyncio.Barrier(2)
 
         async def write(name):
@@ -232,25 +190,8 @@ class TestUpsert:
                 test_engine, autoflush=False, expire_on_commit=False
             ) as db:
                 repo = UserRepository(db)
-                if operation == "get_or_create":
-                    original_lookup = repo.get_by_id
-
-                    async def synchronized_lookup(user_id):
-                        result = await original_lookup(user_id)
-                        await barrier.wait()
-                        return result
-
-                    with patch.object(
-                        repo, "get_by_id", AsyncMock(side_effect=synchronized_lookup)
-                    ):
-                        user = await repo.get_or_create(
-                            99999, github_username=name, display_name=name
-                        )
-                else:
-                    await barrier.wait()
-                    user = await repo.upsert(
-                        99999, github_username=name, display_name=name
-                    )
+                await barrier.wait()
+                user = await repo.upsert(99999, github_username=name, display_name=name)
                 await db.commit()
                 return user.id
 
@@ -263,21 +204,6 @@ class TestUpsert:
             assert users[0].display_name in {"one", "two"}
 
 
-class TestGetById:
-    async def test_returns_user(self, db_session: AsyncSession):
-        repo = UserRepository(db_session)
-        await repo.upsert(11111, display_name="Found", github_username="found")
-
-        user = await repo.get_by_id(11111)
-        assert user is not None
-        assert user.display_name == "Found"
-
-    async def test_returns_none_for_missing(self, db_session: AsyncSession):
-        repo = UserRepository(db_session)
-        user = await repo.get_by_id(99999999)
-        assert user is None
-
-
 class TestDelete:
     async def test_removes_user(self, db_session: AsyncSession):
         repo = UserRepository(db_session)
@@ -287,7 +213,7 @@ class TestDelete:
         await repo.delete(33333)
         await db_session.flush()
 
-        user = await repo.get_by_id(33333)
+        user = await db_session.scalar(select(User).where(User.id == 33333))
         assert user is None
 
     async def test_delete_nonexistent_is_noop(self, db_session: AsyncSession):
@@ -310,14 +236,3 @@ class TestGetByIds:
     async def test_returns_empty_for_empty_input(self, db_session: AsyncSession):
         repo = UserRepository(db_session)
         assert await repo.get_by_ids([]) == []
-
-
-class TestCount:
-    async def test_counts_users(self, db_session: AsyncSession):
-        repo = UserRepository(db_session)
-        before = await repo.count()
-        await repo.upsert(42001, github_username="counta")
-        await repo.upsert(42002, github_username="countb")
-        await db_session.flush()
-
-        assert await repo.count() == before + 2

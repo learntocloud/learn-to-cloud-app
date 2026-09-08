@@ -45,10 +45,9 @@ class ContentFilteredError(RuntimeError):
 class LLMGradingError(Exception):
     """A bounded operational grading failure safe for application telemetry."""
 
-    def __init__(self, error_type: str, http_status: int | None = None) -> None:
+    def __init__(self, error_type: str) -> None:
         super().__init__(error_type)
         self.error_type = error_type
-        self.http_status = http_status
 
 
 def _find_content_filter_error(exc: BaseException) -> openai.APIStatusError | None:
@@ -100,25 +99,25 @@ def classify_llm_error(exc: BaseException) -> LLMGradingError:
     if isinstance(exc, openai.APIConnectionError):
         return LLMGradingError(LLM_NETWORK)
     if isinstance(exc, openai.AuthenticationError):
-        return LLMGradingError(LLM_AUTHENTICATION, _http_status(exc))
+        return LLMGradingError(LLM_AUTHENTICATION)
     if isinstance(exc, openai.PermissionDeniedError):
-        return LLMGradingError(LLM_AUTHORIZATION, _http_status(exc))
+        return LLMGradingError(LLM_AUTHORIZATION)
     if isinstance(exc, openai.RateLimitError):
-        return LLMGradingError(LLM_RATE_LIMIT, _http_status(exc))
+        return LLMGradingError(LLM_RATE_LIMIT)
 
     status = _http_status(exc)
     code = _provider_code(exc)
     if code in _LLM_CONFIGURATION_CODES:
-        return LLMGradingError(LLM_CONFIGURATION, status)
+        return LLMGradingError(LLM_CONFIGURATION)
     if status == 401:
-        return LLMGradingError(LLM_AUTHENTICATION, status)
+        return LLMGradingError(LLM_AUTHENTICATION)
     if status == 403:
-        return LLMGradingError(LLM_AUTHORIZATION, status)
+        return LLMGradingError(LLM_AUTHORIZATION)
     if status == 429:
-        return LLMGradingError(LLM_RATE_LIMIT, status)
+        return LLMGradingError(LLM_RATE_LIMIT)
     if status in {502, 503, 504}:
-        return LLMGradingError(LLM_PROVIDER_UNAVAILABLE, status)
-    return LLMGradingError(LLM_UNKNOWN, status)
+        return LLMGradingError(LLM_PROVIDER_UNAVAILABLE)
+    return LLMGradingError(LLM_UNKNOWN)
 
 
 VERIFICATION_GRADER_AGENT_NAME = "VerificationGrader"

@@ -13,7 +13,6 @@ import pytest
 
 from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
 from learn_to_cloud_shared.content_service import (
-    get_all_phases,
     get_curriculum_overview,
     get_phase_by_slug,
     get_required_step_counts_by_phase,
@@ -23,11 +22,6 @@ from learn_to_cloud_shared.content_service import (
 )
 
 pytestmark = pytest.mark.unit
-
-
-class TestGetAllPhases:
-    def test_returns_catalog_phases(self):
-        assert get_all_phases() == get_curriculum_catalog().phases
 
 
 class TestGetPhaseBySlug:
@@ -47,12 +41,13 @@ class TestGetCurriculumOverview:
 
         assert len(overview) == len(catalog.phases)
         for phase_overview, phase in zip(overview, catalog.phases, strict=True):
-            assert phase_overview.uuid == phase.uuid
             assert phase_overview.order == phase.order
             assert phase_overview.slug == phase.slug
             assert phase_overview.name == phase.name
-            assert [t.uuid for t in phase_overview.topics] == [
-                t.uuid for t in phase.topics
+            assert phase_overview.description == phase.description
+            assert phase_overview.short_description == phase.short_description
+            assert [(t.slug, t.name) for t in phase_overview.topics] == [
+                (t.slug, t.name) for t in phase.topics
             ]
 
 

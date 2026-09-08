@@ -84,20 +84,11 @@ class ReflectionFormContext:
     )
 
 
-@dataclass(frozen=True, slots=True)
-class UnsupportedFormContext:
-    """Rendering data for a known requirement without an active form."""
-
-    message: str
-    kind: Literal["unsupported"] = field(init=False, default="unsupported")
-
-
 type VerificationFormContext = (
     DerivedFormContext
     | TokenFormContext
     | DeployedUrlFormContext
     | ReflectionFormContext
-    | UnsupportedFormContext
 )
 
 
@@ -111,11 +102,6 @@ def build_verification_form_context(
         requirement.slug,
         requirement.submission_type,
     )
-    if action is None:
-        return UnsupportedFormContext(
-            message="Verification is not currently available for this requirement."
-        )
-
     if is_derivable(requirement.submission_type):
         return DerivedFormContext(
             action=action,

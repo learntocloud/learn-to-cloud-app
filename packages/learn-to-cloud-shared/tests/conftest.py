@@ -29,17 +29,6 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from learn_to_cloud_shared.core.config import (
-    CorsConfig,
-    DatabaseConfig,
-    Environment,
-    GitHubConfig,
-    LabsConfig,
-    OAuthConfig,
-    SessionConfig,
-    WebSecurityConfig,
-    WebSettings,
-)
 from learn_to_cloud_shared.core.database import Base
 
 
@@ -60,24 +49,6 @@ def _build_test_database_url() -> tuple[str, str, int]:
 
 TEST_DATABASE_URL, _DB_HOST, _DB_PORT = _build_test_database_url()
 _DB_AVAILABLE: bool | None = None
-
-
-@pytest.fixture(scope="session")
-def test_settings() -> WebSettings:
-    """Create test settings pointing to the test database."""
-    return WebSettings(
-        database=DatabaseConfig(url=TEST_DATABASE_URL),
-        environment=Environment.DEVELOPMENT,
-        web_security=WebSecurityConfig(require_https=False),
-        oauth=OAuthConfig(
-            client_id="test_github_client_id",
-            client_secret="test_github_client_secret",
-        ),
-        session=SessionConfig(secret_key="test_session_secret_key_for_testing"),
-        github=GitHubConfig(token="test_github_token"),
-        labs=LabsConfig(verification_secret="test_ctf_secret_must_be_32_chars!"),
-        cors=CorsConfig(allowed_origins=""),
-    )
 
 
 def _check_db_available() -> bool:

@@ -5,7 +5,6 @@ Runs inside the API verification worker. Submodules:
     checks/           - Directly callable verification adapters
     workflows          - Ordered workflow catalog for every submission type
     engine            - Ownership, execution, telemetry, and grading preparation
-    events            - In-process event bus for async verification results
     github_profile    - Profile README/fork verification
     ci_status         - CI test-pass check
     token_base        - HMAC token verification for CTF + Networking Lab

@@ -19,6 +19,22 @@ from learn_to_cloud_shared.verification.tasks.phase7 import (
 pytestmark = pytest.mark.unit
 
 
+def _requirement(catalog, slug):
+    return next(
+        requirement
+        for requirement in catalog.requirements_by_uuid.values()
+        if requirement.slug == slug
+    )
+
+
+def _topic(catalog, phase_slug, topic_slug):
+    return next(
+        topic
+        for topic in catalog.phases_by_slug[phase_slug].topics
+        if topic.slug == topic_slug
+    )
+
+
 @pytest.mark.parametrize(
     ("task", "topic_slug", "required", "optional"),
     [
@@ -38,8 +54,8 @@ def test_named_evidence_is_published(
 ) -> None:
     catalog = load_curriculum_catalog()
     assert task.requirement_slug is not None
-    requirement = catalog.requirements_by_slug[task.requirement_slug]
-    topic = catalog.topics_by_phase_and_slug[(f"phase{task.phase_id}", topic_slug)]
+    requirement = _requirement(catalog, task.requirement_slug)
+    topic = _topic(catalog, f"phase{task.phase_id}", topic_slug)
 
     assert set(task.evidence.required_files) == required
     assert set(task.evidence.optional_files) == optional
@@ -50,8 +66,8 @@ def test_named_evidence_is_published(
 
 def test_devops_run_and_job_contract_is_published() -> None:
     catalog = load_curriculum_catalog()
-    requirement = catalog.requirements_by_slug["devops-implementation"]
-    topic = catalog.topics_by_phase_and_slug[("phase5", "capstone")]
+    requirement = _requirement(catalog, "devops-implementation")
+    topic = _topic(catalog, "phase5", "capstone")
     assert str(requirement.uuid) == "623a87ae-156f-42da-a83c-09241d523e00"
     assert requirement.submission_type == "devops_analysis"
     for text in (requirement.description, topic.model_dump_json()):
@@ -68,8 +84,8 @@ def test_devops_run_and_job_contract_is_published() -> None:
 
 def test_capstone_workflow_and_local_responsibilities_are_published() -> None:
     catalog = load_curriculum_catalog()
-    journal = catalog.requirements_by_slug["journal-api-implementation"]
-    topic = catalog.topics_by_phase_and_slug[("phase3", "build-the-app")]
+    journal = _requirement(catalog, "journal-api-implementation")
+    topic = _topic(catalog, "phase3", "build-the-app")
     assert str(journal.uuid) == "d6201101-8873-447a-957a-0e5773627618"
     assert journal.submission_type == "journal_api_verifier"
     assert f"`{CAPSTONE_WORKFLOW_FILE}`" in journal.description
@@ -85,7 +101,7 @@ def test_capstone_workflow_and_local_responsibilities_are_published() -> None:
     for published in (journal.description, text):
         assert "canonical" not in published
         assert "evidence limit" not in published
-    genai = catalog.topics_by_phase_and_slug[("phase3", "genai-apis")]
+    genai = _topic(catalog, "phase3", "genai-apis")
     assert genai.learning_steps[-1].url == (
         "https://github.com/learntocloud/journal-starter/blob/main/docs/08-ai-setup.md"
     )
@@ -93,7 +109,7 @@ def test_capstone_workflow_and_local_responsibilities_are_published() -> None:
 
 def test_complete_text_boundaries_are_published() -> None:
     catalog = load_curriculum_catalog()
-    reflection = catalog.requirements_by_slug["career-reflection"]
+    reflection = _requirement(catalog, "career-reflection")
     assert "complete submitted text" in reflection.description
     assert "no GitHub files are read" in reflection.description
     assert CAREER_REFLECTION_RUBRIC_TASK.evidence.required_files == [

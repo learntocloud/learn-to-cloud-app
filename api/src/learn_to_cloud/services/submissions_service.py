@@ -143,21 +143,6 @@ class AlreadyValidatedError(Exception):
 class PriorPhaseNotCompleteError(Exception):
     """Raised when submitting for a phase whose prerequisite isn't fully verified."""
 
-    def __init__(self, message: str, prerequisite_phase: int):
-        super().__init__(message)
-        self.prerequisite_phase = prerequisite_phase
-
-
-@dataclass(frozen=True, slots=True)
-class _PreValidationContext:
-    """Data collected during pre-validation checks.
-
-    Returned by ``_check_submission_preconditions`` so callers don't repeat lookups.
-    """
-
-    requirement: HandsOnRequirement
-    phase_order: int
-
 
 @dataclass(frozen=True, slots=True)
 class VerificationAttemptSubmission:
@@ -171,7 +156,7 @@ async def _check_submission_preconditions(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_slug: str,
-) -> _PreValidationContext:
+) -> HandsOnRequirement:
     """Shared pre-validation checks for submission paths.
 
     Validates requirement existence, already-validated status, and phase gating.
@@ -212,15 +197,11 @@ async def _check_submission_preconditions(
                     raise PriorPhaseNotCompleteError(
                         f"You must complete all Phase {prereq_phase} "
                         f"verifications before submitting for Phase {phase_order}.",
-                        prerequisite_phase=prereq_phase,
                     )
 
     # read_session is now closed — connection returned to pool
 
-    return _PreValidationContext(
-        requirement=requirement,
-        phase_order=phase_order,
-    )
+    return requirement
 
 
 async def create_verification_attempt(
@@ -241,18 +222,18 @@ async def create_verification_attempt(
     requirement so two racing requests can never both pass the active/succeeded
     checks and create two active attempts.
     """
-    ctx = await _check_submission_preconditions(
+    requirement = await _check_submission_preconditions(
         session_maker,
         user_id,
         requirement_slug,
     )
-    if not submitted_value_matches_requirement(ctx.requirement, submitted_value):
+    if not submitted_value_matches_requirement(requirement, submitted_value):
         raise InvalidSubmittedValueError(
             "Submitted value type does not match this requirement."
         )
 
     catalog = get_curriculum_catalog()
-    requirement_snapshot = build_requirement_snapshot(ctx.requirement)
+    requirement_snapshot = build_requirement_snapshot(requirement)
     requirement_snapshot_hash = compute_snapshot_hash(requirement_snapshot)
     attempt_id = uuid4()
 
@@ -262,7 +243,7 @@ async def create_verification_attempt(
             attempt, created = await attempt_repo.create_or_get_active(
                 id=attempt_id,
                 user_id=user_id,
-                requirement_uuid=ctx.requirement.uuid,
+                requirement_uuid=requirement.uuid,
                 artifact_schema_version=catalog.artifact_schema_version,
                 curriculum_version=catalog.curriculum_version,
                 content_hash=catalog.content_hash,
@@ -314,7 +295,7 @@ async def run_submit_smoke_check(
     # The synthetic user has no attempts, so preconditions return cleanly.
     # An early-phase requirement has no prerequisite phase, so the
     # sequential gating check does not raise for the synthetic user.
-    ctx = await _check_submission_preconditions(
+    requirement = await _check_submission_preconditions(
         session_maker,
         user_id=_SMOKE_USER_ID,
         requirement_slug=requirement.slug,
@@ -324,7 +305,7 @@ async def run_submit_smoke_check(
     # error here means the code ran fine, so it is not a health signal;
     # any other error (e.g. an unmapped submission type) propagates.
     try:
-        submitted_value_from_raw(ctx.requirement, "smoke-test")
+        submitted_value_from_raw(requirement, "smoke-test")
     except ValueError:
         # A value-format validation error means the parsing code ran fine,
         # so it is not a schema/code-health signal and is safe to ignore

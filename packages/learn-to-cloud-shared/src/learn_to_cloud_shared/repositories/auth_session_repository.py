@@ -1,6 +1,5 @@
 """Digest-only session persistence; callers own transaction completion."""
 
-from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import StrEnum
 
@@ -25,12 +24,6 @@ class SessionRejection(StrEnum):
 
 class SessionDigestCollision(ValueError):
     """The generated digest already exists; retry with a fresh credential."""
-
-
-@dataclass(frozen=True)
-class ResolvedSession:
-    session: AuthSession = field(repr=False)
-    user: User = field(repr=False)
 
 
 def _validate_digest(token_digest: bytes) -> None:
@@ -80,9 +73,7 @@ class AuthSessionRepository:
             raise SessionDigestCollision("Generated session digest already exists.")
         return result
 
-    async def resolve_and_touch(
-        self, token_digest: bytes
-    ) -> ResolvedSession | SessionRejection:
+    async def resolve_and_touch(self, token_digest: bytes) -> User | SessionRejection:
         """Lock, then conditionally touch using a fresh database statement clock."""
         _validate_digest(token_digest)
         locked = await self.db.scalar(
@@ -95,8 +86,8 @@ class AuthSessionRepository:
         # A separate statement samples time AFTER waiting for an existing lock.
         now = func.statement_timestamp()
         idle_cutoff = now - timedelta(seconds=self.config.idle_timeout_seconds)
-        row = (
-            await self.db.execute(
+        user = (
+            await self.db.scalars(
                 update(AuthSession)
                 .where(
                     AuthSession.token_digest == token_digest,
@@ -108,12 +99,12 @@ class AuthSessionRepository:
                     last_seen_at=func.greatest(AuthSession.last_seen_at, now),
                     updated_at=func.greatest(AuthSession.updated_at, now),
                 )
-                .returning(AuthSession, User)
+                .returning(User)
                 .execution_options(synchronize_session=False, populate_existing=True)
             )
         ).one_or_none()
-        if row is not None:
-            return ResolvedSession(session=row[0], user=row[1])
+        if user is not None:
+            return user
         reason = await self.db.scalar(
             select(
                 case(

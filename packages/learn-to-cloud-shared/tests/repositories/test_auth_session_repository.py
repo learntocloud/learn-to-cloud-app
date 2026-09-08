@@ -14,7 +14,6 @@ from learn_to_cloud_shared.models import AuthSession, User
 from learn_to_cloud_shared.repositories import auth_session_repository as module
 from learn_to_cloud_shared.repositories.auth_session_repository import (
     AuthSessionRepository,
-    ResolvedSession,
     SessionDigestCollision,
     SessionRejection,
 )
@@ -86,7 +85,7 @@ async def test_exact_database_expiry_boundaries(db_session, monkeypatch, kind, o
     )
     result = await repo.resolve_and_touch(session.token_digest)
     if offset > 0:
-        assert isinstance(result, ResolvedSession)
+        assert isinstance(result, User)
     else:
         assert result == (
             SessionRejection.IDLE_EXPIRED
@@ -114,10 +113,20 @@ async def test_touch_current_user_monotonic_and_absolute_unchanged(db_session):
     )
     assert stale_user.github_username == "learner"
     result = await repo.resolve_and_touch(session.token_digest)
-    assert isinstance(result, ResolvedSession)
-    assert result.user.github_username == "renamed"
-    assert result.session.last_seen_at == result.session.updated_at == future
-    assert (result.session.created_at, result.session.expires_at) == (created, expires)
+    assert isinstance(result, User)
+    assert result.github_username == "renamed"
+    stored = (
+        await db_session.execute(
+            select(
+                AuthSession.last_seen_at,
+                AuthSession.updated_at,
+                AuthSession.created_at,
+                AuthSession.expires_at,
+            ).where(AuthSession.token_digest == session.token_digest)
+        )
+    ).one()
+    assert stored.last_seen_at == stored.updated_at == future
+    assert (stored.created_at, stored.expires_at) == (created, expires)
     assert "renamed" not in repr(result)
     assert session.token_digest.hex() not in repr(result)
 
@@ -127,8 +136,13 @@ async def test_transaction_clock_does_not_freeze_session_activity(db_session):
     before = sessions[0].last_seen_at
     await db_session.execute(text("SELECT pg_sleep(0.02)"))
     result = await repo.resolve_and_touch(sessions[0].token_digest)
-    assert isinstance(result, ResolvedSession)
-    assert result.session.last_seen_at > before
+    assert isinstance(result, User)
+    last_seen_at = await db_session.scalar(
+        select(AuthSession.last_seen_at).where(
+            AuthSession.token_digest == sessions[0].token_digest
+        )
+    )
+    assert last_seen_at > before
 
 
 async def test_delete_independent_session_and_account_cascade_recreation(db_session):
@@ -137,7 +151,7 @@ async def test_delete_independent_session_and_account_cascade_recreation(db_sess
     assert await repo.delete(first) == 1
     assert await repo.delete(first) == 0
     assert await repo.resolve_and_touch(first) == SessionRejection.UNKNOWN
-    assert isinstance(await repo.resolve_and_touch(second), ResolvedSession)
+    assert isinstance(await repo.resolve_and_touch(second), User)
     await db_session.execute(delete(User).where(User.id == 1))
     db_session.expunge_all()
     db_session.add(User(id=1, github_username="recreated"))
@@ -169,9 +183,7 @@ async def test_prune_bounded_both_expiries_and_rollback(db_session):
     assert await db_session.scalar(select(func.count()).select_from(AuthSession)) == 205
     assert [await repo.prune_expired() for _ in range(4)] == [100, 100, 3, 0]
     for session in sessions[203:]:
-        assert isinstance(
-            await repo.resolve_and_touch(session.token_digest), ResolvedSession
-        )
+        assert isinstance(await repo.resolve_and_touch(session.token_digest), User)
 
 
 async def committed_seed(test_engine, count=1):
@@ -195,7 +207,7 @@ async def test_concurrent_touch_and_logout_cannot_revive(test_engine, delete_fir
         if delete_first:
             assert await repo.delete(digest) == 1
         else:
-            assert isinstance(await repo.resolve_and_touch(digest), ResolvedSession)
+            assert isinstance(await repo.resolve_and_touch(digest), User)
 
         async def other():
             async with maker.begin() as db:
@@ -284,7 +296,7 @@ async def test_pruners_skip_locked_batches_and_refresh(test_engine):
     async with maker.begin() as db:
         repo = AuthSessionRepository(db, CONFIG)
         assert await repo.prune_expired() == 4
-        assert isinstance(await repo.resolve_and_touch(digests[0]), ResolvedSession)
+        assert isinstance(await repo.resolve_and_touch(digests[0]), User)
 
 
 async def test_creation_waits_for_account_deletion_without_fk_diagnostics(test_engine):
@@ -318,7 +330,7 @@ async def test_create_and_revoke_are_not_committed_by_repository(test_engine):
     async with maker.begin() as db:
         repo = AuthSessionRepository(db, CONFIG)
         assert await repo.resolve_and_touch(DIGEST) == SessionRejection.UNKNOWN
-        assert isinstance(await repo.resolve_and_touch(digest), ResolvedSession)
+        assert isinstance(await repo.resolve_and_touch(digest), User)
 
 
 async def test_expiry_is_checked_after_waiting_for_an_unmodified_row(test_engine):

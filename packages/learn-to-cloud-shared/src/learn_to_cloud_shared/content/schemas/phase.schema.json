@@ -578,44 +578,6 @@
       "title": "NetworkingTokenRequirement",
       "type": "object"
     },
-    "PhaseCapstoneOverview": {
-      "description": "High-level capstone overview for a phase (public summary).",
-      "properties": {
-        "includes": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Includes",
-          "type": "array"
-        },
-        "summary": {
-          "title": "Summary",
-          "type": "string"
-        },
-        "title": {
-          "title": "Title",
-          "type": "string"
-        },
-        "topic_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Topic Slug"
-        }
-      },
-      "required": [
-        "title",
-        "summary"
-      ],
-      "title": "PhaseCapstoneOverview",
-      "type": "object"
-    },
     "PhaseHandsOnVerificationOverview": {
       "description": "High-level hands-on verification overview for a phase (public summary).",
       "properties": {
@@ -867,7 +829,7 @@
       "type": "object"
     },
     "StepAction": {
-      "description": "Categorical action label for a learning step.\n\nDrives the colored action badge in the step UI. Authored in YAML as\n``action: 'Practice:'`` (capitalized, trailing colon) for readability;\nthe schema validator normalizes to the lowercase enum value at load\ntime. The trailing colon is purely a YAML-author affordance and\nnever reaches the rendered UI.",
+      "description": "Categorical action label for a learning step.\n\nDrives the action label in the step UI. Authored in YAML as\n``action: 'Practice:'`` (capitalized, trailing colon) for readability;\nthe schema validator normalizes to the lowercase enum value at load\ntime. The trailing colon is purely a YAML-author affordance and\nnever reaches the rendered UI.",
       "enum": [
         "build",
         "explore",
@@ -963,17 +925,6 @@
   },
   "description": "A phase in the curriculum.\n\nPhases use ``slug`` (e.g. ``\"phase0\"``) and ``order`` (int ``0..7``)\nas their human keys. The slug is what shows up in URLs and is the\nprimary lookup key; ``order`` drives display ordering and is also\nused in URL paths today (``/phase/{order}``).",
   "properties": {
-    "capstone": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/PhaseCapstoneOverview"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
-    },
     "description": {
       "default": "",
       "title": "Description",
@@ -993,13 +944,6 @@
     "name": {
       "title": "Name",
       "type": "string"
-    },
-    "objectives": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Objectives",
-      "type": "array"
     },
     "order": {
       "default": 0,

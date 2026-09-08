@@ -99,7 +99,6 @@ def render_unavailable(
 
 
 def render_step_toggle(
-    request: Request,
     account: User,
     topic: Topic,
     step,
@@ -110,7 +109,6 @@ def render_step_toggle(
         len(topic.learning_steps),
     )
     step_html = templates.get_template("partials/topic_step.html").render(
-        request=request,
         step=step,
         completed_steps=completed_step_uuids,
         user=account,

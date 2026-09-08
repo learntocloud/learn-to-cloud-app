@@ -134,7 +134,6 @@ async def test_deterministic_results_preserve_identity_and_arguments(
 
     assert step_result.validation_result is result
     assert step_result.passed is passed
-    assert step_result.stop_on_fail is True
     assert step_result.evidence == []
     assert step_result.grading_task is None
     if validator in {"validate_profile_readme", "validate_repo_fork"}:
@@ -183,12 +182,10 @@ async def test_career_check_validates_before_preparing_grading(
         assert result.evidence[0].task_id == CAREER_REFLECTION_RUBRIC_TASK.id
         assert result.evidence[0].items[0].content == context.submitted_value.text
         assert result.grading_task is CAREER_REFLECTION_RUBRIC_TASK
-        assert not result.stop_on_fail
     else:
         collect.assert_not_called()
         assert result.evidence == []
         assert result.grading_task is None
-        assert result.stop_on_fail
 
 
 async def test_career_check_rejects_non_text_values():
@@ -219,7 +216,6 @@ async def test_missing_target_preserves_completed_and_incomplete_results(check):
     }
     assert result == StepResult(
         passed=False,
-        stop_on_fail=True,
         validation_result=ValidationResult(
             is_valid=False,
             message=(

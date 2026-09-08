@@ -21,6 +21,8 @@ rendered, not the full definition of working.
 |------|-----|-------------------|
 | Dashboard | `/dashboard` | Navigation, main content, username |
 | Account | `/account` | Navigation, main content, account settings |
+| Verifications | `/verifications` | Hands-on progress across phases |
+| Phase verification | `/verifications/phase/{N}` | Requirement cards and attempt history |
 | Phase 0 | `/phase/0` | Navigation, main content, no server error |
 | Phase 1 | `/phase/1` | Navigation, main content, topic links |
 | Phase 2 | `/phase/2` | Navigation, main content, no server error |

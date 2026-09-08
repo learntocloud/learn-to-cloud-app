@@ -4,24 +4,20 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from learn_to_cloud_shared.schemas import TaskResult
 from learn_to_cloud_shared.verification.grading_requests import (
     LLMGradingDecisionPayload,
-    LLMGradingRequest,
 )
 from learn_to_cloud_shared.verification.tasks import (
-    GradingResult,
     LLMGradingDecision,
     RubricCriterion,
     VerificationTask,
-    require_llm_rubric_grader,
 )
 from learn_to_cloud_shared.verification_workflow import (
     VerificationRunResult,
 )
 
 __all__ = [
-    "LLMGradingDecisionPayload",
-    "LLMGradingRequest",
     "apply_llm_grading_decisions",
     "llm_grading_content_filtered_result",
     "llm_grading_unavailable_result",
@@ -39,10 +35,10 @@ def apply_llm_grading_decisions(
 
     task_results = list(run_result.validation_result.task_results or [])
     grading_results = [
-        _decision_to_grading_result(payload.task, payload.decision)
+        _decision_to_task_result(payload.task, payload.decision)
         for payload in decisions
     ]
-    task_results.extend(result.to_task_result() for result in grading_results)
+    task_results.extend(grading_results)
 
     llm_passed = all(result.passed for result in grading_results)
     is_valid = run_result.validation_result.is_valid and llm_passed
@@ -60,7 +56,6 @@ def apply_llm_grading_decisions(
     return VerificationRunResult(
         attempt=run_result.attempt,
         validation_result=validation_result,
-        grading_disposition=run_result.grading_disposition,
     )
 
 
@@ -152,19 +147,15 @@ def llm_grading_content_filtered_result(
     return VerificationRunResult(
         attempt=run_result.attempt,
         validation_result=validation_result,
-        grading_disposition=run_result.grading_disposition,
     )
 
 
-def _decision_to_grading_result(
+def _decision_to_task_result(
     task: VerificationTask,
     decision: LLMGradingDecision,
-) -> GradingResult:
-    grader = require_llm_rubric_grader(task)
+) -> TaskResult:
+    grader = task.grader
     passed = decision.passed and decision.score >= grader.passing_score
-    failure_reason = decision.failure_reason
-    if decision.passed and not passed:
-        failure_reason = "score_below_passing_threshold"
     criteria_by_id = {
         criterion.id: criterion
         for criterion in task.criteria
@@ -180,17 +171,10 @@ def _decision_to_grading_result(
         for result in decision.criterion_results
     ]
 
-    return GradingResult(
-        task_id=task.id,
+    return TaskResult(
         task_name=task.name,
         passed=passed,
         feedback=decision.feedback,
         next_steps=decision.next_steps,
-        grader_kind=grader.kind,
-        failure_reason=failure_reason,
-        score=decision.score,
-        confidence=decision.confidence,
-        rubric_version=grader.rubric_id,
-        evidence_refs=decision.evidence_refs,
         criterion_results=criterion_results,
     )

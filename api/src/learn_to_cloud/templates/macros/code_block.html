@@ -1,16 +1,15 @@
 {# Code-block components with copy-to-clipboard.
 
-Both macros wire to the shared Alpine ``copyButton`` data component
+The macro uses the shared Alpine ``copyButton`` data component
 defined in static/js/copy-to-clipboard.js. The component handles the
 "Copied!" affordance and the clipboard fallback for non-secure contexts.
 
 Macros:
-- copy_code(code, ref) — <pre><code> with a copy button (ref scopes the
-  Alpine $refs lookup so multiple blocks on the same step don't collide)
+- copy_code(code) — <pre><code> with a copy button in its own Alpine scope
 #}
 
-{% macro copy_code(code, ref) %}
-<div class="mt-3 relative" x-data="copyButton" x-ref="block_{{ ref }}">
+{% macro copy_code(code) %}
+<div class="mt-3 relative" x-data="copyButton">
     <pre class="bg-gray-100 dark:bg-gray-800 rounded-md p-3 text-sm overflow-x-auto"><code x-ref="code">{{ code }}</code></pre>
     <button
         type="button"

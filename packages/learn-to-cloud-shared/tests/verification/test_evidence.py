@@ -10,9 +10,7 @@ from learn_to_cloud_shared.verification.evidence import (
     EvidenceError,
     apply_evidence_cap,
     collect_repo_file_evidence,
-    collect_repo_pattern_evidence,
     collect_submitted_text_evidence,
-    select_repo_paths,
 )
 from learn_to_cloud_shared.verification.github_errors import GitHubServerError
 from learn_to_cloud_shared.verification.repo_files import (
@@ -20,7 +18,7 @@ from learn_to_cloud_shared.verification.repo_files import (
 )
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidencePolicy,
-    FilePresenceGraderConfig,
+    LLMRubricGraderConfig,
     VerificationTask,
 )
 from tests.fakes.repo_files import InMemoryRepoFiles
@@ -32,7 +30,6 @@ def _task(
     max_files: int = 10,
     max_file_size_bytes: int = 50 * 1024,
     max_total_bytes: int = 200 * 1024,
-    path_patterns: list[str] | None = None,
 ) -> VerificationTask:
     return VerificationTask(
         id="task-1",
@@ -40,12 +37,24 @@ def _task(
         name="Test task",
         evidence=EvidencePolicy(
             source=source,
-            path_patterns=path_patterns or [],
+            optional_files=[
+                "a",
+                "b",
+                "c",
+                "a.txt",
+                "b.txt",
+                "big.txt",
+                "submission.txt",
+                "present.txt",
+                "second.txt",
+            ],
             max_files=max_files,
             max_file_size_bytes=max_file_size_bytes,
             max_total_bytes=max_total_bytes,
         ),
-        grader=FilePresenceGraderConfig(),
+        grader=LLMRubricGraderConfig(
+            rubric_id="test", prompt_version="test", passing_score=0.5
+        ),
     )
 
 
@@ -104,49 +113,9 @@ async def test_collect_repo_file_evidence_checks_selected_count_before_reading()
         )
 
 
-def test_select_repo_paths_never_slices_the_selection():
-    with pytest.raises(EvidenceError, match="evidence.file_limit"):
-        select_repo_paths(
-            ["infra/z.tf", ".github/workflows/ci.yml", "Dockerfile", "infra/a.tf"],
-            ["Dockerfile", ".github/workflows/", "infra/"],
-            max_files=3,
-        )
-
-
 @pytest.mark.asyncio
-async def test_collect_repo_pattern_evidence_preserves_all_paths():
-    repo_files = InMemoryRepoFiles(
-        {
-            "Dockerfile": "FROM python",
-            "infra/a.tf": "resource a",
-            "infra/b.tf": "resource b",
-        }
-    )
-    bundle = await collect_repo_pattern_evidence(
-        repo_files,
-        "owner",
-        "repo",
-        _task(max_files=3, path_patterns=["Dockerfile", "infra/"]),
-    )
-
-    assert [item.path for item in bundle.items] == [
-        "Dockerfile",
-        "infra/a.tf",
-        "infra/b.tf",
-    ]
-    assert [item.content for item in bundle.items] == [
-        "FROM python",
-        "resource a",
-        "resource b",
-    ]
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("discovered", [False, True])
 @pytest.mark.parametrize("failure", [401, 403, 429, 503, "network"])
-async def test_failed_later_file_never_returns_partial_evidence(
-    monkeypatch, discovered, failure
-):
+async def test_failed_later_file_never_returns_partial_evidence(monkeypatch, failure):
     requested_paths = []
 
     def respond(request):
@@ -179,34 +148,22 @@ async def test_failed_later_file_never_returns_partial_evidence(
             else httpx.HTTPStatusError
         )
         with pytest.raises(expected):
-            if discovered:
-                await collect_repo_pattern_evidence(
-                    GitHubRepoFiles(),
-                    "owner",
-                    "repo",
-                    _task(path_patterns=["a", "b", "c"]),
-                )
-            else:
-                await collect_repo_file_evidence(
-                    GitHubRepoFiles(), "owner", "repo", ["a", "b", "c"], _task()
-                )
+            await collect_repo_file_evidence(
+                GitHubRepoFiles(), "owner", "repo", ["a", "b", "c"], _task()
+            )
 
     assert requested_paths == ["a", "b"]
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("discovered", [False, True])
-async def test_disappearing_file_never_returns_partial_evidence(discovered):
+async def test_disappearing_file_never_returns_partial_evidence():
     files = InMemoryRepoFiles({"a": "first", "c": "third"}, tree=["a", "b", "c"])
-    task = _task(path_patterns=["a", "b", "c"])
+    task = _task()
     with pytest.raises(EvidenceError, match="evidence.changed"):
-        if discovered:
-            await collect_repo_pattern_evidence(files, "owner", "repo", task)
-        else:
-            await collect_repo_file_evidence(
-                files,
-                "owner",
-                "repo",
-                ["a", "b", "c"],
-                task,
-            )
+        await collect_repo_file_evidence(
+            files,
+            "owner",
+            "repo",
+            ["a", "b", "c"],
+            task,
+        )

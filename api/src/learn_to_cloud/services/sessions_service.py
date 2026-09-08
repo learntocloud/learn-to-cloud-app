@@ -10,9 +10,9 @@ from datetime import datetime
 
 from fastapi import Request
 from learn_to_cloud_shared.core.config import SessionConfig, get_web_settings
+from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.repositories.auth_session_repository import (
     AuthSessionRepository,
-    ResolvedSession,
 )
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -102,7 +102,7 @@ async def mutate_account(
                 request.state.clear_auth_cookie = True
                 raise AuthenticationRequired()
             resolved = await repository.resolve_and_touch(digest)
-            if not isinstance(resolved, ResolvedSession) or resolved.user.id != user_id:
+            if not isinstance(resolved, User) or resolved.id != user_id:
                 request.state.clear_auth_cookie = True
                 raise AuthenticationRequired()
             if delete_account:

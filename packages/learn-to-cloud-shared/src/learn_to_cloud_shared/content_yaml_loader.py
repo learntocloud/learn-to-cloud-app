@@ -108,8 +108,8 @@ def _load_topic(
     source of truth (issue #463).
 
     In tolerant mode (``strict=False``, the default), a missing file or
-    any validation failure is logged and skipped so the app keeps
-    running on partially-bad content. In strict mode (used by the
+    any validation failure is logged and skipped for authoring diagnostics.
+    In strict mode (used by the
     deterministic artifact compiler), the same failures raise instead
     of being swallowed.
     """
@@ -315,10 +315,8 @@ def clear_cache() -> None:
 # ---------------------------------------------------------------------------
 # Cross-file validators (issue #462)
 #
-# get_all_phases_from_yaml() is intentionally tolerant -- it logs and skips
-# broken files so the app keeps running on partially-bad content. The
-# validators below are STRICT: they raise on the first violation. They are
-# intended for CI and for the sync step that writes YAML into the DB.
+# Authoring validation reports cross-file errors from the loaded tree.
+# The compiler uses strict loading before running these validators.
 # ---------------------------------------------------------------------------
 
 
@@ -462,7 +460,7 @@ def validate_content(phases: tuple[Phase, ...] | None = None) -> list[str]:
     """Run all cross-file validators against the given (or YAML-loaded) content.
 
     Returns a list of error messages; empty list means no issues. Does
-    not raise -- callers (CI scripts, the sync step, the artifact
+    not raise -- callers (CI scripts and the artifact
     compiler) decide how to handle the result. Pass ``phases`` to
     validate an already-loaded (e.g. strictly-loaded) tree instead of
     re-reading the tolerant cached loader.

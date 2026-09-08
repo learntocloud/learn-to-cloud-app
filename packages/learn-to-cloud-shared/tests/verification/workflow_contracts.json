@@ -9,8 +9,7 @@
         "kwargs": {}
       }
     ],
-    "rubric": null,
-    "system_prompt": null
+    "rubric": null
   },
   "repo_fork": {
     "requires_username": true,
@@ -22,8 +21,7 @@
         "kwargs": {}
       }
     ],
-    "rubric": null,
-    "system_prompt": null
+    "rubric": null
   },
   "ctf_token": {
     "requires_username": true,
@@ -35,8 +33,7 @@
         "kwargs": {}
       }
     ],
-    "rubric": null,
-    "system_prompt": null
+    "rubric": null
   },
   "networking_token": {
     "requires_username": true,
@@ -48,8 +45,7 @@
         "kwargs": {}
       }
     ],
-    "rubric": null,
-    "system_prompt": null
+    "rubric": null
   },
   "journal_api_verifier": {
     "requires_username": true,
@@ -61,8 +57,7 @@
         "kwargs": {}
       }
     ],
-    "rubric": null,
-    "system_prompt": null
+    "rubric": null
   },
   "deployed_api": {
     "requires_username": false,
@@ -74,8 +69,7 @@
         "kwargs": {}
       }
     ],
-    "rubric": null,
-    "system_prompt": null
+    "rubric": null
   },
   "devops_analysis": {
     "requires_username": true,
@@ -87,8 +81,7 @@
         "kwargs": {}
       }
     ],
-    "rubric": null,
-    "system_prompt": null
+    "rubric": null
   },
   "security_scanning": {
     "requires_username": true,
@@ -148,17 +141,12 @@
             ],
             "evidence": {
               "source": "repo_files",
-              "path_patterns": [
-                ".github/workflows/codeql.yml",
-                ".github/dependabot.yml"
-              ],
               "required_files": [
                 ".github/workflows/codeql.yml"
               ],
               "optional_files": [
                 ".github/dependabot.yml"
               ],
-              "directory_rules": [],
               "criterion_evidence": {
                 "python-analysis": [
                   ".github/workflows/codeql.yml"
@@ -178,15 +166,13 @@
               },
               "max_files": 3,
               "max_file_size_bytes": 51200,
-              "max_total_bytes": 76800,
-              "redact_patterns": []
+              "max_total_bytes": 76800
             },
             "grader": {
               "kind": "llm_rubric",
               "rubric_id": "phase6-security-scanning-v3",
               "prompt_version": "2026-09-06",
-              "passing_score": 0.75,
-              "model": "gpt-5-mini"
+              "passing_score": 0.75
             }
           }
         }
@@ -196,10 +182,8 @@
       "kind": "llm_rubric",
       "rubric_id": "phase6-security-scanning-v3",
       "prompt_version": "2026-09-06",
-      "passing_score": 0.75,
-      "model": "gpt-5-mini"
-    },
-    "system_prompt": null
+      "passing_score": 0.75
+    }
   },
   "career_reflection": {
     "requires_username": false,
@@ -257,12 +241,10 @@
             ],
             "evidence": {
               "source": "submitted_text",
-              "path_patterns": [],
               "required_files": [
                 "career-reflection.md"
               ],
               "optional_files": [],
-              "directory_rules": [],
               "criterion_evidence": {
                 "complete-responses": [
                   "career-reflection.md"
@@ -285,15 +267,13 @@
               },
               "max_files": 1,
               "max_file_size_bytes": 20480,
-              "max_total_bytes": 20480,
-              "redact_patterns": []
+              "max_total_bytes": 20480
             },
             "grader": {
               "kind": "llm_rubric",
               "rubric_id": "phase7-career-reflection-v2",
               "prompt_version": "2026-09-06",
-              "passing_score": 0.6,
-              "model": "gpt-5-mini"
+              "passing_score": 0.6
             }
           }
         }
@@ -303,9 +283,7 @@
       "kind": "llm_rubric",
       "rubric_id": "phase7-career-reflection-v2",
       "prompt_version": "2026-09-06",
-      "passing_score": 0.6,
-      "model": "gpt-5-mini"
-    },
-    "system_prompt": null
+      "passing_score": 0.6
+    }
   }
 }

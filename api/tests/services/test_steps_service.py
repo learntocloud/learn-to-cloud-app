@@ -1,6 +1,6 @@
 """Unit tests for steps_service after the step_uuid simplification."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -38,10 +38,6 @@ class TestCompleteStep:
     async def test_first_completion_creates_record(self):
         step = _make_step()
         topic = _make_topic([step])
-        mock_progress = MagicMock(
-            user_id=1, step_uuid=step.uuid, completed_at=MagicMock()
-        )
-
         with (
             patch(
                 "learn_to_cloud.services.steps_service.get_topic_containing_step",
@@ -57,13 +53,13 @@ class TestCompleteStep:
             ),
         ):
             completion_repo = MockCompletionRepo.return_value
-            completion_repo.create_if_not_exists = AsyncMock(return_value=mock_progress)
+            completion_repo.create_if_not_exists = AsyncMock()
 
-            result, returned_topic, completed = await complete_step(
+            returned_topic, returned_step, completed = await complete_step(
                 AsyncMock(), user_id=1, step_uuid=step.uuid
             )
 
-        assert result.step_slug == step.slug
+        assert returned_step is step
         assert returned_topic.uuid == topic.uuid
         assert step.uuid in completed
         completion_repo.create_if_not_exists.assert_awaited_once()
@@ -105,13 +101,13 @@ class TestUncompleteStep:
             ),
         ):
             completion_repo = MockCompletionRepo.return_value
-            completion_repo.delete = AsyncMock(return_value=1)
+            completion_repo.delete = AsyncMock()
 
-            deleted, returned_topic, returned_step, completed = await uncomplete_step(
+            returned_topic, returned_step, completed = await uncomplete_step(
                 AsyncMock(), user_id=1, step_uuid=step.uuid
             )
 
-        assert deleted == 1
+        assert returned_topic is topic
         assert returned_step.uuid == step.uuid
         assert completed == set()
         completion_repo.delete.assert_awaited_once_with(user_id=1, step_uuid=step.uuid)

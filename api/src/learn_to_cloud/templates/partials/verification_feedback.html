@@ -1,6 +1,5 @@
 {# Shared verification feedback for current cards and attempt history. #}
 {% set total = feedback_tasks | length %}
-{% set failed = total - feedback_passed %}
 {% set all_passed = (feedback_passed == total) %}
 {% set counts = namespace(structured=false, required=0, required_met=0, suggestions=0) %}
 {% for task in feedback_tasks %}

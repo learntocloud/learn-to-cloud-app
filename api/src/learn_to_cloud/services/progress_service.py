@@ -104,7 +104,6 @@ async def fetch_user_progress(
     phase_progress_map: dict[int, PhaseProgress] = {}
     for phase in phase_overview:
         phase_progress_map[phase.order] = PhaseProgress(
-            phase_id=phase.order,
             learning=LearningProgress(
                 steps_completed=completed_steps_by_phase.get(phase.order, 0),
                 steps_required=required_steps_by_phase.get(phase.order, 0),
@@ -118,7 +117,6 @@ async def fetch_user_progress(
         )
 
     return UserProgress(
-        user_id=user_id,
         phases=phase_progress_map,
         total_phases=len(phase_overview),
     )
@@ -201,7 +199,6 @@ async def fetch_phase_progress(
         hands_on_validated = len(succeeded)
 
     return PhaseProgress(
-        phase_id=phase.order,
         learning=LearningProgress(
             steps_completed=total_completed,
             steps_required=total_steps,
@@ -219,7 +216,6 @@ def phase_progress_to_data(progress: PhaseProgress) -> PhaseProgressData:
     return PhaseProgressData(
         learning=progress.learning,
         verification=progress.verification,
-        is_complete=progress.is_complete,
         status=progress.status,
     )
 

@@ -7,10 +7,11 @@ This project uses [Alembic](https://alembic.sqlalchemy.org/) for database schema
 Migrations run in an Azure Container Apps manual Job before the API Container
 App image is updated. The workflow:
 
-1. Builds and pushes the new API image to Azure Container Registry.
-2. Starts the migration job with that image tag.
-3. The job runs `alembic upgrade head` with `POSTGRES_USER` set to the mapped
-   migration PostgreSQL role.
+1. Builds, validates, and pushes separate API and migration images to Azure
+   Container Registry.
+2. Starts the migration job with the migration image's commit tag.
+3. The job runs `scripts/run_migrations.py`, which applies `alembic upgrade head`,
+   with `DATABASE__USER` set to the mapped migration PostgreSQL role.
 4. The workflow polls the job execution until it succeeds or fails.
 5. Stops the deployment before `az containerapp update` if the migration job
    fails.
@@ -28,8 +29,8 @@ multi-worker race to defend against.
 
 Terraform keeps the migration job shape, but it does not manage rollout tags.
 To satisfy Azure's create-time image requirement, Terraform creates the job with
-`mcr.microsoft.com/k8se/quickstart:latest` as a placeholder image and ignores
-future image changes. On each deploy, the workflow starts the job with the real
+the registry's `migrations:latest` image and ignores future image changes.
+On each deploy, the workflow starts the job with the immutable
 `migrations:<commit-sha>` image.
 
 ### Failure Detection
@@ -88,6 +89,9 @@ accounts and learning data. Re-upgrade starts with no sessions; it cannot
 recover discarded sessions or make revoked cookies valid.
 
 ## Display-name rollout (#836)
+
+This section records the completed two-release rollout. The current schema has
+`display_name` only; retain these details for migration history and recovery.
 
 Ship the schema addition and application cutover together, then remove legacy
 storage in a separate cleanup release. Merging requires separate authorization.
@@ -148,13 +152,13 @@ indefinitely; investigate the blocker before a separately authorized retry.
 
 - **Profile release:** after an authorized merge, wait for the entire
   Application Deploy workflow (`app-deploy.yml`) to succeed. Confirm the
-  expanded schema, expected API image, and verification Functions deployment.
+  expanded schema and expected API image.
   Run authenticated profile/dashboard, readiness, and verification-submit
   checks. All old API replicas must retire, with no rollback outstanding,
   before cleanup may merge. A passing `/ready` alone does not prove that old
   readers are gone; revision drift is warning-only.
 - **Cleanup:** after a separately authorized merge, require the full deployment,
-  expected API image and Functions artifact, plus authenticated profile/dashboard
+  expected API image, plus authenticated profile/dashboard
   and public community checks.
 
 Downgrading the addition drops `display_name` and loses any refreshed canonical
@@ -199,7 +203,7 @@ state, not a bootstrap procedure.
 | PostgreSQL Entra admin group | Break-glass administration and role management. Configured with `postgres_entra_admin_*` Terraform variables. Do not use this principal for app runtime or normal migrations. |
 | API managed identity | Runtime application identity attached to the API Container App. It gets the Entra token used for runtime PostgreSQL login. |
 | API PostgreSQL role | Runtime database role, `ltc_api_runtime_<environment>` by default. It is mapped to the API managed identity object ID, has DML and sequence privileges, and must not own schema objects. |
-| Migration job managed identity | User-assigned identity attached to the Container Apps migration job. It pulls the API image from ACR and gets the Entra token used by Alembic. |
+| Migration job managed identity | User-assigned identity attached to the Container Apps migration job. It pulls the migration image from ACR and gets the Entra token used by Alembic. |
 | Migration PostgreSQL role | Deploy-time Alembic migration role. It owns application schema objects and runs schema changes. Terraform defaults the name to `ltc-postgres-migrations-<environment>` and exposes the effective name as `migration_postgres_role`. |
 
 Do not make the API managed identity a PostgreSQL Flexible Server Entra admin.
@@ -249,7 +253,8 @@ cd api && uv run alembic upgrade head
 
 ### Create a New Migration
 
-After modifying models in `models.py`:
+After modifying models in
+`packages/learn-to-cloud-shared/src/learn_to_cloud_shared/models.py`:
 
 ```bash
 cd api && uv run alembic revision --autogenerate -m "short description of change"

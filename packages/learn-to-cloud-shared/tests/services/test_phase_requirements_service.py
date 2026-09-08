@@ -75,7 +75,6 @@ class TestRequirementIndex:
     def test_requirements_for_phase_returns_empty_for_unknown(self):
         index = RequirementIndex()
         assert index.requirements_for_phase(99) == []
-        assert index.requirement_slugs_for_phase(99) == []
 
 
 @pytest.mark.unit

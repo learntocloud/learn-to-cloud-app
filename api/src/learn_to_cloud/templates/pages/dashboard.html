@@ -123,7 +123,6 @@
     <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
         <h2 id="help-heading" class="text-sm font-medium text-gray-600 dark:text-gray-400">Need help?</h2>
         {% for link in help_links %}
-        {% if link.label == "Discord" or link.label == "Report an Issue" %}
         <a
             href="{{ link.url }}"
             {% if link.label == "Report an Issue" %}data-report-issue data-issue-title="Issue: Dashboard" data-issue-labels="bug" data-issue-context="page=dashboard"{% endif %}
@@ -131,7 +130,6 @@
             rel="noopener noreferrer"
             class="text-link"
         >{% if link.label == "Discord" %}Ask on Discord{% else %}{{ link.label }}{% endif %}</a>
-        {% endif %}
         {% endfor %}
     </div>
 </section>

@@ -10,23 +10,24 @@ from learn_to_cloud_shared.schemas import (
     ValidationResult,
 )
 from learn_to_cloud_shared.submission_values import submitted_value_from_raw
-from learn_to_cloud_shared.verification.llm_grading import (
+from learn_to_cloud_shared.verification.grading_requests import (
     LLMGradingDecisionPayload,
+)
+from learn_to_cloud_shared.verification.llm_grading import (
     apply_llm_grading_decisions,
     llm_grading_content_filtered_result,
     llm_grading_unavailable_result,
     validate_llm_grading_decision,
 )
 from learn_to_cloud_shared.verification.tasks import (
-    PHASE6_LLM_TASKS,
-    PHASE7_LLM_TASKS,
+    CAREER_REFLECTION_RUBRIC_TASK,
+    SECURITY_SCANNING_RUBRIC_TASK,
     LLMGradingDecision,
 )
 from learn_to_cloud_shared.verification_workflow import (
     PreparedVerificationAttempt,
     VerificationRunResult,
 )
-from tests.fakes.legacy_devops import PHASE5_LLM_TASKS
 
 
 def _run_result(is_valid: bool = True) -> VerificationRunResult:
@@ -64,34 +65,6 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
     )
 
 
-def _phase5_run_result(is_valid: bool = True) -> VerificationRunResult:
-    from learn_to_cloud_shared_test_support.requirement_factories import (
-        devops_analysis_requirement,
-    )
-
-    requirement = devops_analysis_requirement(
-        slug="devops-implementation",
-        name="Verify DevOps Implementation",
-        description="Verify the delivery implementation.",
-        required_repo="learntocloud/journal-starter",
-    )
-    return VerificationRunResult(
-        attempt=PreparedVerificationAttempt(
-            id=uuid4(),
-            user_id=1,
-            github_username="learner",
-            requirement=requirement,
-            submitted_value=submitted_value_from_raw(
-                requirement, "https://github.com/learner/journal-starter"
-            ),
-        ),
-        validation_result=ValidationResult(
-            is_valid=is_valid,
-            message="Required files and public image are present.",
-        ),
-    )
-
-
 def _criterion_results(
     task,
     *,
@@ -117,7 +90,7 @@ def test_apply_llm_grading_decisions_appends_feedback_when_passed():
         run_result,
         [
             LLMGradingDecisionPayload(
-                task=PHASE6_LLM_TASKS[0],
+                task=SECURITY_SCANNING_RUBRIC_TASK,
                 decision=LLMGradingDecision(
                     passed=True,
                     score=0.92,
@@ -136,9 +109,9 @@ def test_apply_llm_grading_decisions_appends_feedback_when_passed():
 
 
 @pytest.mark.unit
-def test_apply_holistic_llm_decision_appends_feedback_when_passed():
-    run_result = _phase5_run_result()
-    task = PHASE5_LLM_TASKS[0]
+def test_apply_llm_decision_preserves_canonical_criterion_labels():
+    run_result = _run_result()
+    task = SECURITY_SCANNING_RUBRIC_TASK
 
     updated = apply_llm_grading_decisions(
         run_result,
@@ -149,11 +122,11 @@ def test_apply_holistic_llm_decision_appends_feedback_when_passed():
                     passed=True,
                     score=0.91,
                     confidence=0.86,
-                    feedback="The delivery implementation is maintainable.",
-                    evidence_refs=["Dockerfile"],
+                    feedback="The security scanning workflow is maintainable.",
+                    evidence_refs=[".github/workflows/codeql.yml"],
                     criterion_results=_criterion_results(
                         task,
-                        evidence_ref="Dockerfile",
+                        evidence_ref=".github/workflows/codeql.yml",
                     ),
                 ),
             )
@@ -163,7 +136,7 @@ def test_apply_holistic_llm_decision_appends_feedback_when_passed():
     assert updated.validation_result.is_valid is True
     assert updated.validation_result.task_results is not None
     assert updated.validation_result.task_results[-1].task_name == (
-        "DevOps Implementation Review"
+        "Security Scanning Rubric Review"
     )
     assert updated.validation_result.task_results[-1].criterion_results[0].label
     assert (
@@ -174,7 +147,7 @@ def test_apply_holistic_llm_decision_appends_feedback_when_passed():
 
 @pytest.mark.unit
 def test_validate_llm_decision_requires_exact_criteria_and_known_evidence():
-    task = PHASE5_LLM_TASKS[0]
+    task = SECURITY_SCANNING_RUBRIC_TASK
     decision = LLMGradingDecision(
         passed=True,
         score=0.95,
@@ -202,7 +175,7 @@ def test_validate_llm_decision_requires_exact_criteria_and_known_evidence():
 
 @pytest.mark.unit
 def test_validate_llm_decision_rejects_missing_criteria():
-    task = PHASE5_LLM_TASKS[0]
+    task = SECURITY_SCANNING_RUBRIC_TASK
     decision = LLMGradingDecision(
         passed=False,
         score=0.2,
@@ -218,7 +191,7 @@ def test_validate_llm_decision_rejects_missing_criteria():
 
 @pytest.mark.unit
 def test_validate_llm_decision_requires_required_remediation():
-    task = PHASE5_LLM_TASKS[0]
+    task = SECURITY_SCANNING_RUBRIC_TASK
     results = _criterion_results(task, evidence_ref="Dockerfile")
     results[0] = results[0].model_copy(update={"status": "not_met", "next_steps": ""})
     decision = LLMGradingDecision(
@@ -235,7 +208,7 @@ def test_validate_llm_decision_requires_required_remediation():
 
 @pytest.mark.unit
 def test_validate_llm_decision_rejects_passing_with_unmet_required_criterion():
-    task = PHASE5_LLM_TASKS[0]
+    task = SECURITY_SCANNING_RUBRIC_TASK
     results = _criterion_results(task, evidence_ref="Dockerfile")
     results[0] = results[0].model_copy(
         update={
@@ -263,7 +236,7 @@ def test_apply_llm_grading_decisions_fails_when_score_is_below_threshold():
         run_result,
         [
             LLMGradingDecisionPayload(
-                task=PHASE6_LLM_TASKS[0],
+                task=SECURITY_SCANNING_RUBRIC_TASK,
                 decision=LLMGradingDecision(
                     passed=True,
                     score=0.5,
@@ -287,29 +260,29 @@ def test_apply_llm_grading_decisions_fails_when_score_is_below_threshold():
 
 
 @pytest.mark.unit
-def test_phase5_holistic_review_enforces_strict_threshold():
+@pytest.mark.parametrize(("score", "passed"), [(0.74, False), (0.75, True)])
+def test_security_review_enforces_exact_threshold(score, passed):
     updated = apply_llm_grading_decisions(
         _run_result(),
         [
             LLMGradingDecisionPayload(
-                task=PHASE5_LLM_TASKS[0],
+                task=SECURITY_SCANNING_RUBRIC_TASK,
                 decision=LLMGradingDecision(
                     passed=True,
-                    score=0.79,
+                    score=score,
                     confidence=0.9,
-                    feedback="Most areas are sound, but the manifests conflict.",
-                    next_steps="Align the image and port configuration.",
-                    evidence_refs=["Dockerfile", "k8s/deployment.yaml"],
+                    feedback="Security scanning configuration reviewed.",
+                    evidence_refs=[".github/workflows/codeql.yml"],
                 ),
             )
         ],
     )
 
-    assert updated.validation_result.is_valid is False
+    assert updated.validation_result.is_valid is passed
     assert updated.validation_result.task_results is not None
     result = updated.validation_result.task_results[-1]
-    assert result.task_name == "DevOps Implementation Review"
-    assert result.passed is False
+    assert result.task_name == "Security Scanning Rubric Review"
+    assert result.passed is passed
 
 
 @pytest.mark.unit
@@ -371,7 +344,7 @@ def test_apply_phase7_llm_decision_appends_feedback_when_passed():
         _phase7_run_result(),
         [
             LLMGradingDecisionPayload(
-                task=PHASE7_LLM_TASKS[0],
+                task=CAREER_REFLECTION_RUBRIC_TASK,
                 decision=LLMGradingDecision(
                     passed=True,
                     score=0.82,

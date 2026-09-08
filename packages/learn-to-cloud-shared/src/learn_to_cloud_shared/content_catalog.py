@@ -59,11 +59,6 @@ class CurriculumCatalog:
     phases: tuple[Phase, ...]
 
     phases_by_slug: Mapping[str, Phase] = field(default_factory=lambda: _EMPTY_MAPPING)
-    phases_by_order: Mapping[int, Phase] = field(default_factory=lambda: _EMPTY_MAPPING)
-    topics_by_uuid: Mapping[UUID, Topic] = field(default_factory=lambda: _EMPTY_MAPPING)
-    topics_by_phase_and_slug: Mapping[tuple[str, str], Topic] = field(
-        default_factory=lambda: _EMPTY_MAPPING
-    )
     steps_by_uuid: Mapping[UUID, LearningStep] = field(
         default_factory=lambda: _EMPTY_MAPPING
     )
@@ -85,9 +80,6 @@ class CurriculumCatalog:
     requirements_by_uuid: Mapping[UUID, HandsOnRequirement] = field(
         default_factory=lambda: _EMPTY_MAPPING
     )
-    requirements_by_slug: Mapping[str, HandsOnRequirement] = field(
-        default_factory=lambda: _EMPTY_MAPPING
-    )
     requirements_by_phase_slug: Mapping[str, tuple[HandsOnRequirement, ...]] = field(
         default_factory=lambda: _EMPTY_MAPPING
     )
@@ -96,26 +88,8 @@ class CurriculumCatalog:
     phase_order_by_requirement_uuid: Mapping[UUID, int] = field(
         default_factory=lambda: _EMPTY_MAPPING
     )
-    active_phase_uuids: frozenset[UUID] = field(default_factory=frozenset)
-    active_topic_uuids: frozenset[UUID] = field(default_factory=frozenset)
     active_step_uuids: frozenset[UUID] = field(default_factory=frozenset)
     active_requirement_uuids: frozenset[UUID] = field(default_factory=frozenset)
-
-    @property
-    def phase_count(self) -> int:
-        return len(self.phases)
-
-    @property
-    def topic_count(self) -> int:
-        return len(self.topics_by_uuid)
-
-    @property
-    def step_count(self) -> int:
-        return len(self.steps_by_uuid)
-
-    @property
-    def requirement_count(self) -> int:
-        return len(self.requirements_by_uuid)
 
     @classmethod
     def from_phases(
@@ -128,27 +102,20 @@ class CurriculumCatalog:
     ) -> CurriculumCatalog:
         """Build every index in a single pass over the phase tree."""
         phases_by_slug: dict[str, Phase] = {}
-        phases_by_order: dict[int, Phase] = {}
-        topics_by_uuid: dict[UUID, Topic] = {}
-        topics_by_phase_and_slug: dict[tuple[str, str], Topic] = {}
         steps_by_uuid: dict[UUID, LearningStep] = {}
         steps_by_phase_slug: dict[str, list[LearningStep]] = {}
         topic_by_step_uuid: dict[UUID, Topic] = {}
         phase_order_by_step_uuid: dict[UUID, int] = {}
         requirements_by_uuid: dict[UUID, HandsOnRequirement] = {}
-        requirements_by_slug: dict[str, HandsOnRequirement] = {}
         requirements_by_phase_slug: dict[str, list[HandsOnRequirement]] = {}
         phase_order_by_requirement_uuid: dict[UUID, int] = {}
 
         for phase in phases:
             phases_by_slug[phase.slug] = phase
-            phases_by_order[phase.order] = phase
             steps_by_phase_slug.setdefault(phase.slug, [])
             requirements_by_phase_slug.setdefault(phase.slug, [])
 
             for topic in phase.topics:
-                topics_by_uuid[topic.uuid] = topic
-                topics_by_phase_and_slug[(phase.slug, topic.slug)] = topic
                 for step in topic.learning_steps:
                     steps_by_uuid[step.uuid] = step
                     steps_by_phase_slug[phase.slug].append(step)
@@ -158,7 +125,6 @@ class CurriculumCatalog:
             if phase.hands_on_verification:
                 for req in phase.hands_on_verification.requirements:
                     requirements_by_uuid[req.uuid] = req
-                    requirements_by_slug[req.slug] = req
                     requirements_by_phase_slug[phase.slug].append(req)
                     phase_order_by_requirement_uuid[req.uuid] = phase.order
 
@@ -168,9 +134,6 @@ class CurriculumCatalog:
             content_hash=content_hash,
             phases=phases,
             phases_by_slug=MappingProxyType(phases_by_slug),
-            phases_by_order=MappingProxyType(phases_by_order),
-            topics_by_uuid=MappingProxyType(topics_by_uuid),
-            topics_by_phase_and_slug=MappingProxyType(topics_by_phase_and_slug),
             steps_by_uuid=MappingProxyType(steps_by_uuid),
             steps_by_phase_slug=MappingProxyType(
                 {slug: tuple(steps) for slug, steps in steps_by_phase_slug.items()}
@@ -178,15 +141,12 @@ class CurriculumCatalog:
             topic_by_step_uuid=MappingProxyType(topic_by_step_uuid),
             phase_order_by_step_uuid=MappingProxyType(phase_order_by_step_uuid),
             requirements_by_uuid=MappingProxyType(requirements_by_uuid),
-            requirements_by_slug=MappingProxyType(requirements_by_slug),
             requirements_by_phase_slug=MappingProxyType(
                 {slug: tuple(reqs) for slug, reqs in requirements_by_phase_slug.items()}
             ),
             phase_order_by_requirement_uuid=MappingProxyType(
                 phase_order_by_requirement_uuid
             ),
-            active_phase_uuids=frozenset(p.uuid for p in phases),
-            active_topic_uuids=frozenset(topics_by_uuid),
             active_step_uuids=frozenset(steps_by_uuid),
             active_requirement_uuids=frozenset(requirements_by_uuid),
         )

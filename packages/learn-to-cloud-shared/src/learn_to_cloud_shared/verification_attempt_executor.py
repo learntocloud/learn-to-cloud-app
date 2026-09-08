@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
@@ -66,18 +65,11 @@ class AttemptNotRunnableError(AttemptPreparationError):
     """The attempt cannot be executed (e.g. a reconstructed backfill row)."""
 
 
-@dataclass(frozen=True, slots=True)
-class AttemptPreparation:
-    """A validated attempt ready for execution."""
-
-    attempt: PreparedVerificationAttempt
-
-
 async def prepare_verification_attempt(
     attempt_id: UUID,
     *,
     session_maker: async_sessionmaker[AsyncSession],
-) -> AttemptPreparation:
+) -> PreparedVerificationAttempt:
     """Load and validate the stored snapshot before verification."""
     async with session_maker() as db:
         repo = VerificationAttemptRepository(db)
@@ -89,16 +81,7 @@ async def prepare_verification_attempt(
                 f"attempt {attempt_id} is already terminal ({state.outcome})"
             )
         if state.started_at is None:
-            marked_started = await repo.mark_started(attempt_id)
-            if not marked_started:
-                current = await repo.get_status(attempt_id)
-                if current is None:
-                    raise AttemptNotFoundError(str(attempt_id))
-                if current.outcome is not None:
-                    raise AttemptNotActiveError(
-                        f"attempt {attempt_id} is already terminal ({current.outcome})"
-                    )
-            await db.commit()
+            raise AttemptNotRunnableError(f"attempt {attempt_id} has not been claimed")
     if state.snapshot_source != _SNAPSHOT_SOURCE_SUBMITTED:
         raise AttemptNotRunnableError(
             f"attempt {attempt_id} has non-runnable snapshot_source "
@@ -127,14 +110,13 @@ async def prepare_verification_attempt(
         state.submission_value_kind,
         state.submitted_value,
     )
-    attempt = PreparedVerificationAttempt(
+    return PreparedVerificationAttempt(
         id=state.id,
         user_id=state.user_id,
         github_username=state.github_username_snapshot,
         requirement=requirement,
         submitted_value=submitted_value,
     )
-    return AttemptPreparation(attempt=attempt)
 
 
 async def finalize_verification_attempt(
@@ -143,7 +125,6 @@ async def finalize_verification_attempt(
     session_maker: async_sessionmaker[AsyncSession],
 ) -> FinalizeResult:
     """Persist an attempt's real verification outcome via compare-and-set."""
-    run_result = run_result.without_transport_data()
     attempt = run_result.attempt
     validation_result = run_result.validation_result
     outcome = outcome_for_validation(validation_result)

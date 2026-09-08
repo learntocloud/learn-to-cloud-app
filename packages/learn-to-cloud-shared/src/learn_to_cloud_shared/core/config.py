@@ -207,7 +207,6 @@ class MigrationSettings(BaseSettings):
     model_config = _SETTINGS_CONFIG
 
     database: DatabaseConfig
-    content: ContentConfig = ContentConfig()
 
 
 class WorkerSettings(BaseSettings):
@@ -215,7 +214,6 @@ class WorkerSettings(BaseSettings):
 
     model_config = _SETTINGS_CONFIG
 
-    database: DatabaseConfig
     github: GitHubConfig = GitHubConfig()
     labs: LabsConfig = LabsConfig()
     http: HttpConfig = HttpConfig()
@@ -229,10 +227,6 @@ class WebSettings(BaseSettings):
 
     environment: Environment = Environment.PRODUCTION
     database: DatabaseConfig
-    github: GitHubConfig = GitHubConfig()
-    labs: LabsConfig = LabsConfig()
-    http: HttpConfig = HttpConfig()
-    content: ContentConfig = ContentConfig()
     oauth: OAuthConfig = OAuthConfig()
     session: SessionConfig = SessionConfig()
     smoke_test: SmokeTestConfig = SmokeTestConfig()
