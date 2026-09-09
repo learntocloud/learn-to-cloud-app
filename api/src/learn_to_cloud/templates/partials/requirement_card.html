@@ -1,9 +1,12 @@
 {# Required context: ``card`` is one RequirementCardContext variant. #}
 {% from "macros/badges.html" import status_pill %}
 {% from "macros/callouts.html" import banner %}
-<div id="requirement-{{ card.requirement.slug }}" class="border-y border-gray-200 py-6 dark:border-gray-700">
+<div id="requirement-{{ card.requirement.slug }}" data-verification-state="{{ card.kind }}" class="verification-card" tabindex="-1">
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h3 class="font-medium text-gray-900 dark:text-gray-100">{{ card.requirement.name }}</h3>
+        <div>
+            <p class="mb-1 text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-300">Current requirement</p>
+            <h3 class="font-medium text-gray-900 dark:text-gray-100">{{ card.requirement.name }}</h3>
+        </div>
         {% if card.kind == 'unavailable' %}
         {{ status_pill("Verification incomplete", "warning") }}
         {% elif card.kind == 'failed' %}
@@ -19,15 +22,30 @@
         hx-trigger="load delay:{{ card.verification_status_delay_seconds }}s"
         hx-target="#requirement-{{ card.requirement.slug }}"
         hx-swap="outerHTML"
-        class="flex items-center gap-3 py-3"
+    >
+    <div
+        id="checking-{{ card.verification_attempt_id }}"
+        hx-preserve
+        class="verification-checking"
         role="status"
         aria-live="polite"
     >
-        <div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full" aria-hidden="true"></div>
-        <span class="text-sm text-gray-600 dark:text-gray-400">
-            Verification continues in the background. Leaving this page will not stop it.
-            Return later to see the result.
-        </span>
+        <div class="verification-orbit" aria-hidden="true">
+            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m8 4 4-2 4 2v6c0 4-4 6-4 6s-4-2-4-6V4Z M4 20h16 M8 16v4 M16 16v4"/>
+            </svg>
+        </div>
+        <div class="min-w-0">
+            <p class="font-medium text-gray-900 dark:text-gray-100">Reviewing your submission</p>
+            <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                Your work is being checked. Results will appear here when ready.
+            </p>
+            <p class="mt-3 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                Verification continues in the background. Leaving this page will not stop it.
+                Return later to see the result.
+            </p>
+        </div>
+    </div>
     </div>
     {% else %}
     {% if card.kind == 'unavailable' %}
@@ -75,10 +93,11 @@
             :disabled="!valid"
             class="button-primary self-start disabled:opacity-50"
         >
-            Verify
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4 10 4 4 8-8"/></svg>
+            {{ 'Verify again' if card.kind == 'failed' else 'Verify' }}
         </button>
         <span id="spinner-{{ card.requirement.slug }}" class="htmx-indicator inline-flex min-h-11 items-center text-sm text-gray-500 dark:text-gray-400">
-            Checking...
+            Sending submission...
         </span>
     </form>
     {% if card.verification_form.kind == 'derived' %}
@@ -95,4 +114,8 @@
     {% endif %}
     {% endif %}
 
+    <div data-verification-error hidden role="alert" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+        We couldn't update verification. Your submission may still be processing.
+        <a href="" hx-boost="false" class="text-link">Refresh to see the latest status</a>
+    </div>
 </div>

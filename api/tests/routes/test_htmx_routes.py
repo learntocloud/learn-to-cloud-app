@@ -684,6 +684,9 @@ class TestHtmxVerificationAttemptStatus:
 
         assert result.status_code == status_code
         assert (b"location.reload()" in result.body) is (status_code == 200)
+        assert (result.headers.get("X-Verification-Complete") == "true") is (
+            status_code == 200
+        )
         assert len(repository.return_value.mock_calls) == 1
         session.commit.assert_not_awaited()
         _patch_templates.TemplateResponse.assert_not_called()

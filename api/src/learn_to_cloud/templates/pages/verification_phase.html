@@ -5,6 +5,8 @@
 {% block title %}Phase {{ phase.order }} Verification - Learn to Cloud{% endblock %}
 
 {% block content %}
+<div id="verification-workspace" data-phase-complete="{{ 'true' if phase_progress.verification.is_complete else 'false' }}">
+<p data-verification-announcement class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 <nav class="mb-6 flex min-h-11 flex-wrap items-center gap-2 text-sm text-gray-500 dark:text-gray-400" aria-label="Breadcrumb">
     <a href="/verifications" class="text-link">Verifications</a>
     <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -50,6 +52,22 @@
     {% endif %}
 </header>
 
+{% if phase_progress.verification.is_complete %}
+<section class="verification-celebration mt-8" data-phase-celebration aria-labelledby="phase-verified-heading" tabindex="-1">
+    <span class="verification-seal" aria-hidden="true">
+        <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path class="verification-checkmark" pathLength="1" stroke-linecap="round" stroke-linejoin="round" d="m5 12 4 4L19 6"/>
+        </svg>
+    </span>
+    <div>
+        <p class="text-xs font-medium uppercase tracking-wider text-green-700 dark:text-green-300">Milestone reached</p>
+        <h2 id="phase-verified-heading" class="mt-1 text-xl font-medium text-gray-900 dark:text-white">Phase {{ phase.order }} verified</h2>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Your hands-on work met every requirement. Take a moment to appreciate what you've built.</p>
+        <a href="/verifications" class="text-link mt-2">View your verification journey <span aria-hidden="true">&rarr;</span></a>
+    </div>
+</section>
+{% endif %}
+
 {% if requirements %}
 <section class="pt-12 sm:pt-14" aria-labelledby="requirements-heading">
     <h2 id="requirements-heading" class="section-title">Requirements</h2>
@@ -72,43 +90,36 @@
             </div>
         </div>
     </div>
-    <div>
-        {% for req in requirements %}
-        {% set card = card_contexts_by_req[req.slug] %}
-        {% if card.kind == 'passed' %}
-        {% include "partials/verified_requirement_row.html" %}
-        {% else %}
-        <div class="flex min-h-11 items-center gap-3 border-b border-gray-200 py-4 dark:border-gray-700">
-            <svg class="h-5 w-5 shrink-0 text-gray-500 dark:text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-                <rect x="4.5" y="8.5" width="11" height="8" rx="1.5"/>
-                <path stroke-linecap="round" d="M7 8.5V6a3 3 0 0 1 6 0v2.5"/>
-            </svg>
-            <span class="min-w-0 flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">{{ req.name }}</span>
-            <span class="text-xs text-gray-500 dark:text-gray-400">Locked</span>
-        </div>
-        {% endif %}
-        {% endfor %}
-    </div>
-    {% else %}
+    {% endif %}
     {% set ns = namespace(found_active=false) %}
-    <div class="mt-6">
+    <ol class="verification-timeline mt-6" aria-label="Verification requirements">
         {% for req in requirements %}
         {% set card = card_contexts_by_req[req.slug] %}
+        {% set active = not verification_locked and card.kind != 'passed' and not ns.found_active %}
+        <li class="verification-step" {% if active %}data-current-step{% endif %}>
+        <span class="verification-step-marker" aria-hidden="true">
+            {% if card.kind == 'passed' %}
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m4 10 4 4 8-8"/></svg>
+            {% elif verification_locked %}
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4.5" y="8.5" width="11" height="8" rx="1.5"/><path d="M7 8.5V6a3 3 0 0 1 6 0v2.5"/></svg>
+            {% else %}
+            {{ loop.index }}
+            {% endif %}
+        </span>
         {% if card.kind == 'passed' %}
         {% include "partials/verified_requirement_row.html" %}
-        {% elif not ns.found_active %}
+        {% elif active %}
         {% set ns.found_active = true %}
         {% include "partials/requirement_card.html" %}
         {% else %}
-        <div class="flex min-h-11 items-center gap-3 border-b border-gray-200 py-4 dark:border-gray-700">
-            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-400 text-xs text-gray-500 dark:border-gray-500 dark:text-gray-400" aria-hidden="true">{{ loop.index }}</span>
+        <div class="flex min-h-11 flex-wrap items-center justify-between gap-3 py-5">
             <span class="min-w-0 flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">{{ req.name }}</span>
-            <span class="shrink-0 text-xs text-gray-500 dark:text-gray-400">Up next</span>
+            <span class="shrink-0 text-xs text-gray-500 dark:text-gray-400">{{ 'Locked' if verification_locked else 'Up next' }}</span>
         </div>
         {% endif %}
+        </li>
         {% endfor %}
-    </div>
-    {% endif %}
+    </ol>
 </section>
 {% else %}
 <section class="pt-12 sm:pt-14" aria-labelledby="requirements-empty-heading">
@@ -189,4 +200,5 @@
     </div>
     {% endif %}
 </section>
+</div>
 {% endblock %}
