@@ -4,9 +4,7 @@
 <div id="requirement-{{ card.requirement.slug }}" class="border-y border-gray-200 py-6 dark:border-gray-700">
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h3 class="font-medium text-gray-900 dark:text-gray-100">{{ card.requirement.name }}</h3>
-        {% if card.kind == 'passed' %}
-        {{ status_pill("Verified", "success") }}
-        {% elif card.kind == 'unavailable' %}
+        {% if card.kind == 'unavailable' %}
         {{ status_pill("Verification incomplete", "warning") }}
         {% elif card.kind == 'failed' %}
         {{ status_pill("Needs work", "error") }}
@@ -31,7 +29,7 @@
             Return later to see the result.
         </span>
     </div>
-    {% elif card.kind != 'passed' %}
+    {% else %}
     {% if card.kind == 'unavailable' %}
     {{ banner(
         card.message,
@@ -94,12 +92,6 @@
             organization, rename it or fork it to your own account before verifying.
         </p>
     </details>
-    {% endif %}
-
-    {% if card.kind != 'failed' and card.feedback_tasks %}
-    {% with feedback_tasks=card.feedback_tasks, feedback_passed=card.feedback_passed, requirement_slug=card.requirement.slug %}
-    {% include "partials/verification_feedback.html" %}
-    {% endwith %}
     {% endif %}
     {% endif %}
 

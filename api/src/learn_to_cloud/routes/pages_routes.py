@@ -4,7 +4,6 @@ These routes serve full Jinja2 pages. They call the same services as the
 JSON API routes but render HTML templates instead of returning JSON.
 """
 
-import logging
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -41,8 +40,6 @@ from learn_to_cloud.services.verification_page_service import (
     get_phase_verification_workspace,
     get_verifications_overview,
 )
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(
     tags=["pages"], include_in_schema=False, route_class=LoginRedirectRoute

@@ -38,7 +38,6 @@ async def count_users():
             query = sqlalchemy.text("""
                 SELECT
                     (SELECT COUNT(*) FROM users) as total_users,
-                    (SELECT COUNT(*) FROM users WHERE github_username IS NOT NULL) as users_with_github,
                     (
                         SELECT COUNT(DISTINCT user_id)
                         FROM verification_attempts
@@ -56,10 +55,10 @@ async def count_users():
             row = result.first()
 
             print(f"Total users: {row[0]}")
-            print(f"Users with GitHub: {row[1]}")
-            print(f"Users with attempts: {row[2]}")
-            print(f"Total attempts: {row[3]}")
-            print(f"Total steps completed: {row[4]}")
+            print(f"Users with GitHub: {row[0]}")
+            print(f"Users with attempts: {row[1]}")
+            print(f"Total attempts: {row[2]}")
+            print(f"Total steps completed: {row[3]}")
     finally:
         await engine.dispose()
 

@@ -24,7 +24,6 @@ class StepNotFoundError(StepValidationError):
     """Raised when a step_uuid does not exist in the loaded curriculum."""
 
     def __init__(self, step_uuid: UUID):
-        self.step_uuid = step_uuid
         super().__init__(f"Unknown step_uuid: {step_uuid}")
 
 

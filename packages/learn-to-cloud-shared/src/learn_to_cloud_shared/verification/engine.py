@@ -125,7 +125,7 @@ def _grading_requests_for(
         if len(result.evidence) != 1:
             raise EvidenceError("evidence.selection")
         validate_evidence_bundle(task, result.evidence[0])
-        evidence = result.evidence[0].model_dump(mode="json") if result.evidence else {}
+        evidence = result.evidence[0].model_dump(mode="json")
         allowed_evidence_refs = [
             str(item["path"])
             for item in evidence.get("items", [])

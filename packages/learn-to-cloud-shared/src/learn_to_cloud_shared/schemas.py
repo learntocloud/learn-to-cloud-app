@@ -101,16 +101,8 @@ _TIP_TEXT_CLASSES: dict[TipType, str] = {
 }
 
 
-def _normalize_step_action(raw: str | StepAction | None) -> StepAction | None:
-    """Accept YAML strings like ``"Practice:"`` and normalize to StepAction.
-
-    Returns None for missing/empty values; raises ValueError for unknown
-    labels so authoring mistakes (typos) fail at load time.
-    """
-    if raw is None:
-        return None
-    if isinstance(raw, StepAction):
-        return raw
+def _normalize_step_action(raw: str) -> StepAction | None:
+    """Normalize a YAML action label, returning None for an empty string."""
     cleaned = raw.strip().rstrip(":").strip().lower()
     if not cleaned:
         return None

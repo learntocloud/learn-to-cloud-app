@@ -24,8 +24,6 @@ import logging
 import alembic.command
 import alembic.config
 
-logger = logging.getLogger(__name__)
-
 
 def main() -> None:
     cfg = alembic.config.Config("alembic.ini")

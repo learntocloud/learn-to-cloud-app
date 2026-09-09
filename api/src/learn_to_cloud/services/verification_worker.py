@@ -138,8 +138,6 @@ async def run_verification_worker(
                 await asyncio.sleep(config.poll_interval_seconds)
             else:
                 await _execute(attempt_id, session_maker, config)
-    except asyncio.CancelledError:
-        raise
     except Exception as exc:
         logger.error(
             "verification.worker.failed", extra={"error.type": type(exc).__name__}

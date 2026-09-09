@@ -3,7 +3,6 @@ uuid: ca57ab23-c56b-4352-bb47-9cbd0530e78b
 slug: capstone
 name: 'Capstone: Secure Your Journal API'
 description: Apply everything from this phase to harden your Journal API with real security controls. By the end, your app will be production-ready.
-short_description: Harden your Journal API with IAM, secrets management, network controls, and monitoring.
 learning_objectives:
 - uuid: f48146c0-831d-49a1-ab8d-4f431bf9e347
   text: Apply layered security controls to harden your deployed Journal API.

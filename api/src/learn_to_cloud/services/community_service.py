@@ -1,6 +1,5 @@
 """Assemble aggregate data for the public community experience."""
 
-import logging
 from datetime import timedelta
 
 from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
@@ -21,8 +20,6 @@ from learn_to_cloud_shared.schemas import (
     CommunityPhaseActivity,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-
-logger = logging.getLogger(__name__)
 
 
 async def get_community_page_data(db: AsyncSession) -> CommunityPageData:

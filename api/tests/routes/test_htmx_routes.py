@@ -407,7 +407,6 @@ class TestHtmxSubmitVerification:
 
     async def test_legacy_route_refreshes_open_pages(self):
         result = await htmx_submit_verification(
-            _mock_request(),
             AuthenticatedUser(user_id=1, github_username="user"),
         )
 
