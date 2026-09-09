@@ -1,10 +1,17 @@
-"""Disclosure behavior for mixed verification results."""
+"""Visual states and disclosure behavior for verification results."""
 
 from html.parser import HTMLParser
+from uuid import uuid4
 
 import pytest
+from learn_to_cloud_shared_test_support.requirement_factories import (
+    ctf_token_requirement,
+)
 
 from learn_to_cloud.core.templates import templates
+from learn_to_cloud.rendering.requirement_cards import (
+    build_checking_requirement_card_context,
+)
 
 
 class _FeedbackParser(HTMLParser):
@@ -96,3 +103,57 @@ def test_mixed_feedback_discloses_passed_checks_but_keeps_fixes_visible(
     assert "details" not in parser.text_contexts["Next step: Add a health endpoint."]
     if structured:
         assert parser.text_contexts["README.md"].count("details") == 2
+    assert "verification-result-summary" in html
+    assert "verification-check-unmet" in html
+    assert "verification-check-met" in html
+
+
+@pytest.mark.unit
+def test_checking_preserves_animation_and_live_message_between_polls() -> None:
+    attempt_id = uuid4()
+    card = build_checking_requirement_card_context(
+        requirement=ctf_token_requirement(slug="linux-token"),
+        verification_attempt_id=attempt_id,
+        verification_status_delay_seconds=5,
+    )
+    html = templates.env.get_template("partials/requirement_card.html").render(
+        card=card,
+    )
+    parser = _FeedbackParser()
+    parser.feed(html)
+    parser.close()
+
+    assert not parser.tags
+    assert 'data-verification-state="checking"' in html
+    assert f'id="checking-{attempt_id}"\n        hx-preserve' in html
+    assert 'hx-trigger="load delay:5s"' in html
+    assert "Reviewing your submission" in html
+    assert 'role="progressbar"' not in html
+    assert "data-verification-error hidden" in html
+    assert 'hx-boost="false"' in html
+
+
+@pytest.mark.unit
+def test_result_summary_counts_required_checks_not_optional_suggestions() -> None:
+    html = templates.env.get_template("partials/verification_feedback.html").render(
+        feedback_tasks=[
+            {
+                "name": "Review",
+                "passed": True,
+                "criteria": [
+                    {"id": "readme", "kind": "required", "status": "met"},
+                    {"id": "tests", "kind": "quality", "status": "not_met"},
+                ],
+            }
+        ],
+        feedback_passed=1,
+        requirement_slug="journal",
+    )
+    parser = _FeedbackParser()
+    parser.feed(html)
+
+    assert "Required checks passed" in parser.text_contexts
+    assert "/1" in parser.text_contexts
+    assert "/2" not in parser.text_contexts
+    assert 'x-data="{ expanded: false }"' in html
+    assert "1 suggestion" in html

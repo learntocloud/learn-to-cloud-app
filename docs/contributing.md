@@ -98,6 +98,14 @@ npm --version
 Node.js is needed for Tailwind CSS changes and browser telemetry contract tests.
 Local verification uses the API environment; there is no separate worker host.
 
+The verification UI uses server-rendered states, not simulated check progress.
+Completed polling responses carry `X-Verification-Complete` so `verification.js`
+can refresh the workspace, including unlocks and history, without a full reload.
+The response retains a reload fallback when that enhancement is unavailable.
+Keep the checking message and animation preserved between polls with
+`hx-preserve`; animate only changed states and respect reduced-motion preferences.
+The rendering tests include Node-based transition contracts.
+
 #### Azure and Terraform
 
 Install the Azure CLI using Microsoft's

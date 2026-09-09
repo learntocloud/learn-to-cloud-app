@@ -406,7 +406,9 @@ async def htmx_verification_attempt_status(
         )
 
     if result.kind is VerificationPollKind.RELOAD:
-        return reload_page_response()
+        response = reload_page_response()
+        response.headers["X-Verification-Complete"] = "true"
+        return response
 
     return status_error_response(
         "Verification is in an unexpected state. "
