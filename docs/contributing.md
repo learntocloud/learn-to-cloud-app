@@ -197,6 +197,36 @@ cd packages/learn-to-cloud-shared && uv run pytest tests/
 - Mark tests with `@pytest.mark.unit` or `@pytest.mark.integration`
 - Async fixtures use `@pytest_asyncio.fixture`
 
+### Unused arguments and async interfaces
+
+Ruff enforces `ARG001` and the explicitly selected preview rule `RUF029` across
+the API, shared runtime, and shared test-support packages, including tests.
+Trace callers, dependency declarations, callback registration, and mocks before
+removing an argument or `async`. A fixture argument may create required data;
+use its returned value when the test needs that data, or a test-level
+`usefixtures` mark when only setup is needed. Remove setup with no consumer.
+An `AsyncMock` side effect need not be async unless its own body awaits work.
+
+The reviewed exceptions below preserve actual callable contracts, not dead code.
+Paths are relative to the named package.
+
+| Package and files | Rules | Contract |
+| --- | --- | --- |
+| API: `src/learn_to_cloud/main.py` | `ARG001` | Starlette passes `(request, exc)` to the fixed 404 response handler. |
+| API: `tests/core/test_middleware.py` | Both | ASGI supplies scope/receive/send and awaits application and send/receive callbacks. |
+| API: `tests/services/test_dashboard_service.py`, `tests/test_migration_chain.py` | `ARG001` | SQLAlchemy supplies six event arguments; these listeners inspect emitted SQL. |
+| Shared: `src/learn_to_cloud_shared/core/observability.py` | `RUF029` | HTTPX instrumentation requires and awaits the async sanitization hook. |
+| Shared: `src/learn_to_cloud_shared/verification/checks/career.py`, `src/learn_to_cloud_shared/verification/checks/tokens.py` | `RUF029` | The engine awaits every check, including local checks that finish immediately. |
+| Shared: `tests/verification/test_engine.py` | Both | Named async fakes exercise exception frames, execution order, and evidence propagation; some do not inspect their context. |
+| Shared: `tests/repositories/test_user_repository.py` | `ARG001` | Flush/SQL listeners receive metadata beyond the specific state or statement being observed. |
+| Shared: `tests/verification/test_github_http.py`, `tests/verification/test_repo_files.py` | `ARG001` | HTTPX passes a request even when a fake response depends only on attempt count or a fixed failure. |
+
+These exceptions apply to entire files, so review new code in those files for
+the exempted rules manually. All other rules still apply. Do not add artificial
+awaits, dummy argument uses, or renamed parameters to make warnings disappear.
+Changes to this exception scope require another caller/contract review and
+maintainer agreement; tests are not exempt as a category.
+
 ### Test-only code
 
 Keep suite-specific fakes under that suite's `tests/fakes/` and fixtures in its
@@ -685,8 +715,9 @@ All three aliases share `optional_authenticated_account`, which resolves the
 session and loads the account in one short, committed transaction before route
 work. FastAPI caches this shared subdependency per request; a request-local cache
 also prevents repeat resolution and touches when the resolver is called directly.
-The resolver populates telemetry identity state for both account and identity
-consumers. Database failures propagate rather than becoming anonymous requests.
+The cached account is the only request-state identity; consumers receive the
+account or immutable identity through dependencies. Database failures propagate
+rather than becoming anonymous requests.
 `require_authenticated_account` raises `AuthenticationRequired` when no live
 session and current account resolve; the required identity dependency derives
 from it. Neither chooses a browser redirect.

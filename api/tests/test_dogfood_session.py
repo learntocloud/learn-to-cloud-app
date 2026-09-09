@@ -77,7 +77,8 @@ async def test_generator_persists_real_cookie_and_existing_user(
 
 
 @pytest.mark.integration
-async def test_missing_user_has_no_synthetic_fallback(test_engine, test_settings):
+@pytest.mark.usefixtures("test_engine")
+async def test_missing_user_has_no_synthetic_fallback(test_settings):
     with pytest.raises(ValueError, match="existing local account"):
         await dogfood.generate_cookie(999, settings=test_settings)
 

@@ -81,8 +81,8 @@ def _fake_dashboard() -> DashboardData:
     )
 
 
-@pytest_asyncio.fixture
-async def _patched_content():
+@pytest.fixture
+def _patched_content():
     """Route smoke tests don't run against a real DB; redirect content reads
     to the authored YAML loader so routes get a real curriculum tree."""
     from learn_to_cloud_shared.content_yaml_loader import (
@@ -103,23 +103,20 @@ async def _patched_content():
         for phase in yaml_phases
     )
 
-    def _curriculum_overview():
-        return yaml_overview
-
     def _phase_by_slug(slug):
         return next((p for p in yaml_phases if p.slug == slug), None)
 
     with (
         patch(
             "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
-            side_effect=_curriculum_overview,
+            return_value=yaml_overview,
         ),
         patch(
             "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
             side_effect=_phase_by_slug,
         ),
     ):
-        yield yaml_phases
+        yield
 
 
 @pytest_asyncio.fixture
@@ -133,8 +130,8 @@ async def anon_client(_patched_content):
 
     mock_db = AsyncMock()
 
-    async def _override_get_db():
-        yield mock_db
+    def _override_get_db():
+        return mock_db
 
     def _override_optional_user():
         return None
@@ -164,8 +161,8 @@ async def auth_client(_patched_content):
 
     mock_db = AsyncMock()
 
-    async def _override_get_db():
-        yield mock_db
+    def _override_get_db():
+        return mock_db
 
     def _override_current_user():
         return _fake_user()
