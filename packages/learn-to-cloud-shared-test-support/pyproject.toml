@@ -27,4 +27,6 @@ line-length = 88
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "PLC0415"]
+select = ["E", "F", "I", "UP", "PLC0415", "ARG001", "RUF029"]
+preview = true
+explicit-preview-rules = true

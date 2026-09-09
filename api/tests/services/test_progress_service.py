@@ -533,8 +533,8 @@ class TestFindFirstIncompleteStep:
 
         assert result is not None
         topic, step = result
-        assert topic.slug == first_topic.slug
-        assert step.slug == "s2"
+        assert topic is first_topic
+        assert step is first_topic.learning_steps[1]
 
     def test_returns_none_when_every_step_checked(self):
         topic = _make_topic(steps=["s1", "s2"])

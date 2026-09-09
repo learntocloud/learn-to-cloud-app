@@ -176,7 +176,7 @@ def github():
 
 
 @pytest.fixture
-async def app(test_settings, test_engine, user, api_services, github):
+async def app(test_settings, test_engine, user):
     app = FastAPI()
     app.state.session_maker = async_sessionmaker(test_engine, expire_on_commit=False)
     async with app.state.session_maker() as db, db.begin():
@@ -209,10 +209,6 @@ async def app(test_settings, test_engine, user, api_services, github):
 
     app.include_router(browser_router)
 
-    async def database():
-        yield AsyncMock()
-
-    app.dependency_overrides[get_db] = database
     with (
         patch(
             "learn_to_cloud.core.auth.get_web_settings",
@@ -409,6 +405,7 @@ async def test_page_policy_does_not_redirect_unrelated_errors(
 
 
 @pytest.mark.parametrize("method", ["POST", "DELETE"])
+@pytest.mark.usefixtures("github")
 async def test_browser_mutation_redirect_changes_method_to_get(client, method):
     response = await client.request(method, "/browser-mutation", follow_redirects=True)
     assert len(response.history) == 2

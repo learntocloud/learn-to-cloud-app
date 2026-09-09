@@ -31,8 +31,8 @@ pytestmark = pytest.mark.integration
 @pytest.mark.parametrize(
     "operation", ["lookup", "create", "commit", "logout", "global", "delete"]
 )
+@pytest.mark.usefixtures("test_engine")
 async def test_postgres_failure_telemetry_has_no_session_credentials(
-    test_engine,
     test_settings,
     caplog,
     operation,

@@ -82,17 +82,16 @@ class TestSecurityHeadersMiddleware:
         assert "https://" + "dc.services.visualstudio.com" in connect_sources
 
     async def test_skips_non_http_scopes(self):
-        called = False
+        calls = []
 
         async def inner_app(scope, receive, send):
-            nonlocal called
-            called = True
+            calls.append((scope, receive, send))
 
         middleware = SecurityHeadersMiddleware(inner_app)
         scope = {"type": "websocket"}
 
         await middleware(scope, _noop_receive, _noop_send)
-        assert called
+        assert calls == [(scope, _noop_receive, _noop_send)]
 
     async def test_adds_cache_control_for_static_paths(self):
         middleware = SecurityHeadersMiddleware(_make_app_that_sends_response)

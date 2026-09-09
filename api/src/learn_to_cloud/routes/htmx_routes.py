@@ -11,7 +11,7 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Form, Path, Query, Request
+from fastapi import APIRouter, Depends, Form, Path, Query, Request
 from fastapi.responses import HTMLResponse
 from learn_to_cloud_shared.content_service import get_curriculum_catalog
 from learn_to_cloud_shared.core.database import DbSession
@@ -29,7 +29,12 @@ from learn_to_cloud_shared.submission_values import (
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
-from learn_to_cloud.core.auth import AuthenticatedUser, CurrentAccount, CurrentUser
+from learn_to_cloud.core.auth import (
+    AuthenticatedUser,
+    CurrentAccount,
+    CurrentUser,
+    require_authenticated_account,
+)
 from learn_to_cloud.rendering.htmx_responses import (
     reload_page_response,
     render_input_error,
@@ -349,14 +354,14 @@ async def htmx_submit_reflection_verification(
     )
 
 
-@router.post("/github/submit", response_class=HTMLResponse)
-async def htmx_submit_verification(
-    current_user: CurrentUser,
-) -> HTMLResponse:
+@router.post(
+    "/github/submit",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_authenticated_account)],
+)
+async def htmx_submit_verification() -> HTMLResponse:
     """Refresh a page that still contains the retired submission form."""
-    response = HTMLResponse("")
-    response.headers["HX-Refresh"] = "true"
-    return response
+    return HTMLResponse("", headers={"HX-Refresh": "true"})
 
 
 @router.get("/verification/attempts/status", response_class=HTMLResponse)
