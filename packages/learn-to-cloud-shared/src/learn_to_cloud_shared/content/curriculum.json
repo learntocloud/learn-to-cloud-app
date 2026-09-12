@@ -1,6 +1,6 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "e012da360227bdfe9b3b45414e6f4761e14de81fb6b2c880fabc07495ef1d379",
+  "content_hash": "bc96d77763245dd571ef5a2b05634f983c91edb80c9dd61ca1d9cd282d36baaa",
   "curriculum_version": 20,
   "phases": [
     {
@@ -123,6 +123,20 @@
               "title": "6 Months Following This Study Routine TRANSFORMED My Cloud Career",
               "url": "https://www.youtube.com/watch?v=88hnhRmpPZs",
               "uuid": "b967e042-7164-400c-b8a3-2aca864da0eb"
+            },
+            {
+              "action": "practice",
+              "checklist": [],
+              "code": null,
+              "description": "Join the Learn to Cloud Discord server to connect with other learners and get help as you work through the curriculum. Read the community rules and, if you'd like, introduce yourself and share your learning goal. Mute nonessential notifications so the community supports your study routine without becoming a distraction.",
+              "done_when": "You've joined the server and read the community rules.",
+              "options": [],
+              "order": 6,
+              "slug": "phase0-topic0-practice-join-discord",
+              "tips": [],
+              "title": "Join the Learn to Cloud Discord",
+              "url": "https://discord.gg/st7g2Hp77r",
+              "uuid": "018392db-e453-4349-a162-cee0ee69b7f4"
             }
           ],
           "name": "Prepare to Learn",
