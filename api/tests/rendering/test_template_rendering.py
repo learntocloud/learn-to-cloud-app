@@ -532,6 +532,8 @@ class TestPhaseVerificationCardStates:
         assert ':disabled="!valid"' in html
         assert 'href="/phase/1"' in html
         assert "Review Phase 1 learning" in html
+        assert 'href="/dashboard"' in html
+        assert "Return to dashboard" in html
 
     def test_token_form_uses_configured_length_limits(self):
         from learn_to_cloud_shared_test_support.requirement_factories import (
