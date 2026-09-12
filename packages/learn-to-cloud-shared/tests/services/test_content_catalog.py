@@ -81,6 +81,20 @@ class TestLoadCurriculumCatalog:
         assert catalog.phases
         assert catalog.artifact_schema_version == ARTIFACT_SCHEMA_VERSION
 
+    def test_every_phase_has_completion_metadata(self):
+        catalog = load_curriculum_catalog()
+
+        assert [
+            phase.order for phase in catalog.phases if not phase.required_for_graduation
+        ] == [7]
+        for phase in catalog.phases:
+            assert phase.estimated_learning_time.maximum_hours > 0
+            assert phase.estimated_project_time.maximum_hours > 0
+            assert phase.project_summary
+            assert phase.completion_summary
+            assert phase.prerequisites
+            assert phase.cost_note
+
     def test_missing_artifact_raises(self):
         with (
             _patched_resource(None),

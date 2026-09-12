@@ -5,6 +5,20 @@ name: DevOps Fundamentals
 description: This phase covers DevOps fundamentals - the practices and tools that enable teams to deliver software faster and more reliably. You'll learn containerization, CI/CD pipelines, Infrastructure as Code, container orchestration, and how to instrument your application with OpenTelemetry for cloud-native monitoring.
 short_description: Master Docker containers, Kubernetes orchestration, CI/CD pipelines, Terraform IaC, and OpenTelemetry observability with your cloud provider.
 order: 5
+estimated_learning_time:
+  minimum_hours: 24
+  maximum_hours: 40
+estimated_project_time:
+  minimum_hours: 16
+  maximum_hours: 30
+project_summary: Add containers, CI/CD, Infrastructure as Code, orchestration, and observability to the deployed Journal API.
+completion_summary: You containerized, automated, provisioned, deployed, and instrumented your application using modern DevOps practices.
+prerequisites:
+- Completion of Phase 4
+- A deployed Journal API
+- GitHub Actions and cloud platform access
+cost_note: Cloud and container resources may incur charges. Follow cleanup steps when exercises are complete.
+required_for_graduation: true
 topics:
 - containers
 - cicd

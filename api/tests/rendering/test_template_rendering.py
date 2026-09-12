@@ -532,6 +532,8 @@ class TestPhaseVerificationCardStates:
         assert ':disabled="!valid"' in html
         assert 'href="/phase/1"' in html
         assert "Review Phase 1 learning" in html
+        assert 'href="/dashboard"' in html
+        assert "Return to dashboard" in html
 
     def test_token_form_uses_configured_length_limits(self):
         from learn_to_cloud_shared_test_support.requirement_factories import (
@@ -756,7 +758,17 @@ def test_phase_progress_uses_distinct_labels_without_explanatory_copy():
     )
     html = _render(
         "pages/phase.html",
-        phase=SimpleNamespace(name="Phase 1", description="", order=1),
+        phase=SimpleNamespace(
+            name="Phase 1",
+            description="",
+            order=1,
+            estimated_learning_time=SimpleNamespace(minimum_hours=4, maximum_hours=6),
+            estimated_project_time=SimpleNamespace(minimum_hours=2, maximum_hours=4),
+            project_summary="Complete the project.",
+            prerequisites=["Phase 0"],
+            cost_note="Free.",
+            required_for_graduation=True,
+        ),
         topics=[],
         phase_progress=phase_progress,
         has_verification=False,
@@ -787,7 +799,17 @@ def test_phase_page_links_to_verification_workspace_without_rendering_form():
 
     html = _render(
         "pages/phase.html",
-        phase=SimpleNamespace(name="Phase 4", description="", order=4),
+        phase=SimpleNamespace(
+            name="Phase 4",
+            description="",
+            order=4,
+            estimated_learning_time=SimpleNamespace(minimum_hours=4, maximum_hours=6),
+            estimated_project_time=SimpleNamespace(minimum_hours=2, maximum_hours=4),
+            project_summary="Deploy the project.",
+            prerequisites=["Phase 3"],
+            cost_note="Cloud charges may apply.",
+            required_for_graduation=True,
+        ),
         topics=[],
         phase_progress=phase_progress,
         has_verification=True,
@@ -796,6 +818,44 @@ def test_phase_page_links_to_verification_workspace_without_rendering_form():
     assert 'href="/verifications/phase/4"' in html
     assert "Continue verification" in html
     assert 'hx-post="/htmx/github/submit"' not in html
+
+
+@pytest.mark.unit
+def test_phase_completion_links_directly_to_next_phase_first_topic():
+    phases = get_all_phases_from_yaml()
+    phase = phases[1]
+    next_phase = phases[2]
+
+    html = _render(
+        "partials/phase_completion.html",
+        phase=phase,
+        next_phase=next_phase,
+        next_phase_start_url=f"/phase/{next_phase.order}/{next_phase.topics[0].slug}",
+    )
+
+    assert phase.completion_summary in html
+    assert "Start Phase 2" in html
+    assert f'href="/phase/2/{next_phase.topics[0].slug}"' in html
+    assert "Estimated time" in html
+    assert 'data-telemetry-event="next_phase_cta_clicked"' in html
+
+
+@pytest.mark.unit
+def test_required_curriculum_completion_offers_optional_job_prep():
+    phases = get_all_phases_from_yaml()
+    phase = phases[6]
+    next_phase = phases[7]
+
+    html = _render(
+        "partials/phase_completion.html",
+        phase=phase,
+        next_phase=next_phase,
+        next_phase_start_url=f"/phase/{next_phase.order}/{next_phase.topics[0].slug}",
+    )
+
+    assert "You completed the required curriculum." in html
+    assert "Optional next step" in html
+    assert "Explore optional Phase 7" in html
 
 
 @pytest.mark.unit
@@ -1122,7 +1182,7 @@ class TestDashboardPrimaryState:
             help_links=[],
         )
 
-        assert "You completed the program." in html
+        assert "You completed the technical curriculum." in html
 
     def test_missing_curriculum_sees_recovery_state(self):
         html = _render(
@@ -1237,7 +1297,10 @@ class TestDashboardPhaseRow:
             requirements_required=2,
         )
         html = self._render_dashboard(progress)
-        assert "Complete learning steps and verifications in each phase." in html
+        assert (
+            "Progress totals include the phases required for curriculum graduation."
+            in html
+        )
         assert "Verification progress" in html
         assert "Learning progress" in html
         assert "Requirements verified" in html

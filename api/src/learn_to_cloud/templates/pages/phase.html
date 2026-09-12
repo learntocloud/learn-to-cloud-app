@@ -26,8 +26,44 @@
         {{ status_pill("Steps remaining", "info") }}
         {% endif %}
         {% endif %}
+        {% if not phase.required_for_graduation %}
+        {{ status_pill("Optional", "info") }}
+        {% endif %}
     </div>
     <div class="phase-description mt-4 max-w-3xl text-base leading-7 text-gray-600 dark:text-gray-300 [&>p]:m-0">{{ phase.description | md | safe }}</div>
+
+    <div class="mt-7 grid gap-5 border-y border-gray-200 py-6 text-sm dark:border-gray-700 sm:grid-cols-2">
+        <div>
+            <h2 class="font-medium text-gray-950 dark:text-white">Estimated time to completion</h2>
+            <p class="mt-2 text-gray-600 dark:text-gray-300">
+                {{ phase.estimated_learning_time.minimum_hours | int }}–{{ phase.estimated_learning_time.maximum_hours | int }} hours learning
+                &middot;
+                {{ phase.estimated_project_time.minimum_hours | int }}–{{ phase.estimated_project_time.maximum_hours | int }} hours project work
+            </p>
+        </div>
+        <div>
+            <h2 class="font-medium text-gray-950 dark:text-white">What completion requires</h2>
+            <p class="mt-2 text-gray-600 dark:text-gray-300">
+                {{ phase_progress.learning.steps_required }} learning steps
+                {% if phase_progress.verification.requirements_required > 0 %}
+                and {{ phase_progress.verification.requirements_required }} verified {% if phase_progress.verification.requirements_required == 1 %}project{% else %}projects{% endif %}
+                {% endif %}
+            </p>
+            <p class="mt-2 text-gray-600 dark:text-gray-300">{{ phase.project_summary }}</p>
+        </div>
+        <div>
+            <h2 class="font-medium text-gray-950 dark:text-white">Before you start</h2>
+            <ul class="mt-2 space-y-1 text-gray-600 dark:text-gray-300">
+                {% for prerequisite in phase.prerequisites %}
+                <li>{{ prerequisite }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div>
+            <h2 class="font-medium text-gray-950 dark:text-white">Expected cost</h2>
+            <p class="mt-2 text-gray-600 dark:text-gray-300">{{ phase.cost_note }}</p>
+        </div>
+    </div>
 
     {% set next_topic = namespace(item=none) %}
     {% for topic in topics %}
@@ -107,10 +143,6 @@
 {% endif %}
 
 {% if phase_progress and phase_progress.status == 'completed' %}
-<section class="mt-14 border-t border-gray-200 pt-8 dark:border-gray-700" aria-labelledby="phase-complete-heading">
-    <h2 id="phase-complete-heading" class="section-title">Phase complete</h2>
-    <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">Your learning steps and verification work are complete.</p>
-    <a href="/dashboard" class="text-link mt-4">Return to dashboard</a>
-</section>
+{% include "partials/phase_completion.html" %}
 {% endif %}
 {% endblock %}

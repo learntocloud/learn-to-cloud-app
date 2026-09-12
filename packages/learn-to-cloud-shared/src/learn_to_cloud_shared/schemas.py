@@ -449,6 +449,21 @@ class PhaseHandsOnVerificationOverview(FrozenModel):
     requirements: list[HandsOnRequirement] = Field(default_factory=list)
 
 
+class TimeEstimate(FrozenModel):
+    """A deliberately broad estimate for self-paced curriculum work."""
+
+    minimum_hours: float = Field(ge=0)
+    maximum_hours: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_range(self) -> Self:
+        if self.maximum_hours < self.minimum_hours:
+            raise ValueError(
+                "maximum_hours must be greater than or equal to minimum_hours"
+            )
+        return self
+
+
 class Phase(FrozenModel):
     """A phase in the curriculum.
 
@@ -467,6 +482,17 @@ class Phase(FrozenModel):
     description: str = ""
     short_description: str = ""
     order: int = 0
+    estimated_learning_time: TimeEstimate = Field(
+        default_factory=lambda: TimeEstimate(minimum_hours=0, maximum_hours=0)
+    )
+    estimated_project_time: TimeEstimate = Field(
+        default_factory=lambda: TimeEstimate(minimum_hours=0, maximum_hours=0)
+    )
+    project_summary: str = ""
+    completion_summary: str = ""
+    prerequisites: list[str] = Field(default_factory=list)
+    cost_note: str = ""
+    required_for_graduation: bool = True
     hands_on_verification: PhaseHandsOnVerificationOverview | None = None
     topic_slugs: list[str] = Field(default_factory=list)
     topics: list[Topic] = Field(default_factory=list)
@@ -490,6 +516,17 @@ class PhaseOverview(FrozenModel):
     slug: str
     description: str = ""
     short_description: str = ""
+    estimated_learning_time: TimeEstimate = Field(
+        default_factory=lambda: TimeEstimate(minimum_hours=0, maximum_hours=0)
+    )
+    estimated_project_time: TimeEstimate = Field(
+        default_factory=lambda: TimeEstimate(minimum_hours=0, maximum_hours=0)
+    )
+    project_summary: str = ""
+    completion_summary: str = ""
+    prerequisites: list[str] = Field(default_factory=list)
+    cost_note: str = ""
+    required_for_graduation: bool = True
     topics: list[TopicOverview] = Field(default_factory=list)
 
 
@@ -576,6 +613,7 @@ class PhaseSummaryData(FrozenModel):
 
     order: int
     name: str
+    required_for_graduation: bool = True
     progress: PhaseProgressData | None = None
 
 
@@ -608,6 +646,7 @@ class DashboardData(FrozenModel):
     total_phases: int
     is_program_complete: bool
     continue_phase: ContinuePhaseData | None = None
+    optional_phases: list[PhaseSummaryData] = Field(default_factory=list)
 
 
 class CommunityMember(FrozenModel):
@@ -728,47 +767,68 @@ class UserProgress(FrozenModel):
 
     phases: dict[int, PhaseProgress]
     total_phases: int
+    required_phase_orders: frozenset[int] = frozenset()
+
+    @property
+    def graduation_phase_orders(self) -> frozenset[int]:
+        """Phase orders that count toward curriculum graduation."""
+        return self.required_phase_orders or frozenset(self.phases)
 
     @computed_field
     @property
     def phases_completed(self) -> int:
-        """Count of fully completed phases (learning AND verification)."""
-        return sum(1 for p in self.phases.values() if p.is_complete)
+        """Count completed phases that are required for graduation."""
+        return sum(
+            1
+            for order, progress in self.phases.items()
+            if order in self.graduation_phase_orders and progress.is_complete
+        )
 
     @computed_field
     @property
     def current_phase(self) -> int:
-        """First incomplete phase, or last phase if all done."""
-        for phase_id in sorted(self.phases.keys()):
+        """First incomplete required phase, or the last required phase."""
+        required_orders = sorted(self.graduation_phase_orders)
+        for phase_id in required_orders:
             if not self.phases[phase_id].is_complete:
                 return phase_id
-        return max(self.phases.keys()) if self.phases else 0
+        return required_orders[-1] if required_orders else 0
 
     @computed_field
     @property
     def is_program_complete(self) -> bool:
-        """True if all phases are completed."""
+        """True if all graduation-required phases are completed."""
         return self.phases_completed >= self.total_phases
 
     @computed_field
     @property
     def overall_learning_percentage(self) -> float:
-        """Item-weighted learning percentage across all phases' current steps."""
-        total_required = sum(p.learning.steps_required for p in self.phases.values())
+        """Item-weighted learning percentage across graduation phases."""
+        required_progress = [
+            progress
+            for order, progress in self.phases.items()
+            if order in self.graduation_phase_orders
+        ]
+        total_required = sum(p.learning.steps_required for p in required_progress)
         if total_required == 0:
             return 100.0
         completed = sum(
             min(p.learning.steps_completed, p.learning.steps_required)
-            for p in self.phases.values()
+            for p in required_progress
         )
         return round((completed / total_required) * 100, 1)
 
     @computed_field
     @property
     def overall_verification_percentage(self) -> float:
-        """Item-weighted verification percentage across all phases' requirements."""
+        """Item-weighted verification percentage across graduation phases."""
+        required_progress = [
+            progress
+            for order, progress in self.phases.items()
+            if order in self.graduation_phase_orders
+        ]
         total_required = sum(
-            p.verification.requirements_required for p in self.phases.values()
+            p.verification.requirements_required for p in required_progress
         )
         if total_required == 0:
             return 100.0
@@ -777,7 +837,7 @@ class UserProgress(FrozenModel):
                 p.verification.requirements_verified,
                 p.verification.requirements_required,
             )
-            for p in self.phases.values()
+            for p in required_progress
         )
         return round((completed / total_required) * 100, 1)
 

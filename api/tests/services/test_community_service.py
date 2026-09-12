@@ -44,7 +44,12 @@ async def test_graduates_are_full_curriculum_completers(
     db_session: AsyncSession,
 ) -> None:
     counts = get_requirement_counts_by_phase()
-    completable = sorted(order for order, count in counts.items() if count > 0)
+    catalog = get_curriculum_catalog()
+    completable = sorted(
+        phase.order
+        for phase in catalog.phases
+        if phase.required_for_graduation and counts[phase.order] > 0
+    )
     db_session.add_all(
         [
             User(

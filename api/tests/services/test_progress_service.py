@@ -20,6 +20,7 @@ from learn_to_cloud_shared.schemas import (
     PhaseHandsOnVerificationOverview,
     PhaseProgress,
     Topic,
+    UserProgress,
     VerificationProgress,
 )
 from learn_to_cloud_shared_test_support.requirement_factories import (
@@ -34,6 +35,34 @@ from learn_to_cloud.services.progress_service import (
     phase_progress_to_data,
     resolve_continue_destination,
 )
+
+
+def test_optional_phase_does_not_block_program_completion() -> None:
+    progress = UserProgress(
+        phases={
+            0: PhaseProgress(
+                learning=LearningProgress(steps_completed=1, steps_required=1),
+                verification=VerificationProgress(
+                    requirements_verified=1, requirements_required=1
+                ),
+            ),
+            1: PhaseProgress(
+                learning=LearningProgress(steps_completed=0, steps_required=1),
+                verification=VerificationProgress(
+                    requirements_verified=0, requirements_required=1
+                ),
+            ),
+        },
+        total_phases=1,
+        required_phase_orders=frozenset({0}),
+    )
+
+    assert progress.phases_completed == 1
+    assert progress.is_program_complete is True
+    assert progress.current_phase == 0
+    assert progress.overall_learning_percentage == 100.0
+    assert progress.overall_verification_percentage == 100.0
+
 
 # ---------------------------------------------------------------------------
 # Test helpers

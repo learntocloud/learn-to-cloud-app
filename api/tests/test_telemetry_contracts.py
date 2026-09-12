@@ -118,6 +118,75 @@ console.log(JSON.stringify({{ items, calls }}));
     assert exception["data"] == {"url": url}
     assert exception["baseData"]["exceptions"] == [{"message": "Script failed"}]
     assert event["baseData"]["name"] == "action"
+
+
+def test_frontend_tracks_only_phase_transition_metadata():
+    script = _ROOT / "api/src/learn_to_cloud/static/js/frontend-telemetry.js"
+    test_script = f"""
+const events = [];
+const listeners = {{}};
+const viewElement = {{
+  dataset: {{
+    telemetryViewEvent: 'phase_completion_viewed',
+    telemetryPhase: '1',
+    telemetryNextPhase: '2'
+  }}
+}};
+const clickElement = {{
+  dataset: {{
+    telemetryEvent: 'next_phase_cta_clicked',
+    telemetryPhase: '1',
+    telemetryNextPhase: '2',
+    telemetryNextPhaseOptional: 'false',
+    telemetryTransitionId: 'opaque-transition'
+  }}
+}};
+global.document = {{
+  addEventListener: (name, callback) => {{ listeners[name] = callback; }},
+  querySelectorAll: () => [viewElement]
+}};
+global.window = {{
+  location: {{ origin: 'https://learntocloud.guide' }},
+  appInsights: {{
+    addTelemetryInitializer: () => {{}},
+    loadAppInsights: () => {{}},
+    trackPageView: () => {{}},
+    trackEvent: (event, properties) => events.push({{ event, properties }})
+  }}
+}};
+require({str(script)!r});
+listeners['DOMContentLoaded']();
+listeners.click({{
+  target: {{ closest: () => clickElement }}
+}});
+console.log(JSON.stringify(events));
+"""
+    result = subprocess.run(
+        ["node", "-e", test_script], check=True, capture_output=True, text=True
+    )
+    events = json.loads(result.stdout)
+    assert events == [
+        {
+            "event": {"name": "phase_completion_viewed"},
+            "properties": {
+                "phase": "1",
+                "nextPhase": "2",
+                "phaseOptional": "",
+                "nextPhaseOptional": "",
+                "transitionId": "",
+            },
+        },
+        {
+            "event": {"name": "next_phase_cta_clicked"},
+            "properties": {
+                "phase": "1",
+                "nextPhase": "2",
+                "phaseOptional": "",
+                "nextPhaseOptional": "false",
+                "transitionId": "opaque-transition",
+            },
+        },
+    ]
     assert "secret" not in result.stdout
     assert "password" not in result.stdout
 

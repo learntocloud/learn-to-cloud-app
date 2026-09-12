@@ -93,7 +93,10 @@
             credential, not your profile or user ID. On the server, we store only its digest, account link,
             creation and activity times, and absolute expiry. We do not store IP addresses or device details
             with sessions. We do not use tracking cookies, analytics cookies, or any third-party cookies. Browser
-            telemetry is configured without cookies or browser storage.
+            telemetry is configured without cookies or browser storage. We record aggregate curriculum navigation
+            events, such as opening a phase or selecting the next-phase action, without attaching a GitHub identity.
+            Completion and next-phase events share a one-way, phase-specific identifier so we can measure whether
+            learners continue within one or seven days without tracking their activity across unrelated phases.
         </p>
     </section>
 

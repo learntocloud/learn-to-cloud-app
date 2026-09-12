@@ -843,6 +843,27 @@
       "title": "StepAction",
       "type": "string"
     },
+    "TimeEstimate": {
+      "description": "A deliberately broad estimate for self-paced curriculum work.",
+      "properties": {
+        "maximum_hours": {
+          "minimum": 0,
+          "title": "Maximum Hours",
+          "type": "number"
+        },
+        "minimum_hours": {
+          "minimum": 0,
+          "title": "Minimum Hours",
+          "type": "number"
+        }
+      },
+      "required": [
+        "minimum_hours",
+        "maximum_hours"
+      ],
+      "title": "TimeEstimate",
+      "type": "object"
+    },
     "TipItem": {
       "description": "A tip, note, or warning callout for a learning step.",
       "properties": {
@@ -925,10 +946,26 @@
   },
   "description": "A phase in the curriculum.\n\nPhases use ``slug`` (e.g. ``\"phase0\"``) and ``order`` (int ``0..7``)\nas their human keys. The slug is what shows up in URLs and is the\nprimary lookup key; ``order`` drives display ordering and is also\nused in URL paths today (``/phase/{order}``).",
   "properties": {
+    "completion_summary": {
+      "default": "",
+      "title": "Completion Summary",
+      "type": "string"
+    },
+    "cost_note": {
+      "default": "",
+      "title": "Cost Note",
+      "type": "string"
+    },
     "description": {
       "default": "",
       "title": "Description",
       "type": "string"
+    },
+    "estimated_learning_time": {
+      "$ref": "#/$defs/TimeEstimate"
+    },
+    "estimated_project_time": {
+      "$ref": "#/$defs/TimeEstimate"
     },
     "hands_on_verification": {
       "anyOf": [
@@ -949,6 +986,23 @@
       "default": 0,
       "title": "Order",
       "type": "integer"
+    },
+    "prerequisites": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Prerequisites",
+      "type": "array"
+    },
+    "project_summary": {
+      "default": "",
+      "title": "Project Summary",
+      "type": "string"
+    },
+    "required_for_graduation": {
+      "default": true,
+      "title": "Required For Graduation",
+      "type": "boolean"
     },
     "short_description": {
       "default": "",

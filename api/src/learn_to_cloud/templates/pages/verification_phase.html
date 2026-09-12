@@ -36,6 +36,7 @@
         <a href="/phase/{{ phase.order }}" class="text-link">
             Review Phase {{ phase.order }} learning
         </a>
+        <a href="/dashboard" class="text-link">Return to dashboard</a>
     </div>
 
     {% if phase_progress.verification.requirements_required > 0 %}
@@ -52,19 +53,15 @@
     {% endif %}
 </header>
 
-{% if phase_progress.verification.is_complete %}
-<section class="verification-celebration mt-8" data-phase-celebration aria-labelledby="phase-verified-heading" tabindex="-1">
-    <span class="verification-seal" aria-hidden="true">
-        <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path class="verification-checkmark" pathLength="1" stroke-linecap="round" stroke-linejoin="round" d="m5 12 4 4L19 6"/>
-        </svg>
-    </span>
-    <div>
-        <p class="text-xs font-medium uppercase tracking-wider text-green-700 dark:text-green-300">Milestone reached</p>
-        <h2 id="phase-verified-heading" class="mt-1 text-xl font-medium text-gray-900 dark:text-white">Phase {{ phase.order }} verified</h2>
-        <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Your hands-on work met every requirement. Take a moment to appreciate what you've built.</p>
-        <a href="/verifications" class="text-link mt-2">View your verification journey <span aria-hidden="true">&rarr;</span></a>
-    </div>
+{% if phase_progress.is_complete %}
+<div data-phase-celebration tabindex="-1">
+{% include "partials/phase_completion.html" %}
+</div>
+{% elif phase_progress.verification.is_complete %}
+<section class="mt-8 border-l-2 border-blue-600 pl-5">
+    <h2 class="section-title">Verification complete</h2>
+    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Your project passed. Check the remaining learning steps before moving to the next phase.</p>
+    <a href="/phase/{{ phase.order }}" class="text-link mt-3">Finish Phase {{ phase.order }} learning</a>
 </section>
 {% endif %}
 

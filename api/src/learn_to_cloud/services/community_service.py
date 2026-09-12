@@ -39,8 +39,11 @@ async def get_community_page_data(db: AsyncSession) -> CommunityPageData:
         completers_by_phase.setdefault(order, set()).add(user_id)
 
     # Only phases with at least one requirement are "completable".
+    required_orders = {phase.order for phase in phases if phase.required_for_graduation}
     completable_orders = sorted(
-        order for order, total in requirement_counts.items() if total > 0
+        order
+        for order, total in requirement_counts.items()
+        if total > 0 and order in required_orders
     )
 
     activity_rows = await attempt_repository.get_community_activity(

@@ -115,7 +115,10 @@ async def fetch_user_progress(
 
     return UserProgress(
         phases=phase_progress_map,
-        total_phases=len(phase_overview),
+        total_phases=sum(phase.required_for_graduation for phase in phase_overview),
+        required_phase_orders=frozenset(
+            phase.order for phase in phase_overview if phase.required_for_graduation
+        ),
     )
 
 

@@ -5,6 +5,19 @@ name: Interview & Job Prep
 description: Finishing this curriculum proves discipline, but it does not make you unique. What makes you stand out is what you explored, improved, and built beyond the outline, and this phase helps you turn that into interviews and opportunities. A lot of it is inspired by Cassidoo's [getting-a-gig](https://github.com/cassidoo/getting-a-gig) guide and her excellent [weekly newsletter](https://cassidoo.co/newsletter/), and by [some thoughts I wrote in a community discussion](https://github.com/learntocloud/learn-to-cloud-app/discussions/330#discussioncomment-16742472).
 short_description: Turn your cloud skills into a job. Network, tailor your resume, prepare your interview stories, and learn to talk about your work with confidence.
 order: 7
+estimated_learning_time:
+  minimum_hours: 8
+  maximum_hours: 12
+estimated_project_time:
+  minimum_hours: 3
+  maximum_hours: 6
+project_summary: Produce a focused resume, interview stories, networking plan, and repeatable job-search workflow.
+completion_summary: You turned your technical work into a focused resume, interview stories, networking plan, and repeatable job-search strategy.
+prerequisites:
+- Completion of the technical curriculum through Phase 6
+- Access to your completed project repositories
+cost_note: Free. This optional phase does not require paid services.
+required_for_graduation: false
 topics:
 - you-are-not-unique
 - resume-and-applications

@@ -1,0 +1,64 @@
+<section
+    class="mt-8 border-l-2 border-green-600 pl-5"
+    aria-labelledby="phase-complete-heading"
+    data-telemetry-view-event="phase_completion_viewed"
+    data-telemetry-phase="{{ phase.order }}"
+    {% if next_phase %}data-telemetry-next-phase="{{ next_phase.order }}"{% endif %}
+    {% if phase_transition_id %}data-telemetry-transition-id="{{ phase_transition_id }}"{% endif %}
+>
+    {% if next_phase and not next_phase.required_for_graduation and phase.required_for_graduation %}
+    <p class="text-xs font-medium uppercase tracking-wider text-green-700 dark:text-green-300">Technical curriculum complete</p>
+    <h2 id="phase-complete-heading" class="mt-1 section-title">You completed the required curriculum.</h2>
+    {% elif phase.required_for_graduation %}
+    <p class="text-xs font-medium uppercase tracking-wider text-green-700 dark:text-green-300">Milestone reached</p>
+    <h2 id="phase-complete-heading" class="mt-1 section-title">Phase {{ phase.order }} complete</h2>
+    {% else %}
+    <p class="text-xs font-medium uppercase tracking-wider text-green-700 dark:text-green-300">Optional milestone reached</p>
+    <h2 id="phase-complete-heading" class="mt-1 section-title">Phase {{ phase.order }} complete</h2>
+    {% endif %}
+
+    <p class="mt-3 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">{{ phase.completion_summary }}</p>
+
+    {% if next_phase %}
+    <div class="mt-7 max-w-3xl border-t border-gray-200 pt-6 dark:border-gray-700">
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            {% if next_phase.required_for_graduation %}Up next{% else %}Optional next step{% endif %}
+        </p>
+        <h3 class="mt-1 text-lg font-medium text-gray-950 dark:text-white">Phase {{ next_phase.order }}: {{ next_phase.name }}</h3>
+        <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">{{ next_phase.short_description }}</p>
+        <dl class="mt-4 grid gap-3 text-sm text-gray-600 dark:text-gray-300 sm:grid-cols-2">
+            <div>
+                <dt class="font-medium text-gray-950 dark:text-white">Estimated time</dt>
+                <dd class="mt-1">
+                    {{ (next_phase.estimated_learning_time.minimum_hours + next_phase.estimated_project_time.minimum_hours) | int }}–{{ (next_phase.estimated_learning_time.maximum_hours + next_phase.estimated_project_time.maximum_hours) | int }} hours
+                </dd>
+            </div>
+            <div>
+                <dt class="font-medium text-gray-950 dark:text-white">What you will build</dt>
+                <dd class="mt-1">{{ next_phase.project_summary }}</dd>
+            </div>
+        </dl>
+        <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">{{ next_phase.cost_note }}</p>
+        <div class="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+            <a
+                href="{{ next_phase_start_url }}"
+                class="button-primary"
+                data-telemetry-event="next_phase_cta_clicked"
+                data-telemetry-phase="{{ phase.order }}"
+                data-telemetry-next-phase="{{ next_phase.order }}"
+                data-telemetry-next-phase-optional="{{ 'true' if not next_phase.required_for_graduation else 'false' }}"
+                {% if phase_transition_id %}data-telemetry-transition-id="{{ phase_transition_id }}"{% endif %}
+            >
+                {% if next_phase.required_for_graduation %}Start Phase {{ next_phase.order }}{% else %}Explore optional Phase {{ next_phase.order }}{% endif %}
+            </a>
+            <a href="/dashboard" class="text-link">Return to dashboard</a>
+            <a href="/verifications" class="text-link">View verification journey</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="mt-5 flex flex-wrap gap-x-5 gap-y-3">
+        <a href="/dashboard" class="button-primary">Return to dashboard</a>
+        <a href="/verifications" class="text-link">View verification journey</a>
+    </div>
+    {% endif %}
+</section>
