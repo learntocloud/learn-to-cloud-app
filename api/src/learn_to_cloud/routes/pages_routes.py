@@ -11,7 +11,9 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from learn_to_cloud_shared.content_service import (
     get_curriculum_overview,
+    get_next_phase,
     get_phase_by_slug,
+    get_phase_start_url,
 )
 from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.models import User
@@ -36,6 +38,10 @@ from learn_to_cloud.services.community_service import get_community_page_data
 from learn_to_cloud.services.dashboard_service import get_dashboard_data
 from learn_to_cloud.services.progress_service import fetch_phase_progress
 from learn_to_cloud.services.steps_service import get_valid_completed_steps
+from learn_to_cloud.services.transition_telemetry import (
+    build_phase_transition_id,
+    is_valid_phase_transition_id,
+)
 from learn_to_cloud.services.verification_page_service import (
     get_phase_verification_workspace,
     get_verifications_overview,
@@ -111,6 +117,22 @@ async def phase_page(
     has_verification = bool(
         phase.hands_on_verification and phase.hands_on_verification.requirements
     )
+    next_phase = get_next_phase(phase.order)
+    phase_transition_id = (
+        build_phase_transition_id(
+            account.id,
+            source_phase=phase.order,
+            target_phase=next_phase.order,
+        )
+        if next_phase is not None
+        else None
+    )
+    next_phase_start_url = get_phase_start_url(next_phase) if next_phase else None
+    if next_phase_start_url and phase_transition_id:
+        next_phase_start_url = (
+            f"{next_phase_start_url}?from_phase={phase.order}"
+            f"&transition={phase_transition_id}"
+        )
 
     return templates.TemplateResponse(
         request,
@@ -121,6 +143,9 @@ async def phase_page(
             topics=topics,
             phase_progress=detail,
             has_verification=has_verification,
+            next_phase=next_phase,
+            next_phase_start_url=next_phase_start_url,
+            phase_transition_id=phase_transition_id,
         ),
     )
 
@@ -173,6 +198,22 @@ async def phase_verification_page(
         account.github_username,
         history_page=history_page,
     )
+    next_phase = get_next_phase(phase.order)
+    phase_transition_id = (
+        build_phase_transition_id(
+            account.id,
+            source_phase=phase.order,
+            target_phase=next_phase.order,
+        )
+        if next_phase is not None
+        else None
+    )
+    next_phase_start_url = get_phase_start_url(next_phase) if next_phase else None
+    if next_phase_start_url and phase_transition_id:
+        next_phase_start_url = (
+            f"{next_phase_start_url}?from_phase={phase.order}"
+            f"&transition={phase_transition_id}"
+        )
     return templates.TemplateResponse(
         request,
         "pages/verification_phase.html",
@@ -185,6 +226,9 @@ async def phase_verification_page(
             verification_locked=workspace.verification_locked,
             prerequisite_phase_id=workspace.prerequisite_phase_id,
             history=workspace.history,
+            next_phase=next_phase,
+            next_phase_start_url=next_phase_start_url,
+            phase_transition_id=phase_transition_id,
         ),
     )
 
@@ -217,6 +261,26 @@ async def topic_page(
         )
 
     completed_step_uuids = await get_valid_completed_steps(db, account.id, topic)
+    phase_started_transition_id: str | None = None
+    source_phase_value = request.query_params.get("from_phase")
+    transition_id = request.query_params.get("transition")
+    if transition_id and source_phase_value and topic == phase.topics[0]:
+        try:
+            source_phase = int(source_phase_value)
+        except ValueError:
+            source_phase = -1
+        previous_next_phase = get_next_phase(source_phase)
+        if (
+            previous_next_phase is not None
+            and previous_next_phase.order == phase.order
+            and is_valid_phase_transition_id(
+                transition_id,
+                account.id,
+                source_phase=source_phase,
+                target_phase=phase.order,
+            )
+        ):
+            phase_started_transition_id = transition_id
 
     all_topics = phase.topics
     prev_topic, next_topic = build_topic_nav(
@@ -243,6 +307,8 @@ async def topic_page(
             prev_topic=prev_topic,
             next_topic=next_topic,
             progress=progress,
+            phase_started_transition_id=phase_started_transition_id,
+            source_phase=source_phase_value,
         ),
     )
 

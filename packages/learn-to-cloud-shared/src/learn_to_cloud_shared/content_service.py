@@ -44,6 +44,13 @@ def get_curriculum_overview() -> tuple[PhaseOverview, ...]:
             slug=phase.slug,
             description=phase.description,
             short_description=phase.short_description,
+            estimated_learning_time=phase.estimated_learning_time,
+            estimated_project_time=phase.estimated_project_time,
+            project_summary=phase.project_summary,
+            completion_summary=phase.completion_summary,
+            prerequisites=phase.prerequisites,
+            cost_note=phase.cost_note,
+            required_for_graduation=phase.required_for_graduation,
             topics=[
                 TopicOverview(slug=topic.slug, name=topic.name)
                 for topic in phase.topics
@@ -51,6 +58,21 @@ def get_curriculum_overview() -> tuple[PhaseOverview, ...]:
         )
         for phase in catalog.phases
     )
+
+
+def get_next_phase(order: int) -> Phase | None:
+    """Return the phase immediately after ``order``."""
+    candidates = [
+        phase for phase in get_curriculum_catalog().phases if phase.order > order
+    ]
+    return min(candidates, key=lambda phase: phase.order) if candidates else None
+
+
+def get_phase_start_url(phase: Phase) -> str:
+    """Link directly to a phase's first actionable topic."""
+    if phase.topics:
+        return f"/phase/{phase.order}/{phase.topics[0].slug}"
+    return f"/phase/{phase.order}"
 
 
 def get_topic_containing_step(step_uuid: UUID) -> tuple[Topic, LearningStep] | None:

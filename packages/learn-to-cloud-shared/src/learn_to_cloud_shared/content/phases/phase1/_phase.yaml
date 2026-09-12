@@ -5,6 +5,20 @@ slug: phase1
 description: Phase 1 gets you hands-on immediately with Linux and Bash through a Capture The Flag (CTF) lab. You’ll build the foundation needed to access and complete the lab by setting up your environment, learning core command-line workflows, and practicing the tools you’ll use throughout the rest of the curriculum.
 short_description: Build practical Linux and Bash skills with Git, cloud CLI, SSH, and Infrastructure as Code fundamentals through hands-on CTF lab work.
 order: 1
+estimated_learning_time:
+  minimum_hours: 10
+  maximum_hours: 16
+estimated_project_time:
+  minimum_hours: 4
+  maximum_hours: 8
+project_summary: Complete all 18 Linux CTF challenges and submit the completion token.
+completion_summary: You demonstrated practical Linux navigation, permissions, Bash, Git, cloud CLI, Infrastructure as Code, and SSH skills.
+prerequisites:
+- Completion of Phase 0
+- A GitHub account
+- A local Linux environment or WSL
+cost_note: Free. The Linux CTF and supporting tools do not require paid cloud resources.
+required_for_graduation: true
 hands_on_verification:
   requirements:
   - linux-ctfs-fork

@@ -5,6 +5,20 @@ name: Securing Your Cloud Applications
 description: You've built your Journal API, deployed it to the cloud, and set up CI/CD pipelines. Now it's time to lock it down. Security isn't a separate thing you bolt on at the end—it's something every cloud engineer needs to think about from day one. In this phase, we'll walk you through the key security practices that keep real production apps safe. By the end, your Journal API will be hardened and production-ready.
 short_description: Secure your Journal API with IAM, secrets management, network controls, monitoring, and incident response. Make it production-ready.
 order: 6
+estimated_learning_time:
+  minimum_hours: 12
+  maximum_hours: 20
+estimated_project_time:
+  minimum_hours: 8
+  maximum_hours: 16
+project_summary: Harden the Journal API and provide verifiable evidence from its security controls and scans.
+completion_summary: You hardened a cloud application with identity, secret, network, monitoring, vulnerability-management, and incident-response controls.
+prerequisites:
+- Completion of Phase 5
+- A deployed Journal API with CI/CD
+- Access to your cloud platform security controls
+cost_note: Existing cloud resources may continue to incur charges while you complete and verify the security work.
+required_for_graduation: true
 topics:
 - iam-secrets
 - network-security

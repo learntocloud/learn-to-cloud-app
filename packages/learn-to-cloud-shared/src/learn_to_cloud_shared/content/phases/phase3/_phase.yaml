@@ -5,6 +5,20 @@ slug: phase3
 description: Welcome to Phase 3! This phase is all about programming with Python and building real applications. Programming is a fundamental skill for cloud engineering, enabling you to create, manage, and optimize cloud resources efficiently. You'll build a working API with database integration—the foundation for everything that follows.
 short_description: Learn Python programming, FastAPI, and databases. Build a real-world Journal API project.
 order: 3
+estimated_learning_time:
+  minimum_hours: 18
+  maximum_hours: 30
+estimated_project_time:
+  minimum_hours: 12
+  maximum_hours: 20
+project_summary: Build a working Journal API with FastAPI, database persistence, tests, and AI integration.
+completion_summary: You built and tested a Python API with FastAPI, database persistence, and an external AI integration.
+prerequisites:
+- Completion of Phase 2
+- Python and Git installed locally
+- A GitHub account
+cost_note: The project can be completed locally. Optional external AI APIs may have usage charges.
+required_for_graduation: true
 hands_on_verification:
   requirements:
   - journal-api-implementation

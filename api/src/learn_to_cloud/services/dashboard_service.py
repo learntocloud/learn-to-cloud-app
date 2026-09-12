@@ -32,6 +32,7 @@ def _build_phase_summary(
     return PhaseSummaryData(
         order=phase.order,
         name=phase.name,
+        required_for_graduation=phase.required_for_graduation,
         progress=progress_data,
     )
 
@@ -85,4 +86,7 @@ async def get_dashboard_data(
         total_phases=user_progress.total_phases,
         is_program_complete=is_program_complete,
         continue_phase=continue_phase,
+        optional_phases=[
+            phase for phase in phase_summaries if not phase.required_for_graduation
+        ],
     )

@@ -27,8 +27,15 @@
 </section>
 {% elif dashboard.is_program_complete and dashboard.phases %}
 <section class="border-b border-gray-200 pb-10 dark:border-gray-700" aria-labelledby="complete-heading">
-    <h2 id="complete-heading" class="section-title">You completed the program.</h2>
-    <p class="mt-2 text-base leading-7 text-gray-600 dark:text-gray-400">Your learning steps and verifications are complete. Your dashboard remains a record of your work.</p>
+    <h2 id="complete-heading" class="section-title">You completed the technical curriculum.</h2>
+    <p class="mt-2 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-400">Every required learning step and verification is complete. Your dashboard remains a record of your work.</p>
+    {% if dashboard.optional_phases %}
+    {% set optional = dashboard.optional_phases[0] %}
+    <div class="mt-5">
+        <p class="text-sm text-gray-500 dark:text-gray-400">Optional next step</p>
+        <a href="/phase/{{ optional.order }}" class="text-link mt-1">Explore Phase {{ optional.order }}: {{ optional.name }}</a>
+    </div>
+    {% endif %}
 </section>
 {% elif dashboard.phases %}
 <section class="border-b border-gray-200 pb-10 dark:border-gray-700" aria-labelledby="start-heading">
@@ -63,7 +70,7 @@
             <dd class="mt-1 text-xs text-gray-500 dark:text-gray-400">Requirements verified</dd>
         </div>
     </dl>
-    <p class="mt-5 text-sm text-gray-500 dark:text-gray-400">Complete learning steps and verifications in each phase.</p>
+    <p class="mt-5 text-sm text-gray-500 dark:text-gray-400">Progress totals include the phases required for curriculum graduation.</p>
 </section>
 
 <section aria-labelledby="phase-progress-heading">
@@ -79,6 +86,9 @@
             <span class="pt-0.5 font-mono text-sm text-gray-500 dark:text-gray-400">{{ phase.order }}</span>
             <span class="min-w-0">
                 <span class="block text-base font-medium text-gray-950 transition-colors group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">{{ phase.name }}</span>
+                {% if not phase.required_for_graduation %}
+                <span class="mt-1 block text-xs font-medium text-blue-700 dark:text-blue-300">Optional enrichment</span>
+                {% endif %}
                 {% if p and (p.verification.requirements_required > 0 or p.learning.steps_required > 0) %}
                 <span class="mt-1 block text-xs leading-5 text-gray-500 dark:text-gray-400">
                     {%- if p.learning.steps_required > 0 -%}

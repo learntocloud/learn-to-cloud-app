@@ -71,7 +71,7 @@
         Curriculum graduates
         <span class="ml-1 text-base font-normal text-gray-500 dark:text-gray-400">({{ community.graduates | length }})</span>
     </h2>
-    <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-400">Learners who have verified every project across all phases.</p>
+    <p class="mt-3 text-base leading-7 text-gray-600 dark:text-gray-400">Learners who have verified every project in the required technical curriculum.</p>
     {% if community.graduates %}
     <ul class="mt-6 flex flex-wrap gap-x-6 gap-y-3">
         {% for member in community.graduates %}
@@ -89,7 +89,7 @@
         {% endfor %}
     </ul>
     {% else %}
-    <p class="mt-5 text-sm leading-6 text-gray-600 dark:text-gray-400">No learner has verified the entire curriculum yet. The first graduate will appear here.</p>
+    <p class="mt-5 text-sm leading-6 text-gray-600 dark:text-gray-400">No learner has verified the required technical curriculum yet. The first graduate will appear here.</p>
     {% endif %}
 </section>
 

@@ -16,6 +16,18 @@ Authored YAML lives under
 Each phase directory contains `_phase.yaml`, topic files, and requirement files.
 The phase file owns topic and requirement order.
 
+Each phase also declares learner-facing completion metadata: broad learning and
+project time ranges, prerequisites, expected cost, a completion summary, and
+whether the phase is required for graduation. Optional phases remain available
+in progress and verification views but do not block curriculum graduation.
+
+Completion pages emit anonymous browser events for the completion view and
+next-phase action. Both events use the same one-way, phase-specific transition
+identifier. The first topic in the destination phase validates that identifier
+and emits `next_phase_started`, allowing aggregate 1-day and 7-day conversion
+queries without sending a GitHub username or database user ID to browser
+telemetry.
+
 `scripts/compile_curriculum.py` validates the complete tree and writes the
 packaged `content/curriculum.json` artifact. CI rejects a branch when generated
 artifact content differs from the committed artifact.

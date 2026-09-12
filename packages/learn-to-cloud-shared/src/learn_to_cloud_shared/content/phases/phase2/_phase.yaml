@@ -5,6 +5,19 @@ slug: phase2
 description: Welcome to Phase 2! This phase covers the core networking concepts you need before diving into cloud infrastructure. Understanding how networks work—IP addressing, routing, DNS, and common protocols—is essential for cloud engineering. You'll learn to troubleshoot connectivity issues and build a mental model of how data flows across networks.
 short_description: 'Learn core networking: IP/subnetting, routing, DNS, HTTP, ports, and troubleshooting. Build the foundation for cloud networking.'
 order: 2
+estimated_learning_time:
+  minimum_hours: 8
+  maximum_hours: 12
+estimated_project_time:
+  minimum_hours: 3
+  maximum_hours: 6
+project_summary: Complete the networking troubleshooting lab and submit its completion token.
+completion_summary: You demonstrated how IP addressing, routing, DNS, HTTP, ports, and network troubleshooting fit together.
+prerequisites:
+- Completion of Phase 1
+- A local Linux environment or WSL
+cost_note: Free. The networking lab runs locally and does not require paid cloud resources.
+required_for_graduation: true
 hands_on_verification:
   requirements:
   - networking-lab-fork
