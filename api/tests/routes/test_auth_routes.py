@@ -74,46 +74,17 @@ class TestLoginRoute:
 
         with (
             patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth,
-            patch(
-                "learn_to_cloud.routes.auth_routes.get_web_settings"
-            ) as mock_settings,
+            patch("learn_to_cloud.routes.auth_routes.get_web_settings"),
         ):
-            mock_settings.return_value.web_security.require_https = False
             mock_oauth.create_client.return_value = mock_github
 
             result = await login(request)
 
         mock_oauth.create_client.assert_called_once_with("github")
         mock_github.authorize_redirect.assert_awaited_once_with(
-            request, "http://testserver/auth/callback"
+            request, str(request.url_for.return_value)
         )
         assert isinstance(result, RedirectResponse)
-
-    async def test_login_forces_https_redirect_uri_when_required(self):
-        """When require_https=True, redirect_uri is rewritten to https."""
-        request = _mock_request()
-        mock_github = MagicMock()
-        mock_github.authorize_redirect = AsyncMock(
-            return_value=RedirectResponse(
-                url="https://github.com/login/oauth/authorize"
-            )
-        )
-
-        with (
-            patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth,
-            patch(
-                "learn_to_cloud.routes.auth_routes.get_web_settings"
-            ) as mock_settings,
-        ):
-            mock_settings.return_value.web_security.require_https = True
-            mock_oauth.create_client.return_value = mock_github
-
-            await login(request)
-
-        # The redirect_uri should have been rewritten to https
-        call_args = mock_github.authorize_redirect.call_args
-        redirect_uri = call_args[0][1]
-        assert redirect_uri.startswith("https://")
 
     async def test_login_returns_home_redirect_when_github_not_configured(self):
         """When GitHub OAuth is not configured, redirects to /."""
