@@ -75,12 +75,6 @@ async def login(request: Request) -> RedirectResponse:
     previous_states = _prepare_oauth_state(request)
     github.framework.expires_in = get_web_settings().session.oauth_state_max_age_seconds
     redirect_uri = str(request.url_for("auth_callback"))
-    # Azure Container Apps terminates TLS at the load balancer; ensure
-    # the redirect URI uses https so it matches the GitHub OAuth config.
-    if get_web_settings().web_security.require_https and redirect_uri.startswith(
-        "http://"
-    ):
-        redirect_uri = redirect_uri.replace("http://", "https://", 1)
     response = await github.authorize_redirect(request, redirect_uri)
     for key, value in previous_states.items():
         request.session.setdefault(key, value)
