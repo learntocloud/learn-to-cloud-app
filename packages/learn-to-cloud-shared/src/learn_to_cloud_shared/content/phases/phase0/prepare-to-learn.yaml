@@ -49,3 +49,11 @@ learning_steps:
   url: https://www.youtube.com/watch?v=88hnhRmpPZs
   description: See the exact study routine that was followed for 6 months while learning cloud engineering — how to structure sessions, stay consistent, and avoid burnout. Use this as a template to build your own study schedule before moving on to the next topic.
   slug: phase0-topic0-watch-6-months-following-this
+- uuid: 018392db-e453-4349-a162-cee0ee69b7f4
+  order: 6
+  action: 'Practice:'
+  title: Join the Learn to Cloud Discord
+  url: https://discord.gg/st7g2Hp77r
+  description: Join the Learn to Cloud Discord server to connect with other learners and get help as you work through the curriculum.
+  done_when: You've joined the server and read the community rules.
+  slug: phase0-topic0-practice-join-discord
