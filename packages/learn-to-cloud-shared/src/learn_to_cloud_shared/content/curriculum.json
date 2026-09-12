@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "bc96d77763245dd571ef5a2b05634f983c91edb80c9dd61ca1d9cd282d36baaa",
-  "curriculum_version": 20,
+  "content_hash": "1f50db3980694cd2010c0e2ec3dff60ba5ab23b6115003b6f1303e4fdcff8d16",
+  "curriculum_version": 21,
   "phases": [
     {
       "description": "This phase is designed for complete beginners who are starting from zero and want to build toward cloud engineering. You will learn the core ideas behind Linux, networking, programming, cloud computing, and DevOps in a beginner-friendly sequence. A strong foundation here will make every later phase easier to understand and apply in real projects.",
@@ -128,7 +128,7 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Join the Learn to Cloud Discord server to connect with other learners and get help as you work through the curriculum. Read the community rules and, if you'd like, introduce yourself and share your learning goal. Mute nonessential notifications so the community supports your study routine without becoming a distraction.",
+              "description": "Join the Learn to Cloud Discord server to connect with other learners and get help as you work through the curriculum.",
               "done_when": "You've joined the server and read the community rules.",
               "options": [],
               "order": 6,

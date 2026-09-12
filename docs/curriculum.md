@@ -56,13 +56,19 @@ rewritten.
 
 ## Editing curriculum
 
-1. Edit the YAML files.
+1. Edit the YAML files and bump `curriculum_version` in
+   `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/curriculum.meta.yaml`.
+   Content changes require a version greater than the PR base artifact's version.
 2. From `packages/learn-to-cloud-shared`, run:
    ```bash
    uv run python scripts/validate_content.py
    uv run python scripts/compile_curriculum.py
    uv run python scripts/generate_yaml_schemas.py
    ```
+   To check the version policy locally as CI does, pass
+   `--previous-artifact PATH` to the compiler, where `PATH` contains the
+   `curriculum.json` artifact from the PR base commit. Compiling without this
+   option does not check the version against the base artifact.
 3. Run `uv run poe check` from the repository root.
 4. Commit the YAML changes, regenerated `curriculum.json`, and any schema changes.
 
