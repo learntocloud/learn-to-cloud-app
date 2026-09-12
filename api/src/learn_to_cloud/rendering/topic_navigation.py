@@ -13,8 +13,10 @@ def build_topic_nav(
     current_slug: str,
     phase_id: int,
     phase_name: str,
+    *,
+    has_verification: bool = False,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    """Return previous/next topic links, using the phase page at either end."""
+    """Return topic links, continuing to verification after the final topic."""
     current_idx = next((i for i, t in enumerate(topics) if t.slug == current_slug), -1)
     if current_idx == -1:
         return None, None
@@ -34,7 +36,15 @@ def build_topic_nav(
         }
 
     if current_idx == len(topics) - 1:
-        next_topic = phase_link
+        next_topic = (
+            {
+                "label": "Next step",
+                "name": f"Continue to Phase {phase_id} verification",
+                "url": f"/verifications/phase/{phase_id}",
+            }
+            if has_verification
+            else phase_link
+        )
     else:
         next_t = topics[current_idx + 1]
         next_topic = {

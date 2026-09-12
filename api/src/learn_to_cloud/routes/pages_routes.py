@@ -284,7 +284,13 @@ async def topic_page(
 
     all_topics = phase.topics
     prev_topic, next_topic = build_topic_nav(
-        all_topics, topic_slug, phase_id, phase.name
+        all_topics,
+        topic_slug,
+        phase_id,
+        phase.name,
+        has_verification=bool(
+            phase.hands_on_verification and phase.hands_on_verification.requirements
+        ),
     )
 
     total_steps = len(topic.learning_steps)

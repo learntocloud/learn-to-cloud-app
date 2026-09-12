@@ -101,7 +101,7 @@
 
     <a href="{{ next_topic.url }}" class="group flex min-h-11 min-w-0 items-center justify-end gap-3 rounded-md p-3 text-right hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:hover:bg-gray-800/50 sm:col-start-2">
         <span class="min-w-0">
-            <span class="block text-xs font-bold text-gray-500 dark:text-gray-400">Next topic</span>
+            <span class="block text-xs font-bold text-gray-500 dark:text-gray-400">{{ next_topic.label | default("Next topic", true) }}</span>
             <span class="mt-1 block break-words text-sm font-bold text-gray-950 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">{{ next_topic.name }}</span>
         </span>
         <svg class="h-5 w-5 shrink-0 text-gray-500 group-hover:text-blue-700 dark:text-gray-400 dark:group-hover:text-blue-300" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m8 5 5 5-5 5"/></svg>

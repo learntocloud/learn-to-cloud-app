@@ -40,6 +40,22 @@ class TestBuildTopicNav:
         assert prev_t == {"name": "Second", "url": "/phase/0/second"}
         assert next_t == {"name": "Phase 0", "url": "/phase/0"}
 
+    def test_last_topic_continues_to_verification_when_available(self):
+        prev_t, next_t = build_topic_nav(
+            self._topics(),
+            "third",
+            1,
+            "Linux and Bash",
+            has_verification=True,
+        )
+
+        assert prev_t == {"name": "Second", "url": "/phase/1/second"}
+        assert next_t == {
+            "label": "Next step",
+            "name": "Continue to Phase 1 verification",
+            "url": "/verifications/phase/1",
+        }
+
     def test_unknown_slug_returns_none(self):
         prev_t, next_t = build_topic_nav(self._topics(), "nonexistent", 0, "Phase 0")
         assert prev_t is None
