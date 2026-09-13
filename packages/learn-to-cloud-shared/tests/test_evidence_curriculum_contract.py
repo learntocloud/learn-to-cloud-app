@@ -95,9 +95,10 @@ def test_capstone_workflow_and_local_responsibilities_are_published() -> None:
     assert f".github/workflows/{CAPSTONE_WORKFLOW_FILE}" in text
     assert "current `main` commit" in text
     assert "Rerun" in text
-    assert "Ordinary CI" in text
-    assert "local responsibilities" in text
-    assert "offline workflow does not verify them" in text
+    assert "live AI verification" in text
+    assert "cloud CLI check" in text
+    assert "green CI badge is not the capstone check" in text
+    assert "never commit `.env` files or provider credentials" in text
     for published in (journal.description, text):
         assert "canonical" not in published
         assert "evidence limit" not in published
