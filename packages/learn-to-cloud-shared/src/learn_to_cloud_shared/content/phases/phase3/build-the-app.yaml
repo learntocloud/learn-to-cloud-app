@@ -22,23 +22,17 @@ learning_steps:
   action: 'Practice:'
   title: Journal Starter Repository
   url: https://github.com/learntocloud/journal-starter
-  description: "Fork the Journal Starter and follow the chapters linked from its README in order. Create a feature branch for each task, run the tests, then open a pull request within your fork and merge into main. You don't submit anything to this app per PR. Follow https://github.com/learntocloud/journal-starter/blob/main/docs/10-finish.md to finish: run the live AI verification with `uv run python -m scripts.verify_llm`, confirm your cloud CLI runs locally, then run Verify capstone on GitHub before submitting here. If you need a refresher on GitHub workflows, use https://learn.github.com/skills and https://github.com/git-guides/git-overview."
+  description: Fork the Journal Starter and complete its README chapters in order. The repository contains the implementation instructions, tests, and final local checks.
+  checklist:
+  - Complete each chapter on a feature branch and merge its pull request into your fork's `main` branch.
+  - Follow the [finish guide](https://github.com/learntocloud/journal-starter/blob/main/docs/10-finish.md), including the full test suite, live AI verification, and cloud CLI check.
+  - On your current `main` commit, run **Actions → Verify capstone → Run workflow** (`.github/workflows/verify-capstone.yml`) and wait for **Full capstone verification** to pass.
+  - Submit verification here only after that workflow succeeds. Rerun it if `main` changes before you submit.
+  done_when: The Verify capstone workflow passes for the current commit on your fork's `main` branch.
   slug: phase3-topic5-practice-journal-starter-repository
   tips:
-  - type: important
-    text: >-
-      Open Actions > Verify capstone > Run workflow and select `main`.
-      The latest `.github/workflows/verify-capstone.yml` run must succeed for
-      your current `main` commit. Rerun it after every new commit before
-      submitting. Ordinary CI runs code quality and starter safeguards, not
-      all exercises, so a green CI badge is not enough to pass.
-  - type: note
-    text: >-
-      The app trusts the supplied capstone workflow and tests; do not weaken
-      them to make your work pass. It does not collect your source code for an
-      AI review or perform a whole-repository credential scan. Live AI
-      verification and running your cloud CLI remain local responsibilities;
-      the offline workflow does not verify them. Keep credentials out of Git.
+  - type: warning
+    text: A green CI badge is not the capstone check. Do not weaken the supplied workflow or tests, and never commit `.env` files or provider credentials.
 - uuid: 0f5b41ca-70f1-43f3-a1d2-f6396f00f1c3
   order: 2
   action: 'Reflect:'
