@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "b68511e3d848e398b14cd843bdc0706805498740c9e447d78d57053db419ed53",
-  "curriculum_version": 22,
+  "content_hash": "457538ad9b4f93ef2560e473b51f0d34197afcadeeecd8bda47ccdb114dea76e",
+  "curriculum_version": 23,
   "phases": [
     {
       "completion_summary": "You built a foundation in Linux, networking, programming, cloud computing, and DevOps and created a public learning profile.",
@@ -3547,48 +3547,32 @@
           "uuid": "7ca1401a-0e78-4fcb-8665-aeba544555d1"
         },
         {
-          "description": "Deploy your Phase 3 Journal API on your chosen cloud. You own the architecture, service choices, and deployment approach. Use the earlier topics as references, not a deployment recipe. Researching what you do not yet know is part of this project.",
-          "learning_objectives": [
-            {
-              "order": 1,
-              "text": "Choose and justify a cloud architecture with separate application and database tiers.",
-              "uuid": "a8283b86-24bb-4e2e-8a20-7679cd19741a"
-            },
-            {
-              "order": 2,
-              "text": "Deploy and operate the Journal API without public database or management access.",
-              "uuid": "6654c03c-ccbf-4983-9147-3130f07ee90e"
-            },
-            {
-              "order": 3,
-              "text": "Integrate the live model endpoint selected for the Journal API.",
-              "uuid": "f3263740-4646-4160-9cb7-e5d07445ce2c"
-            },
-            {
-              "order": 4,
-              "text": "Demonstrate working API behavior, explain security and cost tradeoffs, and clean up unused resources.",
-              "uuid": "0f9954fd-42d1-4a8a-99e1-9ee7b8f1a8d4"
-            }
-          ],
+          "description": "Deploy your completed Journal API on AWS, Azure, or Google Cloud. The Journal Starter README covers the application; this page lists only the cloud deployment constraints, verification contract, and evidence required to finish Phase 4.",
+          "learning_objectives": [],
           "learning_steps": [
             {
               "action": "build",
               "checklist": [
                 "Expose the API over public HTTPS with a trusted certificate.",
-                "Separate the application and PostgreSQL tiers, with private database connectivity and no public database access.",
-                "Keep administrative access private and authenticated, and credentials out of source control and logs.",
-                "Preserve all Journal API CRUD operations and data across application restarts, and keep the service running after your administrative session ends.",
-                "Connect the analysis endpoint to a live AI service, not a mock response.",
+                "Keep PostgreSQL on a separate private tier that accepts connections from the application tier but not the public internet.",
+                "Keep management ports private, require authenticated administrative access, and keep credentials out of source control and logs.",
+                "Keep the service running after your administrative session ends and preserve journal data across application restarts.",
+                "Preserve the completed Journal API behavior, including CRUD operations and analysis through a live AI service.",
                 "Estimate costs and configure budget alerts before provisioning."
               ],
               "code": null,
-              "description": "Choose the cloud services and tools yourself. A two-tier application and database architecture is sufficient; a frontend or third tier is not required. Meet these requirements without following a prescribed implementation.",
-              "done_when": "You have demonstrated the API behavior and access controls on your deployed system.",
+              "description": "Choose the services and deployment tools yourself. A two-tier application and database architecture is sufficient; no frontend is required.",
+              "done_when": "You can demonstrate each deployment constraint on the running system.",
               "options": [],
               "order": 1,
               "slug": "phase4-topic9-practice-deploy-api-service",
-              "tips": [],
-              "title": "Deploy the Journal API",
+              "tips": [
+                {
+                  "text": "The Journal API has no user authentication or data isolation. Use only test data and do not store personal or sensitive journal content.",
+                  "type": "warning"
+                }
+              ],
+              "title": "Meet the deployment constraints",
               "url": null,
               "uuid": "4c1da717-a539-446a-81bc-deb7aec0e05a"
             },
@@ -3620,15 +3604,20 @@
             },
             {
               "action": "reflect",
-              "checklist": [],
+              "checklist": [
+                "Add an architecture diagram showing public, private, and administrative traffic paths.",
+                "Record the services you selected, expected cost, access controls, AI model and safety controls, and evidence that each deployment constraint passed.",
+                "Identify one limitation you would address before using the system in production.",
+                "Delete resources you do not need for Phase 5 and check your billing dashboard for unexpected charges."
+              ],
               "code": null,
-              "description": "Add an architecture diagram and concise notes to your Journal Starter README. Explain your service choices, public and private traffic paths, access controls, AI model and safety choices, expected costs, and how you demonstrated the requirements. Identify one limitation you would address before production. Delete resources you do not need for Phase 5 and review your billing dashboard for unexpected charges.",
-              "done_when": "Your repository documents the verified deployment and your cloud account contains only resources you intentionally retained for Phase 5.",
+              "description": "Update your Journal Starter README with only the information created by this deployment.",
+              "done_when": "Your README contains the deployment evidence, and your cloud account contains only resources you intentionally retained for Phase 5.",
               "options": [],
               "order": 3,
               "slug": "phase4-topic9-reflect-document-clean-up",
               "tips": [],
-              "title": "Document decisions and clean up",
+              "title": "Record deployment evidence and clean up",
               "url": null,
               "uuid": "8560edaf-a754-485a-93bc-42b20d6b18f6"
             }
