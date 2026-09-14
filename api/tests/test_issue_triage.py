@@ -292,6 +292,21 @@ new AsyncFunction('require', 'github', 'context', 'core', 'process', script)(
 
 
 @pytest.mark.unit
+def test_workflow_pins_triage_to_an_exact_model():
+    workflow = yaml.safe_load(WORKFLOW.read_text().split("---", 2)[1])
+    assert workflow["engine"] == {"id": "copilot", "model": "copilot/gpt-5-mini"}
+    compiled = yaml.safe_load(WORKFLOW.with_suffix(".lock.yml").read_text())
+    for name in ("agent", "detection"):
+        models = [
+            step["env"]["COPILOT_MODEL"]
+            for step in compiled["jobs"][name]["steps"]
+            if "COPILOT_MODEL" in step.get("env", {})
+        ]
+        assert models
+        assert all(model == "copilot/gpt-5-mini" for model in models)
+
+
+@pytest.mark.unit
 def test_compiled_workflow_uses_actions_token_for_copilot_inference():
     compiled_text = WORKFLOW.with_suffix(".lock.yml").read_text()
     compiled = yaml.safe_load(compiled_text)

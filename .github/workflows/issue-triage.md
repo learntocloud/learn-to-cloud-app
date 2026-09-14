@@ -18,7 +18,9 @@ permissions:
   contents: read
   issues: read
   copilot-requests: write
-engine: copilot
+engine:
+  id: copilot
+  model: copilot/gpt-5-mini
 timeout-minutes: 8
 concurrency:
   group: issue-triage-${{ github.event.issue.number }}

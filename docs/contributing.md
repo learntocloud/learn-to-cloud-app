@@ -216,6 +216,12 @@ and issue writes still go through safe outputs. Do not delete an existing secret
 without checking whether other workflows use it. Never put a token in a workflow,
 issue, or report.
 
+Triage temporarily pins the exact model `copilot/gpt-5-mini`. In gh-aw v0.88.7,
+automatic selection chose a utility model missing from the runtime's API-routing
+catalog and sent requests to an incompatible endpoint. GPT-5 mini is present in
+both the live model list and the routing catalog. Revisit this pin once upstream
+automatic model selection and endpoint routing are compatible.
+
 Use gh-aw v0.88.7 to reproduce the checked-in compilation:
 
 ```bash
