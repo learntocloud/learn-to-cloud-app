@@ -17,6 +17,7 @@ if: >-
 permissions:
   contents: read
   issues: read
+  copilot-requests: write
 engine: copilot
 timeout-minutes: 8
 concurrency:

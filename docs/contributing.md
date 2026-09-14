@@ -206,14 +206,15 @@ is safe. Provision the labels before merging/activating the replacement
 workflow; missing labels cause safe outputs to fail rather than create metadata.
 Keep legacy labels used by pull requests and other automations.
 
-The workflow reuses the repository's `COPILOT_GITHUB_TOKEN` Actions secret for
-inference, not for GitHub tools or safe-output writes. Ensure that the secret
-contains a valid fine-grained token with the account's Copilot Requests access.
-The presence of the secret does not prove it is unexpired. If moving to centrally
-billed organization authentication later, follow the current
-[gh-aw authentication guidance](https://github.github.com/gh-aw/reference/auth/)
-and explicitly configure `copilot-requests: write`; that mode ignores the PAT.
-Never put a token in a workflow, issue, or report.
+The workflow grants `copilot-requests: write` to use the built-in, per-run GitHub
+Actions token for Copilot inference, as recommended by the
+[gh-aw authentication guidance](https://github.github.com/gh-aw/reference/auth/).
+The organization must have a Copilot subscription with centralized billing
+enabled. No personal access token or `COPILOT_GITHUB_TOKEN` secret is required;
+that secret is ignored for inference in this mode. GitHub tools remain read-only,
+and issue writes still go through safe outputs. Do not delete an existing secret
+without checking whether other workflows use it. Never put a token in a workflow,
+issue, or report.
 
 Use gh-aw v0.88.7 to reproduce the checked-in compilation:
 
@@ -232,8 +233,8 @@ Confirm form context is preserved, blank symptoms cannot satisfy required form
 fields, the workflow handles community authors, and suggestions wait for approval
 without comments or assignments. Confirm Priority can be read by the workflow's
 Actions token; a local administrator's field access is not proof of runtime
-access. Inspect Actions failures for expired inference credentials, missing
-labels, or field permissions. Do not bypass a failure with direct API writes.
+access. Inspect Actions failures for organization Copilot access or billing,
+missing labels, or field permissions. Do not bypass a failure with direct API writes.
 Do not enable greater automation until the initial suggestions have been reviewed.
 
 ### Classification policy and evaluation
