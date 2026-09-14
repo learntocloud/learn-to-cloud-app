@@ -357,16 +357,22 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
       union traces, exceptions
       | where cloud_RoleName == "learn-to-cloud-api"
       | extend Event = coalesce(message, outerMessage)
-      | where Event in ("verification.attempt.stuck", "verification.worker.failed")
+      | where Event in ("verification.attempt.stuck", "verification.worker.failed", "verification.worker.stale")
       | extend
           AttemptId = tostring(customDimensions["verification.attempt.id"]),
           AttemptAgeSeconds = toint(customDimensions["verification.attempt.age_seconds"]),
-          StuckReason = iff(Event == "verification.worker.failed", "worker_failed", tostring(customDimensions["verification.stuck.reason"]))
+          WorkerAgeSeconds = toint(customDimensions["verification.worker.age_seconds"]),
+          StuckReason = case(
+            Event == "verification.worker.failed", "worker_failed",
+            Event == "verification.worker.stale", "worker_stale",
+            tostring(customDimensions["verification.stuck.reason"])
+          )
       | where Event == "verification.worker.failed" or isnotempty(AttemptId)
       | where StuckReason in (
           "queued_beyond_limit",
           "execution_beyond_limit",
-          "worker_failed"
+          "worker_failed",
+          "worker_stale"
         )
       | summarize arg_max(timestamp, AttemptAgeSeconds) by AttemptId, StuckReason
       | project timestamp, AttemptId, AttemptAgeSeconds, StuckReason
@@ -382,6 +388,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
         "queued_beyond_limit",
         "execution_beyond_limit",
         "worker_failed",
+        "worker_stale",
       ]
     }
 

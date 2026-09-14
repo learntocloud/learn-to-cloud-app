@@ -221,6 +221,7 @@ async def test_lifespan_cancels_worker_before_closing_clients(fake_app):
             await asyncio.sleep(0)
             assert not fake_app.state.verification_worker.done()
     assert fake_app.state.verification_worker.cancelled()
+    assert fake_app.state.verification_worker_state.status == "stopped"
     close_mock.assert_awaited_once()
 
 
@@ -236,5 +237,6 @@ async def test_lifespan_still_closes_clients_when_worker_failed(fake_app):
     ):
         async with lifespan(fake_app):
             await asyncio.sleep(0)
+    assert fake_app.state.verification_worker_state.status == "failed"
     close.assert_awaited_once()
     dispose.assert_awaited_once()
