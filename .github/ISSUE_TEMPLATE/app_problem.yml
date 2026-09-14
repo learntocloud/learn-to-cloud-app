@@ -1,0 +1,65 @@
+name: App or verification problem
+description: Report problems with the app, accounts, progress, or verification results.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For learning help or feature ideas, use [Discussions](https://github.com/learntocloud/learn-to-cloud-app/discussions).
+        Reports are public. Remove passwords, tokens, credentials, and personal information from text, URLs, logs, and screenshots. Do not paste verification token values.
+  - type: input
+    id: location
+    attributes:
+      label: Page, phase, or requirement
+      description: Name the affected page and, if relevant, the phase and verification requirement.
+      placeholder: Dashboard, sign-in, or Phase 3 Journal API verification
+    validations:
+      required: true
+  - type: input
+    id: page-url
+    attributes:
+      label: Page URL
+      description: Link to the affected app page. Remove private query parameters.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Hosted app or local development? Include operating system and browser/version; cloud or tool versions only if relevant.
+      placeholder: Hosted app, Windows 11, Firefox 140
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened, and what did you expect?
+      description: Describe the actual behavior and the expected result. For a disputed verification result, explain which check looks wrong and why.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the actions that led to the problem and whether it happens again when retried. Describe submitted evidence without sharing secrets.
+      placeholder: Describe the page, actions, and point where the behavior differs from what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Exact error or evidence
+      description: Copy the exact error or relevant verification feedback, with secrets removed. If none appeared, write "No error message shown". Add sanitized screenshots or logs if useful.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact and workaround
+      description: What can you no longer do? Say whether learning or verification is blocked, and describe any workaround tried, or state that none is known.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Report context
+      description: The app adds the report time and browser here. Review before submitting; no account or submission data is needed.

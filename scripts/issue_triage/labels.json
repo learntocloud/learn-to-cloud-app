@@ -1,0 +1,47 @@
+[
+  {
+    "name": "area:content",
+    "color": "0075ca",
+    "description": "Curriculum instructions, learning resources, missing or outdated links."
+  },
+  {
+    "name": "area:verification",
+    "color": "0075ca",
+    "description": "Submission checks, grading, lab-token validation, or verification results."
+  },
+  {
+    "name": "area:accounts",
+    "color": "0075ca",
+    "description": "Sign-in, sessions, account deletion, profiles, or saved learner progress."
+  },
+  {
+    "name": "area:ui",
+    "color": "0075ca",
+    "description": "Page behavior, navigation, accessibility, layout, or presenting feedback."
+  },
+  {
+    "name": "area:platform",
+    "color": "0075ca",
+    "description": "Production hosting, database, deployment, telemetry, or service reliability."
+  },
+  {
+    "name": "area:developer-tools",
+    "color": "0075ca",
+    "description": "Local development, CI, tests, contributor tooling, or repository automation."
+  },
+  {
+    "name": "needs-info",
+    "color": "fbca04",
+    "description": "Essential report details are missing; not a synonym for a support question."
+  },
+  {
+    "name": "needs-reproduction",
+    "color": "fbca04",
+    "description": "A concrete failure is described, but a repository defect is not yet confirmed."
+  },
+  {
+    "name": "support",
+    "color": "d4c5f9",
+    "description": "Usage help, learner setup, or another repository; not a confirmed app defect."
+  }
+]

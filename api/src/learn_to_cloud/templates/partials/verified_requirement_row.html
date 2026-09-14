@@ -47,13 +47,13 @@
             </a>
             {% endif %}
             <a
-                href="https://github.com/learntocloud/learn-to-cloud-app/issues/new"
+                href="https://github.com/learntocloud/learn-to-cloud-app/issues/new?{{ {'template': 'app_problem.yml', 'location': 'requirement=' ~ card.requirement.slug} | urlencode }}"
                 data-report-issue
                 data-issue-title="Verification result looks wrong: {{ card.requirement.name }}"
-                data-issue-labels="bug"
                 data-issue-context="requirement={{ card.requirement.slug }}"
                 target="_blank"
                 rel="noopener noreferrer"
+                hx-boost="false"
                 class="inline-flex min-h-11 items-center text-xs text-gray-500 underline underline-offset-4 hover:text-gray-800 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-700 dark:text-gray-400 dark:hover:text-gray-200 dark:focus-visible:outline-gray-300"
             >Report a problem</a>
         </div>

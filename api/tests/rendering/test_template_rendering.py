@@ -1,9 +1,11 @@
 """Rendered-HTML tests for phase and dashboard progress states."""
 
 from datetime import datetime
+from html.parser import HTMLParser
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import PropertyMock, patch
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 import pytest
@@ -92,6 +94,57 @@ def _base_ctx(**overrides: object) -> dict[str, object]:
 
 def _render(template_name: str, **ctx: object) -> str:
     return _ENV.get_template(template_name).render(**_base_ctx(**ctx))
+
+
+def _report_links(html: str) -> list[dict[str, str | None]]:
+    class ReportLinkParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.links: list[dict[str, str | None]] = []
+
+        def handle_starttag(self, tag, attrs):
+            attributes = dict(attrs)
+            if tag == "a" and "data-report-issue" in attributes:
+                self.links.append(attributes)
+
+    parser = ReportLinkParser()
+    parser.feed(html)
+    return parser.links
+
+
+def _assert_report_form(
+    link: dict[str, str | None], template: str, location: str
+) -> None:
+    url = urlparse(link["href"] or "")
+    assert url.netloc == "github.com"
+    assert url.path == "/learntocloud/learn-to-cloud-app/issues/new"
+    assert parse_qs(url.query) == {"template": [template], "location": [location]}
+    assert link["target"] == "_blank"
+    assert link["rel"] == "noopener noreferrer"
+    assert link["hx-boost"] == "false"
+    assert "data-issue-labels" not in link
+
+
+@pytest.mark.unit
+def test_topic_report_link_opens_content_form_without_javascript():
+    html = _render(
+        "pages/topic.html",
+        topic=SimpleNamespace(
+            name="Linux & permissions",
+            slug="linux-permissions",
+            description="",
+            learning_objectives=[],
+        ),
+        phase_id=1,
+        phase_name="Linux",
+        steps=[],
+        prev_topic=SimpleNamespace(url="/phase/1", name="Linux"),
+        next_topic=None,
+    )
+
+    (link,) = _report_links(html)
+    _assert_report_form(link, "content_problem.yml", "phase=1, topic=linux-permissions")
+    assert link["data-issue-title"] == "Issue with Linux & permissions"
 
 
 @pytest.mark.unit
@@ -421,6 +474,9 @@ def test_verified_feedback_links_only_safe_repository_evidence():
     assert "https://github.com/tester/journal-starter/blob/HEAD/api/main.py" in html
     assert "blob/HEAD/../secret" not in html
     assert "blob/HEAD/CI%20status" not in html
+    (link,) = _report_links(html)
+    _assert_report_form(link, "app_problem.yml", "requirement=journal-api")
+    assert "tester" not in (link["href"] or "")
 
 
 @pytest.mark.unit
@@ -964,6 +1020,13 @@ def test_incomplete_history_and_current_card_share_safe_explanation(cause, error
     assert html.count("Verification incomplete") == 2
     assert html.count("Your work was not judged to have failed.") == 2
     assert html.count("Report this issue") == 2
+    links = _report_links(html)
+    assert len(links) == 2
+    for link in links:
+        _assert_report_form(link, "app_problem.yml", "requirement=journal-api")
+        assert link["data-issue-title"] == "Verification error: Journal API"
+        assert "alice" not in (link["href"] or "")
+        assert str(item.id) not in (link["href"] or "")
     assert "Needs work" not in html
     assert "<script>unsafe</script>" not in html
     assert isinstance(card, UnavailableCardContext)
@@ -1082,9 +1145,8 @@ def test_dashboard_help_section_links_to_discord():
     html = _render("pages/dashboard.html", dashboard=dashboard, help_links=HELP_LINKS)
 
     assert 'href="https://discord.gg/st7g2Hp77r"' in html
-    assert (
-        'href="https://github.com/learntocloud/learn-to-cloud-app/issues/new"' in html
-    )
+    (link,) = _report_links(html)
+    _assert_report_form(link, "app_problem.yml", "page=dashboard")
     assert 'href="https://x.com/madebygps"' not in html
     assert 'href="https://x.com/learntocloud"' not in html
     assert "Ask the Community" not in html

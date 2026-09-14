@@ -135,7 +135,7 @@
         {% for link in help_links %}
         <a
             href="{{ link.url }}"
-            {% if link.label == "Report an Issue" %}data-report-issue data-issue-title="Issue: Dashboard" data-issue-labels="bug" data-issue-context="page=dashboard"{% endif %}
+            {% if link.label == "Report an Issue" %}data-report-issue data-issue-title="Issue: Dashboard" data-issue-context="page=dashboard" hx-boost="false"{% endif %}
             target="_blank"
             rel="noopener noreferrer"
             class="text-link"

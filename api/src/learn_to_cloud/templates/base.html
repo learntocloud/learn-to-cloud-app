@@ -88,7 +88,7 @@
     </script>
 
     <script>
-        // Prefill GitHub issue links with useful debugging context.
+        // Prefill only route context; reporters must describe the problem themselves.
         (function() {
             function decorateIssueLink(anchor) {
                 if (!anchor || anchor.dataset.issueDecorated === '1') return;
@@ -96,32 +96,23 @@
                 if (!baseUrl.startsWith('https://github.com/learntocloud/learn-to-cloud-app/issues/new')) return;
 
                 var url = new URL(baseUrl);
-                var title = anchor.dataset.issueTitle || ('Issue: ' + document.title);
-                var labels = anchor.dataset.issueLabels || url.searchParams.get('labels') || '';
-                var context = anchor.dataset.issueContext || '';
+                if (url.pathname !== '/learntocloud/learn-to-cloud-app/issues/new') return;
+                var template = url.searchParams.get('template');
+                if (template !== 'content_problem.yml' && template !== 'app_problem.yml') return;
+                var page = new URL(window.location.href);
+                var context = anchor.dataset.issueContext || url.searchParams.get('location') || page.pathname;
+                var phase = page.pathname.match(/(?:^|\/)phase\/(\d+)(?:\/|$)/);
+                if (phase && !context.includes('phase=')) context = 'phase=' + phase[1] + ', ' + context;
 
-                var bodyLines = [
-                    '**Page:** ' + window.location.href,
-                    '**Title:** ' + document.title,
-                    context ? ('**Context:** ' + context) : null,
-                    '**When:** ' + new Date().toISOString(),
-                    '',
-                    '## What happened?',
-                    '',
-                    '## Steps to reproduce',
-                    '1. ',
-                    '',
-                    '## Expected',
-                    '',
-                    '## Actual',
-                    '',
-                    '## Environment',
-                    '- Browser: ' + navigator.userAgent
-                ].filter(Boolean);
-
-                url.searchParams.set('title', title);
-                if (labels) url.searchParams.set('labels', labels);
-                url.searchParams.set('body', bodyLines.join('\n'));
+                url.searchParams.set('title', anchor.dataset.issueTitle || 'Issue with the app');
+                url.searchParams.set('location', context);
+                url.searchParams.set('page-url', page.origin + page.pathname);
+                url.searchParams.set('diagnostics', [
+                    'Reported at: ' + new Date().toISOString(),
+                    'Browser: ' + navigator.userAgent
+                ].join('\n'));
+                url.searchParams.delete('body');
+                url.searchParams.delete('labels');
 
                 anchor.href = url.toString();
                 anchor.dataset.issueDecorated = '1';
@@ -136,6 +127,7 @@
 
             // Use early events so the updated href is used for navigation/new tabs.
             document.addEventListener('pointerdown', handle, true);
+            document.addEventListener('click', handle, true);
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Enter') handle(event);
             }, true);
