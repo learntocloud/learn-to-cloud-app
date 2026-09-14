@@ -143,7 +143,11 @@ def test_workflow_limits_metadata_changes_to_triggering_issue(label_setup):
     trigger = workflow[True]
     assert trigger["issues"]["types"] == ["opened", "reopened"]
     assert trigger["roles"] == "all"
-    assert workflow["permissions"] == {"contents": "read", "issues": "read"}
+    assert workflow["permissions"] == {
+        "contents": "read",
+        "issues": "read",
+        "copilot-requests": "write",
+    }
     assert workflow["tools"]["bash"] is False
     assert workflow["tools"]["cli-proxy"] is False
     github = workflow["tools"]["github"]
@@ -285,6 +289,23 @@ new AsyncFunction('require', 'github', 'context', 'core', 'process', script)(
             "repo": "learn-to-cloud-app",
             "number": 123,
         }
+
+
+@pytest.mark.unit
+def test_compiled_workflow_uses_actions_token_for_copilot_inference():
+    compiled_text = WORKFLOW.with_suffix(".lock.yml").read_text()
+    compiled = yaml.safe_load(compiled_text)
+    assert "${{ secrets.COPILOT_GITHUB_TOKEN }}" not in compiled_text
+    for name in ("agent", "detection"):
+        job = compiled["jobs"][name]
+        assert job["permissions"]["copilot-requests"] == "write"
+        inference_tokens = [
+            step["env"]["COPILOT_GITHUB_TOKEN"]
+            for step in job["steps"]
+            if "COPILOT_GITHUB_TOKEN" in step.get("env", {})
+        ]
+        assert inference_tokens
+        assert all(token == "${{ github.token }}" for token in inference_tokens)
 
 
 @pytest.mark.unit
