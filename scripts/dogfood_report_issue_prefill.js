@@ -27,24 +27,26 @@ async function decorateAndExtract(page, selector) {
 function validateIssueUrl(href, expectations) {
   const url = new URL(href);
   const title = url.searchParams.get("title") || "";
-  const labels = url.searchParams.get("labels") || "";
-  const body = url.searchParams.get("body") || "";
+  const template = url.searchParams.get("template") || "";
+  const location = url.searchParams.get("location") || "";
+  const pageUrl = url.searchParams.get("page-url") || "";
+  const diagnostics = url.searchParams.get("diagnostics") || "";
+  const automaticFields = ["template", "title", "location", "page-url", "diagnostics"];
 
   const checks = [
+    ["correct repository", url.origin === "https://github.com" && url.pathname === "/learntocloud/learn-to-cloud-app/issues/new"],
     ["title present", title.length > 0],
-    ["labels present", labels.length > 0],
-    ["body present", body.length > 0],
-    ["body contains page url", body.includes("**Page:**")],
-    ["body contains title", body.includes("**Title:**")],
-    ["body contains when", body.includes("**When:**")],
-    ["body contains environment", body.includes("## Environment") && body.includes("Browser:")],
+    ["correct issue form", template === expectations.template],
+    ["only context is prefilled", [...url.searchParams.keys()].every((key) => automaticFields.includes(key))],
+    ["page url contains only route", pageUrl === expectations.pageUrl],
+    ["report time present", /Reported at: \d{4}-\d{2}-\d{2}T/.test(diagnostics)],
+    ["browser present", /Browser: \S/.test(diagnostics)],
     ["title contains expected", expectations.titleContains.some((s) => title.includes(s))],
-    ["labels contains expected", expectations.labelsContains.every((s) => labels.includes(s))],
-    ["body contains expected", expectations.bodyContains.every((s) => body.includes(s))],
+    ["location contains expected", expectations.locationContains.every((s) => location.includes(s))],
   ];
 
   const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);
-  return { title, labels, body, failed };
+  return { title, template, location, pageUrl, diagnostics, failed };
 }
 
 (async () => {
@@ -74,8 +76,9 @@ function validateIssueUrl(href, expectations) {
     const dashHref = await decorateAndExtract(page, 'a[data-report-issue]');
     const dashResult = validateIssueUrl(dashHref, {
       titleContains: ["Dashboard", "Issue"],
-      labelsContains: [], // dashboard uses default labels (if any)
-      bodyContains: ["page=dashboard"],
+      template: "app_problem.yml",
+      pageUrl: "http://localhost:8000/dashboard",
+      locationContains: ["page=dashboard"],
     });
 
     // Topic page (phase 1 first topic)
@@ -87,15 +90,16 @@ function validateIssueUrl(href, expectations) {
     const topicHref = await decorateAndExtract(page, 'a[data-report-issue]');
     const topicResult = validateIssueUrl(topicHref, {
       titleContains: ["Issue with"],
-      labelsContains: ["content"],
-      bodyContains: ["**Context:** phase=1, topic="],
+      template: "content_problem.yml",
+      pageUrl: `http://localhost:8000${firstTopicPath}`,
+      locationContains: ["phase=1, topic="],
     });
 
     const output = {
       ok: dashResult.failed.length === 0 && topicResult.failed.length === 0 && consoleErrors.length === 0,
       consoleErrors,
-      dashboard: { href: dashHref, failed: dashResult.failed, title: dashResult.title, labels: dashResult.labels },
-      topic: { path: firstTopicPath, href: topicHref, failed: topicResult.failed, title: topicResult.title, labels: topicResult.labels },
+      dashboard: { href: dashHref, failed: dashResult.failed, title: dashResult.title, template: dashResult.template },
+      topic: { path: firstTopicPath, href: topicHref, failed: topicResult.failed, title: topicResult.title, template: topicResult.template },
     };
 
     console.log(JSON.stringify(output, null, 2));

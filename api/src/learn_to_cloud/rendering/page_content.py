@@ -188,7 +188,10 @@ HELP_LINKS: list[dict[str, str]] = [
         "label": "Discord",
     },
     {
-        "url": "https://github.com/learntocloud/learn-to-cloud-app/issues/new",
+        "url": (
+            "https://github.com/learntocloud/learn-to-cloud-app/issues/new"
+            "?template=app_problem.yml&location=page%3Ddashboard"
+        ),
         "label": "Report an Issue",
     },
 ]

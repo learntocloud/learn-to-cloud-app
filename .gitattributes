@@ -41,4 +41,4 @@ docker-compose* text eol=lf
 *.eot binary
 *.pdf binary
 
-.github/workflows/*.lock.yml linguist-generated=true merge=ours
+.github/workflows/*.lock.yml linguist-generated=true

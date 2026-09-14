@@ -1,0 +1,43 @@
+name: Content problem
+description: Report incorrect instructions, broken links, or confusing curriculum content.
+labels: ["area:content"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For learning help or feature ideas, use [Discussions](https://github.com/learntocloud/learn-to-cloud-app/discussions).
+        Reports are public. Remove passwords, tokens, credentials, and personal information from text, URLs, and screenshots.
+  - type: input
+    id: location
+    attributes:
+      label: Page and step
+      description: Name the phase, topic, and step or section with the problem.
+      placeholder: Phase 1, Linux, step about file permissions
+    validations:
+      required: true
+  - type: input
+    id: page-url
+    attributes:
+      label: Page URL
+      description: Link to the affected page. Remove private query parameters.
+      placeholder: https://learn2cloud.io/phase/1/linux
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong, and what should it say?
+      description: Quote the instruction or link, explain the actual problem and the expected correction. Include supporting links, screenshots, or exact errors if relevant.
+      placeholder: Describe the specific content problem and the correction you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Learning impact or workaround
+      description: If this blocks a step, say which one and whether you found a workaround. Optional for small corrections such as typos.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Report context
+      description: The app adds the report time and browser here. Review before submitting; no account or submission data is needed.

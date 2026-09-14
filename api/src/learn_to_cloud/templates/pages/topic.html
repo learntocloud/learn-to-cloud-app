@@ -110,14 +110,13 @@
 
 <div class="mt-8 flex justify-center">
     <a
-        href="https://github.com/learntocloud/learn-to-cloud-app/issues/new"
+        href="https://github.com/learntocloud/learn-to-cloud-app/issues/new?{{ {'template': 'content_problem.yml', 'location': 'phase=' ~ phase_id ~ ', topic=' ~ topic.slug} | urlencode }}"
         data-report-issue
         data-issue-title="Issue with {{ topic.name }}"
-        data-issue-labels="content"
         data-issue-context="phase={{ phase_id }}, topic={{ topic.slug }}"
         class="inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
         target="_blank"
-        rel="noopener"
+        rel="noopener noreferrer"
         hx-boost="false"
     >
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>

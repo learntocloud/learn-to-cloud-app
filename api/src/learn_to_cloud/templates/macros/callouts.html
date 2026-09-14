@@ -37,13 +37,13 @@ Macros:
     <p class="text-sm">{{ message }}</p>
     {% if report %}
     <a
-        href="https://github.com/learntocloud/learn-to-cloud-app/issues/new"
+        href="https://github.com/learntocloud/learn-to-cloud-app/issues/new?{{ {'template': 'app_problem.yml', 'location': report_context} | urlencode }}"
         data-report-issue
         data-issue-title="{{ report_title or 'Issue: Verification error' }}"
-        data-issue-labels="bug"
         {% if report_context %}data-issue-context="{{ report_context }}"{% endif %}
         target="_blank"
         rel="noopener noreferrer"
+        hx-boost="false"
         class="mt-2 inline-flex items-center gap-1 text-sm font-medium underline hover:no-underline"
     >Report this issue</a>
     {% endif %}

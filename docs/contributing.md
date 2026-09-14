@@ -160,6 +160,119 @@ playwright-mcp install-browser chromium --with-deps
 curl -sSL https://aspire.dev/install.sh | bash
 ```
 
+## Issue triage
+
+Issue triage is defined in `.github/workflows/issue-triage.md`. Commit its
+compiler-generated `.lock.yml` alongside the source; never edit the generated
+file. The workflow reads community reports, including first-time contributors,
+and proposes only type, Priority, and approved labels on the triggering issue.
+It does not post intake comments, assign maintainers, or close issues.
+
+GitHub's **Agent suggestions for issues** automation level controls whether
+intent-aware changes apply or wait for review. Start with **Full control**.
+This is a review convenience, not an authorization boundary: the agent's tools
+remain read-only and writes go through narrowly configured safe outputs.
+The explicit `issue-intent: true` spelling is supported by gh-aw v0.88.7.
+That release's built-in type handler permits clearing a type through a direct
+REST write. A read-only validation step rejects empty/unsupported types and
+rechecks the current type before the built-in handlers execute. Rejection fails
+the batch, rather than allowing a clearing operation or overwriting a maintainer
+decision. Keeping validation inside the consolidated job preserves the built-in
+threat-detection and staged-mode gates.
+Failure, missing-data, missing-tool, and no-op reports stay in Actions diagnostics
+instead of creating tracking issues or comments.
+
+### One-time setup and rollout
+
+Organization owners manage issue types and fields under **Organization
+Settings > Planning**. Reuse Bug, Feature, Task, and the single-select Priority
+field with Urgent, High, Medium, Low. Pin Priority to those three types and
+issues without a type. Its organization-only/public visibility is an
+organization-wide decision; the workflow does not change it.
+
+Label definitions live in `scripts/issue_triage/labels.json`. From the repository
+root, preview the exact changes before applying them with a GitHub account that
+can manage repository labels:
+
+```bash
+uv run python scripts/setup_issue_labels.py
+# Only after reviewing the preview:
+uv run python scripts/setup_issue_labels.py --apply
+```
+
+The script only creates or updates its nine managed labels. It never deletes or
+renames labels, removes assignments, or relabels historical issues. Re-running it
+is safe. Provision the labels before merging/activating the replacement
+workflow; missing labels cause safe outputs to fail rather than create metadata.
+Keep legacy labels used by pull requests and other automations.
+
+The workflow reuses the repository's `COPILOT_GITHUB_TOKEN` Actions secret for
+inference, not for GitHub tools or safe-output writes. Ensure that the secret
+contains a valid fine-grained token with the account's Copilot Requests access.
+The presence of the secret does not prove it is unexpired. If moving to centrally
+billed organization authentication later, follow the current
+[gh-aw authentication guidance](https://github.github.com/gh-aw/reference/auth/)
+and explicitly configure `copilot-requests: write`; that mode ignores the PAT.
+Never put a token in a workflow, issue, or report.
+
+Use gh-aw v0.88.7 to reproduce the checked-in compilation:
+
+```bash
+gh extension install github/gh-aw --pin v0.88.7
+gh aw compile issue-triage
+uv run poe check
+```
+
+The install command is for a missing extension; an existing installation must
+already match that version. Compile this workflow by name so unrelated workflows
+are not regenerated. The maintenance workflow stays in place.
+
+After merging, submit a clearly marked test report through each reporting path.
+Confirm form context is preserved, blank symptoms cannot satisfy required form
+fields, the workflow handles community authors, and suggestions wait for approval
+without comments or assignments. Confirm Priority can be read by the workflow's
+Actions token; a local administrator's field access is not proof of runtime
+access. Inspect Actions failures for expired inference credentials, missing
+labels, or field permissions. Do not bypass a failure with direct API writes.
+Do not enable greater automation until the initial suggestions have been reviewed.
+
+### Classification policy and evaluation
+
+Types describe Bug/Feature/Task; area labels describe the affected component;
+`needs-info`, `needs-reproduction`, and `support` describe distinct triage needs.
+Priority describes impact and urgency, not confidence. Reports with no symptom
+should receive `needs-info`, not invented type/priority values. Existing metadata
+and pending suggestions should be preserved on reopening.
+
+`scripts/issue_triage/cases.json` contains curated excerpts from 20 historical
+issues plus two synthetic preservation/prompt-injection cases. Excerpts omit
+resolution comments and personal data. They are not exact reconstructions of
+original issue revisions. Expected ranges are reviewed policy examples, not
+ground truth derived from the old labels.
+
+Export a blind prompt and score a saved JSON response without touching GitHub:
+
+```bash
+uv run python scripts/evaluate_issue_triage.py --prompt
+uv run python scripts/evaluate_issue_triage.py --score /path/to/response.json
+```
+
+Give the exported prompt to the chosen model with tools disabled, and save only
+its JSON response. The prompt excludes expected answers. The scorer requires all
+cases, permitted classifications, and rationale/confidence for each change;
+it rejects direct-application requests. Record the model and failures during
+review. A local policy evaluation does not exercise the Actions engine credential,
+MCP field access, or GitHub's suggestion UI. Those require the live rollout check.
+The normal test suite covers provisioning, fixture/scorer contracts, workflow
+permissions, and reporting links without running paid model inference.
+
+The initial blind GPT-5.4 policy evaluation on 2026-09-14 matched 18 of the 20
+historical expectations and both synthetic guardrails. It omitted the verification
+area for #576 and overstated priority for #52 despite a stated workaround.
+Retain Full control: this development set is not evidence that unattended triage
+is reliable. Standalone CLI authentication was unavailable during implementation;
+the evaluation used an isolated model session, not the Actions runtime.
+
 ## Quality Gates
 
 This project uses [poethepoet](https://poethepoet.natn.io/) as the single source
