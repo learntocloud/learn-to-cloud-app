@@ -183,7 +183,9 @@ def test_workflow_limits_metadata_changes_to_triggering_issue():
         assert "github-token" not in config
         assert "allowed-repos" not in config
     assert not (ROOT / ".github/workflows/new-issue.yaml").exists()
-    assert (ROOT / ".github/workflows/agentics-maintenance.yml").exists()
+    assert not (ROOT / ".github/workflows/agentics-maintenance.yml").exists()
+    assert (ROOT / ".github/aw/actions-lock.json").exists()
+    assert not (ROOT / ".github/aw/logs/.gitignore").exists()
 
 
 @pytest.mark.unit

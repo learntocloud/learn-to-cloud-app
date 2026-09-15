@@ -205,13 +205,13 @@ Use gh-aw v0.88.7 to reproduce the checked-in compilation:
 
 ```bash
 gh extension install github/gh-aw --pin v0.88.7
-gh aw compile issue-triage
+gh aw compile
 uv run poe check
 ```
 
 The install command is for a missing extension; an existing installation must
-already match that version. Compile this workflow by name so unrelated workflows
-are not regenerated. The maintenance workflow stays in place.
+already match that version. Compiling all workflow sources also removes generated
+maintenance output when no remaining workflow uses maintenance features.
 
 After merging, submit a clearly marked test issue. Confirm the workflow reads it
 through `gh`, emits one type and one Priority intent, and leaves both suggestions
