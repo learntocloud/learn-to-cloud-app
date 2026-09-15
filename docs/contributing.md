@@ -196,8 +196,10 @@ uv run poe check
 ```
 
 The generated lock file records the compiler version and pins runtime actions to
-immutable SHAs. The repository does not separately pin the local gh-aw extension.
-Upgrade it intentionally, recompile, and review the generated diff:
+immutable SHAs. CI recompiles changed agentic workflows with the repository's
+current compiler version and rejects stale lock files. The repository does not
+separately pin the local gh-aw extension. Upgrade it intentionally, recompile,
+and review the generated diff:
 
 ```bash
 gh extension upgrade gh-aw

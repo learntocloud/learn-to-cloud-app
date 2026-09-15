@@ -24,6 +24,7 @@ jobs:
     outputs:
       code: ${{ steps.filter.outputs.code }}
       infra: ${{ steps.filter.outputs.infra }}
+      agentic_workflows: ${{ steps.filter.outputs.agentic_workflows }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -49,6 +50,10 @@ jobs:
             infra:
               - 'infra/**'
               - '.github/workflows/infra-deploy.yml'
+            agentic_workflows:
+              - '.github/workflows/*.md'
+              - '.github/workflows/*.lock.yml'
+              - '.github/workflows/ci.yml'
 
   dependency-review:
     if: github.event_name == 'pull_request'
@@ -58,6 +63,28 @@ jobs:
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: moderate
+
+  agentic-workflow-ci:
+    needs: [changes]
+    if: needs.changes.outputs.agentic_workflows == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install gh-aw
+        run: gh extension install github/gh-aw@v0.88.7
+
+      - name: Verify agentic workflow lock files are up to date
+        run: |
+          set -euo pipefail
+          gh aw compile --validate
+          if ! git diff --exit-code -- '.github/workflows/*.lock.yml'; then
+            echo "::error::Agentic workflow lock files are out of date." >&2
+            echo "Run 'gh aw compile --validate' and commit the generated lock files." >&2
+            exit 1
+          fi
 
   terraform-ci:
     needs: [changes]
