@@ -1,4 +1,4 @@
-"""Contracts for managed labels, constrained triage, and offline evaluation."""
+"""Contracts for managed labels, issue triage, and offline evaluation."""
 
 import json
 import runpy
@@ -136,30 +136,29 @@ def test_label_api_failure_is_not_reported_as_success(label_setup, monkeypatch, 
 
 
 @pytest.mark.unit
-def test_workflow_limits_metadata_changes_to_triggering_issue(label_setup):
+def test_workflow_limits_metadata_changes_to_triggering_issue():
     frontmatter = WORKFLOW.read_text().split("---", 2)[1]
     workflow = yaml.safe_load(frontmatter)
     # PyYAML's YAML 1.1 loader interprets the GitHub Actions "on" key as True.
     trigger = workflow[True]
     assert trigger["issues"]["types"] == ["opened", "reopened"]
-    assert trigger["roles"] == "all"
     assert workflow["permissions"] == {
         "contents": "read",
         "issues": "read",
         "copilot-requests": "write",
     }
-    assert workflow["tools"]["bash"] is False
-    assert workflow["tools"]["cli-proxy"] is False
+    assert workflow["tools"]["bash"] is True
+    assert workflow["tools"]["cli-proxy"] is True
+    assert workflow["tools"]["edit"] is False
     github = workflow["tools"]["github"]
+    assert github["mode"] == "gh-proxy"
     assert github["read-only"] is True
     assert github["min-integrity"] == "none"
     assert github["allowed-repos"] == ["learntocloud/learn-to-cloud-app"]
     outputs = workflow["safe-outputs"]
     assert set(outputs) == {
-        "add-labels",
         "set-issue-type",
         "set-issue-field",
-        "steps",
         "report-failure-as-issue",
         "report-failed-jobs",
         "activation-comments",
@@ -175,120 +174,16 @@ def test_workflow_limits_metadata_changes_to_triggering_issue(label_setup):
     assert outputs["missing-tool"]["create-issue"] is False
     assert outputs["missing-data"]["create-issue"] is False
     assert outputs["report-incomplete"]["create-issue"] is False
-    assert set(outputs["add-labels"]["allowed"]) == {
-        label.name for label in label_setup.load_definitions()
-    }
-    assert outputs["add-labels"]["create-if-missing"] is False
-    assert outputs["add-labels"]["pull-requests"] is False
-    assert outputs["add-labels"]["max"] == 3
-    assert outputs["set-issue-type"]["allowed"] == ["Bug", "Feature", "Task"]
+    assert outputs["set-issue-type"]["allowed"] == ["Bug", "Feature"]
     assert outputs["set-issue-field"]["allowed-fields"] == ["Priority"]
-    for name in ("add-labels", "set-issue-type", "set-issue-field"):
+    for name in ("set-issue-type", "set-issue-field"):
         config = outputs[name]
         assert config["issue-intent"] is True
-        assert config["target"] == "triggering"
+        assert "target" not in config
         assert "github-token" not in config
         assert "allowed-repos" not in config
     assert not (ROOT / ".github/workflows/new-issue.yaml").exists()
     assert (ROOT / ".github/workflows/agentics-maintenance.yml").exists()
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("scenario", "exit_code", "query_count"),
-    [
-        ("valid", 0, 1),
-        ("explicit-target", 0, 1),
-        ("existing", 1, 1),
-        ("closed", 1, 1),
-        ("no-type", 0, 0),
-        ("empty-type", 1, 0),
-        ("unknown-type", 1, 0),
-        ("missing-metadata", 1, 1),
-        ("multiple", 1, 0),
-        ("direct-apply", 1, 0),
-        ("other-issue", 1, 0),
-        ("bad-confidence", 1, 0),
-        ("missing-rationale", 1, 0),
-    ],
-)
-def test_type_validator_is_read_only_and_rejects_unsafe_batches(
-    scenario, exit_code, query_count
-):
-    workflow = yaml.safe_load(WORKFLOW.read_text().split("---", 2)[1])
-    script = workflow["safe-outputs"]["steps"][0]["with"]["script"]
-    harness = """
-const fs = require('node:fs');
-const script = fs.readFileSync(0, 'utf8');
-const scenario = process.argv[1];
-const calls = [];
-const issue = { id: 'triggering-id', state: 'OPEN', issueType: null };
-const proposal = {
-  type: 'set_issue_type', issue_type: 'Bug', rationale: 'A documented failure.',
-  confidence: 'MEDIUM', suggest: true
-};
-if (scenario === 'existing') issue.issueType = { id: 'existing-type' };
-if (scenario === 'closed') issue.state = 'CLOSED';
-if (scenario === 'missing-metadata') delete issue.issueType;
-if (scenario === 'empty-type') proposal.issue_type = '';
-if (scenario === 'unknown-type') proposal.issue_type = 'Incident';
-if (scenario === 'direct-apply') proposal.suggest = false;
-if (scenario === 'other-issue') proposal.issue_number = 999;
-if (scenario === 'explicit-target') {
-  proposal.issue_number = '123';
-  proposal.repo = 'learntocloud/learn-to-cloud-app';
-}
-if (scenario === 'bad-confidence') proposal.confidence = 'certain';
-if (scenario === 'missing-rationale') delete proposal.rationale;
-const items = scenario === 'multiple' ? [proposal, proposal] :
-  scenario === 'no-type' ? [] : [proposal];
-const github = {
-  async graphql(query, variables) {
-    calls.push({ query, variables });
-    if (!/^\\s*query\\(/.test(query)) throw new Error('Only reads are permitted');
-    return { repository: { issue } };
-  }
-};
-const context = {
-  repo: { owner: 'learntocloud', repo: 'learn-to-cloud-app' },
-  payload: { issue: { number: 123 } }
-};
-const core = { info() {} };
-const env = { GH_AW_AGENT_OUTPUT: '/agent.json' };
-const readOutput = name => {
-  if (name !== 'node:fs') throw new Error('Unexpected module');
-  return { readFileSync(path) {
-    if (path !== '/agent.json') throw new Error('Unexpected file');
-    return JSON.stringify({ items });
-  } };
-};
-const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
-new AsyncFunction('require', 'github', 'context', 'core', 'process', script)(
-  readOutput, github, context, core, { env }
-).then(() => process.stdout.write(JSON.stringify({ calls })))
- .catch(error => {
-   process.stdout.write(JSON.stringify({ calls, error: error.message }));
-   process.exitCode = 1;
- });
-"""
-    result = subprocess.run(
-        ["node", "-e", harness, scenario],
-        input=script,
-        capture_output=True,
-        text=True,
-        timeout=15,
-        check=False,
-    )
-    assert result.returncode == exit_code, result.stderr
-    output = json.loads(result.stdout)
-    assert len(output["calls"]) == query_count
-    assert all("mutation(" not in call["query"] for call in output["calls"])
-    if query_count:
-        assert output["calls"][0]["variables"] == {
-            "owner": "learntocloud",
-            "repo": "learn-to-cloud-app",
-            "number": 123,
-        }
 
 
 @pytest.mark.unit
@@ -324,33 +219,18 @@ def test_compiled_workflow_uses_actions_token_for_copilot_inference():
 
 
 @pytest.mark.unit
-def test_compiled_workflow_validates_before_processing_and_blocks_failed_detection():
+def test_compiled_workflow_uses_cli_proxy_and_blocks_failed_detection():
     compiled = yaml.safe_load(WORKFLOW.with_suffix(".lock.yml").read_text())
     assert "suggest_issue_type" not in compiled["jobs"]
     safe_job = compiled["jobs"]["safe_outputs"]
     assert "needs.detection.result == 'success'" in safe_job["if"]
-    steps = safe_job["steps"]
-    setup = next(
-        index
-        for index, step in enumerate(steps)
-        if step.get("id") == "setup-agent-output-env"
+    agent_steps = compiled["jobs"]["agent"]["steps"]
+    cli_proxy = next(
+        step for step in agent_steps if step.get("name") == "Start CLI Proxy"
     )
-    validator = next(
-        index
-        for index, step in enumerate(steps)
-        if step.get("name") == "Validate type proposals before safe outputs"
-    )
-    processor = next(
-        index
-        for index, step in enumerate(steps)
-        if "process_safe_outputs.cjs" in step.get("with", {}).get("script", "")
-    )
-    assert setup < validator < processor
-    assert steps[validator]["env"]["GH_AW_AGENT_OUTPUT"] == (
-        "${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}"
-    )
-    assert not steps[validator].get("continue-on-error")
-    assert "if" not in steps[processor]
+    assert cli_proxy["env"]["CLI_PROXY_IMAGE"].startswith("ghcr.io/github/gh-aw-mcpg:")
+    assert "safeoutputs set_issue_type" in WORKFLOW.read_text()
+    assert "safeoutputs set_issue_field" in WORKFLOW.read_text()
     all_steps = [
         step for job in compiled["jobs"].values() for step in job.get("steps", [])
     ]

@@ -165,7 +165,7 @@ curl -sSL https://aspire.dev/install.sh | bash
 Issue triage is defined in `.github/workflows/issue-triage.md`. Commit its
 compiler-generated `.lock.yml` alongside the source; never edit the generated
 file. The workflow reads community reports, including first-time contributors,
-and proposes only type, Priority, and approved labels on the triggering issue.
+and proposes only type and Priority on the triggering issue.
 It does not post intake comments, assign maintainers, or close issues.
 
 GitHub's **Agent suggestions for issues** automation level controls whether
@@ -173,14 +173,9 @@ intent-aware changes apply or wait for review. Start with **Full control**.
 This is a review convenience, not an authorization boundary: the agent's tools
 remain read-only and writes go through narrowly configured safe outputs.
 The explicit `issue-intent: true` spelling is supported by gh-aw v0.88.7.
-That release's built-in type handler permits clearing a type through a direct
-REST write. A read-only validation step rejects empty/unsupported types and
-rechecks the current type before the built-in handlers execute. Rejection fails
-the batch, rather than allowing a clearing operation or overwriting a maintainer
-decision. Keeping validation inside the consolidated job preserves the built-in
-threat-detection and staged-mode gates.
-Failure, missing-data, missing-tool, and no-op reports stay in Actions diagnostics
-instead of creating tracking issues or comments.
+The agent reads issues through the read-only GitHub CLI proxy and submits type
+and Priority intents through the `safeoutputs` CLI. This avoids the native MCP
+tool path that failed during rollout testing.
 
 ### One-time setup and rollout
 
@@ -189,22 +184,6 @@ Settings > Planning**. Reuse Bug, Feature, Task, and the single-select Priority
 field with Urgent, High, Medium, Low. Pin Priority to those three types and
 issues without a type. Its organization-only/public visibility is an
 organization-wide decision; the workflow does not change it.
-
-Label definitions live in `scripts/issue_triage/labels.json`. From the repository
-root, preview the exact changes before applying them with a GitHub account that
-can manage repository labels:
-
-```bash
-uv run python scripts/setup_issue_labels.py
-# Only after reviewing the preview:
-uv run python scripts/setup_issue_labels.py --apply
-```
-
-The script only creates or updates its nine managed labels. It never deletes or
-renames labels, removes assignments, or relabels historical issues. Re-running it
-is safe. Provision the labels before merging/activating the replacement
-workflow; missing labels cause safe outputs to fail rather than create metadata.
-Keep legacy labels used by pull requests and other automations.
 
 The workflow grants `copilot-requests: write` to use the built-in, per-run GitHub
 Actions token for Copilot inference, as recommended by the
@@ -234,13 +213,12 @@ The install command is for a missing extension; an existing installation must
 already match that version. Compile this workflow by name so unrelated workflows
 are not regenerated. The maintenance workflow stays in place.
 
-After merging, submit a clearly marked test report through each reporting path.
-Confirm form context is preserved, blank symptoms cannot satisfy required form
-fields, the workflow handles community authors, and suggestions wait for approval
-without comments or assignments. Confirm Priority can be read by the workflow's
-Actions token; a local administrator's field access is not proof of runtime
-access. Inspect Actions failures for organization Copilot access or billing,
-missing labels, or field permissions. Do not bypass a failure with direct API writes.
+After merging, submit a clearly marked test issue. Confirm the workflow reads it
+through `gh`, emits one type and one Priority intent, and leaves both suggestions
+waiting for approval without comments or assignments. Confirm Priority can be
+read by the workflow's Actions token; a local administrator's field access is
+not proof of runtime access. Inspect Actions failures for organization Copilot
+access or billing and field permissions. Do not bypass a failure with direct API writes.
 Do not enable greater automation until the initial suggestions have been reviewed.
 
 ### Classification policy and evaluation
