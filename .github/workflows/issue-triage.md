@@ -1,5 +1,6 @@
 ---
 description: Triage new issues by suggesting a type and priority.
+model: gpt-5-mini
 on:
   issues:
     types: [opened, reopened]
