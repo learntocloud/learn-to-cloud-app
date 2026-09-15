@@ -3,16 +3,6 @@ name: Application Deploy
 on:
   push:
     branches: [main]
-    paths:
-      - 'api/**'
-      - 'infra/**'
-      - 'packages/learn-to-cloud-shared/**'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - '.dockerignore'
-      - '.github/workflows/ci.yml'
-      - '.github/workflows/infra-deploy.yml'
-      - '.github/workflows/app-deploy.yml'
   workflow_dispatch:
     inputs:
       target:
@@ -75,10 +65,14 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
+          predicate-quantifier: some-with-excludes
           filters: |
             app:
               - 'api/**'
+              - '!api/tests/**'
               - 'packages/learn-to-cloud-shared/**'
+              - '!packages/learn-to-cloud-shared/tests/**'
+              - 'packages/learn-to-cloud-shared-test-support/pyproject.toml'
               - 'pyproject.toml'
               - 'uv.lock'
               - '.dockerignore'
