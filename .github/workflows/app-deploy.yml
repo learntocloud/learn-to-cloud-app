@@ -3,25 +3,6 @@ name: Application Deploy
 on:
   push:
     branches: [main]
-    paths:
-      - 'api/Dockerfile'
-      - 'api/pyproject.toml'
-      - 'api/package.json'
-      - 'api/package-lock.json'
-      - 'api/src/**'
-      - 'api/alembic.ini'
-      - 'api/alembic/**'
-      - 'api/scripts/run_migrations.py'
-      - 'infra/**'
-      - 'packages/learn-to-cloud-shared/pyproject.toml'
-      - 'packages/learn-to-cloud-shared/src/**'
-      - 'packages/learn-to-cloud-shared-test-support/pyproject.toml'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - '.dockerignore'
-      - '.github/workflows/ci.yml'
-      - '.github/workflows/infra-deploy.yml'
-      - '.github/workflows/app-deploy.yml'
   workflow_dispatch:
     inputs:
       target:
@@ -84,18 +65,13 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
+          predicate-quantifier: some-with-excludes
           filters: |
             app:
-              - 'api/Dockerfile'
-              - 'api/pyproject.toml'
-              - 'api/package.json'
-              - 'api/package-lock.json'
-              - 'api/src/**'
-              - 'api/alembic.ini'
-              - 'api/alembic/**'
-              - 'api/scripts/run_migrations.py'
-              - 'packages/learn-to-cloud-shared/pyproject.toml'
-              - 'packages/learn-to-cloud-shared/src/**'
+              - 'api/**'
+              - '!api/tests/**'
+              - 'packages/learn-to-cloud-shared/**'
+              - '!packages/learn-to-cloud-shared/tests/**'
               - 'packages/learn-to-cloud-shared-test-support/pyproject.toml'
               - 'pyproject.toml'
               - 'uv.lock'
