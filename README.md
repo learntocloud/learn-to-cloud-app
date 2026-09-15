@@ -128,8 +128,12 @@ Published architecture and operations docs are available on
 
 Pushes to `main` select deployment work by changed paths:
 
-- Application changes build and validate the API and migration images, run
-  migrations, update the API, and verify production in one deployment job.
+- Application runtime changes build and validate the API and migration images,
+  run migrations, update the API, and verify production in one deployment job.
+  Runtime changes include API source and assets, migrations, Docker and package
+  manifests, locked dependencies, and shared runtime source. Tests, documentation,
+  evaluation scripts, and developer-only configuration still run CI but do not
+  deploy production.
 - Infrastructure changes call `infra-deploy.yml` to plan and apply Terraform,
   then verify production without building images, running migrations, or updating
   the API image. Terraform can still update the API's configuration.

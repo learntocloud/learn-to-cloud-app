@@ -7,6 +7,24 @@ import yaml
 
 _ROOT = Path(__file__).resolve().parents[2]
 
+_RUNTIME_DEPLOY_PATHS = {
+    "api/Dockerfile",
+    "api/pyproject.toml",
+    "api/package.json",
+    "api/package-lock.json",
+    "api/src/**",
+    "api/alembic.ini",
+    "api/alembic/**",
+    "api/scripts/run_migrations.py",
+    "packages/learn-to-cloud-shared/pyproject.toml",
+    "packages/learn-to-cloud-shared/src/**",
+    "packages/learn-to-cloud-shared-test-support/pyproject.toml",
+    "pyproject.toml",
+    "uv.lock",
+    ".dockerignore",
+    ".github/workflows/app-deploy.yml",
+}
+
 
 def test_docker_excludes_first_party_test_trees():
     patterns = (_ROOT / ".dockerignore").read_text().splitlines()
@@ -55,3 +73,28 @@ def test_packaging_changes_trigger_quality_and_deployment(workflow_name, categor
     assert ".github/workflows/app-deploy.yml" in paths
     if workflow_name == "app-deploy.yml":
         assert ".dockerignore" in workflow["on"]["push"]["paths"]
+
+
+def test_application_deploy_runs_only_for_runtime_inputs():
+    workflow = yaml.load(
+        (_ROOT / ".github/workflows/app-deploy.yml").read_text(),
+        Loader=yaml.BaseLoader,
+    )
+    push_paths = set(workflow["on"]["push"]["paths"])
+    filters = next(
+        step["with"]["filters"]
+        for step in workflow["jobs"]["changes"]["steps"]
+        if step.get("id") == "filter"
+    )
+    app_paths = set(yaml.safe_load(filters)["app"])
+
+    assert app_paths == _RUNTIME_DEPLOY_PATHS
+    assert push_paths == {
+        *_RUNTIME_DEPLOY_PATHS,
+        "infra/**",
+        ".github/workflows/ci.yml",
+        ".github/workflows/infra-deploy.yml",
+    }
+    assert "api/tests/**" not in app_paths
+    assert "packages/learn-to-cloud-shared/tests/**" not in app_paths
+    assert "scripts/**" not in app_paths
