@@ -15,8 +15,8 @@ engine:
   id: copilot
   model: copilot/gpt-5-mini
 tools:
-  bash: false
-  cli-proxy: false
+  bash: true
+  cli-proxy: true
   edit: false
   github: false
 safe-outputs:
@@ -29,5 +29,8 @@ safe-outputs:
 
 # Agentic workflow smoke test
 
-Call `safeoutputs.noop` with exactly this message:
-`Agentic workflow smoke test passed.`
+Run exactly this command and do nothing else:
+
+```bash
+safeoutputs noop --message "Agentic workflow smoke test passed."
+```
