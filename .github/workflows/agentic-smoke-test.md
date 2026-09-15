@@ -19,9 +19,15 @@ tools:
   cli-proxy: false
   edit: false
   github: false
-safe-outputs: {}
+safe-outputs:
+  activation-comments: false
+  report-failure-as-issue: false
+  report-failed-jobs: false
+  noop:
+    report-as-issue: false
 ---
 
 # Agentic workflow smoke test
 
-Reply with exactly: Agentic workflow smoke test passed.
+Call `safeoutputs.noop` with exactly this message:
+`Agentic workflow smoke test passed.`
