@@ -1,6 +1,7 @@
 """Health check endpoints."""
 
 import logging
+import time
 from pathlib import Path
 
 from alembic.config import Config
@@ -61,6 +62,14 @@ async def health(request: Request) -> HealthResponse:
     worker = getattr(request.app.state, "verification_worker", None)
     if worker is not None and worker.done():
         raise HTTPException(status_code=503, detail="Verification worker stopped")
+    worker_state = getattr(request.app.state, "verification_worker_state", None)
+    if worker_state is not None and worker_state.is_stale:
+        age_seconds = time.monotonic() - worker_state.last_heartbeat
+        logger.warning(
+            "verification.worker.stale",
+            extra={"verification.worker.age_seconds": round(age_seconds, 1)},
+        )
+        raise HTTPException(status_code=503, detail="Verification worker stalled")
     catalog = get_curriculum_catalog()
     return HealthResponse(
         status="healthy",

@@ -936,7 +936,11 @@ never attach prompts, evidence, fetched source, or credentials.
 Fatal loop failures emit `verification.worker.failed` with only `error.type`,
 then re-raise; they do not emit raw exception details or the HTTP-only
 `unhandled.exception`. Both `/health` and `/ready` return 503 when the worker
-task has finished. Shutdown cancels the worker and closes the grader's clients.
+task has finished. The worker also records monotonic loop heartbeats; `/health`
+returns 503 with `verification.worker.stale` when a loop exceeds the derived
+execution, shutdown, and polling deadline, allowing Container Apps to restart
+the shared API replica. Shutdown marks cancellation as expected before closing
+the grader's clients.
 The existing stuck alert covers overdue work and worker failures; final-outcome
 and LLM alerts remain separate.
 
