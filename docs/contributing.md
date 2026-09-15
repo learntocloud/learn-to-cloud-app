@@ -164,18 +164,13 @@ curl -sSL https://aspire.dev/install.sh | bash
 
 Issue triage is defined in `.github/workflows/issue-triage.md`. Commit its
 compiler-generated `.lock.yml` alongside the source; never edit the generated
-file. The workflow reads community reports, including first-time contributors,
-and proposes only type and Priority on the triggering issue.
-It does not post intake comments, assign maintainers, or close issues.
+file. The workflow uses natural-language instructions to propose a type and
+Priority on new and reopened issues without posting comments.
 
 GitHub's **Agent suggestions for issues** automation level controls whether
-intent-aware changes apply or wait for review. Start with **Full control**.
-This is a review convenience, not an authorization boundary: the agent's tools
-remain read-only and writes go through narrowly configured safe outputs.
-The explicit `issue-intent: true` spelling is supported by gh-aw v0.88.7.
-The agent reads issues through the read-only GitHub CLI proxy and submits type
-and Priority intents through the `safeoutputs` CLI. This avoids the native MCP
-tool path that failed during rollout testing.
+intent-aware changes apply or wait for review. The agent reads issues through
+the configured GitHub tools, while writes remain limited to the declared safe
+outputs.
 
 ### One-time setup and rollout
 
@@ -190,73 +185,27 @@ Actions token for Copilot inference, as recommended by the
 [gh-aw authentication guidance](https://github.github.com/gh-aw/reference/auth/).
 The organization must have a Copilot subscription with centralized billing
 enabled. No personal access token or `COPILOT_GITHUB_TOKEN` secret is required;
-that secret is ignored for inference in this mode. GitHub tools remain read-only,
-and issue writes still go through safe outputs. Do not delete an existing secret
-without checking whether other workflows use it. Never put a token in a workflow,
-issue, or report.
+that secret is ignored for inference in this mode.
 
-Triage temporarily pins the exact model `copilot/gpt-5-mini`. In gh-aw v0.88.7,
-automatic selection chose a utility model missing from the runtime's API-routing
-catalog and sent requests to an incompatible endpoint. GPT-5 mini is present in
-both the live model list and the routing catalog. Revisit this pin once upstream
-automatic model selection and endpoint routing are compatible.
-
-Use gh-aw v0.88.7 to reproduce the checked-in compilation:
+Compile the workflow with the installed gh-aw extension:
 
 ```bash
-gh extension install github/gh-aw --pin v0.88.7
-gh aw compile issue-triage
+gh aw --version
+gh aw compile
 uv run poe check
 ```
 
-The install command is for a missing extension; an existing installation must
-already match that version. Compile this workflow by name so unrelated workflows
-are not regenerated. The maintenance workflow stays in place.
-
-After merging, submit a clearly marked test issue. Confirm the workflow reads it
-through `gh`, emits one type and one Priority intent, and leaves both suggestions
-waiting for approval without comments or assignments. Confirm Priority can be
-read by the workflow's Actions token; a local administrator's field access is
-not proof of runtime access. Inspect Actions failures for organization Copilot
-access or billing and field permissions. Do not bypass a failure with direct API writes.
-Do not enable greater automation until the initial suggestions have been reviewed.
-
-### Classification policy and evaluation
-
-Types describe Bug/Feature/Task; area labels describe the affected component;
-`needs-info`, `needs-reproduction`, and `support` describe distinct triage needs.
-Priority describes impact and urgency, not confidence. Reports with no symptom
-should receive `needs-info`, not invented type/priority values. Existing metadata
-and pending suggestions should be preserved on reopening.
-
-`scripts/issue_triage/cases.json` contains curated excerpts from 20 historical
-issues plus two synthetic preservation/prompt-injection cases. Excerpts omit
-resolution comments and personal data. They are not exact reconstructions of
-original issue revisions. Expected ranges are reviewed policy examples, not
-ground truth derived from the old labels.
-
-Export a blind prompt and score a saved JSON response without touching GitHub:
+The generated lock file records the compiler version and pins runtime actions to
+immutable SHAs. The repository does not separately pin the local gh-aw extension.
+Upgrade it intentionally, recompile, and review the generated diff:
 
 ```bash
-uv run python scripts/evaluate_issue_triage.py --prompt
-uv run python scripts/evaluate_issue_triage.py --score /path/to/response.json
+gh extension upgrade gh-aw
+gh aw compile
 ```
 
-Give the exported prompt to the chosen model with tools disabled, and save only
-its JSON response. The prompt excludes expected answers. The scorer requires all
-cases, permitted classifications, and rationale/confidence for each change;
-it rejects direct-application requests. Record the model and failures during
-review. A local policy evaluation does not exercise the Actions engine credential,
-MCP field access, or GitHub's suggestion UI. Those require the live rollout check.
-The normal test suite covers provisioning, fixture/scorer contracts, workflow
-permissions, and reporting links without running paid model inference.
-
-The initial blind GPT-5.4 policy evaluation on 2026-09-14 matched 18 of the 20
-historical expectations and both synthetic guardrails. It omitted the verification
-area for #576 and overstated priority for #52 despite a stated workaround.
-Retain Full control: this development set is not evidence that unattended triage
-is reliable. Standalone CLI authentication was unavailable during implementation;
-the evaluation used an isolated model session, not the Actions runtime.
+After merging, submit a clearly marked test issue. Confirm the workflow reads it
+and emits one type and one Priority intent without comments or assignments.
 
 ## Quality Gates
 
