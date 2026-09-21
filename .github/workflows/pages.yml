@@ -56,14 +56,17 @@ jobs:
         run: npm test
         working-directory: talks
 
+      - name: Assemble documentation and talks
+        run: |
+          mkdir -p _site-source/talks
+          cp -R docs/. _site-source/
+          cp -R talks/dist/. _site-source/talks/
+
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1.0.13
         with:
-          source: ./docs
+          source: ./_site-source
           destination: ./_site
-
-      - name: Add talks to documentation site
-        run: mkdir -p _site/talks && cp -R talks/dist/. _site/talks/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

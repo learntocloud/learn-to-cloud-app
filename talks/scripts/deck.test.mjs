@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { createStaticServer } from './serve.mjs';
@@ -14,7 +15,7 @@ const basePath = '/learn-to-cloud-app/talks/';
 before(async () => {
   process.env.TMPDIR = fileURLToPath(new URL('../.browser-tmp/', import.meta.url));
   await mkdir(process.env.TMPDIR, { recursive: true });
-  server = createStaticServer({ basePath });
+  server = await createStaticServer({ basePath });
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', resolve);
@@ -235,4 +236,32 @@ test('server handles missing files, malformed paths, methods, and MIME types', a
   assert.match(script.headers.get('content-type'), /^text\/javascript/);
   const redirect = await fetch(talkUrl.slice(0, -1), { redirect: 'manual' });
   assert.equal(redirect.status, 301);
+});
+
+test('server snapshots assets and refuses symlinks instead of following changed files', async () => {
+  const fixture = await mkdtemp(fileURLToPath(new URL('../dist/snapshot-', import.meta.url)));
+  const outside = await mkdtemp(fileURLToPath(new URL('../.browser-tmp/outside-', import.meta.url)));
+  const asset = path.join(fixture, 'asset.txt');
+  let snapshotServer;
+  try {
+    await writeFile(asset, 'public asset');
+    const privateFile = path.join(outside, 'private.txt');
+    await writeFile(privateFile, 'must not be served');
+    snapshotServer = await createStaticServer();
+    await new Promise((resolve, reject) => {
+      snapshotServer.once('error', reject);
+      snapshotServer.listen(0, '127.0.0.1', resolve);
+    });
+    await rm(asset);
+    await symlink(privateFile, asset);
+    const url = `http://127.0.0.1:${snapshotServer.address().port}/${path.basename(fixture)}/asset.txt`;
+    const response = await fetch(url);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), 'public asset');
+    await assert.rejects(createStaticServer(), /Unsupported asset type/);
+  } finally {
+    if (snapshotServer?.listening) await new Promise((resolve) => snapshotServer.close(resolve));
+    await rm(fixture, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
 });

@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
-import { readFile, realpath, stat } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { open, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -20,11 +21,37 @@ const types = {
   '.woff2': 'font/woff2',
 };
 
-export function createStaticServer({ basePath = '/' } = {}) {
+async function loadAssets(directory, prefix = '') {
+  const assets = new Map();
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const filename = path.join(directory, entry.name);
+    const key = `${prefix}${entry.name}`;
+    if (entry.isDirectory()) {
+      for (const [name, asset] of await loadAssets(filename, `${key}/`)) assets.set(name, asset);
+    } else if (entry.isFile()) {
+      const file = await open(filename, constants.O_RDONLY | constants.O_NOFOLLOW);
+      try {
+        assets.set(key, {
+          body: await file.readFile(),
+          type: types[path.extname(entry.name)] ?? 'application/octet-stream',
+        });
+      } finally {
+        await file.close();
+      }
+    } else {
+      throw new Error(`Unsupported asset type: ${filename}`);
+    }
+  }
+  return assets;
+}
+
+export async function createStaticServer({ basePath = '/' } = {}) {
   if (!/^\/(?:[a-zA-Z0-9_-]+\/)*$/.test(basePath)) {
     throw new Error('BASE_PATH must start and end with / and contain only simple path segments');
   }
-  return createServer(async (request, response) => {
+  // Requests only access this snapshot, never paths on the filesystem.
+  const assets = await loadAssets(dist);
+  return createServer((request, response) => {
     const send = (status, message) => {
       response.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
       response.end(request.method === 'HEAD' ? undefined : message);
@@ -49,46 +76,23 @@ export function createStaticServer({ basePath = '/' } = {}) {
       send(404, 'Not found');
       return;
     }
-    try {
-      const root = await realpath(dist);
-      let filename = await realpath(path.join(root, pathname.slice(basePath.length)));
-      const isInsideRoot = (target) => {
-        const relative = path.relative(root, target);
-        return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
-      };
-      if (!isInsideRoot(filename)) {
-        send(403, 'Forbidden');
-        return;
-      }
-      if ((await stat(filename)).isDirectory()) {
-        if (!pathname.endsWith('/')) {
-          response.writeHead(301, { Location: `${encodeURI(pathname)}/` });
-          response.end();
-          return;
-        }
-        filename = await realpath(path.join(filename, 'index.html'));
-      }
-      if (!isInsideRoot(filename)) {
-        send(403, 'Forbidden');
-        return;
-      }
-      const body = await readFile(filename);
-      response.writeHead(200, {
-        'Content-Type': types[path.extname(filename)] ?? 'application/octet-stream',
-        'Content-Length': body.length,
-        'Cache-Control': 'no-store',
-      });
-      response.end(request.method === 'HEAD' ? undefined : body);
-    } catch (error) {
-      if (['ENOENT', 'ENOTDIR', 'EISDIR'].includes(error.code)) {
-        send(404, 'Not found');
-      } else if (error.code === 'EACCES') {
-        send(403, 'Forbidden');
-      } else {
-        console.error(error);
-        send(500, 'Unable to read file');
-      }
+    const key = pathname.slice(basePath.length);
+    if (!pathname.endsWith('/') && assets.has(`${key}/index.html`)) {
+      response.writeHead(301, { Location: `${encodeURI(pathname)}/` });
+      response.end();
+      return;
     }
+    const asset = assets.get(pathname.endsWith('/') ? `${key}index.html` : key);
+    if (!asset) {
+      send(404, 'Not found');
+      return;
+    }
+    response.writeHead(200, {
+      'Content-Type': asset.type,
+      'Content-Length': asset.body.length,
+      'Cache-Control': 'no-store',
+    });
+    response.end(request.method === 'HEAD' ? undefined : asset.body);
   });
 }
 
@@ -98,7 +102,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     throw new Error('PORT must be an integer from 1 to 65535');
   }
   const basePath = process.env.BASE_PATH ?? '/';
-  const server = createStaticServer({ basePath });
+  const server = await createStaticServer({ basePath });
   server.on('error', (error) => {
     console.error(error.message);
     process.exitCode = 1;

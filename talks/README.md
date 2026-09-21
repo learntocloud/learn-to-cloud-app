@@ -28,7 +28,9 @@ BASE_PATH=/learn-to-cloud-app/talks/ PORT=4174 npm run serve
 ```
 
 Then open <http://localhost:4174/learn-to-cloud-app/talks/building-a-ladder/>.
-The server listens only on the local machine and serves only `dist/`.
+The server listens only on the local machine and serves an in-memory snapshot of
+`dist/`. It rejects symlink assets at startup and never reads filesystem paths
+from requests. Rebuild and restart the server to preview edits.
 
 ## Browser checks
 
@@ -59,8 +61,10 @@ plus Reveal's reset stylesheet, presentation stylesheet, JavaScript runtime,
 notes plugin, and license, into `dist/building-a-ladder/`. Generated files and
 `node_modules/` are not committed. Images should be local to `assets/`.
 
-The Pages workflow installs dependencies, builds and tests the talk, builds the
-existing documentation with Jekyll, and then adds `dist/` to `_site/talks/`.
+The Pages workflow installs dependencies, builds and tests the talk, and assembles
+the documentation and `dist/` in `_site-source/` before running Jekyll. Jekyll
+produces the complete `_site/`, including `talks/`, so later steps do not need to
+write into its container-owned output directory.
 The documentation remains at the site root. Pull requests build and test without
 deploying. Only runs on `main` can deploy, including manually triggered runs.
 Changes appear publicly after the pull request is merged and Pages deployment
