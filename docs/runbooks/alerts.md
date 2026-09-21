@@ -460,24 +460,30 @@ attempt failure rather than an exhausted SDK error.
 
 ### Meaning
 
-An attempt waited too long for a claim, an execution exceeded its limit, or the
-API's sequential verification loop failed. One alert covers these related
-availability failures without a separate worker-death alert. The bounded
-`StuckReason` dimension is `queued_beyond_limit`, `execution_beyond_limit`, or
-`worker_failed`. The first two come from `verification.attempt.stuck`; the last
-comes from `verification.worker.failed`. The alert accepts trace or exception
-telemetry, but the worker logs only `error.type` to avoid leaking provider
-responses or evidence.
+An attempt waited too long for a claim, an execution exceeded its limit, the
+API's sequential verification loop failed, or its loop stopped reporting
+progress. One alert covers these related availability failures. The bounded
+`StuckReason` dimension is `queued_beyond_limit`, `execution_beyond_limit`,
+`worker_failed`, or `worker_stale`. The first two come from
+`verification.attempt.stuck`; the third comes from `verification.worker.failed`;
+the last comes from `verification.worker.stale` emitted by `/health`. The alert
+accepts trace or exception telemetry, but the worker logs only bounded error
+types and heartbeat age.
 
 The worker and HTTP server share `learn-to-cloud-api`. Both `/health` and
-`/ready` return 503 when the worker task has finished, allowing restart and
-availability detection. Healthy probes indicate a live task, not that queued
-work is progressing within its limit; the overdue signal covers that separately.
+`/ready` return 503 when the worker task has finished. `/health` also returns
+503 when the monotonic heartbeat is stale, allowing the Container Apps liveness
+probe to restart the shared replica. `/ready` intentionally remains a traffic
+eligibility check. Healthy probes indicate a live task, not that queued work is
+progressing within its limit; the overdue signal covers that separately.
 `verification.worker.failed` is not the HTTP-only `unhandled.exception`.
 
 ### First checks
 
-1. Use the alert dimension to identify the bounded stuck reason.
+1. Use the alert dimension to identify the bounded stuck reason. For
+   `worker_stale`, compare `verification.worker.age_seconds` with the deployed
+   worker settings and inspect the replica for a blocked database or dependency
+   operation.
 2. Capture attempt ID and age for overdue work, or replica and error type for a
    worker failure (which need not have an attempt ID).
 3. Check the API revision, replica health, database connectivity, and dependency

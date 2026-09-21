@@ -180,3 +180,36 @@ async def test_account_deletion_does_not_stop_worker(dependencies, caplog):
         await worker._execute(attempt_id, sessions, VerificationWorkerConfig())
     assert "verification.attempt.deleted" in caplog.text
     assert "verification.worker.failed" not in caplog.text
+
+
+def test_worker_state_threshold_covers_execution_and_shutdown():
+    config = VerificationWorkerConfig(
+        poll_interval_seconds=5,
+        execution_timeout_seconds=180,
+        shutdown_timeout_seconds=10,
+    )
+    state = worker.VerificationWorkerState.from_config(config)
+
+    assert state.stale_after_seconds == 200
+
+
+def test_worker_state_classifies_shutdown_cancellation():
+    state = worker.VerificationWorkerState(10, 0)
+    state.request_shutdown()
+    task = MagicMock()
+    task.cancelled.return_value = True
+
+    state.finish(task)
+
+    assert state.status == "stopped"
+
+
+def test_worker_state_classifies_unexpected_failure():
+    state = worker.VerificationWorkerState(10, 0)
+    task = MagicMock()
+    task.cancelled.return_value = False
+    task.exception.return_value = RuntimeError("private")
+
+    state.finish(task)
+
+    assert state.status == "failed"

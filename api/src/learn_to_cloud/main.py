@@ -44,7 +44,10 @@ from learn_to_cloud.routes import (
 )
 from learn_to_cloud.routes.health_routes import get_code_alembic_head
 from learn_to_cloud.services.verification_grader import close_verification_grader
-from learn_to_cloud.services.verification_worker import run_verification_worker
+from learn_to_cloud.services.verification_worker import (
+    VerificationWorkerState,
+    run_verification_worker,
+)
 
 # Configure stdlib logging before Azure Monitor adds any logging handlers.
 # Azure Monitor must run before fastapi.FastAPI() is instantiated so request
@@ -106,14 +109,25 @@ async def lifespan(app: fastapi.FastAPI):
         raise
 
     try:
+        worker_state = VerificationWorkerState.from_config(
+            app.state.settings.verification_worker
+        )
+        app.state.verification_worker_state = worker_state
         app.state.verification_worker = asyncio.create_task(
             run_verification_worker(
-                app.state.session_maker, app.state.settings.verification_worker
+                app.state.session_maker,
+                app.state.settings.verification_worker,
+                worker_state.heartbeat,
             ),
             name="verification-worker",
         )
+        app.state.verification_worker.add_done_callback(worker_state.finish)
+        await asyncio.sleep(0)
         yield
     finally:
+        worker_state = getattr(app.state, "verification_worker_state", None)
+        if worker_state is not None:
+            worker_state.request_shutdown()
         worker = getattr(app.state, "verification_worker", None)
         try:
             if worker is not None:

@@ -12,6 +12,7 @@ from learn_to_cloud.routes.health_routes import health, ready
 def _request():
     request = MagicMock()
     request.app.state.verification_worker = None
+    request.app.state.verification_worker_state = None
     return request
 
 
@@ -42,6 +43,16 @@ class TestHealthEndpoint:
         with pytest.raises(HTTPException) as exc:
             await health(request)
         assert exc.value.status_code == 503
+
+    async def test_health_fails_when_worker_heartbeat_is_stale(self):
+        request = _request()
+        request.app.state.verification_worker_state = MagicMock()
+        request.app.state.verification_worker_state.is_stale = True
+        request.app.state.verification_worker_state.last_heartbeat = 0
+        with pytest.raises(HTTPException) as exc:
+            await health(request)
+        assert exc.value.status_code == 503
+        assert exc.value.detail == "Verification worker stalled"
 
 
 @pytest.mark.unit

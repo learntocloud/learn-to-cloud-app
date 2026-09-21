@@ -211,7 +211,12 @@ def test_stuck_alert_uses_only_canonical_attributes():
     assert '"verification.worker.failed"' in block
     assert 'Event == "verification.worker.failed" or isnotempty(AttemptId)' in block
     assert 'cloud_RoleName == "learn-to-cloud-api"' in block
-    for reason in ("queued_beyond_limit", "execution_beyond_limit", "worker_failed"):
+    for reason in (
+        "queued_beyond_limit",
+        "execution_beyond_limit",
+        "worker_failed",
+        "worker_stale",
+    ):
         assert f'"{reason}"' in block
         assert reason in runbook
 
