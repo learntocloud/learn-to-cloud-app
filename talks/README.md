@@ -1,10 +1,16 @@
 # Conference talks
 
-## Building a Ladder
+## How GitHub Helps Us Reach 6,000 Learners
 
 The presentation is published alongside the existing documentation at
 [`talks/building-a-ladder/`](https://learntocloud.github.io/learn-to-cloud-app/talks/building-a-ladder/).
 Its editable source is in `building-a-ladder/`.
+The original URL is retained so existing links keep working.
+
+The deck has 20 minimal, blue-accented slides. Each slide carries one main idea;
+the full script and technical context live in speaker notes. The original
+6,000-learner talk title is retained, with the current 9,000+ figure on the
+Learn to Cloud slide.
 
 Use Node.js 24 LTS:
 
@@ -45,7 +51,9 @@ on an available port, so they do not conflict with the preview server. They
 check initialization, local asset loading, speaker notes, image loading, keyboard
 and hash navigation, notes-window synchronization, the dark viewport background,
 slide bounds and content clearance above footers, a narrow viewport, PDF output,
-and the server's error handling. The
+and the server's error handling. They also enforce the 20-slide structure,
+original title, blue accent, and a 40-word on-slide text budget (excluding notes
+and footers). The
 browser checks use the full `/learn-to-cloud-app/talks/` project prefix.
 Browser scratch files stay in the ignored `.browser-tmp/` directory.
 

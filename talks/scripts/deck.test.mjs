@@ -99,6 +99,26 @@ test('supports keyboard navigation and reloadable hash links', async (t) => {
   await page.waitForFunction(() => Reveal.getIndices().h === 0);
 });
 
+test('keeps the original title in a minimal 20-slide blue deck', async (t) => {
+  const page = await openDeck(t);
+  const presentation = await page.evaluate(() => ({
+    title: document.querySelector('h1').innerText.replace(/\s+/g, ' ').trim(),
+    accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
+    slides: Reveal.getSlides().map((slide) => {
+      const content = slide.cloneNode(true);
+      content.querySelectorAll('aside.notes, footer').forEach((element) => element.remove());
+      content.querySelectorAll('br').forEach((element) => element.replaceWith(' '));
+      return { id: slide.id, words: content.textContent.trim().split(/\s+/).length };
+    }),
+  }));
+  assert.equal(presentation.title, 'How GitHub Helps Us Reach 6,000 Learners');
+  assert.equal(presentation.accent, '#83bcff');
+  assert.equal(presentation.slides.length, 20);
+  for (const slide of presentation.slides) {
+    assert.ok(slide.words <= 40, `${slide.id} has ${slide.words} words; move detail into notes`);
+  }
+});
+
 test('Reveal viewport uses the dark background required by the slide text', async (t) => {
   const page = await openDeck(t);
   const background = await page.evaluate(() =>

@@ -6,8 +6,6 @@ for (const [index, slide] of slides.entries()) {
 
   for (const [className, text] of [
     ["footer-brand", "LEARN TO CLOUD"],
-    ["footer-chapter", slide.dataset.chapter],
-    ["footer-pillar", slide.dataset.pillar],
     ["footer-number", `${String(index + 1).padStart(2, "0")} / ${slides.length}`],
   ]) {
     const label = document.createElement("span");
