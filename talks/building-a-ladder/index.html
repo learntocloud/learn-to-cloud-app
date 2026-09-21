@@ -91,17 +91,25 @@
         <section id="github-oauth">
           <p class="eyebrow">Maintenance + momentum</p>
           <h2>GitHub OAuth.</h2>
-          <figure class="login-shot">
-            <img src="assets/sign-in.webp" alt="The actual Sign in with GitHub button on Learn to Cloud.">
-          </figure>
-          <div class="two-lines"><p>Less auth to build.</p><p>An account they'll keep.</p></div>
+          <div class="split oauth-layout">
+            <figure class="login-shot oauth-shot">
+              <img src="assets/sign-in.webp" alt="The actual Sign in with GitHub button on Learn to Cloud.">
+            </figure>
+            <div>
+              <p class="code-label">api/core/auth.py</p>
+              <pre class="code">oauth.register(
+    name=<span class="k">"github"</span>,
+    api_base_url=<span class="k">"https://api.github.com/"</span>,
+    client_kwargs={<span class="k">"scope"</span>: <span class="k">"read:user"</span>},
+)</pre>
+            </div>
+          </div>
           <aside class="notes">
             <p>Of course, the answer is simple and boring: sign in with GitHub.</p>
             <p>For us, that means less maintenance. We don't build password registration, password storage, or password resets. GitHub handles those. We still handle sessions and access control in our app, but that's less for two contributors to maintain.</p>
             <p>For learners, it's a small momentum step. You know the advice: if you want to start running, put on your shoes and go for that first run. So in this case, if they don't already have one, creating a GitHub account is our version of putting on the shoes.</p>
             <p>But this also unlocks so much more for us...</p>
-            <p>Source: <a href="https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/core/auth.py">OAuth configuration</a>. read:user is profile-read access, not a username-only permission.</p>
-            <pre>client_kwargs={"scope": "read:user"}</pre>
+            <p>Source: <a href="https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/core/auth.py">OAuth configuration</a>. read:user is profile-read access, not a username-only permission. The snippet omits client_id, client_secret, and access_token_url from the real registration call.</p>
           </aside>
         </section>
 
@@ -120,7 +128,12 @@
         <section id="first-real-workflow">
           <p class="eyebrow">Phase 0 / Repositories / Structure</p>
           <h2>A first real workflow.</h2>
-          <div class="flow four-steps"><span>Create</span><b aria-hidden="true">&#8594;</b><span>Clone</span><b aria-hidden="true">&#8594;</b><span>Change</span><b aria-hidden="true">&#8594;</b><span>Push</span></div>
+          <p class="code-label">every phase, starting at phase 0</p>
+          <pre class="code"><span class="c"># create username/username on github.com, then:</span>
+<span class="k">$</span> git clone git@github.com:username/username.git
+<span class="k">$</span> git add README.md
+<span class="k">$</span> git commit -m <span class="k">"hello world"</span>
+<span class="k">$</span> git push origin main</pre>
           <aside class="notes">
             <p>Right from Phase 0, learners are creating a repository, cloning it, making changes, and pushing those changes back to GitHub.</p>
             <p>These are small tasks, but they're not throwaway exercises. They're steps learners will repeat throughout the curriculum and in real projects.</p>
@@ -130,8 +143,12 @@
         <section id="first-checkpoint">
           <p class="eyebrow">Phase 0 / Momentum</p>
           <h2>"I made something.<br><em>I pushed it."</em></h2>
-          <p class="repo-path">github.com/<strong>username/username</strong></p>
-          <p class="quiet">Repository exists. First checkpoint complete.</p>
+          <p class="code-label">verification/github_profile.py</p>
+          <pre class="code"><span class="c"># the repo lives at &lt;username&gt;/&lt;username&gt; by construction,</span>
+<span class="c"># so we never ask the learner for a link</span>
+target = GitHubRepositoryTarget(owner=username, repo=username)
+result = <span class="k">await</span> check_github_url_exists(target.url)</pre>
+          <p class="quiet">Exists, or it doesn't. No approval queue.</p>
           <aside class="notes">
             <p>One of their first checkpoints is creating their profile README repository at github.com/username/username.</p>
             <p>Because they signed in with GitHub, we already know their username. We know where to look, and they don't have to submit a link for us to manually approve.</p>
@@ -145,7 +162,12 @@
         <section id="real-infrastructure">
           <p class="eyebrow">Linux + networking / Lab repositories</p>
           <h2>Real infrastructure.<br><em>Their own account.</em></h2>
-          <div class="flow"><span>Lab code</span><b aria-hidden="true">&#8594;</b><span class="outline">Your cloud</span></div>
+          <p class="code-label">learntocloud/networking-lab &mdash; azure/scripts</p>
+          <pre class="code"><span class="k">$</span> ./setup.sh     <span class="c"># terraform apply, in THEIR subscription</span>
+  READY TO START
+<span class="k">$</span> ./validate.sh  <span class="c"># 0 = resolved, 1 = unresolved, 2 = error</span>
+<span class="k">$</span> ./destroy.sh   <span class="c"># ~$0.50-1.00 per session</span></pre>
+          <p class="quiet">We maintain the code. They own the resources.</p>
           <aside class="notes">
             <p>In the Linux and networking phases, we take that same idea further.</p>
             <p>Learners get repositories containing real lab code that they deploy into their own cloud accounts. They can read the code, inspect the setup, and see how the environment is put together.</p>
@@ -156,16 +178,57 @@
 
         <section id="investigate-it">
           <p class="eyebrow">Independence / Lab scenario</p>
-          <h2>Why can't these talk?</h2>
-          <div class="incident"><span>Frontend</span><b aria-label="cannot connect">&#10005;</b><span>Backend</span></div>
-          <p class="quiet">Investigate. Verify. Clean up.</p>
+          <h2>INC-4523.</h2>
+          <div class="ticket">
+            <p class="ticket-meta">Critical &middot; Web Team &middot; 10:32 AM</p>
+            <blockquote>"The web frontend suddenly can't connect to the API backend. Connections to port 8080 time out. The API health endpoint works when we curl localhost on the API server itself, so the service is running."</blockquote>
+          </div>
           <aside class="notes">
             <p>In the networking lab, for example, they might have a frontend that can't reach its backend.</p>
+            <p>This is the actual ticket text. No hints, no step list. Just symptoms, the way you'd get them at work.</p>
             <p>We give them the scenario and the resources to investigate. They use shell commands, read documentation, change configuration, and check whether it worked.</p>
             <p>This is where independence comes in. We want to give them enough structure to know what they're trying to accomplish, without giving them every step of the solution.</p>
-            <p>When they finish, they submit a completion token that our platform verifies. They can get recognition for the work without waiting for one of us to review it.</p>
+            <p>Source: <a href="https://github.com/learntocloud/networking-lab/blob/main/azure/README.md">INC-4523 in the Azure incident queue</a>, quoted verbatim.</p>
+          </aside>
+        </section>
+
+        <section id="done-when">
+          <p class="eyebrow">Independence / Acceptance checks</p>
+          <h2>Done when.</h2>
+          <table class="checks">
+            <thead><tr><th>Run from</th><th>Command</th><th>Expected</th></tr></thead>
+            <tbody>
+              <tr><td>Web</td><td><code>curl --max-time 5 http://&lt;API_IP&gt;:8080/health</code></td><td><code>"status": "healthy"</code></td></tr>
+              <tr><td>API</td><td><code>pg_isready -h &lt;DB_IP&gt; -p 5432 -t 3</code></td><td><code>accepting connections</code></td></tr>
+            </tbody>
+          </table>
+          <p class="quiet">Both application paths respond. Not just their TCP ports.</p>
+          <aside class="notes">
+            <p>Every incident ships with its acceptance checks. This is how we define "done" without a human in the loop.</p>
+            <p>Notice what we're asserting. Not "port 8080 is open" &mdash; an actual HTTP response from the health endpoint, and PostgreSQL actually accepting connections. You can open a firewall rule and still not have a working application path.</p>
+            <p>Writing the check that way took us longer, but it's the difference between a learner passing the lab and a learner fixing the problem.</p>
+            <p>Then validate.sh runs all four incidents and exits 0, 1, or 2.</p>
+            <p>Source: <a href="https://github.com/learntocloud/networking-lab/blob/main/azure/README.md">INC-4523 acceptance checks</a>. Placeholders replace the private IPs from setup, and the full commands include connection flags trimmed here for the slide.</p>
+          </aside>
+        </section>
+
+        <section id="token-binding">
+          <p class="eyebrow">Independence / Completion tokens</p>
+          <h2>Credit, without<br>a <em>review queue.</em></h2>
+          <p class="code-label">verification/token_base.py</p>
+          <pre class="code"><span class="k">if</span> token_username != oauth_github_username.lower():
+    <span class="k">return</span> _fail(<span class="k">"Token is for someone else."</span>)
+
+expected_sig = hmac.new(secret, payload_str, sha256).hexdigest()
+<span class="k">if not</span> hmac.compare_digest(signature, expected_sig):
+    <span class="k">return</span> _fail(<span class="k">"Invalid token signature."</span>)</pre>
+          <aside class="notes">
+            <p>When they finish, the lab prints a signed completion token and they paste it into our platform.</p>
+            <p>Two things happen. The token is HMAC-signed, so we know it came from a real lab instance and hasn't been edited. And the username inside the token has to match the GitHub account they signed in with.</p>
+            <p>That second check is why OAuth from slide one keeps paying off. Forging a token only ever gets you credit on your own account, and you can't sign in as someone else.</p>
+            <p>So they get recognition immediately, without waiting for one of us to review it.</p>
             <p>And then they clean up. These are real resources that cost money. Knowing what you deployed, and confirming that you removed it, is part of the work too.</p>
-            <p>The diagram illustrates a scenario; it is not a live deployment.</p>
+            <p>Source: <a href="https://github.com/learntocloud/learn-to-cloud-app/blob/main/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/token_base.py">token verification</a>. The failure messages are shortened; the real ones name the token's username and the signed-in username.</p>
           </aside>
         </section>
 
@@ -202,14 +265,29 @@
 
         <section id="feedback-that-fits">
           <p class="eyebrow">GitHub Actions / Momentum + independence</p>
-          <h2>Feedback that fits<br><em>where they are.</em></h2>
-          <div class="test-scope"><span>Previous exercises</span><b>+</b><span>This exercise</span></div>
-          <p class="quiet">Read logs &#8594; Investigate &#8594; Push a fix</p>
+          <h2>One label.<br>The <em>right tests.</em></h2>
+          <div class="code-pair">
+            <div>
+              <p class="code-label">.github/workflows/ci.yml</p>
+              <pre class="code">pull_request:
+  types: [opened, synchronize,
+          labeled, unlabeled]</pre>
+            </div>
+            <div>
+              <p class="code-label">scripts/ci_tests.py</p>
+              <pre class="code"><span class="k">for</span> name, tests <span class="k">in</span> TASK_TESTS.items():
+    selectors.extend(tests)
+    <span class="k">if</span> name == task:
+        <span class="k">break</span></pre>
+            </div>
+          </div>
+          <p class="quiet">Their exercise, plus every one before it.</p>
           <aside class="notes">
-            <p>That label tells GitHub Actions which assignment they're working on. It runs that exercise's tests and the preceding ones. Separate checks cover code quality and the starter's existing behavior.</p>
+            <p>That label tells GitHub Actions which assignment they're working on. Adding or removing it re-triggers the run, so the label is the input, not just decoration.</p>
+            <p>Then the test selector walks the task list in order and stops at theirs. It runs that exercise's tests and every preceding one. Separate checks cover code quality and the starter's existing behavior.</p>
             <p>So they're not getting failures for exercises they haven't reached yet. But they also can't ignore something they've already completed and accidentally broken.</p>
             <p>If a check fails, they read the logs, investigate, and push a fix.</p>
-            <p>Source: <a href="https://github.com/learntocloud/journal-starter/blob/main/.github/workflows/ci.yml">assignment CI</a>. This is a diagram of test coverage, not a captured check result.</p>
+            <p>Source: <a href="https://github.com/learntocloud/journal-starter/blob/main/.github/workflows/ci.yml">assignment CI</a> and <a href="https://github.com/learntocloud/journal-starter/blob/main/scripts/ci_tests.py">its test selector</a>. The trigger list is trimmed; the real one also includes reopened, ready_for_review, and edited.</p>
           </aside>
         </section>
 
@@ -254,11 +332,47 @@
           </aside>
         </section>
 
+        <section id="same-bytes">
+          <p class="eyebrow">GitHub Releases / Maintenance</p>
+          <h2>Same bytes,<br><em>every learner.</em></h2>
+          <div class="code-pair">
+            <div>
+              <p class="code-label">release-setup.yml &mdash; we publish</p>
+              <pre class="code">tar --sort=name --owner=0 --group=0 \
+    --numeric-owner \
+    --mtime=<span class="k">"UTC 1970-01-01"</span> \
+    -cf - ctf_setup.sh setup verify \
+  | gzip -n &gt; <span class="k">"$asset"</span>
+sha256sum <span class="k">"$asset"</span> &gt; <span class="k">"$asset.sha256"</span></pre>
+            </div>
+            <div>
+              <p class="code-label">main.tf &mdash; their VM boots</p>
+              <pre class="code">download_with_retry <span class="k">"$SETUP_URL"</span>
+download_with_retry <span class="k">"$CHECKSUM_URL"</span>
+
+sha256sum -c <span class="k">"$ASSET.sha256"</span>
+tar -xzf <span class="k">"$ASSET"</span> -C <span class="k">"$INSTALL_DIR"</span></pre>
+            </div>
+          </div>
+          <aside class="notes">
+            <p>Here's the part I actually like. The archive is built deterministically: sorted entries, zeroed ownership, a fixed timestamp, and gzip with no name or timestamp header. Same input, same bytes, every time.</p>
+            <p>Then we publish the checksum next to it. When a learner's VM boots, cloud-init downloads both, runs sha256sum -c, and refuses to continue if they don't match.</p>
+            <p>That means when someone tells us their lab is broken, we can pin down exactly which release they ran. Two maintainers cannot afford to debug "some version of the setup script."</p>
+            <p>Source: <a href="https://github.com/learntocloud/linux-ctfs/blob/main/.github/workflows/release-setup.yml">the release workflow</a> and <a href="https://github.com/learntocloud/linux-ctfs/blob/main/azure/main.tf">the Azure bootstrap</a>. Variable names are shortened for the slide.</p>
+          </aside>
+        </section>
+
         <section id="dont-fix-the-assignment">
           <p class="eyebrow">GitHub Copilot / Lab maintenance</p>
           <h2>Don't fix<br><em>the assignment.</em></h2>
-          <blockquote>Preserve intentional misconfigurations.</blockquote>
-          <p class="quiet">Copilot reports. We decide.</p>
+          <p class="code-label">.github/skills/review-lab-maintenance/SKILL.md</p>
+          <pre class="code"><span class="k">## Guardrails</span>
+
+- Report only. Do not edit files, deploy or destroy
+  infrastructure, or create issues or PRs.
+- <span class="k">Preserve intentional misconfigurations.</span> Establish
+  each incident's intended fault from the guides and
+  implementation before flagging it as a problem.</pre>
           <aside class="notes">
             <p>Distributing the labs is one part. Keeping them usable is another.</p>
             <p>We spent weeks creating the Linux and networking exercises from our own experience. But Terraform providers, cloud CLIs, and dependencies keep changing after we've written the lab.</p>
@@ -269,25 +383,31 @@
             <p>Copilot checks the implementation and instructions against current official documentation. It reports problems and identifies what still needs live verification.</p>
             <p>That review doesn't change code or cloud resources. We decide what to fix.</p>
             <p>For us, that helps with maintenance. For learners, the distinction matters: we want them troubleshooting the intended challenge, not an outdated instruction we accidentally left behind.</p>
-            <p>Source: <a href="https://github.com/learntocloud/networking-lab/blob/main/.github/skills/review-lab-maintenance/SKILL.md">maintenance skill</a>. The slide quotes its first sentence; the full instruction is above.</p>
+            <p>Source: <a href="https://github.com/learntocloud/networking-lab/blob/main/.github/skills/review-lab-maintenance/SKILL.md">maintenance skill</a>. The guardrail list is trimmed to fit; the full section also covers dependencies, credentials, and upgrade justification.</p>
           </aside>
         </section>
 
         <section id="working-isnt-usable">
           <p class="eyebrow">GitHub Copilot / Momentum</p>
           <h2>Working <em>&#8800;</em> usable.</h2>
-          <div class="comparison"><div><h3>Defect</h3><p>A server error.</p></div><div><h3>Friction</h3><p>"What do I do next?"</p></div></div>
-          <p class="quiet">Our dog-food agent: use the app, report the evidence.</p>
+          <p class="code-label">.github/agents/dog-food.agent.md</p>
+          <pre class="code">tools: [<span class="k">'bash'</span>, <span class="k">'view'</span>]  <span class="c"># read-only. it reports, we fix</span>
+---
+Report as a <span class="k">defect</span> anything with objective evidence:
+- an unexpected HTTP status of 400 or higher
+- an unhandled traceback in a server log
+- a JavaScript console error</pre>
+          <p class="quiet">Everything else is friction. Still worth reporting.</p>
           <aside class="notes">
             <p>On the app side, a lot of our code is AI-assisted. Copilot helps us implement changes under our repository instructions and validation checks.</p>
             <p>But passing tests doesn't tell us whether a learner knows what to do next.</p>
             <p>A page can load perfectly and still be confusing.</p>
             <p>And if we're engineering for momentum and independence, that confusion matters. A learner shouldn't need to ask us on Discord just to find out how to submit their work.</p>
             <p>So we also have a custom dog-food agent that uses the local app through a browser, with a goal like submitting the Phase 3 requirement.</p>
-            <p>It follows the links the page actually offers. It distinguishes defects from friction: a server error is one kind of problem; a message that leaves you guessing is another.</p>
-            <p>It reports findings with evidence and says what it didn't exercise, rather than quietly fixing things.</p>
+            <p>It follows the links the page actually offers. It distinguishes defects from friction: a server error is one kind of problem; a message that leaves you guessing is another. Only the first list is on the slide.</p>
+            <p>It reports findings with evidence and says what it didn't exercise, rather than quietly fixing things. Note the tools line: bash and view only. It cannot edit our code.</p>
             <p>That doesn't replace learner feedback. It gives two maintainers another way to catch problems before learners encounter them.</p>
-            <p>The slide summarizes the real agent instructions. It does not imply that an agent run or its findings have been captured here.</p>
+            <p>The excerpt is trimmed and does not imply that an agent run or its findings have been captured here.</p>
             <p>Source: <a href="https://github.com/learntocloud/learn-to-cloud-app/blob/main/.github/agents/dog-food.agent.md">our custom dog-food agent instructions</a>.</p>
           </aside>
         </section>

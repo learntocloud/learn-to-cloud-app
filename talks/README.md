@@ -7,10 +7,12 @@ The presentation is published alongside the existing documentation at
 Its editable source is in `building-a-ladder/`.
 The original URL is retained so existing links keep working.
 
-The deck has 20 minimal, blue-accented slides. Each slide carries one main idea;
-the full script and technical context live in speaker notes. The original
-6,000-learner talk title is retained, with the current 9,000+ figure on the
-Learn to Cloud slide.
+The deck has 23 minimal, blue-accented slides. Each slide carries one main idea;
+the full script and technical context live in speaker notes. Technical slides
+show verbatim artifacts &mdash; source excerpts, workflow snippets, shell commands, the
+lab's incident text &mdash; rather than abstract diagrams. The original 6,000-learner
+talk title is retained, with the current 9,000+ figure on the Learn to Cloud
+slide.
 
 Use Node.js 24 LTS:
 
@@ -51,9 +53,11 @@ on an available port, so they do not conflict with the preview server. They
 check initialization, local asset loading, speaker notes, image loading, keyboard
 and hash navigation, notes-window synchronization, the dark viewport background,
 slide bounds and content clearance above footers, a narrow viewport, PDF output,
-and the server's error handling. They also enforce the 20-slide structure,
-original title, blue accent, and a 40-word on-slide text budget (excluding notes
-and footers). The
+and the server's error handling. They also enforce the 23-slide structure,
+original title, blue accent, a 40-word on-slide budget for surrounding prose
+(notes, footers, and verbatim artifacts such as code, tables, and quotes are
+excluded from that count), and that the technical slides actually carry those
+artifacts. The
 browser checks use the full `/learn-to-cloud-app/talks/` project prefix.
 Browser scratch files stay in the ignored `.browser-tmp/` directory.
 
@@ -86,6 +90,11 @@ They were captured for this presentation on September 21, 2026; each image
 is kept below 500 KB. They do not depict a private learner account.
 Synthetic diagrams are explicitly labeled in the slides rather than presented
 as screenshots of real learner activity.
+
+Code, command, workflow, and incident excerpts are quoted from the public
+repositories linked in each slide's notes. Where a snippet is trimmed to fit
+the slide &mdash; shortened variable names, omitted arguments, a partial list &mdash; the
+notes for that slide say what was left out.
 
 The claim of over 9,000 registered learners and the speaker's personal timeline
 are speaker-supplied, not independently queried measurements.

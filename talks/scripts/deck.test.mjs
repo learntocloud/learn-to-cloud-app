@@ -99,7 +99,7 @@ test('supports keyboard navigation and reloadable hash links', async (t) => {
   await page.waitForFunction(() => Reveal.getIndices().h === 0);
 });
 
-test('keeps the original title in a minimal 20-slide blue deck', async (t) => {
+test('keeps the original title in a minimal blue deck of short slides', async (t) => {
   const page = await openDeck(t);
   const presentation = await page.evaluate(() => ({
     title: document.querySelector('h1').innerText.replace(/\s+/g, ' ').trim(),
@@ -107,15 +107,44 @@ test('keeps the original title in a minimal 20-slide blue deck', async (t) => {
     slides: Reveal.getSlides().map((slide) => {
       const content = slide.cloneNode(true);
       content.querySelectorAll('aside.notes, footer').forEach((element) => element.remove());
+      // Verbatim artifacts (code, commands, quoted incident text) are the point of
+      // these slides, so the budget only covers the prose written around them.
+      content
+        .querySelectorAll('pre, code, blockquote, table, figcaption, .code-label')
+        .forEach((element) => element.remove());
       content.querySelectorAll('br').forEach((element) => element.replaceWith(' '));
-      return { id: slide.id, words: content.textContent.trim().split(/\s+/).length };
+      return { id: slide.id, words: content.textContent.trim().split(/\s+/).filter(Boolean).length };
     }),
   }));
   assert.equal(presentation.title, 'How GitHub Helps Us Reach 6,000 Learners');
   assert.equal(presentation.accent, '#83bcff');
-  assert.equal(presentation.slides.length, 20);
+  assert.equal(presentation.slides.length, 23);
   for (const slide of presentation.slides) {
     assert.ok(slide.words <= 40, `${slide.id} has ${slide.words} words; move detail into notes`);
+  }
+});
+
+test('grounds the technical slides in verbatim artifacts', async (t) => {
+  const page = await openDeck(t);
+  const artifacts = await page.evaluate(() =>
+    Reveal.getSlides()
+      .filter((slide) => slide.querySelector('pre.code, table.checks, .ticket'))
+      .map((slide) => slide.id),
+  );
+  for (const id of [
+    'github-oauth',
+    'first-real-workflow',
+    'first-checkpoint',
+    'real-infrastructure',
+    'investigate-it',
+    'done-when',
+    'token-binding',
+    'feedback-that-fits',
+    'same-bytes',
+    'dont-fix-the-assignment',
+    'working-isnt-usable',
+  ]) {
+    assert.ok(artifacts.includes(id), `${id} should show real code, commands, or quoted text`);
   }
 });
 

@@ -79,6 +79,52 @@ body, .reveal-viewport { background: var(--background); }
 .large-number, .pillar-word { display: block; font-size: 76px; color: var(--accent); letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 24px; }
 .pillar-word { font-size: 66px; line-height: 1.27; }
 .pillars p { font-size: 22px; color: var(--muted); margin-top: 18px; }
+.code {
+  font-family: "Cascadia Code", "Cascadia Mono", Consolas, monospace;
+  background: #0a1215;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 26px 32px;
+  margin: 38px 0 0;
+  font-size: 23px;
+  line-height: 1.55;
+  white-space: pre;
+  overflow: hidden;
+  tab-size: 4;
+}
+.code .c { color: var(--muted); }
+.code .k { color: var(--accent); }
+.code-label {
+  font-family: "Cascadia Code", Consolas, monospace;
+  color: var(--muted);
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  margin-top: 38px;
+}
+.code-label + .code { margin-top: 10px; }
+.code-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 34px; align-items: start; }
+.code-pair .code { font-size: 22px; }
+.code-source { color: var(--muted); font-size: 17px; margin-top: 26px; }
+.oauth-layout { grid-template-columns: 1fr 1.25fr; margin-top: 46px; }
+.oauth-layout .code { margin-top: 0; font-size: 21px; }
+.ticket { border-left: 2px solid var(--accent); padding: 6px 0 6px 30px; margin-top: 44px; }
+.ticket .ticket-meta {
+  font-family: "Cascadia Code", Consolas, monospace;
+  color: var(--accent);
+  font-size: 22px;
+  margin-bottom: 22px;
+}
+.reveal .ticket blockquote { margin: 0; padding: 0; border: 0; font-size: 31px; color: var(--ink); }
+.checks { width: 100%; border-collapse: collapse; margin-top: 40px; font-size: 22px; }
+.reveal .checks th, .reveal .checks td {
+  text-align: left;
+  padding: 18px 20px 18px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.reveal .checks th { color: var(--accent); font-size: 17px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; padding-bottom: 12px; }
+.checks code { font-family: "Cascadia Code", Consolas, monospace; color: var(--ink); }
+.checks td:first-child { color: var(--muted); white-space: nowrap; }
 .venn { position: relative; height: 345px; width: 960px; margin: 45px auto 0; }
 .venn-circle { position: absolute; top: 0; width: 560px; height: 345px; border-radius: 50%; display: flex; align-items: center; border: 1px solid var(--accent); }
 .maintainer-circle { left: 0; background: #83bcff05; }
@@ -87,16 +133,8 @@ body, .reveal-viewport { background: var(--background); }
 .venn-center { position: absolute; left: 400px; top: 150px; width: 160px; text-align: center; color: var(--accent); font-size: 32px; }
 .login-shot { width: 500px; margin: 95px auto 0 !important; }
 .login-shot img { width: 100%; height: auto; border-radius: 6px; }
-.two-lines { display: flex; justify-content: center; gap: 80px; margin-top: 54px; color: var(--muted); font-size: 27px; }
 .flow { display: flex; align-items: center; gap: 45px; margin-top: 100px; font-size: 51px; }
 .flow b { font-weight: 400; font-size: 38px; color: var(--accent); }
-.four-steps { gap: 35px; margin-top: 140px; font-size: 46px; }
-.reveal .repo-path { font-size: 39px; margin-top: 95px; color: var(--muted); }
-.repo-path strong { color: var(--accent); font-weight: 500; }
-.outline { border: 1px solid var(--line); padding: 22px 35px; border-radius: 8px; }
-.incident { display: flex; align-items: center; gap: 40px; margin-top: 110px; width: 930px; }
-.incident > span { font-size: 42px; border: 1px solid var(--line); padding: 25px 40px; border-radius: 8px; }
-.incident b { flex: 1; border-bottom: 1px dashed var(--accent); text-align: center; line-height: 0; color: var(--accent); font-size: 35px; font-weight: normal; }
 .pr-workflow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 55px 35px; margin-top: 95px; }
 .pr-workflow p { border-top: 1px solid var(--line); padding-top: 20px; font-size: 31px; }
 .pr-workflow span { display: block; color: var(--accent); font-size: 20px; margin-bottom: 14px; }
@@ -105,17 +143,10 @@ body, .reveal-viewport { background: var(--background); }
 .responses p { color: var(--muted); font-size: 29px; }
 .responses strong { font-size: 47px; color: var(--ink); font-weight: 500; display: block; margin-bottom: 10px; }
 .reveal .task-label { display: inline-block; border: 1px solid var(--line); border-radius: 30px; padding: 8px 20px; color: var(--accent); font-family: Consolas, monospace; font-size: 26px; margin-top: 40px; }
-.test-scope { display: flex; align-items: center; gap: 40px; font-size: 35px; margin-top: 85px; }
-.test-scope b { color: var(--accent); font-weight: 400; }
-.test-scope span { border-bottom: 1px solid var(--line); padding-bottom: 18px; }
 .release-evidence { width: 850px; margin-top: 45px !important; }
 .release-evidence img { width: 100%; height: auto; border-radius: 6px; }
 .reveal figcaption { color: var(--muted); font-size: 17px; padding-top: 14px; }
 .reveal blockquote { width: auto; margin: 65px 0 0; padding: 10px 0 10px 28px; border-left: 2px solid var(--accent); font-size: 35px; font-style: normal; background: none; box-shadow: none; }
-.comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 90px; margin-top: 105px; }
-.comparison > div { padding-top: 24px; border-top: 1px solid var(--line); }
-.comparison h3 { font-size: 45px; color: var(--accent); }
-.comparison p { color: var(--muted); margin-top: 20px; font-size: 29px; }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal *, .reveal *::before, .reveal *::after { transition: none !important; animation: none !important; }
