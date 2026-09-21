@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'talks/**'
       - '.github/workflows/pages.yml'
   pull_request:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'talks/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -31,17 +33,46 @@ jobs:
         id: pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: talks/package-lock.json
+
+      - name: Install talk dependencies
+        run: npm ci
+        working-directory: talks
+
+      - name: Build talks
+        run: npm run build
+        working-directory: talks
+
+      - name: Install browser for talk tests
+        run: npx playwright install --with-deps chromium
+        working-directory: talks
+
+      - name: Test talks
+        run: npm test
+        working-directory: talks
+
+      - name: Assemble documentation and talks
+        run: |
+          mkdir -p _site-source/talks
+          cp -R docs/. _site-source/
+          cp -R talks/dist/. _site-source/talks/
+
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1.0.13
         with:
-          source: ./docs
+          source: ./_site-source
           destination: ./_site
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

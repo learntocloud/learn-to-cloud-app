@@ -16,4 +16,8 @@ Architecture, contributor, and operations documentation for the
 - [Contributing](contributing.html)
 - [Authentication and sessions](contributing.html#authentication-and-sessions)
 
+## Conference talks
+
+- [Building a Ladder](talks/building-a-ladder/)
+
 Application users should start at [learntocloud.guide](https://learntocloud.guide).

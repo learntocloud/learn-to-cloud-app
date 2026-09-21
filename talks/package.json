@@ -1,0 +1,20 @@
+{
+  "name": "learn-to-cloud-talks",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "serve": "node scripts/serve.mjs",
+    "test": "npm run build && node --test scripts/*.test.mjs"
+  },
+  "dependencies": {
+    "reveal.js": "6.0.2"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}
