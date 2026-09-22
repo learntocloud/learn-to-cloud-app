@@ -62,7 +62,7 @@ Deleting an account invalidates all its sessions; recreating it cannot revive
 old cookies. These are application sessions, not GitHub sessions, and revocation
 does not cancel already-authorized work.
 
-See [Authentication and sessions](../../../docs/contributing.md#authentication-and-sessions)
+See [Authentication and sessions](../../../docs/authentication.md)
 for the underlying design. Record sanitized routes, statuses, and visible
 outcomes, never cookies, tokens, or user identities.
 

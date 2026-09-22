@@ -25,7 +25,7 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 | **CI/CD** | GitHub Actions |
 
 GitHub login establishes revocable, PostgreSQL-backed sessions. See
-[Authentication and sessions](docs/contributing.md#authentication-and-sessions)
+[Authentication and sessions](docs/authentication.md)
 for route dependencies, login redirects, expiry, and logout guarantees.
 
 ## Quick Start
@@ -42,6 +42,7 @@ to that distribution.
 - Git
 - [uv](https://docs.astral.sh/uv/)
 - Docker with the Compose plugin
+- Node.js 20+ for the full test suite (not required just to start the API)
 
 `uv` installs the required Python 3.13 runtime. Frontend, verification,
 infrastructure, and agent workflows need additional optional tools documented
@@ -120,7 +121,8 @@ timeout and overdue cleanup, with no workflow retries or checkpoints.
 
 ## Contributing
 
-See the [Contributing Guide](docs/contributing.md) for linting, testing, the dog-food QA agent, Copilot skills, and architecture conventions.
+Start with the [Contributing Guide](docs/contributing.md) for setup, quality
+gates, and links to focused development guides.
 Published architecture and operations docs are available on
 [GitHub Pages](https://learntocloud.github.io/learn-to-cloud-app/).
 

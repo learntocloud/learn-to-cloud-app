@@ -9,12 +9,16 @@ Architecture, contributor, and operations documentation for the
 
 ## Guides
 
+- [Contributing](contributing.html)
+- [Testing and browser QA](testing.html)
+- [Application architecture](architecture.html)
+- [Authentication and sessions](authentication.html)
+- [Telemetry](telemetry.html)
 - [Curriculum architecture](curriculum.html)
 - [Progression system](progression-system.html)
 - [Database migrations](migrations.html)
-- [Telemetry](contributing.html#telemetry)
-- [Contributing](contributing.html)
-- [Authentication and sessions](contributing.html#authentication-and-sessions)
+- [Maintainer Guide](maintainer-guide.html)
+- [Alert runbook](runbooks/alerts.html)
 
 ## Conference talks
 

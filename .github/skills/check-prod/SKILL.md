@@ -1,6 +1,6 @@
 ---
 name: check-prod
-description: Check Azure production health across the API, telemetry, PostgreSQL, dependencies, and alerts. Use for "check prod", "is prod up", "prod status", "health check", "any errors?", or "check Azure".
+description: Check Azure production health across the API, telemetry, PostgreSQL, dependencies, and alerts. Use for "check prod", "is prod up", "prod status", or explicit requests to investigate production health or errors.
 ---
 
 # Check Production

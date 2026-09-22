@@ -4,17 +4,13 @@
 
 Never edit, commit, or stage directly to `main`.
 
-Workflow:
+Check the current branch before doing anything. If on `main`, create a branch
+using `fix/` for bug fixes, `feat/` for features, `chore/` for maintenance or
+docs, or `refactor/` for restructuring.
 
-1. Check current branch before doing anything
-2. Create a branch from `main` if not already on one
-  - `fix/` for bug fixes (e.g., `fix/deterministic-pr-grading`)
-  - `feat/` for new features (e.g., `feat/phase4-verification`)
-  - `chore/` for maintenance, deps, docs (e.g., `chore/update-dependencies`)
-  - `refactor/` for code restructuring (e.g., `refactor/auth-middleware`)
-3. Make changes, commit, and push to the branch
-4. Open a Pull Request to merge into `main`
-5. Never force-push to `main`, alert user if some git error occurs
+Commit, push, and open a pull request only when requested. Use the `ship-it`
+skill for the delivery workflow. Merging requires explicit authorization.
+Never force-push to `main`; report Git errors rather than rewriting history.
 
 ## Code Comments and Docstrings
 
@@ -33,7 +29,11 @@ Keep docstrings short and useful. One line is enough for most functions.
 
 ## Quality Gates
 
-`uv run poe check` must pass before pushing, no exceptions. Run it after every batch of edits, not just at the end. See the `validate` and `ship-it` skills for the exact commands and steps.
+Run targeted checks during development. `uv run poe check` must pass before
+pushing, no exceptions. Run additional checks when changing their inputs.
+Task definitions live in `pyproject.toml`; see
+[Quality Gates](../docs/contributing.md#quality-gates) for check selection and
+API smoke testing.
 
 ## Communication
 
