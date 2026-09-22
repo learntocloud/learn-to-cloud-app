@@ -125,6 +125,56 @@ def _assert_report_form(
     assert "data-issue-labels" not in link
 
 
+def _step(order: int) -> SimpleNamespace:
+    return SimpleNamespace(
+        uuid=uuid4(),
+        order=order,
+        title=f"Step {order}",
+        url=None,
+        action=None,
+        description=f"Description for step {order}",
+        code=None,
+        options=None,
+        checklist=None,
+        tips=None,
+        done_when=None,
+    )
+
+
+def _render_topic(steps: list[SimpleNamespace]) -> str:
+    return _render(
+        "pages/topic.html",
+        topic=SimpleNamespace(
+            name="Linux",
+            slug="linux",
+            description="",
+            learning_objectives=[],
+        ),
+        phase_id=0,
+        phase_name="Phase 0",
+        steps=steps,
+        completed_steps=set(),
+        progress=None,
+        prev_topic=SimpleNamespace(url="/phase/0", name="Phase 0"),
+        next_topic=SimpleNamespace(url="/phase/0/next", name="Next"),
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("step_count", [2, 3, 4])
+def test_topic_page_shows_expand_collapse_all_for_multiple_steps(step_count):
+    html = _render_topic([_step(i + 1) for i in range(step_count)])
+
+    assert ">Expand all</button>" in html
+    assert ">Collapse all</button>" in html
+
+
+@pytest.mark.unit
+def test_topic_page_hides_expand_collapse_all_without_multiple_steps():
+    assert ">Expand all</button>" not in _render_topic([])
+    assert ">Expand all</button>" not in _render_topic([_step(1)])
+
+
 @pytest.mark.unit
 def test_topic_report_link_opens_content_form_without_javascript():
     html = _render(
