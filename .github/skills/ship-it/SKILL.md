@@ -7,17 +7,16 @@ description: Validate, commit, push, and open a pull request, then monitor deplo
 
 Deliver the current task without absorbing unrelated worktree changes.
 
+This workflow is for a single PR to `main`. For explicitly requested stacked
+PR delivery, use `gh-stack` instead, including its publishing safeguards.
+
 1. Confirm `gh` authentication and inspect the branch and worktree. Never commit
    on `main`; create an appropriately prefixed branch from `main` when needed.
-2. Stage only files belonging to the task, then run `uv run poe check`. Run any
-   additional CI-equivalent checks required by the changed surfaces (Terraform,
-   migrations, curriculum artifacts, or workflow commands).
-3. Review the staged diff, following the `validate` skill's unused-argument and
-   unnecessary-async guidance. Trace changed signatures through callers and
-   mocks; preserve dependency side effects and required callback interfaces.
-   Ruff enforces `ARG001` and `RUF029` across all workspace packages; manually
-   review new code in the documented callback-exception files for those rules.
-   Commit with a conventional message plus required repository trailers.
+2. Stage only files belonging to the task, then run `uv run poe check`. Follow
+   [Quality Gates](../../../docs/contributing.md#quality-gates) for additional
+   checks, including API smoke testing after Python application changes.
+3. Review the staged diff and commit with a conventional message plus required
+   repository trailers.
 4. Push without force. If histories diverge, stop rather than rebasing or
    rewriting history automatically.
 5. Open a PR to `main` and watch its checks.
@@ -32,5 +31,5 @@ Deployment runs only after deploy-relevant changes merge to `main`. Find the
 `/ready` after success. A skills/docs-only merge may correctly trigger no
 deployment.
 
-Use `debug-deploy` for nontrivial failures. Never bypass a failed quality gate,
-force-push, or silently include unrelated files.
+Use `debug-deploy` for nontrivial failures. Never bypass a failed quality gate
+or silently include unrelated files.

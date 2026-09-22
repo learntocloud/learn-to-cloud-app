@@ -5,20 +5,12 @@ description: Write or edit an Alembic migration safely against production data a
 
 # Write Migration
 
-Treat any migration merged to a shared branch or applied to an environment as
-immutable; correct it with a new migration. An unmerged migration may be
-edited when it is known not to have run outside disposable local databases.
-
-Preserve these production-safety rules:
-
-- Drop incompatible check constraints before transforming rows, then recreate
-  and validate them.
-- Clean or merge existing duplicates before adding uniqueness.
-- Set local lock and statement timeouts.
-- Build production indexes concurrently inside
-  `op.get_context().autocommit_block()`.
-- Make upgrades safe for populated databases and write a valid downgrade.
-- Keep one Alembic head and follow repository naming/docstring checks.
-
-Inspect adjacent migrations and `api/scripts/lint_migration_sql.py` for current
-conventions. Run the migration-specific checks plus `uv run poe check`.
+1. Read [the migration guide](../../../docs/migrations.md), including its safety
+   rules, and inspect adjacent migrations and `api/scripts/lint_migration_sql.py`.
+2. Determine whether this requires a new revision or whether the existing
+   revision is still safe to edit under the guide's immutability rules.
+3. Write the migration and add coverage for populated-data upgrades and the
+   downgrade behavior, following the documented concurrent-friendly patterns.
+4. Run the migration SQL lint and relevant migration tests from the guide.
+   Follow [Quality Gates](../../../docs/contributing.md#quality-gates) for the
+   full pre-push gate.
