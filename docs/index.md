@@ -22,6 +22,6 @@ Architecture, contributor, and operations documentation for the
 
 ## Conference talks
 
-- [Building a Ladder](talks/building-a-ladder/)
+- [How GitHub Helps Us Reach 6,000 Learners](talks/building-a-ladder/)
 
 Application users should start at [learntocloud.guide](https://learntocloud.guide).
