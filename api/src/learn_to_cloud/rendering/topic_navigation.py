@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from learn_to_cloud.schemas import Topic
+    from learn_to_cloud.schemas.curriculum import Topic
 
 
 def build_topic_nav(

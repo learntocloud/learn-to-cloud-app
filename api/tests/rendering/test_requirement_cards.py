@@ -21,7 +21,7 @@ from learn_to_cloud.rendering.verification_forms import (
     DerivedFormContext,
     TokenFormContext,
 )
-from learn_to_cloud.schemas import HandsOnRequirement
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
 
 
 def _make_requirement(
@@ -134,7 +134,7 @@ def _make_submission(
     error_code: str | None = None,
     submitted_value: str = "https://github.com/alice/repo",
 ):
-    from learn_to_cloud.schemas import SubmissionData
+    from learn_to_cloud.schemas.verification import SubmissionData
 
     return SubmissionData(
         submitted_value=submitted_value,

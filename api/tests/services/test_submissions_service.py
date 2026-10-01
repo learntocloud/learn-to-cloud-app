@@ -12,7 +12,8 @@ from learn_to_cloud.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
     AttemptCardProjection,
 )
-from learn_to_cloud.schemas import HandsOnRequirement, Phase
+from learn_to_cloud.schemas.curriculum import Phase
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
 from learn_to_cloud.services.requirements import RequirementIndex
 from learn_to_cloud.services.submissions_service import (
     _SMOKE_USER_ID as SMOKE_USER_ID,
@@ -601,7 +602,7 @@ class TestCreateVerificationAttempt:
 def _phase_with_requirement(req: HandsOnRequirement) -> Phase:
     from uuid import uuid4
 
-    from learn_to_cloud.schemas import PhaseHandsOnVerificationOverview
+    from learn_to_cloud.schemas.curriculum import PhaseHandsOnVerificationOverview
 
     return Phase(
         uuid=uuid4(),

@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud.schemas import UserResponse
+from learn_to_cloud.schemas.api import UserResponse
 from learn_to_cloud.services.users_service import (
     get_or_create_user_from_github,
     normalize_display_name,

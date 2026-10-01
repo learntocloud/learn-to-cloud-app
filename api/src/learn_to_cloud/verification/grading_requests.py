@@ -6,7 +6,8 @@ import json
 
 from pydantic import Field, ValidationError
 
-from learn_to_cloud.schemas import FrozenModel, ValidationResult
+from learn_to_cloud.schemas.base import FrozenModel
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.evidence import (
     EvidenceError,
     validate_evidence_bundle,

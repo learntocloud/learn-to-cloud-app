@@ -5,7 +5,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from learn_to_cloud.models import SubmissionType
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.requirements import (
     CareerReflectionConfig,
     CareerReflectionQuestion,
     CareerReflectionRequirement,

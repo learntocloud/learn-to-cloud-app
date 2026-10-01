@@ -27,14 +27,11 @@ from learn_to_cloud.curriculum.reads import (
     get_curriculum_overview,
     get_required_step_counts_by_phase,
 )
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.curriculum import LearningStep, Phase, PhaseOverview, Topic
+from learn_to_cloud.schemas.progress import (
     LearningProgress,
-    LearningStep,
-    Phase,
-    PhaseOverview,
     PhaseProgress,
     PhaseProgressData,
-    Topic,
     TopicProgressData,
     UserProgress,
     VerificationProgress,

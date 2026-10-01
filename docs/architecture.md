@@ -16,6 +16,7 @@ Packages under `api/src/learn_to_cloud/`:
 | Package | Owns |
 |---|---|
 | `core/` | Configuration, logging, outbound HTTP, cookies; imports only `core/` |
+| `schemas/` | Pydantic models for curriculum, requirements, progress, verification, community, and API responses |
 | `curriculum/` | YAML loading, artifact compilation, and catalog-backed reads |
 | `verification/` | Checks, submission values, forms, and attempt contracts |
 | `repositories/` | Database queries |
@@ -23,7 +24,7 @@ Packages under `api/src/learn_to_cloud/`:
 | `services/` | Application behavior that combines the packages above |
 | `routes/` | HTTP handlers |
 
-`models.py` and `schemas.py` are shared by every layer. Lower packages never
+`models.py` and `schemas/` are shared by every layer. Lower packages never
 import `services/` or `routes/`; `tests/test_runtime_boundaries.py` enforces
 the allowed imports for each package.
 

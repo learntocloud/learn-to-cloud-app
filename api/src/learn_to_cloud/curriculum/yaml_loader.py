@@ -22,11 +22,8 @@ import yaml
 from pydantic import ValidationError
 
 from learn_to_cloud.core.config import get_worker_settings
-from learn_to_cloud.schemas import (
-    HandsOnRequirementAdapter,
-    Phase,
-    Topic,
-)
+from learn_to_cloud.schemas.curriculum import Phase, Topic
+from learn_to_cloud.schemas.requirements import HandsOnRequirementAdapter
 
 logger = logging.getLogger(__name__)
 

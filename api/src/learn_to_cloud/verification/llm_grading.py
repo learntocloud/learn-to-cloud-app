@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from learn_to_cloud.schemas import TaskResult
+from learn_to_cloud.schemas.verification import TaskResult
 from learn_to_cloud.verification.attempt_types import (
     VerificationRunResult,
 )

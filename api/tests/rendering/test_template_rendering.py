@@ -25,7 +25,7 @@ from learn_to_cloud.rendering.requirement_cards import (
     build_requirement_card_context,
 )
 from learn_to_cloud.rendering.templates import templates
-from learn_to_cloud.schemas import SubmissionData
+from learn_to_cloud.schemas.verification import SubmissionData
 from learn_to_cloud.services.verification_page_service import (
     VerificationAttemptHistoryItem,
 )

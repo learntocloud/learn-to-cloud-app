@@ -7,7 +7,8 @@ from dataclasses import dataclass
 
 from pydantic import Field
 
-from learn_to_cloud.schemas import FrozenModel, ValidationResult
+from learn_to_cloud.schemas.base import FrozenModel
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.attempt_types import PreparedVerificationAttempt
 from learn_to_cloud.verification.repo_files import RepoFiles
 from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget

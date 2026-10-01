@@ -46,7 +46,7 @@ from learn_to_cloud.curriculum.yaml_loader import (
     get_content_root_dir,
     validate_content,
 )
-from learn_to_cloud.schemas import Phase
+from learn_to_cloud.schemas.curriculum import Phase
 
 #: Shape of the compiled artifact. Bump when the top-level JSON structure
 #: changes in a way that requires readers (CurriculumCatalog) to change.

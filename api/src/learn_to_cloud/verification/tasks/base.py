@@ -6,7 +6,8 @@ from typing import Literal
 
 from pydantic import Field
 
-from learn_to_cloud.schemas import CriterionResult, FrozenModel
+from learn_to_cloud.schemas.base import FrozenModel
+from learn_to_cloud.schemas.verification import CriterionResult
 
 EvidenceSource = Literal["repo_files", "submitted_text"]
 RubricCriterionKind = Literal["required", "quality", "bonus"]

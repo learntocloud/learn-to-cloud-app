@@ -7,7 +7,7 @@ from typing import Literal
 from urllib.parse import urlparse
 
 from learn_to_cloud.models import SubmissionType, SubmissionValueKind
-from learn_to_cloud.schemas import HandsOnRequirement
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
 
 _GITHUB_URL_TYPES = {
     SubmissionType.PROFILE_README.value,

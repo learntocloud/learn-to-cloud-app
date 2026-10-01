@@ -27,7 +27,7 @@ from learn_to_cloud.rendering.htmx_responses import (
     render_unavailable,
     status_error_response,
 )
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.requirements import (
     CareerReflectionRequirement,
     HandsOnRequirement,
     PlaceholderConfig,

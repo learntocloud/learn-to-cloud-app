@@ -337,7 +337,7 @@ class TestValidateContent:
     ):
         from uuid import UUID
 
-        from learn_to_cloud.schemas import (
+        from learn_to_cloud.schemas.curriculum import (
             Phase,
             PhaseHandsOnVerificationOverview,
         )
@@ -365,7 +365,7 @@ class TestValidateContent:
     ):
         from uuid import UUID
 
-        from learn_to_cloud.schemas import LearningStep, Topic
+        from learn_to_cloud.schemas.curriculum import LearningStep, Topic
 
         return Topic(
             uuid=UUID(topic_uuid),
@@ -398,7 +398,7 @@ class TestValidateContent:
         from uuid import UUID
 
         from learn_to_cloud.curriculum.yaml_loader import validate_content
-        from learn_to_cloud.schemas import LearningStep
+        from learn_to_cloud.schemas.curriculum import LearningStep
 
         # Same UUID used for a topic and one of its steps.
         shared = "00000000-0000-0000-0000-deadbeef0001"
@@ -437,7 +437,7 @@ class TestValidateContent:
         from uuid import UUID
 
         from learn_to_cloud.curriculum.yaml_loader import validate_content
-        from learn_to_cloud.schemas import LearningStep
+        from learn_to_cloud.schemas.curriculum import LearningStep
 
         topic = self._build_topic(
             learning_steps=[

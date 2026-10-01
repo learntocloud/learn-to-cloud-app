@@ -10,11 +10,11 @@ from learn_to_cloud.models import utcnow
 from learn_to_cloud.repositories import (
     LearnerStepCompletionRepository,
 )
-from learn_to_cloud.schemas import LearningStep
+from learn_to_cloud.schemas.curriculum import LearningStep
 from learn_to_cloud.services.progress_reads import resolve_completed_step_uuids
 
 if TYPE_CHECKING:
-    from learn_to_cloud.schemas import Topic
+    from learn_to_cloud.schemas.curriculum import Topic
 
 
 class StepValidationError(Exception):

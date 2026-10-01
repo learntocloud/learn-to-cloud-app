@@ -1,6 +1,6 @@
 """Shared result contracts for check adapters."""
 
-from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.core import StepResult
 
 

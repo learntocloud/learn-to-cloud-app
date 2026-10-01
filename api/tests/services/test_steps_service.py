@@ -5,10 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from learn_to_cloud.schemas import (
-    LearningStep,
-    Topic,
-)
+from learn_to_cloud.schemas.curriculum import LearningStep, Topic
 from learn_to_cloud.services.steps_service import (
     StepNotFoundError,
     complete_step,

@@ -14,7 +14,7 @@ import pytest
 from opentelemetry.trace import Status, StatusCode
 
 from learn_to_cloud.models import SubmissionType
-from learn_to_cloud.schemas import TaskResult, ValidationResult
+from learn_to_cloud.schemas.verification import TaskResult, ValidationResult
 from learn_to_cloud.verification import engine as engine_module
 from learn_to_cloud.verification import github_errors
 from learn_to_cloud.verification import repo_files as repo_files_module

@@ -7,7 +7,7 @@ is_derivable / fork_name_from_required_repo helpers.
 import pytest
 
 from learn_to_cloud.models import SubmissionType
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.requirements import (
     HandsOnRequirement,
     HandsOnRequirementAdapter,
 )

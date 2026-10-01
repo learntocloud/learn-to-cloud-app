@@ -2,7 +2,7 @@
 
 import pytest
 
-from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.attempt_types import outcome_for_validation
 
 

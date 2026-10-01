@@ -11,7 +11,7 @@ from uuid import uuid4
 
 import pytest
 
-from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.services import verification_runner as runner
 from learn_to_cloud.services.verification_grader import (
     ContentFilteredError,

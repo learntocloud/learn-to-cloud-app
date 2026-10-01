@@ -20,12 +20,9 @@ from learn_to_cloud.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
     VerificationAttemptRepository,
 )
-from learn_to_cloud.schemas import (
-    HandsOnRequirement,
-    Phase,
-    PhaseSubmissionContext,
-    SubmissionData,
-)
+from learn_to_cloud.schemas.curriculum import Phase
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
+from learn_to_cloud.schemas.verification import PhaseSubmissionContext, SubmissionData
 from learn_to_cloud.services.progress_reads import are_all_requirements_succeeded
 from learn_to_cloud.services.requirements import (
     RequirementIndex,

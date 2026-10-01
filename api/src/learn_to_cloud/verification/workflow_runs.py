@@ -16,7 +16,7 @@ from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import Field
 
-from learn_to_cloud.schemas import FrozenModel
+from learn_to_cloud.schemas.base import FrozenModel
 from learn_to_cloud.verification.github_http import github_api_get
 
 

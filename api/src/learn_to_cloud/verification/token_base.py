@@ -17,7 +17,7 @@ from typing import Any
 from opentelemetry import trace
 
 from learn_to_cloud.core.config import get_worker_settings
-from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.schemas.verification import ValidationResult
 
 
 def _derive_secret(instance_id: str) -> str:

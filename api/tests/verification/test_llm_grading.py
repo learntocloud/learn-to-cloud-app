@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.verification import (
     CriterionResult,
     TaskResult,
     ValidationResult,

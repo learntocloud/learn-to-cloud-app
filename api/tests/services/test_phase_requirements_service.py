@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from learn_to_cloud.schemas import HandsOnRequirement
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
 from learn_to_cloud.services.requirements import (
     RequirementIndex,
     get_prerequisite_phase,

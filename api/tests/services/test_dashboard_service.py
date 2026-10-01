@@ -23,9 +23,9 @@ from learn_to_cloud.models import (
     VerificationAttempt,
     utcnow,
 )
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.curriculum import PhaseOverview
+from learn_to_cloud.schemas.progress import (
     LearningProgress,
-    PhaseOverview,
     PhaseProgress,
     PhaseProgressData,
     UserProgress,

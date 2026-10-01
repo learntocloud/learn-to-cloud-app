@@ -8,7 +8,7 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification import evidence as evidence_module
 from learn_to_cloud.verification import repo_files as repo_files_module
 from learn_to_cloud.verification.evidence import (

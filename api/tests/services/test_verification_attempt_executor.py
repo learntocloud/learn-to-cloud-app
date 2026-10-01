@@ -18,7 +18,11 @@ from learn_to_cloud.models import (
 from learn_to_cloud.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
-from learn_to_cloud.schemas import CriterionResult, TaskResult, ValidationResult
+from learn_to_cloud.schemas.verification import (
+    CriterionResult,
+    TaskResult,
+    ValidationResult,
+)
 from learn_to_cloud.services.verification_attempt_executor import (
     AttemptNotRunnableError,
     finalize_verification_attempt,

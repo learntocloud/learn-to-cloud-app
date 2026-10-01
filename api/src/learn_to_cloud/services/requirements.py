@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from learn_to_cloud.curriculum.reads import get_requirements_by_phase_order
-from learn_to_cloud.schemas import HandsOnRequirement
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
 from learn_to_cloud.services.progress_reads import are_all_requirements_succeeded
 
 if TYPE_CHECKING:

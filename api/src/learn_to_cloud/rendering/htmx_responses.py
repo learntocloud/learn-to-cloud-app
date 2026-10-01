@@ -17,7 +17,8 @@ from learn_to_cloud.rendering.requirement_cards import (
     build_unavailable_requirement_card_context,
 )
 from learn_to_cloud.rendering.templates import templates
-from learn_to_cloud.schemas import HandsOnRequirement, Topic
+from learn_to_cloud.schemas.curriculum import Topic
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
 
 
 def reload_page_response() -> HTMLResponse:

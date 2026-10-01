@@ -11,7 +11,7 @@ Learner-controlled values are validated separately at their HTTP boundary.
 from __future__ import annotations
 
 from learn_to_cloud.models import SubmissionType
-from learn_to_cloud.schemas import HandsOnRequirement
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
 from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
 from learn_to_cloud.verification.submission_values import GitHubUrlValue
 

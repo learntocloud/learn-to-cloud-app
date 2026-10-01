@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Request
 
-from learn_to_cloud.schemas import UserResponse
+from learn_to_cloud.schemas.api import UserResponse
 from learn_to_cloud.services.sessions_service import (
     CurrentAccount,
     CurrentUser,

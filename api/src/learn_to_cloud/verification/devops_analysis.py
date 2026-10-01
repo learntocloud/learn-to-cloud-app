@@ -10,7 +10,7 @@ import httpx
 from opentelemetry import trace
 from pydantic import Field, ValidationError
 
-from learn_to_cloud.schemas import TaskResult, ValidationResult
+from learn_to_cloud.schemas.verification import TaskResult, ValidationResult
 from learn_to_cloud.verification.github_errors import github_error_to_result
 from learn_to_cloud.verification.github_http import RETRIABLE_EXCEPTIONS
 from learn_to_cloud.verification.repo_ref import RepoRef, default_repo_ref

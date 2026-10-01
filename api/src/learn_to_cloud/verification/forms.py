@@ -8,9 +8,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from learn_to_cloud.models import SubmissionType
-from learn_to_cloud.schemas import (
-    CareerReflectionRequirement,
-)
+from learn_to_cloud.schemas.requirements import CareerReflectionRequirement
 from learn_to_cloud.verification.submission_values import MAX_TEXT_LENGTH
 
 MAX_SUBMITTED_VALUE_LENGTH = 2_048

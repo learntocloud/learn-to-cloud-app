@@ -6,7 +6,7 @@ from typing import Literal, Protocol
 
 from pydantic import Field
 
-from learn_to_cloud.schemas import FrozenModel
+from learn_to_cloud.schemas.base import FrozenModel
 from learn_to_cloud.verification.github_http import github_api_get
 
 _PAGE_SIZE = 100
