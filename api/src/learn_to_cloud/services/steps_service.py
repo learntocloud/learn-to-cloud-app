@@ -3,17 +3,18 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from learn_to_cloud_shared.content_service import get_topic_containing_step
-from learn_to_cloud_shared.models import utcnow
-from learn_to_cloud_shared.progress_reads import resolve_completed_step_uuids
-from learn_to_cloud_shared.repositories import (
-    LearnerStepCompletionRepository,
-)
-from learn_to_cloud_shared.schemas import LearningStep
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from learn_to_cloud.content_service import get_topic_containing_step
+from learn_to_cloud.models import utcnow
+from learn_to_cloud.progress_reads import resolve_completed_step_uuids
+from learn_to_cloud.repositories import (
+    LearnerStepCompletionRepository,
+)
+from learn_to_cloud.schemas import LearningStep
+
 if TYPE_CHECKING:
-    from learn_to_cloud_shared.schemas import Topic
+    from learn_to_cloud.schemas import Topic
 
 
 class StepValidationError(Exception):

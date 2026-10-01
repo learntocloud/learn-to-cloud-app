@@ -10,9 +10,6 @@ _ROOT = Path(__file__).resolve().parents[2]
 _APPLICATION_DEPLOY_PATHS = {
     "api/**",
     "!api/tests/**",
-    "packages/learn-to-cloud-shared/**",
-    "!packages/learn-to-cloud-shared/tests/**",
-    "packages/learn-to-cloud-shared-test-support/pyproject.toml",
     "pyproject.toml",
     "uv.lock",
     ".dockerignore",
@@ -20,22 +17,14 @@ _APPLICATION_DEPLOY_PATHS = {
 }
 
 
-def test_docker_excludes_first_party_test_trees():
+def test_docker_excludes_first_party_tests_and_authored_curriculum():
     patterns = (_ROOT / ".dockerignore").read_text().splitlines()
+    content = "/api/src/learn_to_cloud/content"
 
-    for member in (
-        "api",
-        "packages/learn-to-cloud-shared",
-    ):
-        assert f"/{member}/tests/" in patterns
-
-
-def test_docker_resolves_the_development_workspace_manifest():
-    dockerfile = (_ROOT / "api/Dockerfile").read_text()
-    manifest = "packages/learn-to-cloud-shared-test-support/pyproject.toml"
-
-    assert f"COPY {manifest} {manifest}" in dockerfile
-    assert dockerfile.index(f"COPY {manifest}") < dockerfile.index("RUN uv sync")
+    assert "/api/tests/" in patterns
+    assert f"{content}/phases/" in patterns
+    assert f"{content}/schemas/" in patterns
+    assert f"{content}/curriculum.meta.yaml" in patterns
 
 
 def test_deployment_does_not_package_a_functions_host():
@@ -83,5 +72,4 @@ def test_application_deploy_excludes_first_party_tests():
     assert filter_step["with"]["predicate-quantifier"] == "some-with-excludes"
     assert app_paths == _APPLICATION_DEPLOY_PATHS
     assert "!api/tests/**" in app_paths
-    assert "!packages/learn-to-cloud-shared/tests/**" in app_paths
     assert "scripts/**" not in app_paths

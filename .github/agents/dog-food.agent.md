@@ -161,7 +161,7 @@ or expose submission data to fill that gap. Two specifics about these logs:
 
 - They hold application logs and unhandled-exception tracebacks, but no
   per-request access lines: `uvicorn.access` is pinned to `WARNING` in
-  `learn_to_cloud_shared.core.logger`. Correlate by exception and ordering, not
+  `learn_to_cloud.core.logger`. Correlate by exception and ordering, not
   by looking for a request line.
 - An unexpected server failure with *no* corresponding log entry is itself a
   defect worth reporting. Normal authentication 401s and login redirects are

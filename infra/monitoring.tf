@@ -141,7 +141,6 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_unhandled_excepti
   criteria {
     query                   = <<-QUERY
       exceptions
-      | where cloud_RoleName == "learn-to-cloud-api"
       | where outerMessage == "unhandled.exception"
       | summarize CrashCount = count() by bin(timestamp, 5m)
     QUERY
@@ -218,7 +217,6 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
   criteria {
     query                   = <<-QUERY
       traces
-      | where cloud_RoleName == "learn-to-cloud-api"
       | where message == "verification.attempt.completed"
       | extend
           Outcome = tostring(customDimensions["verification.outcome"]),
@@ -263,7 +261,6 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_llm_imme
   criteria {
     query                   = <<-QUERY
       traces
-      | where cloud_RoleName == "learn-to-cloud-api"
       | where message == "verification.llm_grading.failed"
       | extend ErrorType = tostring(customDimensions["error.type"])
       | where ErrorType in ("llm.configuration", "llm.authentication", "llm.authorization", "llm.response_validation", "llm.unknown")
@@ -308,7 +305,6 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_llm_tran
   criteria {
     query                   = <<-QUERY
       traces
-      | where cloud_RoleName == "learn-to-cloud-api"
       | where message == "verification.llm_grading.failed"
       | extend ErrorType = tostring(customDimensions["error.type"])
       | where ErrorType in ("llm.rate_limit", "llm.provider_unavailable", "llm.network", "llm.timeout")
@@ -355,7 +351,6 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_attempt_
   criteria {
     query                   = <<-QUERY
       union traces, exceptions
-      | where cloud_RoleName == "learn-to-cloud-api"
       | extend Event = coalesce(message, outerMessage)
       | where Event in ("verification.attempt.stuck", "verification.worker.failed")
       | extend
@@ -420,7 +415,6 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "schema_drift" {
   criteria {
     query                   = <<-QUERY
       traces
-      | where cloud_RoleName == "learn-to-cloud-api"
       | where message in (
           "health.ready.schema_drift",
           "health.ready.schema_drift_check_failed"

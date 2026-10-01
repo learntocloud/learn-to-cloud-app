@@ -21,14 +21,6 @@ import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
-from learn_to_cloud_shared.core.database import Base
-from learn_to_cloud_shared.models import (
-    LearnerStepCompletion,
-    User,
-    VerificationAttempt,
-)
-from learn_to_cloud_shared.repositories import user_repository
-from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from pytest_alembic.tests import (
     test_model_definitions_match_ddl,
     test_single_head_revision,
@@ -53,6 +45,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session, registry
 
 from alembic import command
+from learn_to_cloud.core.database import Base
+from learn_to_cloud.models import (
+    LearnerStepCompletion,
+    User,
+    VerificationAttempt,
+)
+from learn_to_cloud.repositories import user_repository
+from learn_to_cloud.repositories.user_repository import UserRepository
 
 MIGRATION_DB = "test_alembic_migrations"
 os.environ.setdefault(

@@ -5,11 +5,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from learn_to_cloud_shared.core.config import DatabaseConfig, Environment
-from learn_to_cloud_shared.models import AuthSession, User
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from learn_to_cloud.core.config import DatabaseConfig, Environment
 from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME, token_digest
+from learn_to_cloud.models import AuthSession, User
 
 _PATH = Path(__file__).resolve().parents[2] / "scripts" / "dogfood_session.py"
 _SPEC = importlib.util.spec_from_file_location("dogfood_session", _PATH)

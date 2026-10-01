@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.schemas import (
+
+from learn_to_cloud.schemas import (
     LearningStep,
     Topic,
 )
-
 from learn_to_cloud.services.steps_service import (
     StepNotFoundError,
     complete_step,

@@ -6,11 +6,11 @@ from uuid import UUID, uuid4
 
 import pytest
 from alembic.config import Config
-from learn_to_cloud_shared.models import AuthSession, LearnerStepCompletion, User
 from sqlalchemy import delete, func, insert, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 
 from alembic import command, op
+from learn_to_cloud.models import AuthSession, LearnerStepCompletion, User
 from tests.test_migration_chain import alembic_config as alembic_config
 from tests.test_migration_chain import alembic_engine as alembic_engine
 

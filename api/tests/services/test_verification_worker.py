@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.core.config import VerificationWorkerConfig
-from learn_to_cloud_shared.repositories.verification_attempt_repository import (
-    AttemptAlreadyGoneError,
-)
 from sqlalchemy.exc import OperationalError
 
+from learn_to_cloud.core.config import VerificationWorkerConfig
+from learn_to_cloud.repositories.verification_attempt_repository import (
+    AttemptAlreadyGoneError,
+)
 from learn_to_cloud.services import verification_worker as worker
 
 pytestmark = pytest.mark.unit

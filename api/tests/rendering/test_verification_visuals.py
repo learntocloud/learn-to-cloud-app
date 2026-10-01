@@ -4,13 +4,13 @@ from html.parser import HTMLParser
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared_test_support.requirement_factories import (
-    ctf_token_requirement,
-)
 
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.requirement_cards import (
     build_checking_requirement_card_context,
+)
+from tests.support.requirement_factories import (
+    ctf_token_requirement,
 )
 
 

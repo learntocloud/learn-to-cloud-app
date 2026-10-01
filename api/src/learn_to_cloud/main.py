@@ -13,25 +13,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
-from learn_to_cloud_shared.core.azure_auth import close_credential
-from learn_to_cloud_shared.core.config import get_web_settings
-from learn_to_cloud_shared.core.database import (
+from starlette.middleware.sessions import SessionMiddleware
+
+from learn_to_cloud.content_catalog import get_curriculum_catalog
+from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, init_oauth, oauth_transport
+from learn_to_cloud.core.azure_auth import close_credential
+from learn_to_cloud.core.config import get_web_settings
+from learn_to_cloud.core.database import (
     create_engine,
     create_session_maker,
     dispose_engine,
     init_db,
 )
-from learn_to_cloud_shared.core.github_client import close_github_client
-from learn_to_cloud_shared.core.logger import configure_logging
-from learn_to_cloud_shared.core.observability import configure_observability
-from starlette.middleware.sessions import SessionMiddleware
-
-from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, init_oauth
+from learn_to_cloud.core.github_client import close_github_client
+from learn_to_cloud.core.logger import configure_logging
 from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
     TelemetrySanitizationMiddleware,
 )
+from learn_to_cloud.core.observability import configure_observability
 from learn_to_cloud.core.session_cookies import SessionResponseMiddleware
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.routes import (
@@ -123,6 +123,7 @@ async def lifespan(app: fastapi.FastAPI):
         finally:
             await close_verification_grader()
             await close_github_client()
+            await oauth_transport.close_pool()
             await dispose_engine(app.state.engine)
             if app.state.settings.database.use_azure_postgres:
                 await close_credential()

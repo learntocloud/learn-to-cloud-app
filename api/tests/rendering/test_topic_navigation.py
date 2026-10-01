@@ -3,9 +3,9 @@
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.schemas import LearningStep, Topic
 
 from learn_to_cloud.rendering.topic_navigation import build_topic_nav
+from learn_to_cloud.schemas import LearningStep, Topic
 
 
 @pytest.mark.unit

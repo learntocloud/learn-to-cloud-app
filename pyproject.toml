@@ -11,11 +11,7 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = [
-    "api",
-    "packages/learn-to-cloud-shared",
-    "packages/learn-to-cloud-shared-test-support",
-]
+members = ["api"]
 
 [dependency-groups]
 # Workspace-wide developer tooling. Task definitions live in [tool.poe.tasks]
@@ -31,24 +27,20 @@ help = "Run all static checks (lint, format, type-check, migration SQL, file hyg
 cmd = "prek run --all-files --show-diff-on-failure"
 
 [tool.poe.tasks.test]
-help = "Run the API and shared test suites with coverage gates"
-shell = """
-set -e
-(cd api && uv run pytest tests/ --cov=learn_to_cloud --cov-report=term-missing)
-(cd packages/learn-to-cloud-shared && uv run pytest tests/ --cov=learn_to_cloud_shared --cov-report=term-missing)
-"""
+help = "Run the API test suite with its coverage gate"
+shell = "cd api && uv run pytest tests/ --cov=learn_to_cloud --cov-report=term-missing"
 
 [tool.poe.tasks.package-smoke]
-help = "Build and validate the installed shared runtime package"
+help = "Build and validate the installed API runtime package"
 shell = """
 set -eu
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
-uv build --package learn-to-cloud-shared --wheel --out-dir "$tmpdir"
+uv build --package learn-to-cloud-api --wheel --out-dir "$tmpdir"
 wheel=$(find "$tmpdir" -maxdepth 1 -name '*.whl' -print -quit)
 uv venv "$tmpdir/venv"
 uv pip install --python "$tmpdir/venv/bin/python" "$wheel"
-"$tmpdir/venv/bin/python" -m learn_to_cloud_shared.runtime_package_check
+"$tmpdir/venv/bin/python" -m learn_to_cloud.runtime_package_check
 """
 
 [tool.poe.tasks.check]

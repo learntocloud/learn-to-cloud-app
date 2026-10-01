@@ -18,7 +18,7 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 | Layer | Technology |
 |-------|------------|
 | **Backend** | Python 3.13+, FastAPI, SQLAlchemy (async), PostgreSQL |
-| **Verification** | Sequential API background worker + shared Python package |
+| **Verification** | Sequential API background worker |
 | **Frontend** | HTMX, Jinja2 templates, Alpine.js, Tailwind CSS v4 |
 | **Auth** | GitHub OAuth (Authlib) |
 | **Infra** | Azure Container Apps, Azure PostgreSQL, Terraform |
@@ -58,8 +58,8 @@ docker compose up -d db aspire-dashboard
 
 **2. Install Python dependencies**
 
-This project is a single uv workspace. One command installs the API and shared
-packages into one virtual environment:
+This project is a single uv workspace. One command installs the API into a
+virtual environment:
 
 ```bash
 uv sync --all-packages --locked
@@ -105,13 +105,13 @@ timeout and overdue cleanup, with no workflow retries or checkpoints.
 │   │       ├── main.py       # App entry point
 │   │       ├── routes/       # API + page endpoints
 │   │       ├── services/     # Business logic
-│   │       ├── repositories/ # Database queries
-│   │       ├── core/         # Config, auth, database
+│   │       ├── core/         # Config, auth, database, telemetry
+│   │       ├── repositories/ # Database access
+│   │       ├── verification/ # Verification checks and engine
+│   │       ├── content/      # Curriculum YAML and compiled JSON
 │   │       ├── templates/    # Jinja2 templates (HTMX)
 │   │       └── static/       # CSS, JS, images
 │   └── tests/
-├── packages/
-│   └── learn-to-cloud-shared/  # Shared domain, repositories, verification logic, and content
 ├── infra/                # Terraform (Azure)
 └── .github/
     ├── workflows/        # CI/CD
@@ -132,8 +132,8 @@ Pushes to `main` select deployment work by changed paths:
 
 - Application runtime changes build and validate the API and migration images,
   run migrations, update the API, and verify production in one deployment job.
-  API and shared-package changes are treated conservatively as runtime changes,
-  except for their first-party test trees. Tests, documentation, and root-level
+  API changes are treated conservatively as runtime changes, except for the
+  first-party test tree. Tests, documentation, and root-level
   tooling still run CI but do not deploy production.
 - Infrastructure changes call `infra-deploy.yml` to plan and apply Terraform,
   then verify production without building images, running migrations, or updating

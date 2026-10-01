@@ -168,21 +168,10 @@ resource "azurerm_container_app" "api_v5" {
         value = azurerm_application_insights.frontend.connection_string
       }
 
+      # Stable HTTP semantic conventions give auto-instrumented spans error.type.
       env {
-        name  = "OTEL_SERVICE_NAME"
-        value = "learn-to-cloud-api"
-      }
-
-      # Azure Monitor Python 1.8.6+ defaults to rate-limited trace sampling.
-      # Pin the production policy so SDK default changes cannot raise ingestion.
-      env {
-        name  = "OTEL_TRACES_SAMPLER"
-        value = "microsoft.rate_limited"
-      }
-
-      env {
-        name  = "OTEL_TRACES_SAMPLER_ARG"
-        value = "1"
+        name  = "OTEL_SEMCONV_STABILITY_OPT_IN"
+        value = "http"
       }
 
       env {

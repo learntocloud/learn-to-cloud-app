@@ -6,10 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+
+from learn_to_cloud.rendering.requirement_cards import CheckingCardContext
+from learn_to_cloud.repositories.verification_attempt_repository import (
     AttemptHistoryProjection,
 )
-from learn_to_cloud_shared.schemas import (
+from learn_to_cloud.schemas import (
     LearningProgress,
     Phase,
     PhaseHandsOnVerificationOverview,
@@ -19,16 +21,14 @@ from learn_to_cloud_shared.schemas import (
     UserProgress,
     VerificationProgress,
 )
-from learn_to_cloud_shared_test_support.requirement_factories import (
-    career_reflection_requirement,
-    repo_fork_requirement,
-)
-
-from learn_to_cloud.rendering.requirement_cards import CheckingCardContext
 from learn_to_cloud.services.verification_page_service import (
     VerificationAttemptHistoryItem,
     get_phase_verification_workspace,
     get_verifications_overview,
+)
+from tests.support.requirement_factories import (
+    career_reflection_requirement,
+    repo_fork_requirement,
 )
 
 

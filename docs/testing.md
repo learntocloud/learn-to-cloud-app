@@ -9,13 +9,13 @@ running them through pytest.
 Run each command from the repository root:
 
 ```bash
-# Lint the application and shared runtime.
-uv run --project api ruff check api packages/learn-to-cloud-shared
+# Lint the application.
+uv run --project api ruff check api
 
 # Select the relevant suite, file, or test.
 uv run --project api pytest api/tests/ -m unit
 uv run --project api pytest api/tests/ -m integration
-uv run --project packages/learn-to-cloud-shared pytest packages/learn-to-cloud-shared/tests/
+uv run --project api pytest api/tests/
 ```
 
 Mark tests as `unit` or `integration`; use `pytest_asyncio.fixture` for async
@@ -25,20 +25,19 @@ tests instead recreate a dedicated disposable database; see
 
 ## Test code and callable contracts
 
-Keep suite-specific fakes in `tests/fakes/` and fixtures in `conftest.py`.
-Helpers shared across suites belong in
-[`learn-to-cloud-shared-test-support`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/packages/learn-to-cloud-shared-test-support),
-as a dev dependency only. Do not ship test helpers in runtime dependencies.
+Keep fakes in `tests/support/fakes/` and fixtures in `conftest.py`. Helpers used
+across test directories belong in
+[`tests/support/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/tests/support).
+Runtime code must not import test helpers.
 
 Before removing unused arguments or `async`, trace callers, dependency injection,
 callbacks, and mocks. A fixture argument may provide essential setup. Use
 `usefixtures` when only setup is needed; do not add dummy argument uses or awaits
 to satisfy a lint rule.
 
-The package `pyproject.toml` files document reviewed callback exceptions:
-[`API`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/pyproject.toml)
-and
-[`shared runtime`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/packages/learn-to-cloud-shared/pyproject.toml).
+The
+[`API pyproject.toml`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/pyproject.toml)
+documents reviewed callback exceptions.
 Review new code in exempted files manually; expanding exceptions needs a
 caller/contract review and maintainer agreement.
 

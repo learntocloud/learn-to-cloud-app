@@ -29,17 +29,17 @@ from importlib import import_module
 from logging.config import fileConfig
 
 from azure.identity import DefaultAzureCredential
-from learn_to_cloud_shared.core.azure_auth import AZURE_PG_SCOPE
-from learn_to_cloud_shared.core.config import (
-    get_migration_settings,
-)
-from learn_to_cloud_shared.core.database import Base
 from sqlalchemy import create_engine
 
 from alembic import context
+from learn_to_cloud.core.azure_auth import AZURE_PG_SCOPE
+from learn_to_cloud.core.config import (
+    get_migration_settings,
+)
+from learn_to_cloud.core.database import Base
 
 # Import models so Base.metadata is populated for autogenerate.
-import_module("learn_to_cloud_shared.models")
+import_module("learn_to_cloud.models")
 
 config = context.config
 

@@ -24,7 +24,11 @@
 
 # Test artifacts
 /api/tests/
-/packages/learn-to-cloud-shared/tests/
+
+# Authored curriculum sources; the runtime reads the compiled curriculum.json
+/api/src/learn_to_cloud/content/phases/
+/api/src/learn_to_cloud/content/schemas/
+/api/src/learn_to_cloud/content/curriculum.meta.yaml
 **/.pytest_cache/
 **/.coverage
 **/htmlcov/

@@ -27,8 +27,10 @@ import pytest
 import pytest_asyncio
 from fastapi.responses import HTMLResponse
 from httpx import ASGITransport, AsyncClient
-from learn_to_cloud_shared.core.database import get_db
-from learn_to_cloud_shared.schemas import (
+
+from learn_to_cloud.core.auth import optional_authenticated_account
+from learn_to_cloud.core.database import get_db
+from learn_to_cloud.schemas import (
     DashboardData,
     LearningProgress,
     PhaseProgress,
@@ -36,8 +38,6 @@ from learn_to_cloud_shared.schemas import (
     PhaseSummaryData,
     VerificationProgress,
 )
-
-from learn_to_cloud.core.auth import optional_authenticated_account
 
 # =============================================================================
 # Fixtures
@@ -85,10 +85,10 @@ def _fake_dashboard() -> DashboardData:
 def _patched_content():
     """Route smoke tests don't run against a real DB; redirect content reads
     to the authored YAML loader so routes get a real curriculum tree."""
-    from learn_to_cloud_shared.content_yaml_loader import (
+    from learn_to_cloud.content_yaml_loader import (
         get_all_phases_from_yaml,
     )
-    from learn_to_cloud_shared.schemas import PhaseOverview, TopicOverview
+    from learn_to_cloud.schemas import PhaseOverview, TopicOverview
 
     yaml_phases = get_all_phases_from_yaml()
     yaml_overview = tuple(
@@ -265,7 +265,7 @@ class TestAuthPageSmoke:
     async def test_typed_verification_submission_routes_bind_forms(
         self, auth_client: AsyncClient
     ):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             career_reflection_requirement,
             ctf_token_requirement,
             profile_readme_requirement,
@@ -315,7 +315,7 @@ class TestAuthPageSmoke:
 
     async def test_phase_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1 renders the phase detail template."""
-        from learn_to_cloud_shared.content_yaml_loader import (
+        from learn_to_cloud.content_yaml_loader import (
             get_all_phases_from_yaml,
         )
 
@@ -380,15 +380,14 @@ class TestAuthPageSmoke:
         """A passed requirement still surfaces its rubric feedback (the why)."""
         from datetime import UTC, datetime
 
-        from learn_to_cloud_shared.content_yaml_loader import (
+        from learn_to_cloud.content_yaml_loader import (
             get_all_phases_from_yaml,
         )
-        from learn_to_cloud_shared.schemas import SubmissionData
-
         from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
         from learn_to_cloud.rendering.requirement_cards import (
             build_requirement_card_context,
         )
+        from learn_to_cloud.schemas import SubmissionData
 
         phase = next(
             (p for p in get_all_phases_from_yaml() if p.slug == "phase1"), None
@@ -462,7 +461,7 @@ class TestAuthPageSmoke:
 
     async def test_topic_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1/{topic_slug} renders the topic detail template."""
-        from learn_to_cloud_shared.content_yaml_loader import (
+        from learn_to_cloud.content_yaml_loader import (
             get_all_phases_from_yaml,
         )
 

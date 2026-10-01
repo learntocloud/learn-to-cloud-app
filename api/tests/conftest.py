@@ -31,16 +31,6 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from learn_to_cloud_shared.core.config import (
-    CorsConfig,
-    DatabaseConfig,
-    Environment,
-    OAuthConfig,
-    SessionConfig,
-    WebSecurityConfig,
-    WebSettings,
-)
-from learn_to_cloud_shared.core.database import Base
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -49,6 +39,17 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.pool import NullPool
+
+from learn_to_cloud.core.config import (
+    CorsConfig,
+    DatabaseConfig,
+    Environment,
+    OAuthConfig,
+    SessionConfig,
+    WebSecurityConfig,
+    WebSettings,
+)
+from learn_to_cloud.core.database import Base
 
 # =============================================================================
 # Test Settings

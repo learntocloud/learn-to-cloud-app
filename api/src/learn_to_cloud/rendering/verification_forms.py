@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from learn_to_cloud_shared.schemas import (
+from learn_to_cloud.schemas import (
     CareerReflectionQuestion,
     CareerReflectionRequirement,
     CtfTokenRequirement,
@@ -14,11 +14,10 @@ from learn_to_cloud_shared.schemas import (
     NetworkingTokenRequirement,
     SubmissionData,
 )
-from learn_to_cloud_shared.submission_derivation import (
+from learn_to_cloud.submission_derivation import (
     derive_submission_value,
     is_derivable,
 )
-
 from learn_to_cloud.verification_forms import (
     MAX_REFLECTION_ANSWER_LENGTH,
     verification_submit_action,

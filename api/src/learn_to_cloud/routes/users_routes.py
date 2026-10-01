@@ -1,9 +1,9 @@
 """User-related endpoints."""
 
 from fastapi import APIRouter, Request
-from learn_to_cloud_shared.schemas import UserResponse
 
 from learn_to_cloud.core.auth import CurrentAccount, CurrentUser
+from learn_to_cloud.schemas import UserResponse
 from learn_to_cloud.services.sessions_service import mutate_account
 
 __all__ = ["router"]

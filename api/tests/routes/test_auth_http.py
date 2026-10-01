@@ -14,9 +14,6 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from httpx import ASGITransport, AsyncClient
 from itsdangerous import TimestampSigner
-from learn_to_cloud_shared.core.database import get_db
-from learn_to_cloud_shared.models import User
-from learn_to_cloud_shared.schemas import UserResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging.handler import LoggingHandler
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
@@ -35,6 +32,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.middleware.sessions import SessionMiddleware
 
 from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, CurrentUser
+from learn_to_cloud.core.database import get_db
 from learn_to_cloud.core.middleware import TelemetrySanitizationMiddleware
 from learn_to_cloud.core.routing import LoginRedirectRoute
 from learn_to_cloud.core.session_cookies import (
@@ -42,6 +40,7 @@ from learn_to_cloud.core.session_cookies import (
     SessionResponseMiddleware,
 )
 from learn_to_cloud.core.templates import templates
+from learn_to_cloud.models import User
 from learn_to_cloud.routes import (
     auth_router,
     htmx_router,
@@ -49,6 +48,7 @@ from learn_to_cloud.routes import (
     users_router,
 )
 from learn_to_cloud.routes.pages_routes import _template_context
+from learn_to_cloud.schemas import UserResponse
 from learn_to_cloud.services.sessions_service import issue_session, mutate_account
 
 pytestmark = pytest.mark.integration
@@ -288,7 +288,7 @@ def telemetry_logs():
 
 
 def _exported_telemetry(span_exporter, log_exporter, caplog):
-    from learn_to_cloud_shared.core.logger import _json_formatter
+    from learn_to_cloud.core.logger import _json_formatter
 
     return "\n".join(
         [span.to_json() for span in span_exporter.get_finished_spans()]
@@ -863,11 +863,10 @@ async def test_callback_profile_and_session_contract(
 async def test_callback_postgres_failure_rolls_back_without_issuing_session(
     app, github, test_settings, telemetry_logs, caplog, failure
 ):
-    from learn_to_cloud_shared.core.database import (
+    from learn_to_cloud.core.database import (
         create_engine,
         create_session_maker,
     )
-
     from learn_to_cloud.main import global_exception_handler
 
     caplog.set_level(logging.INFO)
@@ -879,7 +878,7 @@ async def test_callback_postgres_failure_rolls_back_without_issuing_session(
     instrumentor = SQLAlchemyInstrumentor()
     # Keep production instrumentation, but export only to memory.
     with patch(
-        "learn_to_cloud_shared.core.database.instrument_database",
+        "learn_to_cloud.core.database.instrument_database",
         side_effect=lambda engine: instrumentor.instrument(
             engine=engine.sync_engine, tracer_provider=provider
         ),

@@ -5,11 +5,11 @@ from base64 import urlsafe_b64decode
 from unittest.mock import patch
 
 import pytest
-from learn_to_cloud_shared.models import AuthSession, User
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from learn_to_cloud.core.session_cookies import token_digest
+from learn_to_cloud.models import AuthSession, User
 from learn_to_cloud.services.sessions_service import issue_session
 
 pytestmark = pytest.mark.integration

@@ -5,8 +5,6 @@ requires-python = "==3.13.*"
 [manifest]
 members = [
     "learn-to-cloud-api",
-    "learn-to-cloud-shared",
-    "learn-to-cloud-shared-test-support",
     "learn-to-cloud-workspace",
 ]
 
@@ -801,32 +799,43 @@ dependencies = [
     { name = "agent-framework-core" },
     { name = "agent-framework-foundry" },
     { name = "agent-framework-openai" },
+    { name = "aiohttp" },
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "authlib" },
     { name = "azure-core" },
     { name = "azure-identity" },
+    { name = "azure-monitor-opentelemetry" },
+    { name = "cachetools" },
     { name = "fastapi" },
+    { name = "greenlet" },
     { name = "httpx" },
     { name = "httpx2" },
     { name = "itsdangerous" },
     { name = "jinja2" },
-    { name = "learn-to-cloud-shared" },
     { name = "markdown" },
     { name = "openai" },
     { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
+    { name = "opentelemetry-instrumentation-httpx" },
+    { name = "opentelemetry-instrumentation-logging" },
+    { name = "opentelemetry-instrumentation-sqlalchemy" },
+    { name = "opentelemetry-sdk" },
     { name = "psycopg2-binary" },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "python-json-logger" },
     { name = "python-multipart" },
+    { name = "pyyaml" },
     { name = "sqlalchemy" },
     { name = "starlette" },
+    { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "httpx" },
-    { name = "learn-to-cloud-shared-test-support" },
     { name = "pytest" },
     { name = "pytest-alembic" },
     { name = "pytest-asyncio" },
@@ -841,134 +850,49 @@ requires-dist = [
     { name = "agent-framework-core", specifier = ">=1.16.0" },
     { name = "agent-framework-foundry", specifier = ">=1.3.0" },
     { name = "agent-framework-openai", specifier = ">=1.14.1" },
+    { name = "aiohttp", specifier = ">=3.14.3" },
     { name = "alembic", specifier = ">=1.18.5" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "authlib", specifier = ">=1.7.0" },
     { name = "azure-core", specifier = ">=1.41.0" },
     { name = "azure-identity", specifier = ">=1.25.3" },
+    { name = "azure-monitor-opentelemetry", specifier = ">=1.8.9" },
+    { name = "cachetools", specifier = ">=7.0.6" },
     { name = "fastapi", specifier = ">=0.141.1,<1" },
+    { name = "greenlet", specifier = ">=3.2.4" },
     { name = "httpx", specifier = ">=0.28.1,<1" },
     { name = "httpx2", specifier = ">=2.12.0" },
     { name = "itsdangerous", specifier = ">=2.1.0" },
     { name = "jinja2", specifier = ">=3.1.0" },
-    { name = "learn-to-cloud-shared", editable = "packages/learn-to-cloud-shared" },
     { name = "markdown", specifier = ">=3.5.0" },
     { name = "openai", specifier = ">=2.54.0,<3" },
     { name = "opentelemetry-api", specifier = ">=1.43.0,<1.44.0" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.43.0,<1.44.0" },
+    { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.61b0" },
+    { name = "opentelemetry-instrumentation-logging", specifier = "==0.64b0" },
+    { name = "opentelemetry-instrumentation-sqlalchemy", specifier = "==0.64b0" },
+    { name = "opentelemetry-sdk", specifier = ">=1.43.0,<1.44.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.12" },
     { name = "pydantic", specifier = ">=2.13.3,<3" },
+    { name = "pydantic-settings", specifier = ">=2.14.2" },
+    { name = "python-json-logger", specifier = ">=4.1.0" },
     { name = "python-multipart", specifier = ">=0.0.31" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "sqlalchemy", specifier = ">=2.0.49,<3" },
     { name = "starlette", specifier = ">=1.3.1" },
+    { name = "tenacity", specifier = ">=8.2.0,<9.1.5" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.1" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "httpx", specifier = ">=0.28.0" },
-    { name = "learn-to-cloud-shared-test-support", editable = "packages/learn-to-cloud-shared-test-support" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-alembic", specifier = ">=0.12.1" },
-    { name = "pytest-asyncio", specifier = ">=0.24.0" },
-    { name = "pytest-cov", specifier = ">=4.1.0" },
-    { name = "ruff", specifier = "==0.16.6" },
-    { name = "squawk-cli", specifier = ">=2.53.0" },
-    { name = "ty", specifier = "==0.0.77" },
-]
-
-[[package]]
-name = "learn-to-cloud-shared"
-version = "0.1.0"
-source = { editable = "packages/learn-to-cloud-shared" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "asyncpg" },
-    { name = "azure-identity" },
-    { name = "azure-monitor-opentelemetry" },
-    { name = "cachetools" },
-    { name = "fastapi" },
-    { name = "greenlet" },
-    { name = "httpx" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp-proto-grpc" },
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "opentelemetry-instrumentation-httpx" },
-    { name = "opentelemetry-instrumentation-logging" },
-    { name = "opentelemetry-instrumentation-sqlalchemy" },
-    { name = "opentelemetry-sdk" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "python-json-logger" },
-    { name = "pyyaml" },
-    { name = "sqlalchemy" },
-    { name = "tenacity" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "learn-to-cloud-shared-test-support" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "ty" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.14.3" },
-    { name = "asyncpg", specifier = ">=0.31.0" },
-    { name = "azure-identity", specifier = ">=1.25.2" },
-    { name = "azure-monitor-opentelemetry", specifier = ">=1.8.9" },
-    { name = "cachetools", specifier = ">=7.0.6" },
-    { name = "fastapi", specifier = ">=0.141.1,<1" },
-    { name = "greenlet", specifier = ">=3.2.4" },
-    { name = "httpx", specifier = ">=0.28.1,<1" },
-    { name = "opentelemetry-api", specifier = ">=1.43.0,<1.44.0" },
-    { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.43.0,<1.44.0" },
-    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.43.0,<1.44.0" },
-    { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.61b0" },
-    { name = "opentelemetry-instrumentation-logging", specifier = "==0.64b0" },
-    { name = "opentelemetry-instrumentation-sqlalchemy", specifier = "==0.64b0" },
-    { name = "opentelemetry-sdk", specifier = ">=1.43.0,<1.44.0" },
-    { name = "pydantic", specifier = ">=2.13.3,<3" },
-    { name = "pydantic-settings", specifier = ">=2.14.2" },
-    { name = "python-json-logger", specifier = ">=4.1.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "sqlalchemy", specifier = ">=2.0.49,<3" },
-    { name = "tenacity", specifier = ">=8.2.0,<9.1.5" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "learn-to-cloud-shared-test-support", editable = "packages/learn-to-cloud-shared-test-support" },
-    { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=4.1.0" },
     { name = "ruff", specifier = "==0.16.6" },
-    { name = "ty", specifier = "==0.0.77" },
-]
-
-[[package]]
-name = "learn-to-cloud-shared-test-support"
-version = "0.1.0"
-source = { editable = "packages/learn-to-cloud-shared-test-support" }
-dependencies = [
-    { name = "learn-to-cloud-shared" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "ruff" },
-    { name = "ty" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "learn-to-cloud-shared", editable = "packages/learn-to-cloud-shared" }]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "ruff", specifier = "==0.16.6" },
+    { name = "squawk-cli", specifier = ">=2.53.0" },
     { name = "ty", specifier = "==0.0.77" },
 ]
 
@@ -1213,24 +1137,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e2/1d/6336453716ca0a240d4417d19e6d5b77a5e7163e5670ec4f7ec4d3ede7bf/opentelemetry_exporter_otlp_proto_grpc-1.43.0.tar.gz", hash = "sha256:1b3e0627daa9bc21884d4a13946807c255eb558bfe5bdd543dffb6f4c9faee0d", size = 27213, upload-time = "2026-06-24T15:20:00.907Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6d/74/2700b5d5c946bf2dba87073fce3dfc198c46bc92ea3d5693f54bc51c90b1/opentelemetry_exporter_otlp_proto_grpc-1.43.0-py3-none-any.whl", hash = "sha256:6a10d1feacffffda19acacbf277b736094b1e2f4dbb98c90ccb2c6e1962e2ec6", size = 19626, upload-time = "2026-06-24T15:19:42.233Z" },
-]
-
-[[package]]
-name = "opentelemetry-exporter-otlp-proto-http"
-version = "1.43.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "googleapis-common-protos" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp-proto-common" },
-    { name = "opentelemetry-proto" },
-    { name = "opentelemetry-sdk" },
-    { name = "requests" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fc/92/0b9f56412483a8891d4843890294796c9df8ab42417bd9bad8035d840cb3/opentelemetry_exporter_otlp_proto_http-1.43.0.tar.gz", hash = "sha256:fa8a42bb7d00ee5391f4c0b04d8e6a46c03caa437903296ab73a81dc11ba118f", size = 25406, upload-time = "2026-06-24T15:20:01.515Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/20/b685ed7af2e17c29ffc8af56f1fa8bc2033258fc30fb0d2b722f49d13ba0/opentelemetry_exporter_otlp_proto_http-1.43.0-py3-none-any.whl", hash = "sha256:647f603aa8efdbdb4dbff842e0729d0406a6fff26b295a72d3d60e7d963b2610", size = 21795, upload-time = "2026-06-24T15:19:43.164Z" },
 ]
 
 [[package]]

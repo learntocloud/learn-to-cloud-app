@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from learn_to_cloud_shared.schemas import Phase, PhaseProgress
+    from learn_to_cloud.schemas import Phase, PhaseProgress
 
 
 def build_progress_dict(completed: int, total: int) -> dict[str, int]:

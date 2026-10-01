@@ -3,7 +3,7 @@
 import hashlib
 import hmac
 
-from learn_to_cloud_shared.core.config import get_web_settings
+from learn_to_cloud.core.config import get_web_settings
 
 
 def build_phase_transition_id(

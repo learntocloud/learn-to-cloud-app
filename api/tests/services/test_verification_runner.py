@@ -10,34 +10,34 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.schemas import ValidationResult
-from learn_to_cloud_shared.submission_values import submitted_value_from_raw
-from learn_to_cloud_shared.verification.evidence import (
-    EVIDENCE_ERROR_CODES,
-    EvidenceError,
-    apply_evidence_cap,
-)
-from learn_to_cloud_shared.verification.grading_requests import (
-    LLMGradingRequest,
-    build_text_rubric_message,
-)
-from learn_to_cloud_shared.verification.tasks import LLMGradingDecision, RubricCriterion
-from learn_to_cloud_shared.verification.tasks.phase7 import (
-    CAREER_REFLECTION_RUBRIC_TASK,
-)
-from learn_to_cloud_shared.verification_workflow import (
-    LLM_ERROR_TYPES,
-    PreparedVerificationAttempt,
-    VerificationRunResult,
-)
-from learn_to_cloud_shared_test_support.requirement_factories import (
-    devops_analysis_requirement,
-)
 
+from learn_to_cloud.schemas import ValidationResult
 from learn_to_cloud.services import verification_runner as runner
 from learn_to_cloud.services.verification_grader import (
     ContentFilteredError,
     LLMGradingError,
+)
+from learn_to_cloud.submission_values import submitted_value_from_raw
+from learn_to_cloud.verification.evidence import (
+    EVIDENCE_ERROR_CODES,
+    EvidenceError,
+    apply_evidence_cap,
+)
+from learn_to_cloud.verification.grading_requests import (
+    LLMGradingRequest,
+    build_text_rubric_message,
+)
+from learn_to_cloud.verification.tasks import LLMGradingDecision, RubricCriterion
+from learn_to_cloud.verification.tasks.phase7 import (
+    CAREER_REFLECTION_RUBRIC_TASK,
+)
+from learn_to_cloud.verification_workflow import (
+    LLM_ERROR_TYPES,
+    PreparedVerificationAttempt,
+    VerificationRunResult,
+)
+from tests.support.requirement_factories import (
+    devops_analysis_requirement,
 )
 
 

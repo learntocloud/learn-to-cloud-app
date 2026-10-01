@@ -29,7 +29,7 @@ at login, with no scheduled removal guarantee.
 Validation rules and configurable limits live in
 [`core/auth.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/core/auth.py)
 and shared
-[`SessionConfig`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/core/config.py).
+[`SessionConfig`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/core/config.py).
 
 ## Adding authenticated routes
 

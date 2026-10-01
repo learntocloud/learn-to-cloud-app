@@ -12,7 +12,7 @@ Install only the tools needed for the work you plan to do.
 
 | Workflow | Required tools |
 |----------|----------------|
-| API, shared package, tests, and quality gates | Git, Docker with Compose, `uv`, Node.js 20+ |
+| API, tests, and quality gates | Git, Docker with Compose, `uv`, Node.js 20+ |
 | Frontend CSS changes | npm and frontend dependencies |
 | Local verification submissions | API environment and PostgreSQL |
 | Terraform and Azure operations | Terraform matching CI, Azure CLI, GitHub CLI |
@@ -62,7 +62,8 @@ pass before pushing. New files must be staged for the static checks to inspect
 them; stage only files belonging to the current task.
 
 ```bash
-# Static checks: ruff lint, ruff format, ty type check, migration SQL lint.
+# Static checks: ruff lint, ruff format, ty type check, migration lints,
+# curriculum content validation, and generated schema/curriculum drift.
 # This runs the prek hooks against every file in the workspace.
 uv run poe static
 
@@ -74,9 +75,9 @@ uv run poe test
 uv run poe check
 ```
 
-Continuous integration runs the same `uv run poe` tasks, plus curriculum
-artifact/schema checks, migration checks, and path-selected Terraform checks.
-Run those additional checks when changing their inputs.
+Continuous integration runs `uv run poe check`, plus the curriculum version
+check against the base commit and path-selected Terraform checks. Run those
+additional checks when changing their inputs.
 
 For workflow changes that add a Python command, also run that exact command
 with only the environment variables supplied by the workflow. Do not rely on

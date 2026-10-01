@@ -5,8 +5,6 @@ on:
     branches: [main]
     paths:
       - 'api/**'
-      - 'packages/learn-to-cloud-shared/**'
-      - 'packages/learn-to-cloud-shared-test-support/**'
       - 'scripts/**'
       - '.github/workflows/**'
       - '*.js'
@@ -16,8 +14,6 @@ on:
     branches: [main]
     paths:
       - 'api/**'
-      - 'packages/learn-to-cloud-shared/**'
-      - 'packages/learn-to-cloud-shared-test-support/**'
       - 'scripts/**'
       - '.github/workflows/**'
       - '*.js'

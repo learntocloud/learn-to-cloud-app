@@ -6,19 +6,14 @@ from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+
+from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
     AttemptCardProjection,
 )
-from learn_to_cloud_shared.requirements import RequirementIndex
-from learn_to_cloud_shared.schemas import HandsOnRequirement, Phase
-from learn_to_cloud_shared.submission_values import (
-    GitHubUrlValue,
-    TokenValue,
-    submitted_value_from_raw,
-)
-
+from learn_to_cloud.requirements import RequirementIndex
+from learn_to_cloud.schemas import HandsOnRequirement, Phase
 from learn_to_cloud.services.submissions_service import (
     _SMOKE_USER_ID as SMOKE_USER_ID,
 )
@@ -35,13 +30,18 @@ from learn_to_cloud.services.submissions_service import (
 from learn_to_cloud.services.submissions_service import (
     _pick_smoke_requirement as pick_smoke_requirement,
 )
+from learn_to_cloud.submission_values import (
+    GitHubUrlValue,
+    TokenValue,
+    submitted_value_from_raw,
+)
 
 
 def _make_mock_requirement(
     submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
 ) -> HandsOnRequirement:
     """Create a mock requirement for testing."""
-    from learn_to_cloud_shared_test_support.requirement_factories import (
+    from tests.support.requirement_factories import (
         make_requirement,
     )
 
@@ -89,7 +89,7 @@ def _build_index(
     requirements with the real factory so the index's type signature stays
     honest.
     """
-    from learn_to_cloud_shared_test_support.requirement_factories import (
+    from tests.support.requirement_factories import (
         journal_api_verifier_requirement,
     )
 
@@ -601,7 +601,7 @@ class TestCreateVerificationAttempt:
 def _phase_with_requirement(req: HandsOnRequirement) -> Phase:
     from uuid import uuid4
 
-    from learn_to_cloud_shared.schemas import PhaseHandsOnVerificationOverview
+    from learn_to_cloud.schemas import PhaseHandsOnVerificationOverview
 
     return Phase(
         uuid=uuid4(),
@@ -820,7 +820,7 @@ class TestRunSubmitSmokeCheck:
 
     def test_pick_smoke_requirement_returns_earliest_phase(self):
         """The canary picks the first requirement of the earliest phase."""
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             journal_api_verifier_requirement,
         )
 

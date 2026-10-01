@@ -7,8 +7,6 @@ from typing import Literal
 from urllib.parse import urlparse
 from uuid import UUID
 
-from learn_to_cloud_shared.schemas import HandsOnRequirement, SubmissionData
-
 from learn_to_cloud.rendering.feedback import (
     FeedbackTaskContext,
     incomplete_verification_message,
@@ -18,6 +16,7 @@ from learn_to_cloud.rendering.verification_forms import (
     VerificationFormContext,
     build_verification_form_context,
 )
+from learn_to_cloud.schemas import HandsOnRequirement, SubmissionData
 
 
 @dataclass(frozen=True, slots=True)

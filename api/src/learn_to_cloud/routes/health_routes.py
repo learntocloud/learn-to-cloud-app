@@ -7,12 +7,13 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
-from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
-from learn_to_cloud_shared.core.database import check_db_connection
-from learn_to_cloud_shared.schemas import HealthResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette import status
+
+from learn_to_cloud.content_catalog import get_curriculum_catalog
+from learn_to_cloud.core.database import check_db_connection
+from learn_to_cloud.schemas import HealthResponse
 
 logger = logging.getLogger(__name__)
 

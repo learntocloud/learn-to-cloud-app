@@ -26,13 +26,14 @@ import sys
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from learn_to_cloud_shared.core.config import get_migration_settings
-from learn_to_cloud_shared.core.database import create_engine
-from learn_to_cloud_shared.requirements import (
+from sqlalchemy import bindparam, text
+
+from learn_to_cloud.core.config import get_migration_settings
+from learn_to_cloud.core.database import create_engine
+from learn_to_cloud.requirements import (
     get_requirement_by_slug,
     load_requirement_index,
 )
-from sqlalchemy import bindparam, text
 
 logger = logging.getLogger(__name__)
 

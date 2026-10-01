@@ -6,24 +6,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from learn_to_cloud_shared.content_service import get_curriculum_overview
-from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.repositories.verification_attempt_repository import (
-    VerificationAttemptRepository,
-)
-from learn_to_cloud_shared.requirements import (
-    get_prerequisite_phase,
-    is_phase_verification_locked,
-)
-from learn_to_cloud_shared.schemas import (
-    HandsOnRequirement,
-    Phase,
-    PhaseOverview,
-    PhaseProgress,
-    VerificationProgress,
-)
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from learn_to_cloud.content_service import get_curriculum_overview
+from learn_to_cloud.models import SubmissionType
 from learn_to_cloud.rendering.feedback import (
     FeedbackTaskContext,
     feedback_tasks_and_passed,
@@ -33,6 +19,20 @@ from learn_to_cloud.rendering.requirement_cards import (
     RequirementCardContext,
     build_checking_requirement_card_context,
     build_requirement_card_context,
+)
+from learn_to_cloud.repositories.verification_attempt_repository import (
+    VerificationAttemptRepository,
+)
+from learn_to_cloud.requirements import (
+    get_prerequisite_phase,
+    is_phase_verification_locked,
+)
+from learn_to_cloud.schemas import (
+    HandsOnRequirement,
+    Phase,
+    PhaseOverview,
+    PhaseProgress,
+    VerificationProgress,
 )
 from learn_to_cloud.services.progress_service import (
     fetch_phase_progress,

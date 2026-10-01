@@ -5,21 +5,21 @@ import logging
 from datetime import timedelta
 from uuid import UUID
 
-from learn_to_cloud_shared.core.config import VerificationWorkerConfig
-from learn_to_cloud_shared.models import utcnow
-from learn_to_cloud_shared.repositories.verification_attempt_repository import (
-    AttemptAlreadyGoneError,
-    VerificationAttemptRepository,
-)
-from learn_to_cloud_shared.verification_attempt_executor import (
-    expire_verification_attempts,
-    terminalize_verification_attempt,
-)
 from opentelemetry import trace
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from learn_to_cloud.core.config import VerificationWorkerConfig
+from learn_to_cloud.models import utcnow
+from learn_to_cloud.repositories.verification_attempt_repository import (
+    AttemptAlreadyGoneError,
+    VerificationAttemptRepository,
+)
 from learn_to_cloud.services.verification_runner import execute_verification_attempt
+from learn_to_cloud.verification_attempt_executor import (
+    expire_verification_attempts,
+    terminalize_verification_attempt,
+)
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)

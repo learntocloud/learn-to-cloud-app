@@ -13,8 +13,8 @@ from pathlib import Path
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
-from learn_to_cloud_shared.core.config import get_web_settings
 
+from learn_to_cloud.core.config import get_web_settings
 from learn_to_cloud.rendering.markdown import render_md
 from learn_to_cloud.services.sessions_service import csrf_token
 

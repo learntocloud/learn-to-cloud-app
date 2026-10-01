@@ -3,7 +3,9 @@
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.schemas import (
+
+from learn_to_cloud.rendering.progress import build_phase_topics, build_progress_dict
+from learn_to_cloud.schemas import (
     LearningProgress,
     LearningStep,
     Phase,
@@ -12,8 +14,6 @@ from learn_to_cloud_shared.schemas import (
     TopicProgressData,
     VerificationProgress,
 )
-
-from learn_to_cloud.rendering.progress import build_phase_topics, build_progress_dict
 
 
 def _make_topic(slug: str, name: str = "") -> Topic:

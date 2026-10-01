@@ -3,9 +3,9 @@
 from unittest.mock import MagicMock
 
 import pytest
-from learn_to_cloud_shared_test_support.settings import clear_settings_cache
 
 from learn_to_cloud.core.templates import _frontend_telemetry_context
+from tests.support.settings import clear_settings_cache
 
 
 @pytest.fixture(autouse=True)

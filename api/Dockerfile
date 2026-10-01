@@ -13,24 +13,18 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.9 /uv /usr/local/bin/uv
 ENV UV_PYTHON_DOWNLOADS=never
 ENV UV_COMPILE_BYTECODE=1
 
-# Copy the workspace manifests needed to resolve the locked workspace. All
-# member pyproject.toml files must be present so uv can read the workspace
-# shape; the single lockfile lives at the repository root.
+# Copy the workspace manifests needed to resolve the locked workspace; the
+# single lockfile lives at the repository root.
 COPY pyproject.toml uv.lock ./
 COPY api/pyproject.toml api/pyproject.toml
-COPY packages/learn-to-cloud-shared/pyproject.toml packages/learn-to-cloud-shared/pyproject.toml
-COPY packages/learn-to-cloud-shared-test-support/pyproject.toml packages/learn-to-cloud-shared-test-support/pyproject.toml
 
 # Layer 1 (cached): install only the API package's third-party dependency
 # closure, not the workspace members themselves.
 RUN uv sync --package learn-to-cloud-api --no-dev --frozen --no-install-workspace --no-editable
 
-# Copy the source for the members in the API's dependency closure.
 COPY api api
-COPY packages/learn-to-cloud-shared packages/learn-to-cloud-shared
 
-# Layer 2: build and install the API and shared packages non-editably, so the
-# runtime image contains copied packages and does not need the source tree.
+# Layer 2: build and install the API package non-editably.
 RUN uv sync --package learn-to-cloud-api --no-dev --frozen --no-editable
 
 # Tailwind CSS v4 build stage
@@ -84,8 +78,8 @@ CMD ["python", "scripts/run_migrations.py"]
 # API stage - request-serving runtime
 FROM runtime-base AS api-runtime
 
-# Copy application code from api/. The shared package is already installed in
-# the virtual environment, without curriculum YAML package data.
+# Copy application code from api/. .dockerignore keeps authored curriculum
+# YAML out of the image; the runtime reads the compiled curriculum.json.
 COPY --chown=appuser:appuser api/ .
 
 # Copy Tailwind-generated CSS from build stage

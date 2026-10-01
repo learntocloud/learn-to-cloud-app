@@ -36,8 +36,6 @@ jobs:
           filters: |
             code:
               - 'api/**'
-              - 'packages/learn-to-cloud-shared/**'
-              - 'packages/learn-to-cloud-shared-test-support/**'
               - 'scripts/**'
               - 'pyproject.toml'
               - 'uv.lock'
@@ -127,79 +125,25 @@ jobs:
       - name: Install workspace dependencies
         run: uv sync --all-packages --locked
 
-      - name: Static checks
-        run: uv run poe static
+      # Static checks, generated-artifact drift, package smoke, and tests
+      # (including migration head, upgrade, and model/DDL sync).
+      - name: Quality gate
+        run: uv run poe check
 
-      - name: Validate curriculum content integrity
-        working-directory: packages/learn-to-cloud-shared
-        run: uv run python scripts/validate_content.py
-
-      - name: Verify generated YAML JSON schemas are up to date
-        working-directory: packages/learn-to-cloud-shared
-        run: |
-          set -euo pipefail
-          uv run python scripts/generate_yaml_schemas.py
-          if ! git diff --exit-code src/learn_to_cloud_shared/content/schemas/; then
-            echo "::error::JSON Schemas drifted from Pydantic models." >&2
-            echo "Run 'cd packages/learn-to-cloud-shared && uv run python scripts/generate_yaml_schemas.py' and commit the result." >&2
-            exit 1
-          fi
-
-      - name: Verify generated curriculum.json artifact is up to date
-        working-directory: packages/learn-to-cloud-shared
+      # Needs git history, so it runs only in CI. Runs after the gate because it
+      # rewrites curriculum.json, which would hide drift from the gate's hooks.
+      - name: Check curriculum_version against the base commit
+        working-directory: api
         env:
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PRIOR_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
-          artifact_path=src/learn_to_cloud_shared/content/curriculum.json
-          repo_artifact_path=packages/learn-to-cloud-shared/$artifact_path
-          prior_sha="${PR_BASE_SHA:-${PUSH_BEFORE_SHA:-}}"
-          previous_artifact_args=()
-
-          if [ -n "$prior_sha" ] && [ "$prior_sha" != "0000000000000000000000000000000000000000" ]; then
-            previous_artifact="$RUNNER_TEMP/previous-curriculum.json"
-            if git show "${prior_sha}:${repo_artifact_path}" > "$previous_artifact" 2>/dev/null; then
-              previous_artifact_args=(--previous-artifact "$previous_artifact")
-            fi
+          previous="$RUNNER_TEMP/previous-curriculum.json"
+          if git show "${PRIOR_SHA}:api/src/learn_to_cloud/content/curriculum.json" > "$previous" 2>/dev/null; then
+            uv run python scripts/compile_curriculum.py --previous-artifact "$previous"
+          else
+            echo "No prior curriculum.json at ${PRIOR_SHA:-<none>}; skipping version check."
           fi
-
-          uv run python scripts/compile_curriculum.py "${previous_artifact_args[@]}"
-          if ! git diff --exit-code "$artifact_path"; then
-            echo "::error::curriculum.json drifted from the authored YAML." >&2
-            echo "Run 'cd packages/learn-to-cloud-shared && uv run python scripts/compile_curriculum.py' and commit the result." >&2
-            exit 1
-          fi
-
-      - name: Validate installed shared runtime package
-        run: uv run poe package-smoke
-
-      - name: Verify single migration head
-        working-directory: api
-        run: |
-          set -euo pipefail
-          heads=$(uv run alembic heads)
-          count=$(echo "$heads" | grep -c '(head)' || echo 0)
-          if [ "$count" -ne 1 ]; then
-            echo "Expected exactly 1 alembic head; found $count:" >&2
-            echo "$heads" >&2
-            exit 1
-          fi
-
-      - name: Lint migration filenames and docstrings
-        working-directory: api
-        run: uv run python scripts/check_migration_naming.py
-
-      - name: Apply migrations to CI database
-        working-directory: api
-        run: uv run alembic upgrade head
-
-      - name: Verify model and migrations are in sync
-        working-directory: api
-        run: uv run alembic check
-
-      - name: Run test suites
-        run: uv run poe test
 
   ci-status:
     if: always()

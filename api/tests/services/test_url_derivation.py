@@ -1,0 +1,187 @@
+"""Unit tests for submission_derivation.
+
+Covers derive_submission_value for all submission types and the
+is_derivable / fork_name_from_required_repo helpers.
+"""
+
+import pytest
+
+from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.schemas import (
+    HandsOnRequirement,
+    HandsOnRequirementAdapter,
+)
+from learn_to_cloud.submission_derivation import (
+    derive_submission_value,
+    fork_name_from_required_repo,
+    is_derivable,
+)
+
+
+def _req(
+    submission_type: SubmissionType,
+    required_repo: str | None = None,
+) -> HandsOnRequirement:
+    from tests.support.requirement_factories import (
+        make_requirement,
+    )
+
+    return make_requirement(
+        submission_type,
+        slug="req-1",
+        name="Test",
+        description="Test",
+        required_repo=required_repo,
+    )
+
+
+@pytest.mark.unit
+class TestIsDerivable:
+    @pytest.mark.parametrize(
+        "sub_type",
+        [
+            SubmissionType.PROFILE_README,
+            SubmissionType.REPO_FORK,
+            SubmissionType.JOURNAL_API_VERIFIER,
+            SubmissionType.DEVOPS_ANALYSIS,
+            SubmissionType.SECURITY_SCANNING,
+        ],
+    )
+    def test_derivable_types(self, sub_type: SubmissionType):
+        assert is_derivable(sub_type) is True
+
+    @pytest.mark.parametrize(
+        "sub_type",
+        [
+            SubmissionType.CTF_TOKEN,
+            SubmissionType.NETWORKING_TOKEN,
+            SubmissionType.DEPLOYED_API,
+            SubmissionType.CAREER_REFLECTION,
+        ],
+    )
+    def test_non_derivable_types(self, sub_type: SubmissionType):
+        assert is_derivable(sub_type) is False
+
+
+@pytest.mark.unit
+class TestForkNameFromRequiredRepo:
+    def test_valid(self):
+        assert fork_name_from_required_repo("learntocloud/journal-starter") == (
+            "journal-starter"
+        )
+
+    def test_nested_path(self):
+        # rsplit takes the last segment
+        assert fork_name_from_required_repo("owner/group/repo") == "repo"
+
+    def test_missing_slash_raises(self):
+        with pytest.raises(ValueError, match="owner/name"):
+            fork_name_from_required_repo("journal-starter")
+
+
+@pytest.mark.unit
+class TestBuildTarget:
+    def test_profile_readme_builds_self_repo_target(self):
+        from learn_to_cloud.submission_derivation import build_target
+
+        target = build_target(_req(SubmissionType.PROFILE_README), "alice")
+        assert target is not None
+        assert target.owner == "alice"
+        assert target.repo == "alice"
+
+    def test_repo_fork_carries_forked_from(self):
+        from learn_to_cloud.submission_derivation import build_target
+
+        req = _req(SubmissionType.REPO_FORK, required_repo="learntocloud/linux-ctfs")
+        target = build_target(req, "alice")
+        assert target is not None
+        assert target.owner == "alice"
+        assert target.repo == "linux-ctfs"
+        assert target.forked_from == "learntocloud/linux-ctfs"
+
+    def test_free_form_type_returns_none(self):
+        from learn_to_cloud.submission_derivation import build_target
+
+        assert build_target(_req(SubmissionType.CTF_TOKEN), "alice") is None
+
+    def test_missing_username_returns_none(self):
+        from learn_to_cloud.submission_derivation import build_target
+
+        assert build_target(_req(SubmissionType.PROFILE_README), None) is None
+
+
+@pytest.mark.unit
+class TestDeriveSubmissionValue:
+    def test_profile_readme(self):
+        req = _req(SubmissionType.PROFILE_README)
+        assert (
+            derive_submission_value(req, "octocat").github_url
+            == "https://github.com/octocat/octocat"
+        )
+
+    def test_repo_fork(self):
+        req = _req(SubmissionType.REPO_FORK, required_repo="learntocloud/linux-ctfs")
+        assert (
+            derive_submission_value(req, "alice").github_url
+            == "https://github.com/alice/linux-ctfs"
+        )
+
+    def test_journal_api_verifier(self):
+        req = _req(
+            SubmissionType.JOURNAL_API_VERIFIER,
+            required_repo="learntocloud/journal-starter",
+        )
+        assert (
+            derive_submission_value(req, "bob").github_url
+            == "https://github.com/bob/journal-starter"
+        )
+
+    def test_devops_analysis(self):
+        req = _req(
+            SubmissionType.DEVOPS_ANALYSIS,
+            required_repo="learntocloud/journal-starter",
+        )
+        assert (
+            derive_submission_value(req, "carol").github_url
+            == "https://github.com/carol/journal-starter"
+        )
+
+    def test_security_scanning(self):
+        req = _req(
+            SubmissionType.SECURITY_SCANNING,
+            required_repo="learntocloud/journal-starter",
+        )
+        assert (
+            derive_submission_value(req, "dave").github_url
+            == "https://github.com/dave/journal-starter"
+        )
+
+    def test_repo_fork_missing_required_repo_raises(self):
+        req = HandsOnRequirementAdapter.validate_python(
+            {
+                "uuid": "00000000-0000-0000-0000-000000000001",
+                "slug": "req-1",
+                "submission_type": "repo_fork",
+                "name": "Test",
+                "description": "Test",
+                "type_config": {"required_repo": ""},
+            }
+        )
+        with pytest.raises(
+            ValueError, match="Requirement 'req-1' is missing required_repo"
+        ):
+            derive_submission_value(req, "alice")
+
+    @pytest.mark.parametrize(
+        "submission_type",
+        [
+            SubmissionType.CTF_TOKEN,
+            SubmissionType.NETWORKING_TOKEN,
+            SubmissionType.DEPLOYED_API,
+            SubmissionType.CAREER_REFLECTION,
+        ],
+    )
+    def test_non_derived_type_is_rejected(self, submission_type: SubmissionType):
+        req = _req(submission_type)
+        with pytest.raises(ValueError, match="not server-derived"):
+            derive_submission_value(req, "alice")

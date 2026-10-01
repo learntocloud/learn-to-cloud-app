@@ -20,17 +20,19 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from uuid import UUID
 
-from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
-from learn_to_cloud_shared.content_service import (
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from learn_to_cloud.content_catalog import get_curriculum_catalog
+from learn_to_cloud.content_service import (
     get_curriculum_overview,
     get_required_step_counts_by_phase,
 )
-from learn_to_cloud_shared.progress_reads import (
+from learn_to_cloud.progress_reads import (
     resolve_completed_step_uuids,
     resolve_succeeded_requirement_uuids,
 )
-from learn_to_cloud_shared.requirements import load_requirement_index
-from learn_to_cloud_shared.schemas import (
+from learn_to_cloud.requirements import load_requirement_index
+from learn_to_cloud.schemas import (
     LearningProgress,
     LearningStep,
     Phase,
@@ -42,7 +44,6 @@ from learn_to_cloud_shared.schemas import (
     UserProgress,
     VerificationProgress,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def _count_by_phase(

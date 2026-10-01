@@ -2,24 +2,25 @@
 
 from datetime import timedelta
 
-from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
-from learn_to_cloud_shared.content_service import (
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from learn_to_cloud.content_catalog import get_curriculum_catalog
+from learn_to_cloud.content_service import (
     get_curriculum_overview,
     get_requirement_counts_by_phase,
 )
-from learn_to_cloud_shared.github_updates import get_latest_curriculum_commits
-from learn_to_cloud_shared.models import utcnow
-from learn_to_cloud_shared.repositories.user_repository import UserRepository
-from learn_to_cloud_shared.repositories.verification_attempt_repository import (
+from learn_to_cloud.github_updates import get_latest_curriculum_commits
+from learn_to_cloud.models import utcnow
+from learn_to_cloud.repositories.user_repository import UserRepository
+from learn_to_cloud.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
-from learn_to_cloud_shared.schemas import (
+from learn_to_cloud.schemas import (
     CommunityActivity,
     CommunityMember,
     CommunityPageData,
     CommunityPhaseActivity,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def get_community_page_data(db: AsyncSession) -> CommunityPageData:
