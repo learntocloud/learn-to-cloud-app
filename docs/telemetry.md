@@ -25,7 +25,7 @@ Azure Monitor owns production FastAPI instrumentation; local OTLP configures
 it explicitly. Both HTTP and background verification use the same API role and
 pipeline. Do not replace the SDK setup merely to remove default ASGI spans.
 See the shared
-[`observability configuration`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/core/observability.py).
+[`observability configuration`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/core/observability.py).
 
 Browser telemetry disables cookies and browser storage. HTMX hooks record page
 views because SDK history tracking counts its replace/push navigation twice;

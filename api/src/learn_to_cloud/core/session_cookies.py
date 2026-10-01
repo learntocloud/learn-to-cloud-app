@@ -6,9 +6,10 @@ import re
 from datetime import UTC, datetime
 
 from fastapi import Request, Response
-from learn_to_cloud_shared.core.config import get_web_settings
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from learn_to_cloud.core.config import get_web_settings
 
 AUTH_COOKIE_NAME = "ltc_session"
 SESSION_COOKIE_NAME = "session"

@@ -18,20 +18,12 @@ from authlib.integrations.starlette_client import OAuth
 from fastapi import FastAPI, Request
 from httpx import ASGITransport, AsyncClient
 from itsdangerous import TimestampSigner
-from learn_to_cloud_shared.content_service import get_phase_by_slug
-from learn_to_cloud_shared.models import AuthSession, User, VerificationAttempt
-from learn_to_cloud_shared.repositories.auth_session_repository import (
-    AuthSessionRepository,
-)
-from learn_to_cloud_shared.repositories.verification_attempt_repository import (
-    VerificationAttemptRepository,
-)
-from learn_to_cloud_shared.submission_values import GitHubUrlValue
 from sqlalchemy import event, func, inspect, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.middleware.sessions import SessionMiddleware
 
+from learn_to_cloud.content_service import get_phase_by_slug
 from learn_to_cloud.core.auth import (
     CurrentAccount,
     CurrentUser,
@@ -46,8 +38,16 @@ from learn_to_cloud.core.session_cookies import (
     token_digest,
 )
 from learn_to_cloud.main import global_exception_handler
+from learn_to_cloud.models import AuthSession, User, VerificationAttempt
+from learn_to_cloud.repositories.auth_session_repository import (
+    AuthSessionRepository,
+)
+from learn_to_cloud.repositories.verification_attempt_repository import (
+    VerificationAttemptRepository,
+)
 from learn_to_cloud.routes import auth_router, htmx_router, pages_router, users_router
 from learn_to_cloud.services.sessions_service import issue_session
+from learn_to_cloud.submission_values import GitHubUrlValue
 
 pytestmark = pytest.mark.integration
 

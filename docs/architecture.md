@@ -38,16 +38,16 @@ that the queue is progressing. Use the
 for backlog and worker failures.
 
 For execution limits and claim behavior, consult
-[`VerificationWorkerConfig`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/core/config.py)
+[`VerificationWorkerConfig`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/core/config.py)
 and the
 [`worker`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/services/verification_worker.py).
 
 ## Changing verification
 
 Add checks to the shared
-[`verification/checks/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/checks)
+[`verification/checks/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/src/learn_to_cloud/verification/checks)
 and compose them in
-[`workflows.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/workflows.py).
+[`workflows.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/verification/workflows.py).
 Keep orchestration and step telemetry in the engine, and provider error
 classification in the integration that understands the response.
 Extend check and workflow-contract tests together.
@@ -68,7 +68,7 @@ Preserve these distinctions:
   Do not turn cancellation into learner failure.
 
 Required paths, rubric criteria, and evidence limits belong in
-[`verification/tasks/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/tasks),
+[`verification/tasks/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/src/learn_to_cloud/verification/tasks),
 not a second documentation inventory. See the
 [evidence runbook](runbooks/alerts.html#incomplete-grading-evidence) for recovery.
 
@@ -82,7 +82,7 @@ does not delete them.
 
 Preserve HTTPS, private-target checks, disabled redirects, and request timeouts
 when changing the
-[`request boundary`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/deployed_api.py).
+[`request boundary`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/verification/deployed_api.py).
 Response-peer inspection cannot undo a request's side effects.
 
 ## Verification UI

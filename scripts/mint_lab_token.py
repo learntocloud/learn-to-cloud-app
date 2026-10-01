@@ -25,11 +25,11 @@ import json
 import sys
 from datetime import UTC, datetime
 
-from learn_to_cloud_shared.core.config import get_worker_settings
-from learn_to_cloud_shared.verification.token_base import (
+from learn_to_cloud.core.config import get_worker_settings
+from learn_to_cloud.verification.token_base import (
     ACCEPTED_CHALLENGE_TYPES,
 )
-from learn_to_cloud_shared.verification.token_base import (
+from learn_to_cloud.verification.token_base import (
     REQUIRED_CHALLENGES as NETWORKING_REQUIRED_CHALLENGES,
 )
 

@@ -7,13 +7,13 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
-from learn_to_cloud_shared.repositories.verification_attempt_repository import (
-    VerificationAttemptRepository,
-)
-from learn_to_cloud_shared.submission_values import SubmittedValue
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from learn_to_cloud.repositories.verification_attempt_repository import (
+    VerificationAttemptRepository,
+)
 from learn_to_cloud.services.submissions_service import create_verification_attempt
+from learn_to_cloud.submission_values import SubmittedValue
 
 logger = logging.getLogger(__name__)
 

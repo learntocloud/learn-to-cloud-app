@@ -5,12 +5,13 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated
 
-from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.schemas import (
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.schemas import (
     CareerReflectionRequirement,
 )
-from learn_to_cloud_shared.submission_values import MAX_TEXT_LENGTH
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from learn_to_cloud.submission_values import MAX_TEXT_LENGTH
 
 MAX_SUBMITTED_VALUE_LENGTH = 2_048
 MAX_REFLECTION_ANSWER_LENGTH = 6_000

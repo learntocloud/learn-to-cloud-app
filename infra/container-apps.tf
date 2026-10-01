@@ -168,25 +168,6 @@ resource "azurerm_container_app" "api_v5" {
         value = azurerm_application_insights.frontend.connection_string
       }
 
-      env {
-        name  = "OTEL_SERVICE_NAME"
-        value = "learn-to-cloud-api"
-      }
-
-      # Azure Monitor Python 1.8.6+ defaults to rate-limited trace sampling.
-      # Pin the production policy so SDK default changes cannot raise ingestion.
-      env {
-        name  = "OTEL_TRACES_SAMPLER"
-        value = "microsoft.rate_limited"
-      }
-
-      # About two traces per second; alerts use unsampled metrics, so this
-      # only bounds how much trace detail is kept for investigation.
-      env {
-        name  = "OTEL_TRACES_SAMPLER_ARG"
-        value = "2"
-      }
-
       # Stable HTTP semantic conventions give auto-instrumented spans error.type.
       env {
         name  = "OTEL_SEMCONV_STABILITY_OPT_IN"

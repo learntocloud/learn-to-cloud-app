@@ -36,8 +36,6 @@ jobs:
           filters: |
             code:
               - 'api/**'
-              - 'packages/learn-to-cloud-shared/**'
-              - 'packages/learn-to-cloud-shared-test-support/**'
               - 'scripts/**'
               - 'pyproject.toml'
               - 'uv.lock'
@@ -131,29 +129,29 @@ jobs:
         run: uv run poe static
 
       - name: Validate curriculum content integrity
-        working-directory: packages/learn-to-cloud-shared
+        working-directory: api
         run: uv run python scripts/validate_content.py
 
       - name: Verify generated YAML JSON schemas are up to date
-        working-directory: packages/learn-to-cloud-shared
+        working-directory: api
         run: |
           set -euo pipefail
           uv run python scripts/generate_yaml_schemas.py
-          if ! git diff --exit-code src/learn_to_cloud_shared/content/schemas/; then
+          if ! git diff --exit-code src/learn_to_cloud/content/schemas/; then
             echo "::error::JSON Schemas drifted from Pydantic models." >&2
-            echo "Run 'cd packages/learn-to-cloud-shared && uv run python scripts/generate_yaml_schemas.py' and commit the result." >&2
+            echo "Run 'cd api && uv run python scripts/generate_yaml_schemas.py' and commit the result." >&2
             exit 1
           fi
 
       - name: Verify generated curriculum.json artifact is up to date
-        working-directory: packages/learn-to-cloud-shared
+        working-directory: api
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          artifact_path=src/learn_to_cloud_shared/content/curriculum.json
-          repo_artifact_path=packages/learn-to-cloud-shared/$artifact_path
+          artifact_path=src/learn_to_cloud/content/curriculum.json
+          repo_artifact_path=api/$artifact_path
           prior_sha="${PR_BASE_SHA:-${PUSH_BEFORE_SHA:-}}"
           previous_artifact_args=()
 
@@ -167,11 +165,11 @@ jobs:
           uv run python scripts/compile_curriculum.py "${previous_artifact_args[@]}"
           if ! git diff --exit-code "$artifact_path"; then
             echo "::error::curriculum.json drifted from the authored YAML." >&2
-            echo "Run 'cd packages/learn-to-cloud-shared && uv run python scripts/compile_curriculum.py' and commit the result." >&2
+            echo "Run 'cd api && uv run python scripts/compile_curriculum.py' and commit the result." >&2
             exit 1
           fi
 
-      - name: Validate installed shared runtime package
+      - name: Validate installed API runtime package
         run: uv run poe package-smoke
 
       - name: Verify single migration head

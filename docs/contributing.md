@@ -12,7 +12,7 @@ Install only the tools needed for the work you plan to do.
 
 | Workflow | Required tools |
 |----------|----------------|
-| API, shared package, tests, and quality gates | Git, Docker with Compose, `uv`, Node.js 20+ |
+| API, tests, and quality gates | Git, Docker with Compose, `uv`, Node.js 20+ |
 | Frontend CSS changes | npm and frontend dependencies |
 | Local verification submissions | API environment and PostgreSQL |
 | Terraform and Azure operations | Terraform matching CI, Azure CLI, GitHub CLI |

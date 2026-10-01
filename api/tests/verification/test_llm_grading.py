@@ -1,0 +1,361 @@
+"""Tests for LLM verification grading helpers."""
+
+from uuid import uuid4
+
+import pytest
+
+from learn_to_cloud.schemas import (
+    CriterionResult,
+    TaskResult,
+    ValidationResult,
+)
+from learn_to_cloud.submission_values import submitted_value_from_raw
+from learn_to_cloud.verification.grading_requests import (
+    LLMGradingDecisionPayload,
+)
+from learn_to_cloud.verification.llm_grading import (
+    apply_llm_grading_decisions,
+    llm_grading_content_filtered_result,
+    llm_grading_unavailable_result,
+    validate_llm_grading_decision,
+)
+from learn_to_cloud.verification.tasks import (
+    CAREER_REFLECTION_RUBRIC_TASK,
+    SECURITY_SCANNING_RUBRIC_TASK,
+    LLMGradingDecision,
+)
+from learn_to_cloud.verification_workflow import (
+    PreparedVerificationAttempt,
+    VerificationRunResult,
+)
+
+
+def _run_result(is_valid: bool = True) -> VerificationRunResult:
+    from tests.support.requirement_factories import (
+        security_scanning_requirement,
+    )
+
+    requirement = security_scanning_requirement(
+        slug="security-scanning",
+        name="Security scanning",
+        description="Enable security scanning",
+        required_repo="learntocloud/journal",
+    )
+    return VerificationRunResult(
+        attempt=PreparedVerificationAttempt(
+            id=uuid4(),
+            user_id=1,
+            github_username="learner",
+            requirement=requirement,
+            submitted_value=submitted_value_from_raw(
+                requirement, "https://github.com/learner/journal"
+            ),
+        ),
+        validation_result=ValidationResult(
+            is_valid=is_valid,
+            message="Security scanning verified.",
+            task_results=[
+                TaskResult(
+                    task_name="Dependabot Configuration",
+                    passed=True,
+                    feedback="Found valid Dependabot config.",
+                )
+            ],
+        ),
+    )
+
+
+def _criterion_results(
+    task,
+    *,
+    evidence_ref: str,
+) -> list[CriterionResult]:
+    return [
+        CriterionResult(
+            criterion_id=criterion.id,
+            status="met",
+            explanation=f"{criterion.label} is satisfied.",
+            evidence_refs=[evidence_ref],
+        )
+        for criterion in task.criteria
+        if not isinstance(criterion, str)
+    ]
+
+
+@pytest.mark.unit
+def test_apply_llm_grading_decisions_appends_feedback_when_passed():
+    run_result = _run_result()
+
+    updated = apply_llm_grading_decisions(
+        run_result,
+        [
+            LLMGradingDecisionPayload(
+                task=SECURITY_SCANNING_RUBRIC_TASK,
+                decision=LLMGradingDecision(
+                    passed=True,
+                    score=0.92,
+                    confidence=0.88,
+                    feedback="The evidence satisfies the security scanning rubric.",
+                    evidence_refs=[".github/dependabot.yml"],
+                ),
+            )
+        ],
+    )
+
+    assert updated.validation_result.is_valid is True
+    assert updated.validation_result.task_results is not None
+    assert len(updated.validation_result.task_results) == 2
+    assert updated.validation_result.task_results[-1].passed is True
+
+
+@pytest.mark.unit
+def test_apply_llm_decision_preserves_canonical_criterion_labels():
+    run_result = _run_result()
+    task = SECURITY_SCANNING_RUBRIC_TASK
+
+    updated = apply_llm_grading_decisions(
+        run_result,
+        [
+            LLMGradingDecisionPayload(
+                task=task,
+                decision=LLMGradingDecision(
+                    passed=True,
+                    score=0.91,
+                    confidence=0.86,
+                    feedback="The security scanning workflow is maintainable.",
+                    evidence_refs=[".github/workflows/codeql.yml"],
+                    criterion_results=_criterion_results(
+                        task,
+                        evidence_ref=".github/workflows/codeql.yml",
+                    ),
+                ),
+            )
+        ],
+    )
+
+    assert updated.validation_result.is_valid is True
+    assert updated.validation_result.task_results is not None
+    assert updated.validation_result.task_results[-1].task_name == (
+        "Security Scanning Rubric Review"
+    )
+    assert updated.validation_result.task_results[-1].criterion_results[0].label
+    assert (
+        updated.validation_result.task_results[-1].criterion_results[0].kind
+        == "required"
+    )
+
+
+@pytest.mark.unit
+def test_validate_llm_decision_requires_exact_criteria_and_known_evidence():
+    task = SECURITY_SCANNING_RUBRIC_TASK
+    decision = LLMGradingDecision(
+        passed=True,
+        score=0.95,
+        confidence=0.9,
+        feedback="The rubric is satisfied.",
+        evidence_refs=["Dockerfile"],
+        criterion_results=_criterion_results(task, evidence_ref="Dockerfile"),
+    )
+
+    validate_llm_grading_decision(task, decision, ["Dockerfile"])
+
+    invalid = decision.model_copy(
+        update={
+            "criterion_results": [
+                *decision.criterion_results[:-1],
+                decision.criterion_results[-1].model_copy(
+                    update={"evidence_refs": ["missing.py"]}
+                ),
+            ]
+        }
+    )
+    with pytest.raises(ValueError, match="unknown evidence"):
+        validate_llm_grading_decision(task, invalid, ["Dockerfile"])
+
+
+@pytest.mark.unit
+def test_validate_llm_decision_rejects_missing_criteria():
+    task = SECURITY_SCANNING_RUBRIC_TASK
+    decision = LLMGradingDecision(
+        passed=False,
+        score=0.2,
+        confidence=0.9,
+        feedback="The rubric is incomplete.",
+        next_steps="Complete the missing work.",
+        criterion_results=_criterion_results(task, evidence_ref="Dockerfile")[:-1],
+    )
+
+    with pytest.raises(ValueError, match="configured rubric"):
+        validate_llm_grading_decision(task, decision, ["Dockerfile"])
+
+
+@pytest.mark.unit
+def test_validate_llm_decision_requires_required_remediation():
+    task = SECURITY_SCANNING_RUBRIC_TASK
+    results = _criterion_results(task, evidence_ref="Dockerfile")
+    results[0] = results[0].model_copy(update={"status": "not_met", "next_steps": ""})
+    decision = LLMGradingDecision(
+        passed=False,
+        score=0.7,
+        confidence=0.9,
+        feedback="Container configuration is missing.",
+        criterion_results=results,
+    )
+
+    with pytest.raises(ValueError, match="need remediation"):
+        validate_llm_grading_decision(task, decision, ["Dockerfile"])
+
+
+@pytest.mark.unit
+def test_validate_llm_decision_rejects_passing_with_unmet_required_criterion():
+    task = SECURITY_SCANNING_RUBRIC_TASK
+    results = _criterion_results(task, evidence_ref="Dockerfile")
+    results[0] = results[0].model_copy(
+        update={
+            "status": "not_met",
+            "next_steps": "Configure the application container.",
+        }
+    )
+    decision = LLMGradingDecision(
+        passed=True,
+        score=0.95,
+        confidence=0.9,
+        feedback="The implementation passed.",
+        criterion_results=results,
+    )
+
+    with pytest.raises(ValueError, match="passing decision"):
+        validate_llm_grading_decision(task, decision, ["Dockerfile"])
+
+
+@pytest.mark.unit
+def test_apply_llm_grading_decisions_fails_when_score_is_below_threshold():
+    run_result = _run_result()
+
+    updated = apply_llm_grading_decisions(
+        run_result,
+        [
+            LLMGradingDecisionPayload(
+                task=SECURITY_SCANNING_RUBRIC_TASK,
+                decision=LLMGradingDecision(
+                    passed=True,
+                    score=0.5,
+                    confidence=0.8,
+                    feedback="The evidence is incomplete.",
+                    next_steps="Add a Dependabot updates entry.",
+                    evidence_refs=[".github/dependabot.yml"],
+                ),
+            )
+        ],
+    )
+
+    assert updated.validation_result.is_valid is False
+    assert updated.validation_result.message == (
+        "LLM rubric review failed. Review the task feedback and try again."
+    )
+    assert updated.validation_result.task_results is not None
+    assert updated.validation_result.task_results[-1].next_steps == (
+        "Add a Dependabot updates entry."
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("score", "passed"), [(0.74, False), (0.75, True)])
+def test_security_review_enforces_exact_threshold(score, passed):
+    updated = apply_llm_grading_decisions(
+        _run_result(),
+        [
+            LLMGradingDecisionPayload(
+                task=SECURITY_SCANNING_RUBRIC_TASK,
+                decision=LLMGradingDecision(
+                    passed=True,
+                    score=score,
+                    confidence=0.9,
+                    feedback="Security scanning configuration reviewed.",
+                    evidence_refs=[".github/workflows/codeql.yml"],
+                ),
+            )
+        ],
+    )
+
+    assert updated.validation_result.is_valid is passed
+    assert updated.validation_result.task_results is not None
+    result = updated.validation_result.task_results[-1]
+    assert result.task_name == "Security Scanning Rubric Review"
+    assert result.passed is passed
+
+
+@pytest.mark.unit
+def test_llm_grading_unavailable_result_marks_server_error():
+    updated = llm_grading_unavailable_result(
+        _run_result(),
+        error_type="llm.provider_unavailable",
+    )
+
+    assert updated.validation_result.is_valid is False
+    assert updated.validation_result.verification_completed is False
+    assert updated.validation_result.message == (
+        "Automated grading is temporarily unavailable. This is a "
+        "problem on our end, not yours. Please submit again later."
+    )
+    assert updated.llm_error_type == "llm.provider_unavailable"
+
+
+def test_llm_grading_content_filtered_result_asks_learner_to_rephrase():
+    updated = llm_grading_content_filtered_result(_run_result())
+
+    assert updated.validation_result.is_valid is False
+    assert updated.validation_result.verification_completed is True
+    assert "content safety filter" in updated.validation_result.message
+    assert "rewrite your answers" in updated.validation_result.message
+
+
+def _phase7_run_result(
+    is_valid: bool = True,
+    submitted_text: str = "## Question 0?\n\nMy detailed reflection answer.",
+) -> VerificationRunResult:
+    from tests.support.requirement_factories import (
+        career_reflection_requirement,
+    )
+
+    requirement = career_reflection_requirement(
+        slug="career-reflection",
+        name="Reflect on Your Job-Search Readiness",
+        description="Answer three reflection questions.",
+    )
+    return VerificationRunResult(
+        attempt=PreparedVerificationAttempt(
+            id=uuid4(),
+            user_id=1,
+            github_username="learner",
+            requirement=requirement,
+            submitted_value=submitted_value_from_raw(requirement, submitted_text),
+        ),
+        validation_result=ValidationResult(
+            is_valid=is_valid,
+            message="Reflection received. Reviewing your answers.",
+        ),
+    )
+
+
+@pytest.mark.unit
+def test_apply_phase7_llm_decision_appends_feedback_when_passed():
+    updated = apply_llm_grading_decisions(
+        _phase7_run_result(),
+        [
+            LLMGradingDecisionPayload(
+                task=CAREER_REFLECTION_RUBRIC_TASK,
+                decision=LLMGradingDecision(
+                    passed=True,
+                    score=0.82,
+                    confidence=0.8,
+                    feedback="Genuine, specific reflection across all three answers.",
+                    evidence_refs=["career-reflection.md"],
+                ),
+            )
+        ],
+    )
+
+    assert updated.validation_result.is_valid is True
+    assert updated.validation_result.task_results is not None
+    assert updated.validation_result.task_results[-1].passed is True

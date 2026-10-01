@@ -14,23 +14,23 @@ repos:
         types_or: [python, pyi, jupyter]
         require_serial: true
         args: [--fix]
-        files: ^(api|packages/learn-to-cloud-shared(-test-support)?)/
+        files: ^api/
       - id: ruff-format
         name: ruff format
         entry: uv run --project api ruff format --force-exclude
         language: system
         types_or: [python, pyi, jupyter, markdown]
         require_serial: true
-        files: ^(api|packages/learn-to-cloud-shared(-test-support)?)/
+        files: ^api/
 
   # ty - Python type checking
   - repo: local
     hooks:
       - id: ty
         name: ty type check
-        entry: bash -c 'uv run --project api ty check --exclude scripts --exclude tests api && (cd packages/learn-to-cloud-shared && uv run --project . ty check --exclude tests .) && uv run --project packages/learn-to-cloud-shared-test-support ty check packages/learn-to-cloud-shared-test-support/src'
+        entry: uv run --project api ty check api
         language: system
-        files: ^(api|packages/learn-to-cloud-shared(-test-support)?)/.*\.py$
+        files: ^api/.*\.py$
         pass_filenames: false
 
   # squawk - migration SQL safety lint (mirrors the CI check exactly)

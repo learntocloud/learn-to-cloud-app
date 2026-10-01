@@ -9,14 +9,6 @@ import httpx2
 from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from learn_to_cloud_shared.core.config import get_web_settings
-from learn_to_cloud_shared.core.outbound import (
-    DEPENDENCY_NAME,
-    OTHER,
-    Dependency,
-    classify,
-    classify_status,
-)
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud.core.auth import (
@@ -25,6 +17,14 @@ from learn_to_cloud.core.auth import (
     IdentityRejectionReason,
     oauth,
     validate_identity,
+)
+from learn_to_cloud.core.config import get_web_settings
+from learn_to_cloud.core.outbound import (
+    DEPENDENCY_NAME,
+    OTHER,
+    Dependency,
+    classify,
+    classify_status,
 )
 from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME, issue_cookie
 from learn_to_cloud.services.sessions_service import (

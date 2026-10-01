@@ -3,27 +3,27 @@
 from unittest.mock import patch
 
 import pytest
-from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.schemas import SubmissionData
-from learn_to_cloud_shared_test_support.requirement_factories import (
-    career_reflection_requirement,
-    ctf_token_requirement,
-    deployed_api_requirement,
-    make_requirement,
-    networking_token_requirement,
-    repo_fork_requirement,
-)
 
 from learn_to_cloud.core.templates import templates
+from learn_to_cloud.models import SubmissionType
 from learn_to_cloud.rendering.verification_forms import (
     DeployedUrlFormContext,
     ReflectionFormContext,
     TokenFormContext,
     build_verification_form_context,
 )
+from learn_to_cloud.schemas import SubmissionData
 from learn_to_cloud.verification_forms import (
     MAX_REFLECTION_ANSWER_LENGTH,
     verification_submit_action,
+)
+from tests.support.requirement_factories import (
+    career_reflection_requirement,
+    ctf_token_requirement,
+    deployed_api_requirement,
+    make_requirement,
+    networking_token_requirement,
+    repo_fork_requirement,
 )
 
 pytestmark = pytest.mark.unit

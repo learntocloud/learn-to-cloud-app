@@ -9,20 +9,20 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from fastapi import Request
-from learn_to_cloud_shared.core.config import SessionConfig, get_web_settings
-from learn_to_cloud_shared.models import User
-from learn_to_cloud_shared.repositories.auth_session_repository import (
-    AuthSessionRepository,
-)
-from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud.core.auth import AuthenticationRequired
+from learn_to_cloud.core.config import SessionConfig, get_web_settings
 from learn_to_cloud.core.session_cookies import (
     AUTH_COOKIE_NAME,
     clear_cookies,
     token_digest,
 )
+from learn_to_cloud.models import User
+from learn_to_cloud.repositories.auth_session_repository import (
+    AuthSessionRepository,
+)
+from learn_to_cloud.repositories.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 

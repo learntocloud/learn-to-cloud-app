@@ -39,8 +39,8 @@ requirements is complete by definition.
 | Purpose | File |
 |---------|------|
 | Progress | `api/src/learn_to_cloud/services/progress_service.py` |
-| Hands-on | `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/requirements.py` |
-| Catalog reads | `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content_service.py` |
+| Hands-on | `api/src/learn_to_cloud/requirements.py` |
+| Catalog reads | `api/src/learn_to_cloud/content_service.py` |
 | Verification pages | `api/src/learn_to_cloud/services/verification_page_service.py` |
 
 ## Important

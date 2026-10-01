@@ -10,20 +10,20 @@ from typing import Annotated
 import httpx2
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, HTTPException, Request
-from learn_to_cloud_shared.core.config import OAuthConfig, get_web_settings
-from learn_to_cloud_shared.core.outbound import Dependency, send_measured
-from learn_to_cloud_shared.models import User
-from learn_to_cloud_shared.repositories.auth_session_repository import (
-    AuthSessionRepository,
-    SessionRejection,
-)
 
+from learn_to_cloud.core.config import OAuthConfig, get_web_settings
+from learn_to_cloud.core.outbound import Dependency, send_measured
 from learn_to_cloud.core.session_cookies import (
     AUTH_COOKIE_NAME,
     token_digest,
 )
 from learn_to_cloud.core.session_cookies import (
     SESSION_COOKIE_NAME as SESSION_COOKIE_NAME,
+)
+from learn_to_cloud.models import User
+from learn_to_cloud.repositories.auth_session_repository import (
+    AuthSessionRepository,
+    SessionRejection,
 )
 
 logger = logging.getLogger(__name__)

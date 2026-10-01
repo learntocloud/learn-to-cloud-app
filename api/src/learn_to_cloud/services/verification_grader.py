@@ -14,11 +14,12 @@ from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
 from agent_framework_openai import OpenAIChatOptions
 from azure.identity.aio import DefaultAzureCredential, ManagedIdentityCredential
-from learn_to_cloud_shared.core.azure_auth import MeasuredCredential
-from learn_to_cloud_shared.core.config import get_web_settings
-from learn_to_cloud_shared.core.outbound import Dependency, outbound_call
-from learn_to_cloud_shared.verification.tasks import LLMGradingDecision
 from pydantic import ValidationError
+
+from learn_to_cloud.core.azure_auth import MeasuredCredential
+from learn_to_cloud.core.config import get_web_settings
+from learn_to_cloud.core.outbound import Dependency, outbound_call
+from learn_to_cloud.verification.tasks import LLMGradingDecision
 
 CONTENT_FILTER_MARKER = "content_filter"
 LLM_CONFIGURATION = "llm.configuration"

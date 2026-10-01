@@ -9,14 +9,12 @@ import sys
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from learn_to_cloud_shared.content_catalog import get_curriculum_catalog
-from learn_to_cloud_shared.submission_values import value_kind_for_submission_type
+from learn_to_cloud.content_catalog import get_curriculum_catalog
+from learn_to_cloud.submission_values import value_kind_for_submission_type
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-database_url = os.environ.get(
-    "DATABASE__URL", "******127.0.0.1:55432/learn_to_cloud"
-)
+database_url = os.environ.get("DATABASE__URL", "******127.0.0.1:55432/learn_to_cloud")
 
 
 async def main(github_username: str) -> None:
@@ -41,9 +39,7 @@ async def main(github_username: str) -> None:
             now = datetime.now(UTC)
 
             await conn.execute(
-                text(
-                    "DELETE FROM learner_step_completions WHERE user_id = :user_id"
-                ),
+                text("DELETE FROM learner_step_completions WHERE user_id = :user_id"),
                 {"user_id": user_id},
             )
             for step_uuid in catalog.active_step_uuids:

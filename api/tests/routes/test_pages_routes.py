@@ -25,8 +25,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.models import User
 
+from learn_to_cloud.models import User
 from learn_to_cloud.routes.pages_routes import (
     account_page,
     community_page,

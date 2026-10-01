@@ -9,21 +9,21 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from learn_to_cloud_shared.content_service import (
+
+from learn_to_cloud.content_service import (
     get_curriculum_overview,
     get_next_phase,
     get_phase_by_slug,
     get_phase_start_url,
 )
-from learn_to_cloud_shared.core.database import DbSession
-from learn_to_cloud_shared.models import User
-
 from learn_to_cloud.core.auth import (
     CurrentAccount,
     OptionalCurrentAccount,
 )
+from learn_to_cloud.core.database import DbSession
 from learn_to_cloud.core.routing import LoginRedirectRoute
 from learn_to_cloud.core.templates import templates
+from learn_to_cloud.models import User
 from learn_to_cloud.rendering.page_content import (
     COMMUNITY_LINKS,
     FAQS,

@@ -5,8 +5,6 @@ from unittest.mock import AsyncMock, patch
 
 import httpx2
 import pytest
-from learn_to_cloud_shared.core.logger import _json_formatter
-from learn_to_cloud_shared.models import AuthSession, User
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging.handler import LoggingHandler
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
@@ -22,7 +20,9 @@ from opentelemetry.trace import SpanKind, StatusCode
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from learn_to_cloud.core.logger import _json_formatter
 from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME, token_digest
+from learn_to_cloud.models import AuthSession, User
 from tests.routes.test_session_lifecycle import browser, build_app, csrf, mint
 
 pytestmark = pytest.mark.integration

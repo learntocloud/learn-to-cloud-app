@@ -1,0 +1,720 @@
+"""Integration tests for VerificationAttemptRepository (CAS + reads)."""
+
+from __future__ import annotations
+
+import asyncio
+from datetime import timedelta
+from uuid import UUID, uuid4
+
+import pytest
+from sqlalchemy import event, func, select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+
+from learn_to_cloud.models import (
+    VerificationAttempt,
+    VerificationAttemptOutcome,
+    utcnow,
+)
+from learn_to_cloud.repositories.user_repository import UserRepository
+from learn_to_cloud.repositories.verification_attempt_repository import (
+    AttemptAlreadyValidatedError,
+    VerificationAttemptRepository,
+)
+from learn_to_cloud.submission_values import GitHubUrlValue, SubmittedValue
+
+pytestmark = pytest.mark.integration
+
+USER_ID = 84001
+
+
+@pytest.fixture()
+def session_maker(test_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(
+        bind=test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+
+
+@pytest.fixture()
+async def user(session_maker: async_sessionmaker[AsyncSession]) -> int:
+    async with session_maker() as db:
+        await UserRepository(db).upsert(USER_ID, github_username="attemptrepo")
+        await db.commit()
+    return USER_ID
+
+
+async def _insert_attempt(
+    session_maker: async_sessionmaker[AsyncSession],
+    user_id: int,
+    *,
+    attempt_id: UUID | None = None,
+    requirement_uuid: UUID | None = None,
+    created_at=None,
+    completed_at=None,
+    started_at=None,
+    outcome: str | None = None,
+    feedback_json: list[dict] | None = None,
+    validation_message: str | None = None,
+    error_code: str | None = None,
+) -> UUID:
+    attempt_id = attempt_id or uuid4()
+    async with session_maker() as db:
+        attempt = VerificationAttempt(
+            id=attempt_id,
+            user_id=user_id,
+            requirement_uuid=requirement_uuid or uuid4(),
+            snapshot_source="reconstructed",
+            submission_value_kind="github_url",
+            submitted_value="https://github.com/attemptrepo/repo",
+            started_at=started_at,
+            outcome=outcome,
+            completed_at=completed_at or (utcnow() if outcome is not None else None),
+            feedback_json=feedback_json,
+            validation_message=validation_message,
+            error_code=error_code,
+        )
+        if created_at is not None:
+            attempt.created_at = created_at
+        db.add(attempt)
+        await db.commit()
+    return attempt_id
+
+
+async def test_community_activity_uses_distinct_projects_and_completion_time(
+    session_maker: async_sessionmaker[AsyncSession],
+    user: int,
+) -> None:
+    now = utcnow()
+    current_requirement = uuid4()
+    completed_after_window_requirement = uuid4()
+
+    await _insert_attempt(
+        session_maker,
+        user,
+        requirement_uuid=current_requirement,
+        created_at=now - timedelta(days=1),
+        completed_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+    await _insert_attempt(
+        session_maker,
+        user,
+        requirement_uuid=current_requirement,
+        created_at=now - timedelta(hours=2),
+        completed_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+    await _insert_attempt(
+        session_maker,
+        user,
+        requirement_uuid=completed_after_window_requirement,
+        created_at=now - timedelta(days=8),
+        completed_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+
+    async with session_maker() as db:
+        activity = await VerificationAttemptRepository(db).get_community_activity(
+            since=now - timedelta(days=7),
+            phase_order_by_requirement_uuid={
+                current_requirement: 1,
+                completed_after_window_requirement: 1,
+            },
+        )
+
+    summary = next(row for row in activity if row.phase_order is None)
+    phase = next(row for row in activity if row.phase_order == 1)
+    assert summary.active_learners == 1
+    assert summary.attempts == 2
+    assert summary.projects_verified == 2
+    assert phase == summary.__class__(
+        phase_order=1,
+        active_learners=1,
+        attempts=2,
+        projects_verified=2,
+    )
+
+
+def _submitted_value(
+    value: str = "https://github.com/attemptrepo/repo",
+) -> SubmittedValue:
+    return GitHubUrlValue(value)
+
+
+async def test_finalize_sets_terminal_state(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    attempt_id = await _insert_attempt(session_maker, user)
+    async with session_maker() as db:
+        result = await VerificationAttemptRepository(db).finalize(
+            attempt_id,
+            outcome=VerificationAttemptOutcome.SUCCEEDED,
+            error_code="verification_succeeded",
+            validation_message=None,
+            terminal_source="api_worker",
+            feedback_json=[{"task": "a"}],
+        )
+        await db.commit()
+    assert result.won is True
+    assert result.state.outcome == "succeeded"
+    assert result.state.completed_at is not None
+
+
+async def test_finalize_is_compare_and_set(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    attempt_id = await _insert_attempt(session_maker, user)
+    async with session_maker() as db:
+        first = await VerificationAttemptRepository(db).finalize(
+            attempt_id,
+            outcome=VerificationAttemptOutcome.SUCCEEDED,
+            error_code="verification_succeeded",
+            validation_message=None,
+            terminal_source="api_worker",
+            feedback_json=None,
+        )
+        await db.commit()
+
+    # A competing finalizer with a different outcome must not overwrite.
+    async with session_maker() as db:
+        second = await VerificationAttemptRepository(db).finalize(
+            attempt_id,
+            outcome=VerificationAttemptOutcome.SERVER_ERROR,
+            error_code="server_error",
+            validation_message="late",
+            terminal_source="competing_finalizer",
+            feedback_json=None,
+        )
+        await db.commit()
+
+    assert first.won is True
+    assert second.won is False
+    assert second.state.outcome == "succeeded"
+    assert second.state.terminal_source == "api_worker"
+
+
+async def test_get_prepare_state_and_status(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    attempt_id = await _insert_attempt(session_maker, user)
+    async with session_maker() as db:
+        repo = VerificationAttemptRepository(db)
+        prepare = await repo.get_prepare_state(attempt_id)
+        status = await repo.get_status(attempt_id)
+    assert prepare is not None
+    assert prepare.submission_value_kind == "github_url"
+    assert prepare.outcome is None
+    assert status is not None
+    assert status.outcome is None
+
+
+def _create_kwargs(
+    *,
+    id: UUID,
+    user_id: int,
+    requirement_uuid: UUID,
+    submitted_value: SubmittedValue,
+    requirement_snapshot: dict | None = None,
+    requirement_snapshot_hash: str = "snapshot-hash",
+) -> dict:
+    """Shared kwargs for ``create_or_get_active`` so each test only overrides
+    what it cares about."""
+    return {
+        "id": id,
+        "user_id": user_id,
+        "requirement_uuid": requirement_uuid,
+        "artifact_schema_version": 1,
+        "curriculum_version": 1,
+        "content_hash": "content-hash",
+        "requirement_snapshot": requirement_snapshot or {"slug": "test-requirement"},
+        "requirement_snapshot_hash": requirement_snapshot_hash,
+        "payload_version": 1,
+        "github_username_snapshot": "attemptrepo",
+        "submitted_value": submitted_value,
+        "cloud_provider": None,
+    }
+
+
+async def test_create_or_get_active_creates_new_attempt(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    requirement_uuid = uuid4()
+    attempt_id = uuid4()
+
+    async with session_maker() as db:
+        attempt, created = await VerificationAttemptRepository(db).create_or_get_active(
+            **_create_kwargs(
+                id=attempt_id,
+                user_id=user,
+                requirement_uuid=requirement_uuid,
+                submitted_value=_submitted_value(),
+            )
+        )
+        await db.commit()
+
+    assert created is True
+    assert attempt.id == attempt_id
+    assert attempt.snapshot_source == "submitted"
+    assert attempt.submitted_value == "https://github.com/attemptrepo/repo"
+
+
+async def test_create_or_get_active_omits_traceparent_from_insert(
+    test_engine: AsyncEngine,
+    session_maker: async_sessionmaker[AsyncSession],
+    user: int,
+) -> None:
+    statements: list[str] = []
+
+    def capture_insert(
+        _connection,
+        _cursor,
+        statement: str,
+        _parameters,
+        _context,
+        _executemany,
+    ) -> None:
+        if statement.lstrip().startswith("INSERT INTO verification_attempts"):
+            statements.append(statement)
+
+    event.listen(test_engine.sync_engine, "before_cursor_execute", capture_insert)
+    try:
+        async with session_maker() as db:
+            await VerificationAttemptRepository(db).create_or_get_active(
+                **_create_kwargs(
+                    id=uuid4(),
+                    user_id=user,
+                    requirement_uuid=uuid4(),
+                    submitted_value=_submitted_value(),
+                )
+            )
+            await db.commit()
+    finally:
+        event.remove(test_engine.sync_engine, "before_cursor_execute", capture_insert)
+
+    assert len(statements) == 1
+    assert "traceparent" not in statements[0]
+
+
+async def test_create_or_get_active_returns_existing_active_attempt(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    requirement_uuid = uuid4()
+    first_id = uuid4()
+    second_id = uuid4()
+
+    async with session_maker() as db:
+        first, first_created = await VerificationAttemptRepository(
+            db
+        ).create_or_get_active(
+            **_create_kwargs(
+                id=first_id,
+                user_id=user,
+                requirement_uuid=requirement_uuid,
+                submitted_value=_submitted_value(
+                    "https://github.com/attemptrepo/first"
+                ),
+            )
+        )
+        await db.commit()
+
+    async with session_maker() as db:
+        second, second_created = await VerificationAttemptRepository(
+            db
+        ).create_or_get_active(
+            **_create_kwargs(
+                id=second_id,
+                user_id=user,
+                requirement_uuid=requirement_uuid,
+                submitted_value=_submitted_value(
+                    "https://github.com/attemptrepo/second"
+                ),
+            )
+        )
+        await db.commit()
+
+    assert first_created is True
+    assert second_created is False
+    assert second.id == first.id
+    assert second.submitted_value == "https://github.com/attemptrepo/first"
+
+    async with session_maker() as db:
+        count = await db.scalar(
+            select(func.count())
+            .select_from(VerificationAttempt)
+            .where(VerificationAttempt.requirement_uuid == requirement_uuid)
+        )
+    assert count == 1
+
+
+async def test_create_or_get_active_raises_for_succeeded_attempt(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    requirement_uuid = uuid4()
+    await _insert_attempt(
+        session_maker, user, requirement_uuid=requirement_uuid, outcome="succeeded"
+    )
+
+    async with session_maker() as db:
+        with pytest.raises(AttemptAlreadyValidatedError):
+            await VerificationAttemptRepository(db).create_or_get_active(
+                **_create_kwargs(
+                    id=uuid4(),
+                    user_id=user,
+                    requirement_uuid=requirement_uuid,
+                    submitted_value=_submitted_value(),
+                )
+            )
+
+
+async def test_create_or_get_active_serializes_concurrent_submits(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    """Two concurrent submits for the same (user, requirement) must not
+    both create an active attempt. The transaction-scoped advisory lock in
+    ``create_or_get_active`` serializes them: the second caller blocks until
+    the first commits, then sees the first's row under the lock and reuses
+    it instead of creating a second active attempt."""
+    requirement_uuid = uuid4()
+
+    async def _submit(value: str) -> tuple[UUID, bool]:
+        async with session_maker() as db:
+            attempt, created = await VerificationAttemptRepository(
+                db
+            ).create_or_get_active(
+                **_create_kwargs(
+                    id=uuid4(),
+                    user_id=user,
+                    requirement_uuid=requirement_uuid,
+                    submitted_value=_submitted_value(
+                        f"https://github.com/attemptrepo/{value}"
+                    ),
+                )
+            )
+            await db.commit()
+        return attempt.id, created
+
+    results = await asyncio.gather(_submit("first"), _submit("second"))
+
+    created_flags = [created for _, created in results]
+    assert created_flags.count(True) == 1
+    assert created_flags.count(False) == 1
+    # Both callers must agree on which attempt won the race.
+    assert results[0][0] == results[1][0]
+
+    async with session_maker() as db:
+        count = await db.scalar(
+            select(func.count())
+            .select_from(VerificationAttempt)
+            .where(VerificationAttempt.requirement_uuid == requirement_uuid)
+        )
+    assert count == 1
+
+
+async def test_new_submission_follows_terminalized_pre_start_attempt(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    requirement_uuid = uuid4()
+    first_id = await _insert_attempt(
+        session_maker,
+        user,
+        requirement_uuid=requirement_uuid,
+    )
+    async with session_maker() as db:
+        result = await VerificationAttemptRepository(db).finalize(
+            first_id,
+            outcome="server_error",
+            error_code="verification_timeout",
+            validation_message="Verification could not be started.",
+            terminal_source="api_worker",
+            feedback_json=None,
+        )
+        await db.commit()
+    assert result is not None and result.won
+
+    second_id = uuid4()
+    async with session_maker() as db:
+        attempt, created = await VerificationAttemptRepository(db).create_or_get_active(
+            **_create_kwargs(
+                id=second_id,
+                user_id=user,
+                requirement_uuid=requirement_uuid,
+                submitted_value=_submitted_value(),
+            )
+        )
+        await db.commit()
+
+    assert created is True
+    assert attempt.id == second_id
+    async with session_maker() as db:
+        count = await db.scalar(
+            select(func.count())
+            .select_from(VerificationAttempt)
+            .where(VerificationAttempt.requirement_uuid == requirement_uuid)
+        )
+    assert count == 2
+
+
+# Progress, gating, card, and stats reads
+
+
+async def test_get_succeeded_requirement_uuids_only_counts_succeeded(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    succeeded_req = uuid4()
+    failed_req = uuid4()
+    await _insert_attempt(
+        session_maker, user, requirement_uuid=succeeded_req, outcome="succeeded"
+    )
+    await _insert_attempt(
+        session_maker, user, requirement_uuid=failed_req, outcome="failed"
+    )
+
+    async with session_maker() as db:
+        result = await VerificationAttemptRepository(
+            db
+        ).get_succeeded_requirement_uuids(user)
+
+    assert result == {succeeded_req}
+
+
+async def test_get_active_for_requirements_excludes_terminal(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    active_req = uuid4()
+    terminal_req = uuid4()
+    active_id = await _insert_attempt(session_maker, user, requirement_uuid=active_req)
+    await _insert_attempt(
+        session_maker, user, requirement_uuid=terminal_req, outcome="succeeded"
+    )
+    async with session_maker() as db:
+        rows = await VerificationAttemptRepository(db).get_active_for_requirements(
+            user, [active_req, terminal_req]
+        )
+    assert {row.requirement_uuid for row in rows} == {active_req}
+    assert rows[0].id == active_id
+
+
+async def test_get_latest_terminal_for_requirements_returns_newest_and_skips_active(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    req = uuid4()
+    now = utcnow()
+    await _insert_attempt(
+        session_maker,
+        user,
+        requirement_uuid=req,
+        created_at=now - timedelta(hours=2),
+        outcome="failed",
+    )
+    await _insert_attempt(
+        session_maker,
+        user,
+        requirement_uuid=req,
+        created_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+    # A newer *active* attempt for the same requirement must not shadow the
+    # latest terminal one -- active attempts are excluded from this read.
+    await _insert_attempt(session_maker, user, requirement_uuid=req, created_at=now)
+
+    async with session_maker() as db:
+        rows = await VerificationAttemptRepository(
+            db
+        ).get_latest_terminal_for_requirements(user, [req])
+
+    assert len(rows) == 1
+    assert rows[0].requirement_uuid == req
+    assert rows[0].outcome == "succeeded"
+
+
+async def test_get_latest_terminal_for_requirements_empty_input(
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    async with session_maker() as db:
+        rows = await VerificationAttemptRepository(
+            db
+        ).get_latest_terminal_for_requirements(USER_ID, [])
+    assert rows == []
+
+
+async def test_list_terminal_history_is_scoped_ordered_paginated_and_safe(
+    session_maker: async_sessionmaker[AsyncSession], user: int
+) -> None:
+    req = uuid4()
+    other_req = uuid4()
+    other_user_id = user + 1
+    now = utcnow()
+
+    async with session_maker() as db:
+        await UserRepository(db).upsert(
+            other_user_id,
+            github_username="otherattemptrepo",
+        )
+        await db.commit()
+
+    oldest_id = await _insert_attempt(
+        session_maker,
+        user,
+        requirement_uuid=req,
+        created_at=now - timedelta(hours=3),
+        outcome="failed",
+        feedback_json=[{"task_name": "old"}],
+        validation_message="Needs work.",
+    )
+    middle_id = await _insert_attempt(
+        session_maker,
+        user,
+        requirement_uuid=req,
+        created_at=now - timedelta(hours=2),
+        outcome="server_error",
+        error_code="evidence.total_limit",
+    )
+    newest_id = await _insert_attempt(
+        session_maker,
+        user,
+        requirement_uuid=req,
+        created_at=now - timedelta(hours=1),
+        outcome="succeeded",
+    )
+    await _insert_attempt(
+        session_maker,
+        user,
+        requirement_uuid=req,
+        created_at=now,
+    )
+    await _insert_attempt(
+        session_maker,
+        user,
+        requirement_uuid=other_req,
+        outcome="succeeded",
+    )
+    await _insert_attempt(
+        session_maker,
+        other_user_id,
+        requirement_uuid=req,
+        outcome="succeeded",
+    )
+
+    async with session_maker() as db:
+        first_page = await VerificationAttemptRepository(
+            db
+        ).list_terminal_history_for_requirements(
+            user,
+            [req],
+            limit=2,
+        )
+        second_page = await VerificationAttemptRepository(
+            db
+        ).list_terminal_history_for_requirements(
+            user,
+            [req],
+            limit=2,
+            offset=2,
+        )
+
+    assert [row.id for row in first_page] == [newest_id, middle_id]
+    assert [row.id for row in second_page] == [oldest_id]
+    assert second_page[0].feedback_json == [{"task_name": "old"}]
+    assert second_page[0].validation_message == "Needs work."
+    assert not hasattr(second_page[0], "submitted_value")
+    assert first_page[1].error_code == "evidence.total_limit"
+    assert second_page[0].error_code is None
+    assert not hasattr(second_page[0], "requirement_snapshot")
+
+
+async def test_list_terminal_history_validates_pagination(
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    async with session_maker() as db:
+        repository = VerificationAttemptRepository(db)
+        with pytest.raises(ValueError, match="limit"):
+            await repository.list_terminal_history_for_requirements(
+                USER_ID,
+                [],
+                limit=0,
+            )
+        with pytest.raises(ValueError, match="offset"):
+            await repository.list_terminal_history_for_requirements(
+                USER_ID,
+                [],
+                limit=1,
+                offset=-1,
+            )
+
+
+class TestListPhaseCompletions:
+    async def test_succeeded_attempt_counts_as_completion(
+        self, session_maker: async_sessionmaker[AsyncSession], user: int
+    ) -> None:
+        req = uuid4()
+        await _insert_attempt(
+            session_maker, user, requirement_uuid=req, outcome="succeeded"
+        )
+
+        async with session_maker() as db:
+            completions = await VerificationAttemptRepository(
+                db
+            ).list_phase_completions({0: 1}, {req: 0})
+
+        assert (0, user) in completions
+
+    async def test_failed_attempt_does_not_count(
+        self, session_maker: async_sessionmaker[AsyncSession], user: int
+    ) -> None:
+        req = uuid4()
+        await _insert_attempt(
+            session_maker, user, requirement_uuid=req, outcome="failed"
+        )
+
+        async with session_maker() as db:
+            completions = await VerificationAttemptRepository(
+                db
+            ).list_phase_completions({0: 1}, {req: 0})
+
+        assert (0, user) not in completions
+
+    async def test_partial_completion_excluded(
+        self, session_maker: async_sessionmaker[AsyncSession], user: int
+    ) -> None:
+        req_a, req_b = uuid4(), uuid4()
+        await _insert_attempt(
+            session_maker, user, requirement_uuid=req_a, outcome="succeeded"
+        )
+        # req_b never attempted -- phase 0 needs both to complete.
+
+        async with session_maker() as db:
+            completions = await VerificationAttemptRepository(
+                db
+            ).list_phase_completions({0: 2}, {req_a: 0, req_b: 0})
+
+        assert (0, user) not in completions
+
+    async def test_empty_counts_returns_empty(
+        self,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        async with session_maker() as db:
+            assert (
+                await VerificationAttemptRepository(db).list_phase_completions({}, {})
+                == []
+            )
+
+    async def test_stale_requirement_uuid_is_ignored(
+        self, session_maker: async_sessionmaker[AsyncSession], user: int
+    ) -> None:
+        """A succeeded attempt for a requirement UUID absent from the phase
+        map (as if the catalog no longer knows about it) must not produce a
+        phantom completion."""
+        req = uuid4()
+        await _insert_attempt(
+            session_maker, user, requirement_uuid=req, outcome="succeeded"
+        )
+
+        async with session_maker() as db:
+            completions = await VerificationAttemptRepository(
+                db
+            ).list_phase_completions({0: 1}, {})
+
+        assert (0, user) not in completions

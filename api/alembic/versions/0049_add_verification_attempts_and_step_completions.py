@@ -65,13 +65,13 @@ import os
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from learn_to_cloud_shared.verification_provenance import (
-    attempt_id_for_orphan_submission,
-    derive_outcome,
-)
 from sqlalchemy.dialects.postgresql import JSONB
 
 from alembic import context, op
+from learn_to_cloud.verification_provenance import (
+    attempt_id_for_orphan_submission,
+    derive_outcome,
+)
 
 revision: str = "0049_add_verification_attempts_and_step_completions"
 down_revision: str | None = "0048_validate_deployment_architecture_type"

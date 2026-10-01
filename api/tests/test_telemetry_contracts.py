@@ -52,23 +52,6 @@ def test_telemetry_alert_uses_only_the_app_owned_setup_signal():
     assert "Envelopes could not be exported" not in block
 
 
-def test_api_trace_sampling_policy_is_explicit_and_alert_logs_are_unsampled():
-    container_app = (_ROOT / "infra" / "container-apps.tf").read_text()
-    observability = (
-        _ROOT
-        / "packages/learn-to-cloud-shared/src/learn_to_cloud_shared"
-        / "core/observability.py"
-    ).read_text()
-    assert 'name  = "OTEL_TRACES_SAMPLER"' in container_app
-    assert 'value = "microsoft.rate_limited"' in container_app
-    assert 'name  = "OTEL_TRACES_SAMPLER_ARG"\n        value = "2"' in container_app
-    assert (
-        'name  = "OTEL_SEMCONV_STABILITY_OPT_IN"\n        value = "http"'
-        in container_app
-    )
-    assert "enable_trace_based_sampling_for_logs=False" in observability
-
-
 def test_frontend_initializer_keeps_paths_without_query_credentials():
     script = _ROOT / "api/src/learn_to_cloud/static/js/frontend-telemetry.js"
     test_script = f"""
@@ -214,23 +197,13 @@ def test_stuck_alert_uses_only_canonical_attributes():
     assert "coalesce(message, outerMessage)" in block
     assert '"verification.worker.failed"' in block
     assert 'Event == "verification.worker.failed" or isnotempty(AttemptId)' in block
-    assert 'cloud_RoleName == "learn-to-cloud-api"' in block
     for reason in ("queued_beyond_limit", "execution_beyond_limit", "worker_failed"):
         assert f'"{reason}"' in block
         assert reason in runbook
 
 
-def test_verification_alerts_use_only_the_api_role():
+def test_unhandled_exception_alert_matches_the_boundary_event():
     monitoring = (_ROOT / "infra" / "monitoring.tf").read_text()
-    for name in (
-        "verification_attempt_system_error",
-        "verification_llm_immediate_failure",
-        "verification_llm_transient_failure",
-        "verification_attempt_stuck",
-    ):
-        block = _resource_block(monitoring, name)
-        assert 'cloud_RoleName == "learn-to-cloud-api"' in block
-        assert "functions" not in block
     assert 'outerMessage == "unhandled.exception"' in _resource_block(
         monitoring, "api_unhandled_exception"
     )

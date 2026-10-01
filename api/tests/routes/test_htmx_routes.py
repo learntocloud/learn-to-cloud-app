@@ -20,20 +20,15 @@ from uuid import uuid4
 
 import pytest
 from fastapi.responses import HTMLResponse
-from learn_to_cloud_shared.models import User
-from learn_to_cloud_shared.repositories.verification_attempt_repository import (
-    AttemptStatusRow,
-)
-from learn_to_cloud_shared.submission_values import (
-    GitHubUrlValue,
-    TextValue,
-    TokenValue,
-)
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.datastructures import FormData, UploadFile
 
 from learn_to_cloud.core.auth import AuthenticatedUser, AuthenticationRequired
+from learn_to_cloud.models import User
 from learn_to_cloud.rendering.requirement_cards import CheckingCardContext
+from learn_to_cloud.repositories.verification_attempt_repository import (
+    AttemptStatusRow,
+)
 from learn_to_cloud.routes.htmx_routes import (
     _submit_canonical_verification,
     htmx_complete_step,
@@ -48,6 +43,11 @@ from learn_to_cloud.routes.htmx_routes import (
 from learn_to_cloud.services.steps_service import StepValidationError
 from learn_to_cloud.services.submissions_service import (
     VerificationAttemptSubmission,
+)
+from learn_to_cloud.submission_values import (
+    GitHubUrlValue,
+    TextValue,
+    TokenValue,
 )
 from learn_to_cloud.verification_forms import combine_reflection_answers
 
@@ -205,7 +205,7 @@ class TestHtmxSubmitVerification:
     """
 
     async def test_derived_route_uses_server_built_url(self):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             profile_readme_requirement,
         )
 
@@ -239,7 +239,7 @@ class TestHtmxSubmitVerification:
         )
 
     async def test_derived_route_rejects_spoofed_value(self):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             profile_readme_requirement,
         )
 
@@ -269,7 +269,7 @@ class TestHtmxSubmitVerification:
         mock_submit.assert_not_awaited()
 
     async def test_value_route_passes_only_submitted_value(self):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             ctf_token_requirement,
         )
 
@@ -317,7 +317,7 @@ class TestHtmxSubmitVerification:
         ],
     )
     async def test_value_route_rejects_invalid_form_shapes(self, form_items):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             ctf_token_requirement,
         )
 
@@ -348,7 +348,7 @@ class TestHtmxSubmitVerification:
         mock_submit.assert_not_awaited()
 
     async def test_reflection_route_combines_repeated_answers(self):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             career_reflection_requirement,
         )
 
@@ -497,7 +497,7 @@ class TestHtmxSubmitVerification:
 
     async def test_submit_unexpected_error_renders_server_error(self, _patch_templates):
         """Unexpected exceptions render a server error card."""
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             profile_readme_requirement,
         )
 
@@ -549,7 +549,7 @@ class TestHtmxSubmitVerification:
         _patch_templates.TemplateResponse.assert_not_called()
 
     async def test_repo_fork_is_rejected_by_value_route(self):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             repo_fork_requirement,
         )
 
@@ -580,7 +580,7 @@ class TestHtmxSubmitVerification:
         mock_create.assert_not_awaited()
 
     async def test_repo_fork_is_rejected_by_reflection_route(self):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             repo_fork_requirement,
         )
 
@@ -853,7 +853,7 @@ class TestCombineReflectionAnswers:
 
     @staticmethod
     def _requirement(min_answer_length: int = 10, question_count: int = 3):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             career_reflection_requirement,
         )
 

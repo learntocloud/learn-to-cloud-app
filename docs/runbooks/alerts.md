@@ -45,7 +45,6 @@ occurrence with deployment time and inspect the correlated request/dependencies.
 ```kusto
 exceptions
 | where timestamp > ago(2h)
-| where cloud_RoleName == "learn-to-cloud-api"
 | where outerMessage == "unhandled.exception"
 | project timestamp, operation_Id, cloud_RoleInstance, type, innermostMessage, details
 | order by timestamp desc
@@ -90,7 +89,6 @@ migration job result, deployed image, database connectivity, and runtime grants.
 ```kusto
 traces
 | where timestamp > ago(2h)
-| where cloud_RoleName == "learn-to-cloud-api"
 | where message in ("health.ready.schema_drift", "health.ready.schema_drift_check_failed")
 | project timestamp, message, customDimensions
 | order by timestamp desc
@@ -108,7 +106,6 @@ do not mean the learner failed the assignment.
 ```kusto
 traces
 | where timestamp > ago(2h)
-| where cloud_RoleName == "learn-to-cloud-api"
 | where message == "verification.attempt.completed"
 | extend Outcome = tostring(customDimensions["verification.outcome"]),
     AttemptId = tostring(customDimensions["verification.attempt.id"])
@@ -131,7 +128,6 @@ operational error.
 ```kusto
 traces
 | where timestamp > ago(2h)
-| where cloud_RoleName == "learn-to-cloud-api"
 | where message == "verification.llm_grading.failed"
 | extend ErrorType = tostring(customDimensions["error.type"])
 | summarize FailureCount = count() by ErrorType, bin(timestamp, 15m)
@@ -157,7 +153,6 @@ not that queued work is progressing.
 ```kusto
 union traces, exceptions
 | where timestamp > ago(4h)
-| where cloud_RoleName == "learn-to-cloud-api"
 | extend Event = coalesce(message, outerMessage)
 | where Event in ("verification.attempt.stuck", "verification.worker.failed")
 | extend AttemptId = tostring(customDimensions["verification.attempt.id"]),
@@ -213,9 +208,9 @@ learner work.
 | Size/count limit, selection, or configuration failure | Investigate the task contract and service limits; unchanged retries may not help. |
 
 Use the configured
-[`task policies`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/tasks)
+[`task policies`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/src/learn_to_cloud/verification/tasks)
 and
-[`evidence validation`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/evidence.py)
+[`evidence validation`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/verification/evidence.py)
 to interpret the saved cause. A truncated tree cannot establish absence.
 Do not drop optional evidence, truncate files, grade partial packets, or ask
 learners to shrink valid submissions to fit a service bug.

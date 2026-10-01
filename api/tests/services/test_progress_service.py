@@ -13,7 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.schemas import (
+
+from learn_to_cloud.schemas import (
     LearningProgress,
     LearningStep,
     Phase,
@@ -23,10 +24,6 @@ from learn_to_cloud_shared.schemas import (
     UserProgress,
     VerificationProgress,
 )
-from learn_to_cloud_shared_test_support.requirement_factories import (
-    repo_fork_requirement,
-)
-
 from learn_to_cloud.services.progress_service import (
     compute_topic_progress,
     fetch_phase_progress,
@@ -34,6 +31,9 @@ from learn_to_cloud.services.progress_service import (
     find_first_incomplete_step,
     phase_progress_to_data,
     resolve_continue_destination,
+)
+from tests.support.requirement_factories import (
+    repo_fork_requirement,
 )
 
 
@@ -320,8 +320,8 @@ class TestPhaseProgressToData:
 class TestFetchUserProgress:
     @pytest.mark.asyncio
     async def test_queries_db_and_returns_progress(self):
-        from learn_to_cloud_shared.requirements import RequirementIndex
-        from learn_to_cloud_shared.schemas import PhaseOverview
+        from learn_to_cloud.requirements import RequirementIndex
+        from learn_to_cloud.schemas import PhaseOverview
 
         phase_overview = (PhaseOverview(name="Phase 0", slug="phase0", order=0),)
         step_uuid = uuid4()
@@ -373,8 +373,8 @@ class TestFetchUserProgress:
         requirement, each in a different phase. A UUID absent from
         ``phase_order_by_*_uuid`` must not inflate any phase's progress.
         """
-        from learn_to_cloud_shared.requirements import RequirementIndex
-        from learn_to_cloud_shared.schemas import PhaseOverview
+        from learn_to_cloud.requirements import RequirementIndex
+        from learn_to_cloud.schemas import PhaseOverview
 
         phase_overview = (
             PhaseOverview(name="Phase 0", slug="phase0", order=0),
@@ -453,8 +453,8 @@ class TestFetchPhaseProgress:
     @pytest.mark.asyncio
     async def test_not_complete_when_verification_pending(self):
         """All steps done but verification pending must not be complete."""
-        from learn_to_cloud_shared.schemas import PhaseHandsOnVerificationOverview
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from learn_to_cloud.schemas import PhaseHandsOnVerificationOverview
+        from tests.support.requirement_factories import (
             journal_api_verifier_requirement,
         )
 
@@ -492,8 +492,8 @@ class TestFetchPhaseProgress:
     @pytest.mark.asyncio
     async def test_is_complete_when_all_done(self):
         """All steps and verification done means both-measures complete."""
-        from learn_to_cloud_shared.schemas import PhaseHandsOnVerificationOverview
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from learn_to_cloud.schemas import PhaseHandsOnVerificationOverview
+        from tests.support.requirement_factories import (
             journal_api_verifier_requirement,
         )
 

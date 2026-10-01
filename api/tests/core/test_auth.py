@@ -6,11 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import Request
-from learn_to_cloud_shared.core.config import OAuthConfig
-from learn_to_cloud_shared.models import User
-from learn_to_cloud_shared.repositories.auth_session_repository import (
-    SessionRejection,
-)
 from starlette.datastructures import State
 
 from learn_to_cloud.core.auth import (
@@ -24,7 +19,12 @@ from learn_to_cloud.core.auth import (
     require_authenticated_user,
     validate_identity,
 )
+from learn_to_cloud.core.config import OAuthConfig
 from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME
+from learn_to_cloud.models import User
+from learn_to_cloud.repositories.auth_session_repository import (
+    SessionRejection,
+)
 
 
 def test_authlib_uses_supported_http_client() -> None:

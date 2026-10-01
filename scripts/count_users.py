@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Count users in the production database."""
+
 import asyncio
 import os
 import subprocess
@@ -13,7 +14,17 @@ _DEFAULT_DB_HOST = "psql-ltc-dev-8v4tyz.postgres.database.azure.com"
 async def count_users():
     """Query production database for user count."""
     result = subprocess.run(
-        ["az", "account", "get-access-token", "--resource-type", "oss-rdbms", "--query", "accessToken", "-o", "tsv"],
+        [
+            "az",
+            "account",
+            "get-access-token",
+            "--resource-type",
+            "oss-rdbms",
+            "--query",
+            "accessToken",
+            "-o",
+            "tsv",
+        ],
         capture_output=True,
         text=True,
         check=True,

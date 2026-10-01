@@ -4,9 +4,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.schemas import HandsOnRequirement
 
+from learn_to_cloud.models import SubmissionType
 from learn_to_cloud.rendering.requirement_cards import (
     CheckingCardContext,
     FailedCardContext,
@@ -22,13 +21,14 @@ from learn_to_cloud.rendering.verification_forms import (
     DerivedFormContext,
     TokenFormContext,
 )
+from learn_to_cloud.schemas import HandsOnRequirement
 
 
 def _make_requirement(
     submission_type: SubmissionType,
     required_repo: str | None = None,
 ) -> HandsOnRequirement:
-    from learn_to_cloud_shared_test_support.requirement_factories import (
+    from tests.support.requirement_factories import (
         make_requirement,
     )
 
@@ -134,7 +134,7 @@ def _make_submission(
     error_code: str | None = None,
     submitted_value: str = "https://github.com/alice/repo",
 ):
-    from learn_to_cloud_shared.schemas import SubmissionData
+    from learn_to_cloud.schemas import SubmissionData
 
     return SubmissionData(
         submitted_value=submitted_value,

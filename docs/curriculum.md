@@ -12,7 +12,7 @@ YAML files -> strict validation -> curriculum.json -> in-memory catalog
 ```
 
 Authored YAML lives under
-`packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases/`.
+`api/src/learn_to_cloud/content/phases/`.
 Each phase directory contains `_phase.yaml`, topic files, and requirement files.
 The phase file owns topic and requirement order.
 
@@ -69,9 +69,9 @@ rewritten.
 ## Editing curriculum
 
 1. Edit the YAML files and bump `curriculum_version` in
-   `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/curriculum.meta.yaml`.
+   `api/src/learn_to_cloud/content/curriculum.meta.yaml`.
    Content changes require a version greater than the PR base artifact's version.
-2. From `packages/learn-to-cloud-shared`, run:
+2. From `api`, run:
    ```bash
    uv run python scripts/validate_content.py
    uv run python scripts/compile_curriculum.py

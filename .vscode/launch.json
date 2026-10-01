@@ -11,8 +11,7 @@
       "cwd": "${workspaceFolder}/api",
       "envFile": "${workspaceFolder}/api/.env",
       "env": {
-        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317",
-        "OTEL_SERVICE_NAME": "learn-to-cloud-api"
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317"
       },
       "console": "integratedTerminal",
       "justMyCode": true

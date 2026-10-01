@@ -7,12 +7,12 @@ Create an Alembic migration for the requested schema change.
 
 ## Before you start
 
-1. Check `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/models.py` for the current model definitions.
+1. Check `api/src/learn_to_cloud/models.py` for the current model definitions.
 2. Check `api/alembic/versions/` for recent migrations to understand naming and patterns.
 
 ## Steps
 
-### 1. Update the shared model (`packages/learn-to-cloud-shared/src/learn_to_cloud_shared/models.py`)
+### 1. Update the shared model (`api/src/learn_to_cloud/models.py`)
 - Use `Mapped[T]` and `mapped_column()` for all columns.
 - Use `TimestampMixin` if the table needs `created_at`/`updated_at`.
 - For enums, use `class MyEnum(str, PyEnum)` with `native_enum=False` in the column.
@@ -43,4 +43,4 @@ Create an Alembic migration for the requested schema change.
 - Add or update tests.
 
 ## Validation
-After generating, run: `cd api && uv run ruff check . ../packages/learn-to-cloud-shared && uv run ruff format --check . ../packages/learn-to-cloud-shared && uv run ty check --exclude scripts --exclude tests .`
+After generating, run: `cd api && uv run ruff check . && uv run ruff format --check . && uv run ty check .`

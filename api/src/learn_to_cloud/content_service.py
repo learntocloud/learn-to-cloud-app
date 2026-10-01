@@ -1,0 +1,115 @@
+"""Public curriculum read API (catalog-backed).
+
+Runtime reads in the API go through the packaged, process-level
+:class:`~learn_to_cloud.content_catalog.CurriculumCatalog`
+instead of the database. The catalog is loaded once per process (at
+startup, and lazily via ``get_curriculum_catalog``'s ``lru_cache``), so
+every function here is a synchronous, in-memory lookup -- no
+``AsyncSession``, no I/O.
+
+For authoring and strict cross-file validation, use
+``learn_to_cloud.content_yaml_loader``.
+"""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from learn_to_cloud.content_catalog import get_curriculum_catalog
+from learn_to_cloud.schemas import (
+    HandsOnRequirement,
+    LearningStep,
+    Phase,
+    PhaseOverview,
+    Topic,
+    TopicOverview,
+)
+
+
+def get_phase_by_slug(slug: str) -> Phase | None:
+    """Get a phase by its slug (e.g. ``phase1``)."""
+    return get_curriculum_catalog().phases_by_slug.get(slug)
+
+
+def get_curriculum_overview() -> tuple[PhaseOverview, ...]:
+    """Get the lightweight phase+topic overview for browse-level pages.
+
+    No step/objective/requirement content -- see ``PhaseOverview``.
+    """
+    catalog = get_curriculum_catalog()
+    return tuple(
+        PhaseOverview(
+            order=phase.order,
+            name=phase.name,
+            slug=phase.slug,
+            description=phase.description,
+            short_description=phase.short_description,
+            estimated_learning_time=phase.estimated_learning_time,
+            estimated_project_time=phase.estimated_project_time,
+            project_summary=phase.project_summary,
+            completion_summary=phase.completion_summary,
+            prerequisites=phase.prerequisites,
+            cost_note=phase.cost_note,
+            required_for_graduation=phase.required_for_graduation,
+            topics=[
+                TopicOverview(slug=topic.slug, name=topic.name)
+                for topic in phase.topics
+            ],
+        )
+        for phase in catalog.phases
+    )
+
+
+def get_next_phase(order: int) -> Phase | None:
+    """Return the phase immediately after ``order``."""
+    candidates = [
+        phase for phase in get_curriculum_catalog().phases if phase.order > order
+    ]
+    return min(candidates, key=lambda phase: phase.order) if candidates else None
+
+
+def get_phase_start_url(phase: Phase) -> str:
+    """Link directly to a phase's first actionable topic."""
+    if phase.topics:
+        return f"/phase/{phase.order}/{phase.topics[0].slug}"
+    return f"/phase/{phase.order}"
+
+
+def get_topic_containing_step(step_uuid: UUID) -> tuple[Topic, LearningStep] | None:
+    """Resolve a step UUID to its parent topic (with sibling steps)."""
+    catalog = get_curriculum_catalog()
+    step = catalog.steps_by_uuid.get(step_uuid)
+    if step is None:
+        return None
+    topic = catalog.topic_by_step_uuid.get(step_uuid)
+    if topic is None:
+        return None
+    return topic, step
+
+
+def get_requirements_by_phase_order() -> dict[int, list[HandsOnRequirement]]:
+    """Get all requirements grouped by parent phase order."""
+    catalog = get_curriculum_catalog()
+    return {
+        phase.order: list(catalog.requirements_by_phase_slug.get(phase.slug, ()))
+        for phase in catalog.phases
+        if catalog.requirements_by_phase_slug.get(phase.slug)
+    }
+
+
+def get_required_step_counts_by_phase() -> dict[int, int]:
+    """Get the count of required steps per phase order."""
+    catalog = get_curriculum_catalog()
+    return {
+        phase.order: len(catalog.steps_by_phase_slug.get(phase.slug, ()))
+        for phase in catalog.phases
+    }
+
+
+def get_requirement_counts_by_phase() -> dict[int, int]:
+    """Get the count of hands-on requirements per phase order."""
+    catalog = get_curriculum_catalog()
+    return {
+        phase.order: len(catalog.requirements_by_phase_slug.get(phase.slug, ()))
+        for phase in catalog.phases
+    }

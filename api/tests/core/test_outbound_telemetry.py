@@ -11,18 +11,18 @@ import httpx2
 import openai
 import pytest
 from fastapi.responses import RedirectResponse
-from learn_to_cloud_shared.core.config import OAuthConfig
-from learn_to_cloud_shared.core.outbound import (
+from opentelemetry.trace import SpanKind, StatusCode
+
+from learn_to_cloud.core.auth import init_oauth, oauth, oauth_transport
+from learn_to_cloud.core.config import OAuthConfig
+from learn_to_cloud.core.outbound import (
     DEPENDENCY_NAME,
     DEPENDENCY_OPERATION,
     ERROR_TYPE,
 )
-from learn_to_cloud_shared_test_support.telemetry import capture_outbound_telemetry
-from opentelemetry.trace import SpanKind, StatusCode
-
-from learn_to_cloud.core.auth import init_oauth, oauth, oauth_transport
 from learn_to_cloud.routes import auth_routes
 from learn_to_cloud.services import verification_grader
+from tests.support.telemetry import capture_outbound_telemetry
 
 SECRET = "sentinel-secret-7f3a"
 TOKEN_URL = "https://github.com/login/oauth/access_token"

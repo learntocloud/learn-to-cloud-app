@@ -70,9 +70,6 @@ jobs:
             app:
               - 'api/**'
               - '!api/tests/**'
-              - 'packages/learn-to-cloud-shared/**'
-              - '!packages/learn-to-cloud-shared/tests/**'
-              - 'packages/learn-to-cloud-shared-test-support/pyproject.toml'
               - 'pyproject.toml'
               - 'uv.lock'
               - '.dockerignore'
@@ -216,12 +213,12 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm "$REGISTRY/api:$GITHUB_SHA" \
-            python -m learn_to_cloud_shared.runtime_package_check
+            python -m learn_to_cloud.runtime_package_check
 
           docker run --rm -i \
             "$REGISTRY/migrations:$GITHUB_SHA" \
             python - <<'PY'
-          from learn_to_cloud_shared.runtime_package_check import main
+          from learn_to_cloud.runtime_package_check import main
 
           main()
           PY

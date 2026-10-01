@@ -10,11 +10,10 @@ from uuid import uuid4
 
 import pytest
 from fastapi import Request
-from learn_to_cloud_shared.content_yaml_loader import get_all_phases_from_yaml
-from learn_to_cloud_shared.models import User
-from learn_to_cloud_shared.schemas import SubmissionData
 
+from learn_to_cloud.content_yaml_loader import get_all_phases_from_yaml
 from learn_to_cloud.core.templates import templates
+from learn_to_cloud.models import User
 from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
 from learn_to_cloud.rendering.htmx_responses import render_step_toggle
 from learn_to_cloud.rendering.page_content import (
@@ -26,6 +25,7 @@ from learn_to_cloud.rendering.requirement_cards import (
     UnavailableCardContext,
     build_requirement_card_context,
 )
+from learn_to_cloud.schemas import SubmissionData
 from learn_to_cloud.services.verification_page_service import (
     VerificationAttemptHistoryItem,
 )
@@ -233,7 +233,7 @@ class TestHomePage:
 
 
 def _requirement(slug: str, name: str, description: str = ""):
-    from learn_to_cloud_shared_test_support.requirement_factories import (
+    from tests.support.requirement_factories import (
         ctf_token_requirement,
     )
 
@@ -592,7 +592,7 @@ class TestPhaseVerificationCardStates:
         assert "Return to dashboard" in html
 
     def test_token_form_uses_configured_length_limits(self):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             ctf_token_requirement,
         )
 
@@ -612,7 +612,7 @@ class TestPhaseVerificationCardStates:
         assert 'spellcheck="false"' in html
 
     def test_deployed_url_form_uses_url_constraints(self):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             deployed_api_requirement,
         )
 
@@ -629,7 +629,7 @@ class TestPhaseVerificationCardStates:
         assert 'autocomplete="url"' in html
 
     def test_reflection_form_constrains_every_answer(self):
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             career_reflection_requirement,
         )
 
@@ -719,7 +719,7 @@ class TestPhaseVerificationCardStates:
 
     def test_readonly_derived_url_is_explained(self):
         """The auto-derived, read-only field says why it can't be edited (#701)."""
-        from learn_to_cloud_shared_test_support.requirement_factories import (
+        from tests.support.requirement_factories import (
             journal_api_verifier_requirement,
         )
 

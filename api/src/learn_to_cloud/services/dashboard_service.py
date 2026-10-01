@@ -4,19 +4,19 @@ Provides phase listing with user progress and summary stats
 for the dashboard page.
 """
 
-from learn_to_cloud_shared.content_service import (
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from learn_to_cloud.content_service import (
     get_curriculum_overview,
     get_phase_by_slug,
 )
-from learn_to_cloud_shared.schemas import (
+from learn_to_cloud.schemas import (
     ContinuePhaseData,
     DashboardData,
     PhaseOverview,
     PhaseProgressData,
     PhaseSummaryData,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from learn_to_cloud.services.progress_service import (
     fetch_user_progress,
     phase_progress_to_data,
