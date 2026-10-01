@@ -9,7 +9,7 @@ import pytest
 
 from learn_to_cloud.models import SubmissionType
 from learn_to_cloud.schemas import TaskResult, ValidationResult
-from learn_to_cloud.submission_values import TextValue, submitted_value_from_raw
+from learn_to_cloud.verification.attempt_types import PreparedVerificationAttempt
 from learn_to_cloud.verification.checks import career as career_checks
 from learn_to_cloud.verification.checks import (
     deployed_api as deployed_api_checks,
@@ -20,13 +20,16 @@ from learn_to_cloud.verification.checks import security as security_checks
 from learn_to_cloud.verification.checks import tokens as tokens_checks
 from learn_to_cloud.verification.core import StepContext, StepResult
 from learn_to_cloud.verification.evidence import EvidenceError
+from learn_to_cloud.verification.submission_values import (
+    TextValue,
+    submitted_value_from_raw,
+)
 from learn_to_cloud.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
 )
 from learn_to_cloud.verification.tasks.phase7 import (
     CAREER_REFLECTION_RUBRIC_TASK,
 )
-from learn_to_cloud.verification_workflow import PreparedVerificationAttempt
 from tests.support.fakes.repo_files import InMemoryRepoFiles
 from tests.support.requirement_factories import make_requirement
 

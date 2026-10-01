@@ -13,7 +13,7 @@ from learn_to_cloud.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
 from learn_to_cloud.services.submissions_service import create_verification_attempt
-from learn_to_cloud.submission_values import SubmittedValue
+from learn_to_cloud.verification.submission_values import SubmittedValue
 
 logger = logging.getLogger(__name__)
 

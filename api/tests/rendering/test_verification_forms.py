@@ -13,7 +13,7 @@ from learn_to_cloud.rendering.verification_forms import (
     build_verification_form_context,
 )
 from learn_to_cloud.schemas import SubmissionData
-from learn_to_cloud.verification_forms import (
+from learn_to_cloud.verification.forms import (
     MAX_REFLECTION_ANSWER_LENGTH,
     verification_submit_action,
 )
@@ -98,7 +98,7 @@ def test_every_submission_type_has_a_renderable_form(submission_type):
 
 def test_submission_action_rejects_a_missing_input_shape():
     with (
-        patch("learn_to_cloud.verification_forms._VALUE_SUBMISSION_TYPES", frozenset()),
+        patch("learn_to_cloud.verification.forms._VALUE_SUBMISSION_TYPES", frozenset()),
         pytest.raises(ValueError, match="Unsupported submission type"),
     ):
         verification_submit_action("test-req", SubmissionType.CTF_TOKEN)

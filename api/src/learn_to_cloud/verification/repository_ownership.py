@@ -5,7 +5,6 @@ from json import JSONDecodeError
 
 import httpx
 
-from learn_to_cloud.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud.schemas import ValidationResult
 from learn_to_cloud.verification.github_errors import github_error_to_result
 from learn_to_cloud.verification.github_http import RETRIABLE_EXCEPTIONS
@@ -13,6 +12,7 @@ from learn_to_cloud.verification.github_metadata import (
     GitHubApiMetadata,
     GitHubMetadata,
 )
+from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
 
 logger = logging.getLogger(__name__)
 

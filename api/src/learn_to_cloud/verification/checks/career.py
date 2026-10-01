@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from learn_to_cloud.schemas import ValidationResult
-from learn_to_cloud.submission_values import TextValue
 from learn_to_cloud.verification.core import StepContext, StepResult
 from learn_to_cloud.verification.evidence import collect_submitted_text_evidence
+from learn_to_cloud.verification.submission_values import TextValue
 from learn_to_cloud.verification.tasks.base import VerificationTask
 
 

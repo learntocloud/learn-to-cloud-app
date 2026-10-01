@@ -6,7 +6,7 @@ for the dashboard page.
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud.content_service import (
+from learn_to_cloud.curriculum.reads import (
     get_curriculum_overview,
     get_phase_by_slug,
 )

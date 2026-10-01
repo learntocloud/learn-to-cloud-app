@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from learn_to_cloud.verification_attempt_snapshot import (
+from learn_to_cloud.verification.attempt_snapshot import (
     ATTEMPT_PAYLOAD_VERSION,
     SUPPORTED_PAYLOAD_VERSIONS,
     AttemptSnapshotError,

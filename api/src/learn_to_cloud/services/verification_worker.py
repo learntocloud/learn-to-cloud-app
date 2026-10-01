@@ -15,11 +15,11 @@ from learn_to_cloud.repositories.verification_attempt_repository import (
     AttemptAlreadyGoneError,
     VerificationAttemptRepository,
 )
-from learn_to_cloud.services.verification_runner import execute_verification_attempt
-from learn_to_cloud.verification_attempt_executor import (
+from learn_to_cloud.services.verification_attempt_executor import (
     expire_verification_attempts,
     terminalize_verification_attempt,
 )
+from learn_to_cloud.services.verification_runner import execute_verification_attempt
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)

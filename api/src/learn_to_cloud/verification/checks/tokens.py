@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from learn_to_cloud.submission_values import TokenValue
 from learn_to_cloud.verification.checks.common import validation_step_result
 from learn_to_cloud.verification.core import StepContext, StepResult
+from learn_to_cloud.verification.submission_values import TokenValue
 from learn_to_cloud.verification.token_base import (
     verify_ctf_token,
     verify_networking_token,

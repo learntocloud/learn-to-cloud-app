@@ -11,7 +11,7 @@ from learn_to_cloud.models import (
     VerificationAttempt,
     utcnow,
 )
-from learn_to_cloud.progress_reads import (
+from learn_to_cloud.services.progress_reads import (
     are_all_requirements_succeeded,
     resolve_completed_step_uuids,
     resolve_succeeded_requirement_uuids,

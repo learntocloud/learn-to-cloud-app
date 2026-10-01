@@ -30,7 +30,7 @@ from sqlalchemy import bindparam, text
 
 from learn_to_cloud.core.config import get_migration_settings
 from learn_to_cloud.core.database import create_engine
-from learn_to_cloud.requirements import (
+from learn_to_cloud.services.requirements import (
     get_requirement_by_slug,
     load_requirement_index,
 )

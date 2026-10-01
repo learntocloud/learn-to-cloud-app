@@ -8,7 +8,7 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
 from learn_to_cloud.models import (
     SubmissionValueKind,
     User,
@@ -19,7 +19,20 @@ from learn_to_cloud.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
 from learn_to_cloud.schemas import CriterionResult, TaskResult, ValidationResult
-from learn_to_cloud.submission_values import value_kind_for_submission_type
+from learn_to_cloud.services.verification_attempt_executor import (
+    AttemptNotRunnableError,
+    finalize_verification_attempt,
+    prepare_verification_attempt,
+    terminalize_verification_attempt,
+)
+from learn_to_cloud.verification.attempt_snapshot import (
+    ATTEMPT_PAYLOAD_VERSION,
+    build_requirement_snapshot,
+    compute_snapshot_hash,
+)
+from learn_to_cloud.verification.attempt_types import (
+    VerificationRunResult,
+)
 from learn_to_cloud.verification.ci_status import verify_ci_status
 from learn_to_cloud.verification.execution import attempt_to_submission_data
 from learn_to_cloud.verification.github_errors import (
@@ -28,22 +41,9 @@ from learn_to_cloud.verification.github_errors import (
 )
 from learn_to_cloud.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud.verification.repo_files import GitHubRepoFiles
+from learn_to_cloud.verification.submission_values import value_kind_for_submission_type
 from learn_to_cloud.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
-)
-from learn_to_cloud.verification_attempt_executor import (
-    AttemptNotRunnableError,
-    finalize_verification_attempt,
-    prepare_verification_attempt,
-    terminalize_verification_attempt,
-)
-from learn_to_cloud.verification_attempt_snapshot import (
-    ATTEMPT_PAYLOAD_VERSION,
-    build_requirement_snapshot,
-    compute_snapshot_hash,
-)
-from learn_to_cloud.verification_workflow import (
-    VerificationRunResult,
 )
 from tests.support.fakes.repo_ref import InMemoryRepoRef
 from tests.support.fakes.workflow_runs import InMemoryWorkflowRuns
@@ -231,7 +231,7 @@ async def test_finalize_is_compare_and_set_idempotent(
 
     with caplog.at_level(
         logging.INFO,
-        logger="learn_to_cloud.verification_attempt_executor",
+        logger="learn_to_cloud.services.verification_attempt_executor",
     ):
         first = await finalize_verification_attempt(
             run_result, session_maker=session_maker
@@ -451,7 +451,7 @@ async def test_evidence_codes_persist_through_terminal_projections(
         llm_error_type="not-an-allowed-llm-category",
     )
     with caplog.at_level(
-        logging.INFO, logger="learn_to_cloud.verification_attempt_executor"
+        logging.INFO, logger="learn_to_cloud.services.verification_attempt_executor"
     ):
         result = await finalize_verification_attempt(
             run_result, session_maker=session_maker
@@ -567,7 +567,7 @@ async def test_incomplete_finalization_never_persists_private_grading_prompt(
         ],
     )
     with caplog.at_level(
-        logging.INFO, logger="learn_to_cloud.verification_attempt_executor"
+        logging.INFO, logger="learn_to_cloud.services.verification_attempt_executor"
     ):
         await finalize_verification_attempt(
             run_result,

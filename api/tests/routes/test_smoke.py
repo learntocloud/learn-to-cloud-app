@@ -85,7 +85,7 @@ def _fake_dashboard() -> DashboardData:
 def _patched_content():
     """Route smoke tests don't run against a real DB; redirect content reads
     to the authored YAML loader so routes get a real curriculum tree."""
-    from learn_to_cloud.content_yaml_loader import (
+    from learn_to_cloud.curriculum.yaml_loader import (
         get_all_phases_from_yaml,
     )
     from learn_to_cloud.schemas import PhaseOverview, TopicOverview
@@ -315,7 +315,7 @@ class TestAuthPageSmoke:
 
     async def test_phase_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1 renders the phase detail template."""
-        from learn_to_cloud.content_yaml_loader import (
+        from learn_to_cloud.curriculum.yaml_loader import (
             get_all_phases_from_yaml,
         )
 
@@ -380,7 +380,7 @@ class TestAuthPageSmoke:
         """A passed requirement still surfaces its rubric feedback (the why)."""
         from datetime import UTC, datetime
 
-        from learn_to_cloud.content_yaml_loader import (
+        from learn_to_cloud.curriculum.yaml_loader import (
             get_all_phases_from_yaml,
         )
         from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
@@ -461,7 +461,7 @@ class TestAuthPageSmoke:
 
     async def test_topic_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1/{topic_slug} renders the topic detail template."""
-        from learn_to_cloud.content_yaml_loader import (
+        from learn_to_cloud.curriculum.yaml_loader import (
             get_all_phases_from_yaml,
         )
 

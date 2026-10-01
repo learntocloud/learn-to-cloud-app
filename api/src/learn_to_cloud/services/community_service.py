@@ -4,12 +4,11 @@ from datetime import timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
-from learn_to_cloud.content_service import (
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
+from learn_to_cloud.curriculum.reads import (
     get_curriculum_overview,
     get_requirement_counts_by_phase,
 )
-from learn_to_cloud.github_updates import get_latest_curriculum_commits
 from learn_to_cloud.models import utcnow
 from learn_to_cloud.repositories.user_repository import UserRepository
 from learn_to_cloud.repositories.verification_attempt_repository import (
@@ -21,6 +20,7 @@ from learn_to_cloud.schemas import (
     CommunityPageData,
     CommunityPhaseActivity,
 )
+from learn_to_cloud.services.github_updates import get_latest_curriculum_commits
 
 
 async def get_community_page_data(db: AsyncSession) -> CommunityPageData:

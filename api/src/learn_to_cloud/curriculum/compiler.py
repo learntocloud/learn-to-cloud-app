@@ -28,8 +28,8 @@ The artifact is:
   artifact wasn't corrupted or hand-edited.
 
 This module does not affect runtime curriculum reads directly -- those
-go through ``content_service``, which reads the compiled artifact via
-``content_catalog.py`` (the process-level reader of this artifact).
+go through ``reads``, which reads the compiled artifact via
+``catalog.py`` (the process-level reader of this artifact).
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ from typing import Any
 
 import yaml
 
-from learn_to_cloud.content_yaml_loader import (
+from learn_to_cloud.curriculum.yaml_loader import (
     get_all_phases_from_yaml_strict,
     get_content_root_dir,
     validate_content,

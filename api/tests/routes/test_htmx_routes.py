@@ -44,12 +44,12 @@ from learn_to_cloud.services.steps_service import StepValidationError
 from learn_to_cloud.services.submissions_service import (
     VerificationAttemptSubmission,
 )
-from learn_to_cloud.submission_values import (
+from learn_to_cloud.verification.forms import combine_reflection_answers
+from learn_to_cloud.verification.submission_values import (
     GitHubUrlValue,
     TextValue,
     TokenValue,
 )
-from learn_to_cloud.verification_forms import combine_reflection_answers
 
 
 def _mock_attempt_submission(*, created: bool = True) -> VerificationAttemptSubmission:

@@ -11,7 +11,7 @@ from learn_to_cloud.repositories.user_repository import UserRepository
 from learn_to_cloud.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
-from learn_to_cloud.verification_attempt_executor import (
+from learn_to_cloud.services.verification_attempt_executor import (
     expire_verification_attempts,
 )
 

@@ -11,7 +11,7 @@ from learn_to_cloud.models import SubmissionType
 from learn_to_cloud.schemas import (
     CareerReflectionRequirement,
 )
-from learn_to_cloud.submission_values import MAX_TEXT_LENGTH
+from learn_to_cloud.verification.submission_values import MAX_TEXT_LENGTH
 
 MAX_SUBMITTED_VALUE_LENGTH = 2_048
 MAX_REFLECTION_ANSWER_LENGTH = 6_000

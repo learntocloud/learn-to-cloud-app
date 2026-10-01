@@ -15,11 +15,13 @@ from opentelemetry.trace import Status, StatusCode
 
 from learn_to_cloud.models import SubmissionType
 from learn_to_cloud.schemas import TaskResult, ValidationResult
-from learn_to_cloud.submission_values import submitted_value_from_raw
 from learn_to_cloud.verification import engine as engine_module
 from learn_to_cloud.verification import github_errors
 from learn_to_cloud.verification import repo_files as repo_files_module
 from learn_to_cloud.verification import workflows as workflows_module
+from learn_to_cloud.verification.attempt_types import (
+    PreparedVerificationAttempt,
+)
 from learn_to_cloud.verification.checks import career as career_checks
 from learn_to_cloud.verification.checks import (
     deployed_api as deployed_api_checks,
@@ -41,14 +43,12 @@ from learn_to_cloud.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud.verification.repo_files import (
     GitHubRepoFiles,
 )
+from learn_to_cloud.verification.submission_values import submitted_value_from_raw
 from learn_to_cloud.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
 )
 from learn_to_cloud.verification.tasks.phase7 import (
     CAREER_REFLECTION_RUBRIC_TASK,
-)
-from learn_to_cloud.verification_workflow import (
-    PreparedVerificationAttempt,
 )
 from tests.support.fakes.github_metadata import InMemoryGitHubMetadata
 from tests.support.fakes.repo_files import InMemoryRepoFiles

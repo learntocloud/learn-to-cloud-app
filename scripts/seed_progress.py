@@ -9,8 +9,8 @@ import sys
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
-from learn_to_cloud.submission_values import value_kind_for_submission_type
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
+from learn_to_cloud.verification.submission_values import value_kind_for_submission_type
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 

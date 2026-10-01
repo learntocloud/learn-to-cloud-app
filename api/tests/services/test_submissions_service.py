@@ -12,8 +12,8 @@ from learn_to_cloud.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
     AttemptCardProjection,
 )
-from learn_to_cloud.requirements import RequirementIndex
 from learn_to_cloud.schemas import HandsOnRequirement, Phase
+from learn_to_cloud.services.requirements import RequirementIndex
 from learn_to_cloud.services.submissions_service import (
     _SMOKE_USER_ID as SMOKE_USER_ID,
 )
@@ -30,7 +30,7 @@ from learn_to_cloud.services.submissions_service import (
 from learn_to_cloud.services.submissions_service import (
     _pick_smoke_requirement as pick_smoke_requirement,
 )
-from learn_to_cloud.submission_values import (
+from learn_to_cloud.verification.submission_values import (
     GitHubUrlValue,
     TokenValue,
     submitted_value_from_raw,

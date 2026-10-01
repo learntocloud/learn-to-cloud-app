@@ -22,16 +22,11 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
-from learn_to_cloud.content_service import (
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
+from learn_to_cloud.curriculum.reads import (
     get_curriculum_overview,
     get_required_step_counts_by_phase,
 )
-from learn_to_cloud.progress_reads import (
-    resolve_completed_step_uuids,
-    resolve_succeeded_requirement_uuids,
-)
-from learn_to_cloud.requirements import load_requirement_index
 from learn_to_cloud.schemas import (
     LearningProgress,
     LearningStep,
@@ -44,6 +39,11 @@ from learn_to_cloud.schemas import (
     UserProgress,
     VerificationProgress,
 )
+from learn_to_cloud.services.progress_reads import (
+    resolve_completed_step_uuids,
+    resolve_succeeded_requirement_uuids,
+)
+from learn_to_cloud.services.requirements import load_requirement_index
 
 
 def _count_by_phase(

@@ -11,7 +11,7 @@ from uuid import uuid4
 import pytest
 from fastapi import Request
 
-from learn_to_cloud.content_yaml_loader import get_all_phases_from_yaml
+from learn_to_cloud.curriculum.yaml_loader import get_all_phases_from_yaml
 from learn_to_cloud.models import User
 from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
 from learn_to_cloud.rendering.htmx_responses import render_step_toggle

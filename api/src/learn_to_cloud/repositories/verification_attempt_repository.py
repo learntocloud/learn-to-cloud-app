@@ -29,7 +29,7 @@ from learn_to_cloud.models import (
     VerificationSnapshotSource,
     utcnow,
 )
-from learn_to_cloud.submission_values import SubmittedValue
+from learn_to_cloud.verification.submission_values import SubmittedValue
 
 
 @dataclass(frozen=True, slots=True)

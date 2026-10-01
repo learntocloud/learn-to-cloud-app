@@ -16,7 +16,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from learn_to_cloud.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud.verification import (
     github_errors,
     github_http,
@@ -31,6 +30,7 @@ from learn_to_cloud.verification.github_profile import (
     validate_profile_readme,
     validate_repo_fork,
 )
+from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
 from tests.support.fakes.github_metadata import InMemoryGitHubMetadata
 from tests.support.retrying import retry_with
 

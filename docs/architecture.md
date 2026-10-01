@@ -10,9 +10,22 @@ content. See [Curriculum architecture](curriculum.html),
 Routes handle HTTP and dependency injection; services coordinate application
 behavior; repositories own queries. Keep domain checks independent of HTTP.
 The session lifecycle service also handles browser-cookie cleanup.
-`core/` is the bottom layer (configuration, logging, outbound HTTP, cookies)
-and imports only other `core/` modules; `tests/test_runtime_boundaries.py`
-enforces this.
+
+Packages under `api/src/learn_to_cloud/`:
+
+| Package | Owns |
+|---|---|
+| `core/` | Configuration, logging, outbound HTTP, cookies; imports only `core/` |
+| `curriculum/` | YAML loading, artifact compilation, and catalog-backed reads |
+| `verification/` | Checks, submission values, forms, and attempt contracts |
+| `repositories/` | Database queries |
+| `rendering/` | Template data and template setup |
+| `services/` | Application behavior that combines the packages above |
+| `routes/` | HTTP handlers |
+
+`models.py` and `schemas.py` are shared by every layer. Lower packages never
+import `services/` or `routes/`; `tests/test_runtime_boundaries.py` enforces
+the allowed imports for each package.
 
 Prepare template data in
 [`rendering/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/src/learn_to_cloud/rendering).
@@ -21,7 +34,7 @@ their feedback and display builders rather than formatting the same outcome
 differently on cards and history pages.
 
 Submission rules live in
-[`verification_forms.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/verification_forms.py);
+[`verification/forms.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/verification/forms.py);
 rendering consumes that contract instead of duplicating validation.
 
 ## Background verification

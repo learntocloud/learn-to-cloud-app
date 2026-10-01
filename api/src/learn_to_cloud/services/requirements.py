@@ -1,6 +1,6 @@
 """Phase hands-on requirements lookup helpers.
 
-Backed by the packaged curriculum catalog (see ``content_service``).
+Backed by the packaged curriculum catalog (see ``curriculum.reads``).
 Each convenience helper loads the requirement index (requirements
 grouped by phase order) and builds a ``RequirementIndex``; this is a
 synchronous, in-memory lookup, so hot paths can call it as often as
@@ -18,9 +18,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from learn_to_cloud.content_service import get_requirements_by_phase_order
-from learn_to_cloud.progress_reads import are_all_requirements_succeeded
+from learn_to_cloud.curriculum.reads import get_requirements_by_phase_order
 from learn_to_cloud.schemas import HandsOnRequirement
+from learn_to_cloud.services.progress_reads import are_all_requirements_succeeded
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession

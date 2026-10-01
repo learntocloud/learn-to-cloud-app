@@ -5,7 +5,7 @@ from inspect import Parameter, signature
 
 import pytest
 
-from learn_to_cloud.github_repository_target import GitHubRepositoryTarget
+from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
 
 
 @pytest.mark.parametrize("repo", ["project", "learner"])

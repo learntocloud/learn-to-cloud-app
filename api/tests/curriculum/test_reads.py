@@ -11,8 +11,8 @@ from uuid import uuid4
 
 import pytest
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
-from learn_to_cloud.content_service import (
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
+from learn_to_cloud.curriculum.reads import (
     get_curriculum_overview,
     get_phase_by_slug,
     get_required_step_counts_by_phase,

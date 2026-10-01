@@ -320,8 +320,8 @@ class TestPhaseProgressToData:
 class TestFetchUserProgress:
     @pytest.mark.asyncio
     async def test_queries_db_and_returns_progress(self):
-        from learn_to_cloud.requirements import RequirementIndex
         from learn_to_cloud.schemas import PhaseOverview
+        from learn_to_cloud.services.requirements import RequirementIndex
 
         phase_overview = (PhaseOverview(name="Phase 0", slug="phase0", order=0),)
         step_uuid = uuid4()
@@ -373,8 +373,8 @@ class TestFetchUserProgress:
         requirement, each in a different phase. A UUID absent from
         ``phase_order_by_*_uuid`` must not inflate any phase's progress.
         """
-        from learn_to_cloud.requirements import RequirementIndex
         from learn_to_cloud.schemas import PhaseOverview
+        from learn_to_cloud.services.requirements import RequirementIndex
 
         phase_overview = (
             PhaseOverview(name="Phase 0", slug="phase0", order=0),

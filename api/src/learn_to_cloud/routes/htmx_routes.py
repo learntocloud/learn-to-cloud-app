@@ -16,9 +16,9 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
-from learn_to_cloud.content_service import get_curriculum_catalog
 from learn_to_cloud.core.auth import AuthenticatedUser
 from learn_to_cloud.core.database import DbSession
+from learn_to_cloud.curriculum.reads import get_curriculum_catalog
 from learn_to_cloud.rendering.htmx_responses import (
     reload_page_response,
     render_input_error,
@@ -27,12 +27,12 @@ from learn_to_cloud.rendering.htmx_responses import (
     render_unavailable,
     status_error_response,
 )
-from learn_to_cloud.requirements import get_requirement_by_slug
 from learn_to_cloud.schemas import (
     CareerReflectionRequirement,
     HandsOnRequirement,
     PlaceholderConfig,
 )
+from learn_to_cloud.services.requirements import get_requirement_by_slug
 from learn_to_cloud.services.sessions_service import (
     CurrentAccount,
     CurrentUser,
@@ -57,18 +57,18 @@ from learn_to_cloud.services.verification_attempt_service import (
     poll_verification_attempt,
     submit_verification_attempt,
 )
-from learn_to_cloud.submission_derivation import derive_submission_value
-from learn_to_cloud.submission_values import (
-    SubmittedValue,
-    submitted_value_from_raw,
-)
-from learn_to_cloud.verification_forms import (
+from learn_to_cloud.verification.forms import (
     DerivedVerificationForm,
     ReflectionVerificationForm,
     ValueVerificationForm,
     VerificationInputShape,
     combine_reflection_answers,
     input_shape_for_submission_type,
+)
+from learn_to_cloud.verification.submission_derivation import derive_submission_value
+from learn_to_cloud.verification.submission_values import (
+    SubmittedValue,
+    submitted_value_from_raw,
 )
 
 logger = logging.getLogger(__name__)

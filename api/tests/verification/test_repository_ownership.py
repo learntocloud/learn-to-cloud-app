@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from learn_to_cloud.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud.schemas import ValidationResult
 from learn_to_cloud.verification.github_errors import GitHubServerError
 from learn_to_cloud.verification.github_metadata import (
@@ -15,6 +14,7 @@ from learn_to_cloud.verification.github_metadata import (
 from learn_to_cloud.verification.repository_ownership import (
     check_repository_ownership,
 )
+from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
 from tests.support.fakes.github_metadata import InMemoryGitHubMetadata
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
