@@ -5,10 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from learn_to_cloud.core.auth import (
-    AuthenticatedUser,
-    AuthenticationRequired,
-)
+from learn_to_cloud.core.auth import AuthenticatedUser, AuthenticationRequired
 from learn_to_cloud.models import User
 from learn_to_cloud.routes.users_routes import delete_current_user, get_current_user
 

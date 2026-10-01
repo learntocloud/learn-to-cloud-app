@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
-from learn_to_cloud.core.templates import templates
 from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.rendering.templates import templates
 from learn_to_cloud.rendering.verification_forms import (
     DeployedUrlFormContext,
     ReflectionFormContext,

@@ -772,8 +772,8 @@ class TestHtmxVerificationAttemptStatus:
         from fastapi import FastAPI
         from httpx import ASGITransport, AsyncClient
 
-        from learn_to_cloud.core.auth import require_authenticated_user
         from learn_to_cloud.routes.htmx_routes import router
+        from learn_to_cloud.services.sessions_service import require_authenticated_user
 
         app = FastAPI()
         app.include_router(router)

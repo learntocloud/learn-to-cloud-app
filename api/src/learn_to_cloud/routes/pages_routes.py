@@ -16,13 +16,8 @@ from learn_to_cloud.content_service import (
     get_phase_by_slug,
     get_phase_start_url,
 )
-from learn_to_cloud.core.auth import (
-    CurrentAccount,
-    OptionalCurrentAccount,
-)
 from learn_to_cloud.core.database import DbSession
 from learn_to_cloud.core.routing import LoginRedirectRoute
-from learn_to_cloud.core.templates import templates
 from learn_to_cloud.models import User
 from learn_to_cloud.rendering.page_content import (
     COMMUNITY_LINKS,
@@ -33,10 +28,15 @@ from learn_to_cloud.rendering.progress import (
     build_phase_topics,
     build_progress_dict,
 )
+from learn_to_cloud.rendering.templates import templates
 from learn_to_cloud.rendering.topic_navigation import build_topic_nav
 from learn_to_cloud.services.community_service import get_community_page_data
 from learn_to_cloud.services.dashboard_service import get_dashboard_data
 from learn_to_cloud.services.progress_service import fetch_phase_progress
+from learn_to_cloud.services.sessions_service import (
+    CurrentAccount,
+    OptionalCurrentAccount,
+)
 from learn_to_cloud.services.steps_service import get_valid_completed_steps
 from learn_to_cloud.services.transition_telemetry import (
     build_phase_transition_id,

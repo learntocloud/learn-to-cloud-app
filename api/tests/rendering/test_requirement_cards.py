@@ -229,7 +229,7 @@ class TestBuildRequirementCardContextCardState:
         assert ctx.error_message == "Verification did not pass."
 
     def test_processing_is_checking_regardless_of_submission(self):
-        from learn_to_cloud.core.templates import templates
+        from learn_to_cloud.rendering.templates import templates
 
         req = _make_requirement(SubmissionType.CTF_TOKEN)
         attempt_id = uuid4()

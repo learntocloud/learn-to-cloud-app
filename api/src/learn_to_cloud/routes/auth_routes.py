@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud.core.auth import (
     AuthenticatedUser,
-    CurrentUser,
     IdentityRejectionReason,
     oauth,
     validate_identity,
@@ -26,9 +25,13 @@ from learn_to_cloud.core.outbound import (
     classify,
     classify_status,
 )
-from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME, issue_cookie
-from learn_to_cloud.services.sessions_service import (
+from learn_to_cloud.core.session_cookies import (
+    AUTH_COOKIE_NAME,
     csrf_token,
+    issue_cookie,
+)
+from learn_to_cloud.services.sessions_service import (
+    CurrentUser,
     issue_session,
     log_pruned,
     mutate_account,

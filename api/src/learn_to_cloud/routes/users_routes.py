@@ -2,9 +2,12 @@
 
 from fastapi import APIRouter, Request
 
-from learn_to_cloud.core.auth import CurrentAccount, CurrentUser
 from learn_to_cloud.schemas import UserResponse
-from learn_to_cloud.services.sessions_service import mutate_account
+from learn_to_cloud.services.sessions_service import (
+    CurrentAccount,
+    CurrentUser,
+    mutate_account,
+)
 
 __all__ = ["router"]
 

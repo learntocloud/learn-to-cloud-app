@@ -28,7 +28,6 @@ import pytest_asyncio
 from fastapi.responses import HTMLResponse
 from httpx import ASGITransport, AsyncClient
 
-from learn_to_cloud.core.auth import optional_authenticated_account
 from learn_to_cloud.core.database import get_db
 from learn_to_cloud.schemas import (
     DashboardData,
@@ -38,6 +37,7 @@ from learn_to_cloud.schemas import (
     PhaseSummaryData,
     VerificationProgress,
 )
+from learn_to_cloud.services.sessions_service import optional_authenticated_account
 
 # =============================================================================
 # Fixtures

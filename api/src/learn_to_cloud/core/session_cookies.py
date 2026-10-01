@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+import hmac
 import re
 from datetime import UTC, datetime
 
@@ -24,6 +25,17 @@ def token_digest(value: str | None) -> bytes | None:
     if base64.urlsafe_b64encode(raw).rstrip(b"=").decode() != value:
         return None
     return hashlib.sha256(raw).digest()
+
+
+def csrf_token(request: Request) -> str:
+    digest = token_digest(request.cookies.get(AUTH_COOKIE_NAME))
+    if digest is None:
+        return ""
+    return hmac.new(
+        get_web_settings().session.secret_key.encode(),
+        b"ltc:logout-all:v1:" + digest,
+        hashlib.sha256,
+    ).hexdigest()
 
 
 def clear_cookies(request: Request) -> None:

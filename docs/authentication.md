@@ -33,7 +33,7 @@ and shared
 
 ## Adding authenticated routes
 
-Import dependencies from `learn_to_cloud.core.auth`:
+Import dependencies from `learn_to_cloud.services.sessions_service`:
 
 | Route needs | Dependency |
 |-------------|------------|

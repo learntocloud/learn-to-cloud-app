@@ -187,7 +187,7 @@ User-confirmed frontend telemetry decisions:
 | `infra/container-apps.tf` | Pass frontend telemetry connection string to API container | ✅ |
 | `infra/outputs.tf` | Expose frontend App Insights details | ✅ |
 | `api/src/learn_to_cloud/core/config.py` | Add frontend telemetry setting | ✅ |
-| `api/src/learn_to_cloud/core/templates.py` | Inject frontend telemetry config into templates | ✅ |
+| `api/src/learn_to_cloud/rendering/templates.py` | Inject frontend telemetry config into templates | ✅ |
 | `api/src/learn_to_cloud/core/middleware.py` | Update CSP for frontend telemetry | ✅ |
 | `api/src/learn_to_cloud/templates/base.html` | Load and configure browser SDK | ✅ |
 | `api/src/learn_to_cloud/static/js/frontend-telemetry.js` | HTMX/client telemetry hooks | ✅ |
