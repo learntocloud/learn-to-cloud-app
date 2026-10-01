@@ -4,7 +4,7 @@ Wraps ``alembic revision`` so authors never get the default hex revision id.
 The next sequential number is derived from the highest ``NNNN_*`` filename in
 ``alembic/versions/``; the message is slugified into the rest of the id.
 
-Run from ``api/``::
+Run from the repository root::
 
     uv run python scripts/new_migration.py "drop redundant users index" [--autogenerate]
 

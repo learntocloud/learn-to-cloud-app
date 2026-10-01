@@ -208,9 +208,9 @@ learner work.
 | Size/count limit, selection, or configuration failure | Investigate the task contract and service limits; unchanged retries may not help. |
 
 Use the configured
-[`task policies`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/src/learn_to_cloud/verification/tasks)
+[`task policies`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/src/learn_to_cloud/verification/tasks)
 and
-[`evidence validation`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/verification/evidence.py)
+[`evidence validation`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/verification/evidence.py)
 to interpret the saved cause. A truncated tree cannot establish absence.
 Do not drop optional evidence, truncate files, grade partial packets, or ask
 learners to shrink valid submissions to fit a service bug.

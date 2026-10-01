@@ -63,7 +63,7 @@ async def count_users():
                     ) as total_steps_completed
             """)
             result = await conn.execute(query)
-            row = result.first()
+            row = result.one()
 
             print(f"Total users: {row[0]}")
             print(f"Users with GitHub: {row[0]}")

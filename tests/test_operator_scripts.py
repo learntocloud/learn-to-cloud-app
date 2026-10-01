@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 import yaml
 
-SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 ISSUE_TEMPLATES = SCRIPTS.parent / ".github" / "ISSUE_TEMPLATE"
 
 
@@ -137,7 +137,7 @@ process.stdout.write(JSON.stringify({ href: decoratedUrl, pagePath }));
             "node",
             "-e",
             harness,
-            str(SCRIPTS.parent / "api/src/learn_to_cloud/templates/base.html"),
+            str(SCRIPTS.parent / "src/learn_to_cloud/templates/base.html"),
             template,
             event_type,
         ],
@@ -293,7 +293,7 @@ async def test_user_count_preserves_output_without_duplicate_query(monkeypatch, 
     namespace = runpy.run_path(str(SCRIPTS / "count_users.py"))
     count_users = namespace["count_users"]
     result = MagicMock()
-    result.first.return_value = (3, 2, 4, 5)
+    result.one.return_value = (3, 2, 4, 5)
     connection = AsyncMock()
     connection.execute.return_value = result
     engine = MagicMock()

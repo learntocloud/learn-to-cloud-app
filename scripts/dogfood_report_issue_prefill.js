@@ -3,9 +3,9 @@ const { execSync } = require("child_process");
 const path = require("path");
 
 function getDogfoodCookie() {
-  const apiDir = path.join(__dirname, "..", "api");
-  const stdout = execSync("uv run python ../scripts/dogfood_session.py", {
-    cwd: apiDir,
+  const repoRoot = path.join(__dirname, "..");
+  const stdout = execSync("uv run python scripts/dogfood_session.py", {
+    cwd: repoRoot,
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
   });

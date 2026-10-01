@@ -30,7 +30,7 @@ the full test suite.
 
 ### Core setup
 
-Follow the README Quick Start for workspace installation, local dependencies,
+Follow the README Quick Start for installation, local dependencies,
 environment configuration, migrations, and starting the API. Docker Desktop
 users must enable WSL integration for their distribution.
 Then install the repository hook and check the environment:
@@ -46,7 +46,7 @@ uv run poe check
 Install frontend build dependencies from the repository root:
 
 ```bash
-cd api && npm ci && cd ..
+npm ci
 ```
 
 Local verification uses the API environment; there is no separate worker host.
@@ -55,7 +55,7 @@ Local verification uses the API environment; there is no separate worker host.
 
 This project uses [poethepoet](https://poethepoet.natn.io/) as the single source
 of truth for quality-gate commands. The tasks are defined in the root
-`pyproject.toml` and run across the whole uv workspace.
+`pyproject.toml`.
 
 Use targeted checks during development; the full `uv run poe check` gate must
 pass before pushing. New files must be staged for the static checks to inspect
@@ -64,7 +64,7 @@ them; stage only files belonging to the current task.
 ```bash
 # Static checks: ruff lint, ruff format, ty type check, migration lints,
 # curriculum content validation, and generated schema/curriculum drift.
-# This runs the prek hooks against every file in the workspace.
+# This runs the prek hooks against every file in the repository.
 uv run poe static
 
 # Test suites with coverage gates.

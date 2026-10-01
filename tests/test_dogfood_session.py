@@ -11,7 +11,7 @@ from learn_to_cloud.core.config import DatabaseConfig, Environment
 from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME, token_digest
 from learn_to_cloud.models import AuthSession, User
 
-_PATH = Path(__file__).resolve().parents[2] / "scripts" / "dogfood_session.py"
+_PATH = Path(__file__).resolve().parents[1] / "scripts" / "dogfood_session.py"
 _SPEC = importlib.util.spec_from_file_location("dogfood_session", _PATH)
 assert _SPEC is not None and _SPEC.loader is not None
 dogfood = importlib.util.module_from_spec(_SPEC)

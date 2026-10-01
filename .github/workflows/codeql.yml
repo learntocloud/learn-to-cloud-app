@@ -4,7 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'api/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'alembic/**'
       - 'scripts/**'
       - '.github/workflows/**'
       - '*.js'
@@ -13,7 +15,9 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'api/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'alembic/**'
       - 'scripts/**'
       - '.github/workflows/**'
       - '*.js'

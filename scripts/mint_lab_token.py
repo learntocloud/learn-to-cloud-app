@@ -109,7 +109,7 @@ def main() -> None:
     if not secret:
         print(
             "LABS__VERIFICATION_SECRET is not set. Configure the documented "
-            "local development secret in api/.env and run from api/, "
+            "local development secret in .env and run from the repository root, "
             "or export the variable, then retry.",
             file=sys.stderr,
         )

@@ -12,7 +12,7 @@ YAML files -> strict validation -> curriculum.json -> in-memory catalog
 ```
 
 Authored YAML lives under
-`api/src/learn_to_cloud/content/phases/`.
+`src/learn_to_cloud/content/phases/`.
 Each phase directory contains `_phase.yaml`, topic files, and requirement files.
 The phase file owns topic and requirement order.
 
@@ -70,7 +70,7 @@ rewritten.
 ## Editing curriculum
 
 1. Edit the YAML files and bump `curriculum_version` in
-   `api/src/learn_to_cloud/content/curriculum.meta.yaml`.
+   `src/learn_to_cloud/content/curriculum.meta.yaml`.
    Content changes require a version greater than the PR base artifact's version.
 2. From the repository root, run `uv run poe static`. Its hooks validate the
    content and regenerate `curriculum.json` and the YAML schemas.

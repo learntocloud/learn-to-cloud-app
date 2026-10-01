@@ -36,7 +36,7 @@ def upgrade() -> None:
         "UPDATE users SET github_username = 'gh-' || id WHERE github_username IS NULL"
     )
 
-    # NOT NULL via the CHECK-then-flip pattern (see api/.squawk.toml and 0028).
+    # NOT NULL via the CHECK-then-flip pattern (see .squawk.toml and 0028).
     # A plain SET NOT NULL scans the whole table under an ACCESS EXCLUSIVE lock.
     # Adding a CHECK ... NOT VALID then VALIDATE-ing it in a separate
     # transaction does the scan under a weaker lock that still allows reads and

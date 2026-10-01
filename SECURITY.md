@@ -24,7 +24,7 @@ If you discover a security vulnerability in this project, please report it respo
 
 The following are in scope for security reports:
 
-- The Learn to Cloud web application ([api/](api/))
+- The Learn to Cloud web application ([src/](src/))
 - Infrastructure configuration ([infra/](infra/))
 - CI/CD workflows ([.github/workflows/](.github/workflows/))
 - Authentication and session management

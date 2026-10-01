@@ -1,6 +1,6 @@
 services:
   # Just PostgreSQL for local development
-  # Start the app locally from /api (see README for uvicorn/Tailwind commands)
+  # Start the app locally with uv (see README for uvicorn/Tailwind commands)
   db:
     image: postgres:16-alpine
     ports:

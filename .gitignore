@@ -18,7 +18,6 @@ local.settings.json
 
 # Allow .env.example files (configuration templates)
 !.env.example
-!api/.env.example
 
 # Database
 *.db

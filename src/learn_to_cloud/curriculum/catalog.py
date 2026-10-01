@@ -154,8 +154,8 @@ def _read_artifact_payload() -> dict:
     if not resource.is_file():
         raise CurriculumCatalogError(
             f"packaged curriculum artifact not found: {resource}. Run "
-            "'uv run python scripts/compile_curriculum.py' in "
-            "api and commit the result."
+            "'uv run python scripts/compile_curriculum.py' and commit "
+            "the result."
         )
 
     raw = resource.read_text(encoding="utf-8")
@@ -180,7 +180,7 @@ def _validate_artifact_payload(payload: dict) -> None:
         raise CurriculumCatalogError(
             f"packaged curriculum artifact schema_version {schema_version!r} does "
             f"not match the version this code expects ({ARTIFACT_SCHEMA_VERSION}); "
-            "recompile with a matching learn-to-cloud-api release."
+            "recompile with a matching learn-to-cloud release."
         )
 
     content_hash = payload.get("content_hash")

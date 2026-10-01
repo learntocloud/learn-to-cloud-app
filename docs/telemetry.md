@@ -25,18 +25,18 @@ Azure Monitor owns production FastAPI instrumentation; local OTLP configures
 it explicitly. Both HTTP and background verification use the same API role and
 pipeline. Do not replace the SDK setup merely to remove default ASGI spans.
 See the shared
-[`observability configuration`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/core/observability.py).
+[`observability configuration`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/core/observability.py).
 
 Browser telemetry disables cookies and browser storage. HTMX hooks record page
 views because SDK history tracking counts its replace/push navigation twice;
 do not enable both mechanisms. Keep browser payload filtering in
-[`frontend-telemetry.js`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/static/js/frontend-telemetry.js).
+[`frontend-telemetry.js`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/static/js/frontend-telemetry.js).
 
 ## Changing signals
 
 Preserve event names and fields consumed by alerts. Review changes together with
 [`monitoring.tf`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/infra/monitoring.tf),
 the [alert runbook](runbooks/alerts.md), and
-[`telemetry contract tests`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/tests/test_telemetry_contracts.py).
+[`telemetry contract tests`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/tests/test_telemetry_contracts.py).
 Keep those executable contracts authoritative instead of maintaining a separate
 field registry.

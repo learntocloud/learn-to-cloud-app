@@ -15,7 +15,7 @@ only to legacy files that still have it.
 Dead off-chain revisions are ignored because
 ``ScriptDirectory.walk_revisions()`` only walks the active graph.
 
-Run from ``api/`` so ``alembic.ini`` resolves correctly::
+Run from the repository root so ``alembic.ini`` resolves correctly::
 
     uv run python scripts/check_migration_naming.py
 """

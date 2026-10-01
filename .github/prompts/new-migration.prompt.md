@@ -7,12 +7,12 @@ Create an Alembic migration for the requested schema change.
 
 ## Before you start
 
-1. Check `api/src/learn_to_cloud/models.py` for the current model definitions.
-2. Check `api/alembic/versions/` for recent migrations to understand naming and patterns.
+1. Check `src/learn_to_cloud/models.py` for the current model definitions.
+2. Check `alembic/versions/` for recent migrations to understand naming and patterns.
 
 ## Steps
 
-### 1. Update the shared model (`api/src/learn_to_cloud/models.py`)
+### 1. Update the shared model (`src/learn_to_cloud/models.py`)
 - Use `Mapped[T]` and `mapped_column()` for all columns.
 - Use `TimestampMixin` if the table needs `created_at`/`updated_at`.
 - For enums, use `class MyEnum(str, PyEnum)` with `native_enum=False` in the column.
@@ -21,20 +21,20 @@ Create an Alembic migration for the requested schema change.
 
 ### 2. Generate the migration
 ```bash
-(cd api && uv run alembic revision --autogenerate -m "description_of_change")
+uv run alembic revision --autogenerate -m "description_of_change"
 ```
 
 ### 3. Review the generated migration
-- Open the new file in `api/alembic/versions/`.
+- Open the new file in `alembic/versions/`.
 - Verify the `upgrade()` and `downgrade()` functions are correct.
 - Ensure indexes and constraints have explicit names.
 - Check that `downgrade()` properly reverses all changes.
 
 ### 4. Test the migration
 ```bash
-(cd api && uv run alembic upgrade head)
-(cd api && uv run alembic downgrade -1)
-(cd api && uv run alembic upgrade head)
+uv run alembic upgrade head
+uv run alembic downgrade -1
+uv run alembic upgrade head
 ```
 
 ### 5. Update dependent code
@@ -43,4 +43,4 @@ Create an Alembic migration for the requested schema change.
 - Add or update tests.
 
 ## Validation
-After generating, run: `cd api && uv run ruff check . && uv run ruff format --check . && uv run ty check .`
+After generating, run: `uv run ruff check . && uv run ruff format --check . && uv run ty check`

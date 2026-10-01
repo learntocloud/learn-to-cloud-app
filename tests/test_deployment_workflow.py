@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-_ROOT = Path(__file__).resolve().parents[2]
+_ROOT = Path(__file__).resolve().parents[1]
 _WORKFLOW = yaml.load(
     (_ROOT / ".github/workflows/app-deploy.yml").read_text(), Loader=yaml.BaseLoader
 )

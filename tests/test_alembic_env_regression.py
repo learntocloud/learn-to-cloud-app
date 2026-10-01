@@ -1,6 +1,6 @@
 """Regression test for issue #432: silent migration failure.
 
-Before this fix, ``api/alembic/env.py`` swallowed any exception whose message
+Before this fix, ``alembic/env.py`` swallowed any exception whose message
 contained the substrings ``"duplicate"`` or ``"already exists"``, treating it
 as "another worker already applied" and exiting cleanly. A real
 ``UniqueViolation`` on ``CREATE UNIQUE INDEX`` matched and got silently

@@ -3,9 +3,9 @@
 Runs the strict validators in ``curriculum.yaml_loader.validate_content()``
 against the currently-loaded YAML and exits non-zero on any violation.
 
-Run from the package root::
+Run from the repository root::
 
-    cd api && uv run python scripts/validate_content.py
+    uv run python scripts/validate_content.py
 
 Runs as the ``validate-content`` prek hook to catch broken content before it
 ships.

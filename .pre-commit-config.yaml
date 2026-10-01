@@ -9,28 +9,26 @@ repos:
     hooks:
       - id: ruff
         name: ruff lint
-        entry: uv run --project api ruff check --force-exclude
+        entry: uv run ruff check --force-exclude
         language: system
         types_or: [python, pyi, jupyter]
         require_serial: true
         args: [--fix]
-        files: ^api/
       - id: ruff-format
         name: ruff format
-        entry: uv run --project api ruff format --force-exclude
+        entry: uv run ruff format --force-exclude
         language: system
         types_or: [python, pyi, jupyter, markdown]
         require_serial: true
-        files: ^api/
 
   # ty - Python type checking
   - repo: local
     hooks:
       - id: ty
         name: ty type check
-        entry: uv run --project api ty check api
+        entry: uv run ty check
         language: system
-        files: ^api/.*\.py$
+        types: [python]
         pass_filenames: false
 
   # Migration lints: SQL safety (squawk) and filename/docstring conventions
@@ -38,15 +36,15 @@ repos:
     hooks:
       - id: squawk-migrations
         name: squawk migration SQL lint
-        entry: bash -c 'cd api && uv run python scripts/lint_migration_sql.py'
+        entry: uv run python scripts/lint_migration_sql.py
         language: system
-        files: ^api/alembic/versions/.*\.py$
+        files: ^alembic/versions/.*\.py$
         pass_filenames: false
       - id: migration-naming
         name: migration naming lint
-        entry: bash -c 'cd api && uv run python scripts/check_migration_naming.py'
+        entry: uv run python scripts/check_migration_naming.py
         language: system
-        files: ^api/alembic/versions/.*\.py$
+        files: ^alembic/versions/.*\.py$
         pass_filenames: false
 
   # Curriculum content: validate authored YAML and regenerate committed
@@ -55,30 +53,30 @@ repos:
     hooks:
       - id: validate-content
         name: validate curriculum content
-        entry: bash -c 'cd api && uv run python scripts/validate_content.py'
+        entry: uv run python scripts/validate_content.py
         language: system
-        files: ^api/src/learn_to_cloud/
+        files: ^src/learn_to_cloud/
         pass_filenames: false
       - id: generate-yaml-schemas
         name: regenerate curriculum YAML schemas
-        entry: bash -c 'cd api && uv run python scripts/generate_yaml_schemas.py'
+        entry: uv run python scripts/generate_yaml_schemas.py
         language: system
-        files: ^api/src/learn_to_cloud/
+        files: ^src/learn_to_cloud/
         pass_filenames: false
       - id: compile-curriculum
         name: recompile curriculum.json
-        entry: bash -c 'cd api && uv run python scripts/compile_curriculum.py'
+        entry: uv run python scripts/compile_curriculum.py
         language: system
-        files: ^api/src/learn_to_cloud/
+        files: ^src/learn_to_cloud/
         pass_filenames: false
   # General file hygiene + check-yaml
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^(api/htmlcov/|\.github/workflows/.*\.lock\.yml$|\.github/workflows/agentics-maintenance\.yml$)
+        exclude: ^(htmlcov/|\.github/workflows/.*\.lock\.yml$|\.github/workflows/agentics-maintenance\.yml$)
       - id: end-of-file-fixer
-        exclude: ^(api/htmlcov/|.*\.svg$|\.github/workflows/.*\.lock\.yml$|\.github/workflows/agentics-maintenance\.yml$)
+        exclude: ^(htmlcov/|.*\.svg$|\.github/workflows/.*\.lock\.yml$|\.github/workflows/agentics-maintenance\.yml$)
       - id: check-json
         exclude: ^\.vscode/
       - id: check-added-large-files

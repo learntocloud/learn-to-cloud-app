@@ -51,9 +51,9 @@ Keep table creation and its revision stamp atomic; separate concurrent work
 when it would otherwise force an early commit.
 
 Use the
-[`existing migrations`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/alembic/versions)
+[`existing migrations`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/alembic/versions)
 as worked examples and review transaction boundaries explicitly.
-[`0061_auth_sessions_concurrent_indexes`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/alembic/versions/0061_auth_sessions_concurrent_indexes.py)
+[`0061_auth_sessions_concurrent_indexes`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/alembic/versions/0061_auth_sessions_concurrent_indexes.py)
 demonstrates bounded concurrent index rebuilding after interruption.
 
 ## How Migrations Run in Production
@@ -66,7 +66,7 @@ head, and checks the physical schema against model metadata. Any failure must
 stop the API update.
 
 The runner and job configuration are authoritative:
-[`run_migrations.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/scripts/run_migrations.py)
+[`run_migrations.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/scripts/run_migrations.py)
 and
 [`infra/migrations.tf`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/infra/migrations.tf).
 Do not start overlapping migration executions or add automatic retries around
@@ -95,8 +95,8 @@ does not prove runtime-role access.
 
 ## Running Migrations Locally
 
-Start the local database and install the workspace using
-[Contributing](contributing.md). From `api/`:
+Start the local database and install dependencies using
+[Contributing](contributing.md), then run:
 
 ```bash
 uv run alembic upgrade head
@@ -115,7 +115,7 @@ or grants for you.
 
 ## Migration Tests
 
-Run from `api/` against a local environment:
+Run against a local environment:
 
 ```bash
 uv run python scripts/check_migration_naming.py
@@ -125,7 +125,7 @@ uv run pytest tests/test_migration_chain.py
 
 The SQL lint checks migrations added relative to `origin/main`; it does not
 review modified historical migrations. Its exclusions and rationale live in
-[`.squawk.toml`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/.squawk.toml).
+[`.squawk.toml`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/.squawk.toml).
 A clean lint result is not approval of every operation.
 
 The migration suite recreates its dedicated `test_alembic_migrations` database.

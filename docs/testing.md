@@ -1,6 +1,6 @@
 # Testing
 
-See [Quality Gates](contributing.md#quality-gates) for workspace checks and
+See [Quality Gates](contributing.md#quality-gates) for full checks and
 API smoke testing. Node.js is required for browser-contract tests even when
 running them through pytest.
 
@@ -10,12 +10,12 @@ Run each command from the repository root:
 
 ```bash
 # Lint the application.
-uv run --project api ruff check api
+uv run ruff check
 
 # Select the relevant suite, file, or test.
-uv run --project api pytest api/tests/ -m unit
-uv run --project api pytest api/tests/ -m integration
-uv run --project api pytest api/tests/
+uv run pytest -m unit
+uv run pytest -m integration
+uv run pytest
 ```
 
 Mark tests as `unit` or `integration`; use `pytest_asyncio.fixture` for async
@@ -27,7 +27,7 @@ tests instead recreate a dedicated disposable database; see
 
 Keep fakes in `tests/support/fakes/` and fixtures in `conftest.py`. Helpers used
 across test directories belong in
-[`tests/support/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/tests/support).
+[`tests/support/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/tests/support).
 Runtime code must not import test helpers.
 
 Before removing unused arguments or `async`, trace callers, dependency injection,
@@ -36,7 +36,7 @@ callbacks, and mocks. A fixture argument may provide essential setup. Use
 to satisfy a lint rule.
 
 The
-[`API pyproject.toml`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/pyproject.toml)
+[`API pyproject.toml`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/pyproject.toml)
 documents reviewed callback exceptions.
 Review new code in exempted files manually; expanding exceptions needs a
 caller/contract review and maintainer agreement.
@@ -65,7 +65,7 @@ started for the run. Artifacts belong in gitignored `.dogfood/`.
 
 ## Resetting local verification submissions
 
-From `api/`, run the reset script interactively, or scope and preview the reset:
+Run the reset script interactively, or scope and preview the reset:
 
 ```bash
 uv run python scripts/reset_local_submissions.py --user-id 6733686 --requirement-slug devops-implementation --dry-run
@@ -78,6 +78,6 @@ and asks for confirmation.
 
 Both filters are repeatable. Without filters, the reset covers every current
 curriculum requirement and local user. The
-[`script`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/scripts/reset_local_submissions.py)
+[`script`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/scripts/reset_local_submissions.py)
 resolves slugs through the curriculum artifact and deletes matching attempts.
 It refuses non-local databases; never bypass this guard or substitute ad-hoc SQL.

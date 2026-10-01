@@ -8,8 +8,8 @@
       "python": "${workspaceFolder}/.venv/bin/python",
       "module": "uvicorn",
       "args": ["learn_to_cloud.main:app", "--reload", "--reload-include", "*.py", "--reload-include", "*.html", "--reload-exclude", ".venv", "--port", "8000"],
-      "cwd": "${workspaceFolder}/api",
-      "envFile": "${workspaceFolder}/api/.env",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
       "env": {
         "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:4317"
       },
@@ -21,7 +21,7 @@
       "type": "node-terminal",
       "request": "launch",
       "command": "npx @tailwindcss/cli -i src/learn_to_cloud/static/css/input.css -o src/learn_to_cloud/static/css/styles.css --watch",
-      "cwd": "${workspaceFolder}/api"
+      "cwd": "${workspaceFolder}"
     }
   ],
   "compounds": [
