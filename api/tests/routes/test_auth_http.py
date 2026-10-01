@@ -31,16 +31,16 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.middleware.sessions import SessionMiddleware
 
-from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, CurrentUser
 from learn_to_cloud.core.database import get_db
 from learn_to_cloud.core.middleware import TelemetrySanitizationMiddleware
 from learn_to_cloud.core.routing import LoginRedirectRoute
 from learn_to_cloud.core.session_cookies import (
     AUTH_COOKIE_NAME,
+    SESSION_COOKIE_NAME,
     SessionResponseMiddleware,
 )
-from learn_to_cloud.core.templates import templates
 from learn_to_cloud.models import User
+from learn_to_cloud.rendering.templates import templates
 from learn_to_cloud.routes import (
     auth_router,
     htmx_router,
@@ -49,11 +49,16 @@ from learn_to_cloud.routes import (
 )
 from learn_to_cloud.routes.pages_routes import _template_context
 from learn_to_cloud.schemas import UserResponse
-from learn_to_cloud.services.sessions_service import issue_session, mutate_account
+from learn_to_cloud.services.sessions_service import (
+    CurrentUser,
+    issue_session,
+    mutate_account,
+)
 
 pytestmark = pytest.mark.integration
 
 _SECRET = "auth-http-test-only-secret"
+_SESSIONS_LOGGER = "learn_to_cloud.services.sessions_service"
 _PAGE_PATHS = [
     "/phase/1",
     "/phase/1/introduction",
@@ -210,10 +215,6 @@ async def app(test_settings, test_engine, user):
     app.include_router(browser_router)
 
     with (
-        patch(
-            "learn_to_cloud.core.auth.get_web_settings",
-            return_value=test_settings,
-        ),
         patch(
             "learn_to_cloud.core.session_cookies.get_web_settings",
             return_value=test_settings,
@@ -609,7 +610,7 @@ async def test_malformed_identity_is_cleaned_over_http(
     again = await client.get(path, headers=headers)
     assert again.status_code == status
     assert "set-cookie" not in again.headers
-    (record,) = [r for r in caplog.records if r.name == "learn_to_cloud.core.auth"]
+    (record,) = [r for r in caplog.records if r.name == _SESSIONS_LOGGER]
     assert record.getMessage() == "auth.session.rejected"
     assert record.args == ()
     assert record.exc_info is None
@@ -651,7 +652,7 @@ async def test_session_cookie_lifecycle_on_real_routes(
         status = 303
     assert response.status_code == status
     assert "set-cookie" not in response.headers
-    assert not [r for r in caplog.records if r.name == "learn_to_cloud.core.auth"]
+    assert not [r for r in caplog.records if r.name == _SESSIONS_LOGGER]
 
 
 @pytest.fixture
@@ -1056,7 +1057,7 @@ async def test_malformed_identity_telemetry_has_no_private_values(
             not {"user_id", "github_username", "user.id", "session.id"}
             & span.attributes.keys()
         )
-    records = [r for r in caplog.records if r.name == "learn_to_cloud.core.auth"]
+    records = [r for r in caplog.records if r.name == _SESSIONS_LOGGER]
     assert len(records) == 1
     log_payload = json.dumps(records[0].__dict__, default=str)
     telemetry = "\n".join(span.to_json() for span in spans) + log_payload

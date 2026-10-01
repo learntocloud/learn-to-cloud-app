@@ -24,12 +24,6 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.middleware.sessions import SessionMiddleware
 
 from learn_to_cloud.content_service import get_phase_by_slug
-from learn_to_cloud.core.auth import (
-    CurrentAccount,
-    CurrentUser,
-    OptionalCurrentAccount,
-    optional_authenticated_account,
-)
 from learn_to_cloud.core.middleware import TelemetrySanitizationMiddleware
 from learn_to_cloud.core.session_cookies import (
     AUTH_COOKIE_NAME,
@@ -46,7 +40,13 @@ from learn_to_cloud.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
 from learn_to_cloud.routes import auth_router, htmx_router, pages_router, users_router
-from learn_to_cloud.services.sessions_service import issue_session
+from learn_to_cloud.services.sessions_service import (
+    CurrentAccount,
+    CurrentUser,
+    OptionalCurrentAccount,
+    issue_session,
+    optional_authenticated_account,
+)
 from learn_to_cloud.submission_values import GitHubUrlValue
 
 pytestmark = pytest.mark.integration
@@ -132,7 +132,6 @@ async def session_apps(test_engine, test_settings):
             ]
         )
     with (
-        patch("learn_to_cloud.core.auth.get_web_settings", return_value=test_settings),
         patch(
             "learn_to_cloud.core.session_cookies.get_web_settings",
             return_value=test_settings,

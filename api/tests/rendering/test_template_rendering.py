@@ -12,7 +12,6 @@ import pytest
 from fastapi import Request
 
 from learn_to_cloud.content_yaml_loader import get_all_phases_from_yaml
-from learn_to_cloud.core.templates import templates
 from learn_to_cloud.models import User
 from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
 from learn_to_cloud.rendering.htmx_responses import render_step_toggle
@@ -25,6 +24,7 @@ from learn_to_cloud.rendering.requirement_cards import (
     UnavailableCardContext,
     build_requirement_card_context,
 )
+from learn_to_cloud.rendering.templates import templates
 from learn_to_cloud.schemas import SubmissionData
 from learn_to_cloud.services.verification_page_service import (
     VerificationAttemptHistoryItem,

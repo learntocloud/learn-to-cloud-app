@@ -49,3 +49,24 @@ def test_runtime_trees_do_not_contain_test_source():
         or path.name.startswith("test_")
         or path.name == "conftest.py"
     ]
+
+
+_CORE_FILES = sorted((_ROOT / "api/src/learn_to_cloud/core").rglob("*.py"))
+
+
+@pytest.mark.parametrize("path", _CORE_FILES, ids=lambda p: str(p.relative_to(_ROOT)))
+def test_core_imports_only_core(path):
+    """Core is the bottom layer; higher layers may depend on it, never the reverse."""
+    modules = []
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            modules.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            modules.append(node.module)
+
+    assert not [
+        name
+        for name in modules
+        if name.split(".")[0] == "learn_to_cloud"
+        and not name.startswith("learn_to_cloud.core")
+    ]

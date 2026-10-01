@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from learn_to_cloud.core.templates import _frontend_telemetry_context
+from learn_to_cloud.rendering.templates import _frontend_telemetry_context
 from tests.support.settings import clear_settings_cache
 
 

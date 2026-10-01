@@ -8,7 +8,6 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 
 from learn_to_cloud.core.auth import AuthenticatedUser
-from learn_to_cloud.core.templates import templates
 from learn_to_cloud.models import User
 from learn_to_cloud.rendering.progress import build_progress_dict
 from learn_to_cloud.rendering.requirement_cards import (
@@ -17,6 +16,7 @@ from learn_to_cloud.rendering.requirement_cards import (
     build_input_error_requirement_card_context,
     build_unavailable_requirement_card_context,
 )
+from learn_to_cloud.rendering.templates import templates
 from learn_to_cloud.schemas import HandsOnRequirement, Topic
 
 

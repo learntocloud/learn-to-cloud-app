@@ -17,12 +17,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from learn_to_cloud.content_service import get_curriculum_catalog
-from learn_to_cloud.core.auth import (
-    AuthenticatedUser,
-    CurrentAccount,
-    CurrentUser,
-    require_authenticated_account,
-)
+from learn_to_cloud.core.auth import AuthenticatedUser
 from learn_to_cloud.core.database import DbSession
 from learn_to_cloud.rendering.htmx_responses import (
     reload_page_response,
@@ -38,7 +33,12 @@ from learn_to_cloud.schemas import (
     HandsOnRequirement,
     PlaceholderConfig,
 )
-from learn_to_cloud.services.sessions_service import mutate_account
+from learn_to_cloud.services.sessions_service import (
+    CurrentAccount,
+    CurrentUser,
+    mutate_account,
+    require_authenticated_account,
+)
 from learn_to_cloud.services.steps_service import (
     StepValidationError,
     complete_step,

@@ -10,6 +10,9 @@ content. See [Curriculum architecture](curriculum.html),
 Routes handle HTTP and dependency injection; services coordinate application
 behavior; repositories own queries. Keep domain checks independent of HTTP.
 The session lifecycle service also handles browser-cookie cleanup.
+`core/` is the bottom layer (configuration, logging, outbound HTTP, cookies)
+and imports only other `core/` modules; `tests/test_runtime_boundaries.py`
+enforces this.
 
 Prepare template data in
 [`rendering/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/src/learn_to_cloud/rendering).
