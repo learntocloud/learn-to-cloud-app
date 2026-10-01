@@ -11,7 +11,7 @@ Routes handle HTTP and dependency injection; services coordinate application
 behavior; repositories own queries. Keep domain checks independent of HTTP.
 The session lifecycle service also handles browser-cookie cleanup.
 
-Packages under `api/src/learn_to_cloud/`:
+Packages under `src/learn_to_cloud/`:
 
 | Package | Owns |
 |---|---|
@@ -29,13 +29,13 @@ import `services/` or `routes/`; `tests/test_runtime_boundaries.py` enforces
 the allowed imports for each package.
 
 Prepare template data in
-[`rendering/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/src/learn_to_cloud/rendering).
+[`rendering/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/src/learn_to_cloud/rendering).
 These helpers are synchronous and perform no database or network I/O. Reuse
 their feedback and display builders rather than formatting the same outcome
 differently on cards and history pages.
 
 Submission rules live in
-[`verification/forms.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/verification/forms.py);
+[`verification/forms.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/verification/forms.py);
 rendering consumes that contract instead of duplicating validation.
 
 ## Background verification
@@ -55,16 +55,16 @@ that the queue is progressing. Use the
 for backlog and worker failures.
 
 For execution limits and claim behavior, consult
-[`VerificationWorkerConfig`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/core/config.py)
+[`VerificationWorkerConfig`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/core/config.py)
 and the
-[`worker`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/services/verification_worker.py).
+[`worker`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/services/verification_worker.py).
 
 ## Changing verification
 
 Add checks to the shared
-[`verification/checks/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/src/learn_to_cloud/verification/checks)
+[`verification/checks/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/src/learn_to_cloud/verification/checks)
 and compose them in
-[`workflows.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/verification/workflows.py).
+[`workflows.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/verification/workflows.py).
 Keep orchestration and step telemetry in the engine, and provider error
 classification in the integration that understands the response.
 Extend check and workflow-contract tests together.
@@ -85,7 +85,7 @@ Preserve these distinctions:
   Do not turn cancellation into learner failure.
 
 Required paths, rubric criteria, and evidence limits belong in
-[`verification/tasks/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/src/learn_to_cloud/verification/tasks),
+[`verification/tasks/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/src/learn_to_cloud/verification/tasks),
 not a second documentation inventory. See the
 [evidence runbook](runbooks/alerts.md#incomplete-grading-evidence) for recovery.
 
@@ -99,7 +99,7 @@ does not delete them.
 
 Preserve HTTPS, private-target checks, disabled redirects, and request timeouts
 when changing the
-[`request boundary`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/verification/deployed_api.py).
+[`request boundary`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/verification/deployed_api.py).
 Response-peer inspection cannot undo a request's side effects.
 
 ## Verification UI
@@ -108,4 +108,4 @@ Show server-confirmed states, not simulated progress. On completion, refresh the
 whole workspace so unlocks and history agree with the result. Preserve checking
 content between polls, animate only changed states, and respect reduced motion.
 Keep the reload fallback and the Node-based transition tests when changing
-[`verification.js`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/static/js/verification.js).
+[`verification.js`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/static/js/verification.js).

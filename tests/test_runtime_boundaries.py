@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-_ROOT = Path(__file__).resolve().parents[2]
-_RUNTIME_FILES = sorted((_ROOT / "api/src/learn_to_cloud").rglob("*.py"))
+_ROOT = Path(__file__).resolve().parents[1]
+_RUNTIME_FILES = sorted((_ROOT / "src/learn_to_cloud").rglob("*.py"))
 _TEST_MODULES = (
     "tests",
     "testing",
@@ -51,7 +51,7 @@ def test_runtime_trees_do_not_contain_test_source():
     ]
 
 
-_PACKAGE_ROOT = _ROOT / "api/src/learn_to_cloud"
+_PACKAGE_ROOT = _ROOT / "src/learn_to_cloud"
 # Top-level learn_to_cloud modules each package may import (besides itself).
 _ALLOWED_IMPORTS = {
     "core": set(),

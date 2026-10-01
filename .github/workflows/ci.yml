@@ -35,8 +35,16 @@ jobs:
         with:
           filters: |
             code:
-              - 'api/**'
+              - 'src/**'
+              - 'tests/**'
+              - 'alembic/**'
+              - 'alembic.ini'
               - 'scripts/**'
+              - 'Dockerfile'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.squawk.toml'
+              - '.python-version'
               - 'pyproject.toml'
               - 'uv.lock'
               - 'docker-compose.yml'
@@ -122,8 +130,8 @@ jobs:
           version: "0.12.9"
           enable-cache: true
 
-      - name: Install workspace dependencies
-        run: uv sync --all-packages --locked
+      - name: Install dependencies
+        run: uv sync --locked
 
       # Static checks, generated-artifact drift, package smoke, and tests
       # (including migration head, upgrade, and model/DDL sync).
@@ -133,13 +141,12 @@ jobs:
       # Needs git history, so it runs only in CI. Runs after the gate because it
       # rewrites curriculum.json, which would hide drift from the gate's hooks.
       - name: Check curriculum_version against the base commit
-        working-directory: api
         env:
           PRIOR_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
           previous="$RUNNER_TEMP/previous-curriculum.json"
-          if git show "${PRIOR_SHA}:api/src/learn_to_cloud/content/curriculum.json" > "$previous" 2>/dev/null; then
+          if git show "${PRIOR_SHA}:src/learn_to_cloud/content/curriculum.json" > "$previous" 2>/dev/null; then
             uv run python scripts/compile_curriculum.py --previous-artifact "$previous"
           else
             echo "No prior curriculum.json at ${PRIOR_SHA:-<none>}; skipping version check."

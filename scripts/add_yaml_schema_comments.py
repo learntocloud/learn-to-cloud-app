@@ -8,10 +8,9 @@ YAML language server) at the appropriate JSON Schema, e.g.::
 
 Idempotent: skips files that already have a schema comment on line 1.
 
-Run from the package root::
+Run from the repository root::
 
-    cd api && \
-        uv run python scripts/add_yaml_schema_comments.py
+    uv run python scripts/add_yaml_schema_comments.py
 """
 
 from __future__ import annotations

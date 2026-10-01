@@ -27,9 +27,9 @@ static assets and health probes do not. Expired rows are pruned opportunisticall
 at login, with no scheduled removal guarantee.
 
 Validation rules and configurable limits live in
-[`core/auth.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/core/auth.py)
+[`core/auth.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/core/auth.py)
 and shared
-[`SessionConfig`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/src/learn_to_cloud/core/config.py).
+[`SessionConfig`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/core/config.py).
 
 ## Adding authenticated routes
 
@@ -88,6 +88,6 @@ the tradeoff described in [Telemetry](telemetry.md).
 Exercise real routes and middleware, cookie replay, independent browsers, and
 commit failures. Auth overrides are appropriate for unrelated rendering tests,
 not tests of authentication itself. Start with
-[`test_auth_http.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/tests/routes/test_auth_http.py)
+[`test_auth_http.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/tests/routes/test_auth_http.py)
 and
-[`test_session_lifecycle.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/tests/routes/test_session_lifecycle.py).
+[`test_session_lifecycle.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/tests/routes/test_session_lifecycle.py).

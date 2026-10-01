@@ -66,12 +66,12 @@ just "the page failed".
 1. Check whether port 8000 is available. Never terminate an unrelated listener
    to free the port. Reuse a verified local development API only when authorized,
    or report the conflict. Record whether you started or reused the process.
-2. Start the API from `api/` as a background process, logging to a known path:
+2. Start the API from the repository root as a background process, logging to a known path:
 
    ```bash
-   mkdir -p ../.dogfood
+   mkdir -p .dogfood
    PYTHONUNBUFFERED=1 uv run uvicorn learn_to_cloud.main:app \
-     --host 127.0.0.1 --port 8000 > ../.dogfood/api.log 2>&1
+     --host 127.0.0.1 --port 8000 > .dogfood/api.log 2>&1
    ```
 
    `PYTHONUNBUFFERED=1` matters: application logs go to stdout, which Python
@@ -122,7 +122,7 @@ authenticated flows at all.
 Generate the local session:
 
 ```bash
-cd api && uv run python ../scripts/dogfood_session.py
+uv run python scripts/dogfood_session.py
 ```
 
 Set the returned cookie on the browser **context** with
@@ -201,10 +201,10 @@ do not need a real one: mint a locally valid token instead of asking the user
 for it.
 
 ```bash
-cd api && LABS__VERIFICATION_SECRET=local_dev_secret_at_least_32_chars \
-  uv run python ../scripts/mint_lab_token.py --lab ctf --username <github_username>
-cd api && LABS__VERIFICATION_SECRET=local_dev_secret_at_least_32_chars \
-  uv run python ../scripts/mint_lab_token.py --lab networking --provider azure \
+LABS__VERIFICATION_SECRET=local_dev_secret_at_least_32_chars \
+  uv run python scripts/mint_lab_token.py --lab ctf --username <github_username>
+LABS__VERIFICATION_SECRET=local_dev_secret_at_least_32_chars \
+  uv run python scripts/mint_lab_token.py --lab networking --provider azure \
     --username <github_username>
 ```
 
@@ -217,7 +217,7 @@ worthless anywhere else.
 1. Reset the target requirement first:
 
    ```bash
-   cd api && uv run python scripts/reset_local_submissions.py \
+   uv run python scripts/reset_local_submissions.py \
      --requirement-slug <requirement-slug> \
      --user-id 6733686 \
      --yes

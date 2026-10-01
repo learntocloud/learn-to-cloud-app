@@ -46,7 +46,7 @@ updates:
 
   # npm dependencies (Tailwind CSS)
   - package-ecosystem: "npm"
-    directory: "/api"
+    directory: "/"
     schedule:
       interval: "weekly"
     commit-message:

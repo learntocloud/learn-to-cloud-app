@@ -7,13 +7,14 @@ import ipaddress
 import json
 import sys
 
-from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME
-from learn_to_cloud.services.sessions_service import issue_session
-from learn_to_cloud.core.config import WebSettings, get_web_settings
-from learn_to_cloud.models import User
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from learn_to_cloud.core.config import WebSettings, get_web_settings
+from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME
+from learn_to_cloud.models import User
+from learn_to_cloud.services.sessions_service import issue_session
 
 
 def validate_local_target(settings: WebSettings) -> None:

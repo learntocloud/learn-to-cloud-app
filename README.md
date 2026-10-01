@@ -58,24 +58,23 @@ docker compose up -d db aspire-dashboard
 
 **2. Install Python dependencies**
 
-This project is a single uv workspace. One command installs the API into a
-virtual environment:
+Install the app and its development tools into a virtual environment:
 
 ```bash
-uv sync --all-packages --locked
-cp api/.env.example api/.env  # Create environment config (edit if needed)
+uv sync --locked
+cp .env.example .env  # Create environment config (edit if needed)
 ```
 
 Run database migrations:
 
 ```bash
-cd api && uv run alembic upgrade head && cd ..
+uv run alembic upgrade head
 ```
 
 Start the API:
 
 ```bash
-cd api && uv run python -m uvicorn learn_to_cloud.main:app --reload --port 8000
+uv run python -m uvicorn learn_to_cloud.main:app --reload --port 8000
 ```
 
 Or use VS Code's debugger with the **"API: FastAPI (uvicorn)"** launch configuration.
@@ -99,20 +98,24 @@ timeout and overdue cleanup, with no workflow retries or checkpoints.
 ## Project Structure
 
 ```
-├── api/                  # FastAPI backend (serves HTML + JSON API)
-│   ├── src/
-│   │   └── learn_to_cloud/
-│   │       ├── main.py       # App entry point
-│   │       ├── routes/       # API + page endpoints
-│   │       ├── services/     # Business logic
-│   │       ├── core/         # Config, auth, database, telemetry
-│   │       ├── repositories/ # Database access
-│   │       ├── verification/ # Verification checks and engine
-│   │       ├── content/      # Curriculum YAML and compiled JSON
-│   │       ├── templates/    # Jinja2 templates (HTMX)
-│   │       └── static/       # CSS, JS, images
-│   └── tests/
+├── src/
+│   └── learn_to_cloud/   # FastAPI app (serves HTML + JSON API)
+│       ├── main.py       # App entry point
+│       ├── routes/       # API + page endpoints
+│       ├── services/     # Business logic
+│       ├── core/         # Config, auth, database, telemetry
+│       ├── repositories/ # Database access
+│       ├── verification/ # Verification checks and engine
+│       ├── content/      # Curriculum YAML and compiled JSON
+│       ├── templates/    # Jinja2 templates (HTMX)
+│       └── static/       # CSS, JS, images
+├── tests/                # pytest suite
+├── alembic/              # Database migrations
+├── scripts/              # Dev and operator scripts
+├── docs/                 # Contributor docs
 ├── infra/                # Terraform (Azure)
+├── Dockerfile            # API and migration images
+├── pyproject.toml        # Dependencies, tool config, poe tasks
 └── .github/
     ├── workflows/        # CI/CD
     ├── copilot-instructions.md # Copilot custom instructions

@@ -1,6 +1,6 @@
 """Seed authoritative learner progress for local UI testing.
 
-Usage: uv run --directory api python ../scripts/seed_progress.py <github_username>
+Usage: uv run python scripts/seed_progress.py <github_username>
 """
 
 import asyncio
@@ -9,10 +9,11 @@ import sys
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
-from learn_to_cloud.verification.submission_values import value_kind_for_submission_type
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
+from learn_to_cloud.verification.submission_values import value_kind_for_submission_type
 
 database_url = os.environ.get("DATABASE__URL", "******127.0.0.1:55432/learn_to_cloud")
 

@@ -38,10 +38,10 @@ requirements is complete by definition.
 
 | Purpose | File |
 |---------|------|
-| Progress | `api/src/learn_to_cloud/services/progress_service.py` |
-| Hands-on | `api/src/learn_to_cloud/services/requirements.py` |
-| Catalog reads | `api/src/learn_to_cloud/curriculum/reads.py` |
-| Verification pages | `api/src/learn_to_cloud/services/verification_page_service.py` |
+| Progress | `src/learn_to_cloud/services/progress_service.py` |
+| Hands-on | `src/learn_to_cloud/services/requirements.py` |
+| Catalog reads | `src/learn_to_cloud/curriculum/reads.py` |
+| Verification pages | `src/learn_to_cloud/services/verification_page_service.py` |
 
 ## Important
 

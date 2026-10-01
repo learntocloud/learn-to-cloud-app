@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 
-# api/alembic.ini, four directories up from this file (routes -> learn_to_cloud
-# -> src -> api). The API runtime image preserves the same relative depth with
-# PYTHONPATH=/app/src.
+# alembic.ini sits at the project root, four directories up from this file
+# (routes -> learn_to_cloud -> src -> root). The API runtime image preserves the
+# same relative depth with PYTHONPATH=/app/src.
 _ALEMBIC_INI = Path(__file__).parent.parent.parent.parent / "alembic.ini"
 
 

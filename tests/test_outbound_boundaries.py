@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-_ROOT = Path(__file__).resolve().parents[2]
-_RUNTIME_FILES = sorted((_ROOT / "api/src/learn_to_cloud").rglob("*.py"))
+_ROOT = Path(__file__).resolve().parents[1]
+_RUNTIME_FILES = sorted((_ROOT / "src/learn_to_cloud").rglob("*.py"))
 
 _NETWORK_PACKAGE = re.compile(
     r"http|request|url|aio|grpc|socket|websocket|pg|psycopg|sql|redis|mongo"
@@ -86,23 +86,23 @@ _CLIENT_CONSTRUCTORS = frozenset(
 
 # The only places runtime code may construct a client, transport, or credential.
 _FACTORY_SITES = {
-    "api/src/learn_to_cloud/core/http_client.py": {
+    "src/learn_to_cloud/core/http_client.py": {
         "httpx.AsyncClient",
         "httpx.AsyncHTTPTransport",
     },
-    "api/src/learn_to_cloud/core/outbound.py": {
+    "src/learn_to_cloud/core/outbound.py": {
         "httpx.AsyncHTTPTransport",
     },
-    "api/src/learn_to_cloud/core/azure_auth.py": {
+    "src/learn_to_cloud/core/azure_auth.py": {
         "MeasuredCredential",
         "ManagedIdentityCredential",
     },
-    "api/src/learn_to_cloud/core/database.py": {
+    "src/learn_to_cloud/core/database.py": {
         "asyncpg.connect",
         "create_async_engine",
     },
-    "api/src/learn_to_cloud/core/auth.py": {"httpx2.AsyncHTTPTransport"},
-    "api/src/learn_to_cloud/services/verification_grader.py": {
+    "src/learn_to_cloud/core/auth.py": {"httpx2.AsyncHTTPTransport"},
+    "src/learn_to_cloud/services/verification_grader.py": {
         "DefaultAzureCredential",
         "FoundryChatClient",
         "ManagedIdentityCredential",

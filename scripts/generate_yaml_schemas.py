@@ -4,9 +4,9 @@ These JSON Schemas drive editor support (autocomplete, validation) for
 the curriculum YAML files. They are generated from the same Pydantic
 models that the loader uses at runtime, so they stay in lock-step.
 
-Run from the package root::
+Run from the repository root::
 
-    cd api && uv run python scripts/generate_yaml_schemas.py
+    uv run python scripts/generate_yaml_schemas.py
 
 Output:
     src/learn_to_cloud/content/schemas/phase.schema.json

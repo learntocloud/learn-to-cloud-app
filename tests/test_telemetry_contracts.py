@@ -9,7 +9,7 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-_ROOT = Path(__file__).parents[2]
+_ROOT = Path(__file__).parents[1]
 
 
 def _resource_block(source: str, resource_name: str) -> str:
@@ -53,7 +53,7 @@ def test_telemetry_alert_uses_only_the_app_owned_setup_signal():
 
 
 def test_frontend_initializer_keeps_paths_without_query_credentials():
-    script = _ROOT / "api/src/learn_to_cloud/static/js/frontend-telemetry.js"
+    script = _ROOT / "src/learn_to_cloud/static/js/frontend-telemetry.js"
     test_script = f"""
 const calls = [];
 const listeners = {{}};
@@ -108,7 +108,7 @@ console.log(JSON.stringify({{ items, calls }}));
 
 
 def test_frontend_tracks_only_phase_transition_metadata():
-    script = _ROOT / "api/src/learn_to_cloud/static/js/frontend-telemetry.js"
+    script = _ROOT / "src/learn_to_cloud/static/js/frontend-telemetry.js"
     test_script = f"""
 const events = [];
 const listeners = {{}};

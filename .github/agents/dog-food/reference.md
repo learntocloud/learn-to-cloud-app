@@ -68,7 +68,7 @@ outcomes, never cookies, tokens, or user identities.
 
 ## Submission requirements
 
-Source of truth is `api/src/learn_to_cloud/content/curriculum.json`
+Source of truth is `src/learn_to_cloud/content/curriculum.json`
 (`phases[].hands_on_verification.requirements`). If a slug here does not match a
 requirement card in the app, trust the artifact and report the drift.
 

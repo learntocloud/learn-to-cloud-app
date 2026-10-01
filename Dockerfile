@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.13
 
 # Build stage - compile dependencies
-# Build context should be repo root: docker build -f api/Dockerfile -t api .
+# Build from the repository root: docker build --target api-runtime -t api .
 FROM python:3.13-slim AS builder
 
 WORKDIR /workspace
@@ -13,27 +13,23 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.9 /uv /usr/local/bin/uv
 ENV UV_PYTHON_DOWNLOADS=never
 ENV UV_COMPILE_BYTECODE=1
 
-# Copy the workspace manifests needed to resolve the locked workspace; the
-# single lockfile lives at the repository root.
 COPY pyproject.toml uv.lock ./
-COPY api/pyproject.toml api/pyproject.toml
 
-# Layer 1 (cached): install only the API package's third-party dependency
-# closure, not the workspace members themselves.
-RUN uv sync --package learn-to-cloud-api --no-dev --frozen --no-install-workspace --no-editable
+# Layer 1 (cached): install only third-party dependencies.
+RUN uv sync --no-dev --frozen --no-install-project --no-editable
 
-COPY api api
+COPY src src
 
-# Layer 2: build and install the API package non-editably.
-RUN uv sync --package learn-to-cloud-api --no-dev --frozen --no-editable
+# Layer 2: build and install the project non-editably.
+RUN uv sync --no-dev --frozen --no-editable
 
 # Tailwind CSS v4 build stage
 FROM node:22-slim AS tailwind
 WORKDIR /build
-COPY api/package.json api/package-lock.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
-COPY api/src/learn_to_cloud/static/css/input.css ./static/css/input.css
-COPY api/src/learn_to_cloud/templates/ ./templates/
+COPY src/learn_to_cloud/static/css/input.css ./static/css/input.css
+COPY src/learn_to_cloud/templates/ ./templates/
 RUN npx @tailwindcss/cli -i static/css/input.css -o static/css/styles.css --minify
 
 # Shared production base for API and migration images
@@ -70,17 +66,20 @@ USER appuser
 # Migration stage
 FROM runtime-base AS migrations-runtime
 
-COPY --chown=appuser:appuser api/alembic.ini .
-COPY --chown=appuser:appuser api/alembic/ ./alembic/
-COPY --chown=appuser:appuser api/scripts/run_migrations.py ./scripts/run_migrations.py
+COPY --chown=appuser:appuser alembic.ini .
+COPY --chown=appuser:appuser alembic/ ./alembic/
+COPY --chown=appuser:appuser scripts/run_migrations.py ./scripts/run_migrations.py
 CMD ["python", "scripts/run_migrations.py"]
 
 # API stage - request-serving runtime
 FROM runtime-base AS api-runtime
 
-# Copy application code from api/. .dockerignore keeps authored curriculum
-# YAML out of the image; the runtime reads the compiled curriculum.json.
-COPY --chown=appuser:appuser api/ .
+# .dockerignore keeps authored curriculum YAML out of the image; the runtime
+# reads the compiled curriculum.json. The health check reads alembic.ini and
+# alembic/ to report the expected migration head.
+COPY --chown=appuser:appuser src/ ./src/
+COPY --chown=appuser:appuser alembic.ini .
+COPY --chown=appuser:appuser alembic/ ./alembic/
 
 # Copy Tailwind-generated CSS from build stage
 COPY --from=tailwind --chown=appuser:appuser /build/static/css/styles.css /app/src/learn_to_cloud/static/css/styles.css

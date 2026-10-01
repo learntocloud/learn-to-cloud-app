@@ -2,7 +2,7 @@
 
 Compiles the authored curriculum YAML tree into a single canonical JSON
 artifact (``curriculum.json``) that ships as package data with the
-``learn-to-cloud-api`` wheel. The compiler is strict: it fails on
+``learn-to-cloud`` wheel. The compiler is strict: it fails on
 missing, skipped, malformed, or inconsistent content instead of silently
 tolerating it. Authoring validation can also collect errors from a
 partially loaded YAML tree.

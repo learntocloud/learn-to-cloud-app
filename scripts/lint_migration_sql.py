@@ -4,7 +4,7 @@ Finds migration files that were added (not modified) compared to the
 base branch, generates the SQL each migration would run, and feeds it
 to squawk for safety checks.
 
-Usage from the api/ directory::
+Usage from the repository root::
 
     uv run python scripts/lint_migration_sql.py [--base origin/main]
 
@@ -25,25 +25,21 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-VERSIONS_DIR = Path(__file__).resolve().parent.parent / "alembic" / "versions"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+VERSIONS_DIR = REPO_ROOT / "alembic" / "versions"
 
 
 def _get_new_migration_files(base: str) -> list[Path]:
     """Return migration files added (not modified) vs the base branch."""
     try:
+        # Diff the whole tree so git can pair moved files as renames; a
+        # pathspec would hide the source path and report moves as additions.
         result = subprocess.run(
-            [
-                "git",
-                "diff",
-                "--name-only",
-                "--diff-filter=A",
-                base,
-                "--",
-                str(VERSIONS_DIR),
-            ],
+            ["git", "diff", "--name-only", "--diff-filter=A", "--find-renames", base],
             capture_output=True,
             text=True,
             check=True,
+            cwd=REPO_ROOT,
         )
     except subprocess.CalledProcessError as exc:
         print(f"git diff failed: {exc.stderr.strip()}", file=sys.stderr)
@@ -51,8 +47,12 @@ def _get_new_migration_files(base: str) -> list[Path]:
 
     files = []
     for line in result.stdout.strip().splitlines():
-        path = Path(line)
-        if path.suffix == ".py" and path.name != "__init__.py":
+        path = REPO_ROOT / line
+        if (
+            path.parent == VERSIONS_DIR
+            and path.suffix == ".py"
+            and path.name != "__init__.py"
+        ):
             files.append(path)
     return files
 

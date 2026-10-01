@@ -3,11 +3,11 @@
 Runs the strict deterministic compiler in ``curriculum/compiler.py`` and
 writes ``curriculum.json`` next to ``phases/`` and ``schemas/`` under
 ``content/``. That file is committed to the repo and packaged as
-``learn-to-cloud-api`` wheel data (see ``pyproject.toml``).
+``learn-to-cloud`` wheel data (see ``pyproject.toml``).
 
-Run from the package root::
+Run from the repository root::
 
-    cd api && uv run python scripts/compile_curriculum.py
+    uv run python scripts/compile_curriculum.py
 
 Pass ``--previous-artifact PATH`` to also enforce the curriculum_version
 policy (must not decrease; may repeat only if content is unchanged)

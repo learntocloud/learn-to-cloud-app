@@ -4,7 +4,7 @@
     {
       "label": "API: migrate database",
       "type": "shell",
-      "command": "cd ${workspaceFolder}/api && uv run alembic upgrade head",
+      "command": "uv run alembic upgrade head",
       "problemMatcher": []
     }
   ]

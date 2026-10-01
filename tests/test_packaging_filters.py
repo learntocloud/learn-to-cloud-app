@@ -5,11 +5,16 @@ from pathlib import Path
 import pytest
 import yaml
 
-_ROOT = Path(__file__).resolve().parents[2]
+_ROOT = Path(__file__).resolve().parents[1]
 
 _APPLICATION_DEPLOY_PATHS = {
-    "api/**",
-    "!api/tests/**",
+    "src/**",
+    "alembic/**",
+    "alembic.ini",
+    "scripts/run_migrations.py",
+    "Dockerfile",
+    "package.json",
+    "package-lock.json",
     "pyproject.toml",
     "uv.lock",
     ".dockerignore",
@@ -19,9 +24,9 @@ _APPLICATION_DEPLOY_PATHS = {
 
 def test_docker_excludes_first_party_tests_and_authored_curriculum():
     patterns = (_ROOT / ".dockerignore").read_text().splitlines()
-    content = "/api/src/learn_to_cloud/content"
+    content = "/src/learn_to_cloud/content"
 
-    assert "/api/tests/" in patterns
+    assert "/tests/" in patterns
     assert f"{content}/phases/" in patterns
     assert f"{content}/schemas/" in patterns
     assert f"{content}/curriculum.meta.yaml" in patterns
@@ -69,7 +74,6 @@ def test_application_deploy_excludes_first_party_tests():
     app_paths = set(yaml.safe_load(filter_step["with"]["filters"])["app"])
 
     assert workflow["on"]["push"] == {"branches": ["main"]}
-    assert filter_step["with"]["predicate-quantifier"] == "some-with-excludes"
     assert app_paths == _APPLICATION_DEPLOY_PATHS
-    assert "!api/tests/**" in app_paths
+    assert not any(path.startswith("tests/") for path in app_paths)
     assert "scripts/**" not in app_paths

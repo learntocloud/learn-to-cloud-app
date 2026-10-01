@@ -1,26 +1,148 @@
+[build-system]
+requires = ["uv_build>=0.12.9,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+# Only the compiled curriculum ships; authored YAML and schemas stay
+# source-only (see curriculum/yaml_loader.py).
+wheel-exclude = [
+    "content/phases",
+    "content/schemas",
+    "content/curriculum.meta.yaml",
+]
+
+[tool.fastapi]
+entrypoint = "learn_to_cloud.main:app"
+
 [project]
-name = "learn-to-cloud-workspace"
-version = "0.0.0"
-description = "Workspace root for the Learn to Cloud Python projects (dev tooling and task definitions only)."
+name = "learn-to-cloud"
+version = "0.1.0"
+description = "Learn to Cloud API - FastAPI backend for learning cloud computing"
 requires-python = ">=3.13,<3.14"
-dependencies = []
-
-[tool.uv]
-# The root is a virtual workspace root: it organizes the members and holds
-# shared dev tooling, but is not itself a buildable/installable package.
-package = false
-
-[tool.uv.workspace]
-members = ["api"]
+dependencies = [
+    "agent-framework-core>=1.16.0",
+    "agent-framework-foundry>=1.3.0",
+    "agent-framework-openai>=1.14.1",
+    "aiohttp>=3.14.3",
+    "alembic>=1.18.5",
+    "asyncpg>=0.31.0",
+    "psycopg2-binary>=2.9.12",
+    "authlib>=1.7.0",
+    "azure-core>=1.41.0",
+    "azure-identity>=1.25.3",
+    "azure-monitor-opentelemetry>=1.8.9",
+    "cachetools>=7.0.6",
+    "fastapi>=0.141.1,<1",
+    "greenlet>=3.2.4",
+    "httpx>=0.28.1,<1",
+    "httpx2>=2.12.0",
+    "itsdangerous>=2.1.0",
+    "jinja2>=3.1.0",
+    "markdown>=3.5.0",
+    # azure-monitor-opentelemetry 1.8.9 requires the OpenTelemetry 1.43 line.
+    "opentelemetry-api>=1.43.0,<1.44.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.43.0,<1.44.0",
+    "opentelemetry-instrumentation-httpx>=0.61b0",
+    "opentelemetry-instrumentation-logging==0.64b0",
+    "opentelemetry-instrumentation-sqlalchemy==0.64b0",
+    "opentelemetry-sdk>=1.43.0,<1.44.0",
+    "openai>=2.54.0,<3",
+    "pydantic>=2.13.3,<3",
+    "pydantic-settings>=2.14.2",
+    "python-json-logger>=4.1.0",
+    "python-multipart>=0.0.31",
+    "pyyaml>=6.0",
+    "sqlalchemy>=2.0.49,<3",
+    "starlette>=1.3.1",
+    "tenacity>=8.2.0,<9.1.5",
+    "uvicorn[standard]>=0.52.1",
+]
 
 [dependency-groups]
-# Workspace-wide developer tooling. Task definitions live in [tool.poe.tasks]
-# below and are the single source of truth for the quality-gate commands that
-# CI and local development run.
 dev = [
+    "httpx>=0.28.0",
     "poethepoet>=0.48.0",
     "prek>=0.4.12",
+    "pytest>=9.0.3",
+    "pytest-alembic>=0.12.1",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=4.1.0",
+    "ruff==0.16.6",
+    "squawk-cli>=2.53.0",
+    "ty==0.0.77",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+addopts = ["--strict-markers", "--strict-config", "--durations=10", "-ra", "-v"]
+markers = [
+    "unit: unit tests (fast, no I/O)",
+    "integration: integration tests (database required)",
+    "smoke: minimal smoke test subset",
+]
+
+[tool.coverage.run]
+source = ["src/learn_to_cloud"]
+omit = [
+    "tests/*",
+    "alembic/*",
+    "scripts/*",
+    "__pycache__/*",
+    ".venv/*",
+    "*.pyc",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+    "@abc.abstractmethod",
+]
+fail_under = 40
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "PLC0415", "ARG001", "RUF029"]
+preview = true
+explicit-preview-rules = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLC0415"]
+"alembic/**" = ["PLC0415"]
+# Starlette passes an exception even when the 404 response does not use it.
+"src/learn_to_cloud/main.py" = ["ARG001"]
+# ASGI callbacks must accept scope/receive/send and return awaitables.
+"tests/core/test_middleware.py" = ["ARG001", "RUF029"]
+# SQLAlchemy listeners receive connection/execution metadata as well as SQL.
+"tests/services/test_dashboard_service.py" = ["ARG001"]
+"tests/test_migration_chain.py" = ["ARG001"]
+# HTTPX instrumentation awaits its async request hook.
+"src/learn_to_cloud/core/observability.py" = ["PLC0415", "RUF029"]
+# The engine awaits every CheckFn, including checks that finish immediately.
+"src/learn_to_cloud/verification/checks/career.py" = ["RUF029"]
+"src/learn_to_cloud/verification/checks/tokens.py" = ["RUF029"]
+# Execution-order/exception fakes use that same contract without inspecting input.
+"tests/verification/test_engine.py" = ["ARG001", "RUF029"]
+# SQLAlchemy listeners receive session/execution metadata as well as observed data.
+"tests/repositories/test_user_repository.py" = ["ARG001"]
+# HTTPX passes a request even when a transport fake only models retry/error behavior.
+"tests/verification/test_github_http.py" = ["ARG001"]
+"tests/verification/test_repo_files.py" = ["ARG001"]
+
+[tool.ty.environment]
+# Use the current Python interpreter to resolve third-party imports
+python-platform = "linux"
 
 [tool.poe.tasks.static]
 help = "Run all static checks (lint, format, type-check, migration SQL, file hygiene) via prek"
@@ -28,7 +150,7 @@ cmd = "prek run --all-files --show-diff-on-failure"
 
 [tool.poe.tasks.test]
 help = "Run the API test suite with its coverage gate"
-shell = "cd api && uv run pytest tests/ --cov=learn_to_cloud --cov-report=term-missing"
+cmd = "pytest --cov=learn_to_cloud --cov-report=term-missing"
 
 [tool.poe.tasks.package-smoke]
 help = "Build and validate the installed API runtime package"
@@ -36,7 +158,7 @@ shell = """
 set -eu
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
-uv build --package learn-to-cloud-api --wheel --out-dir "$tmpdir"
+uv build --wheel --out-dir "$tmpdir"
 wheel=$(find "$tmpdir" -maxdepth 1 -name '*.whl' -print -quit)
 uv venv "$tmpdir/venv"
 uv pip install --python "$tmpdir/venv/bin/python" "$wheel"
