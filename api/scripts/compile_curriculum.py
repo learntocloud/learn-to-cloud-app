@@ -1,6 +1,6 @@
 """Compile the authored curriculum YAML into the canonical curriculum.json artifact.
 
-Runs the strict deterministic compiler in ``content_compiler.py`` and
+Runs the strict deterministic compiler in ``curriculum/compiler.py`` and
 writes ``curriculum.json`` next to ``phases/`` and ``schemas/`` under
 ``content/``. That file is committed to the repo and packaged as
 ``learn-to-cloud-api`` wheel data (see ``pyproject.toml``).
@@ -22,7 +22,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from learn_to_cloud.content_compiler import (
+from learn_to_cloud.curriculum.compiler import (
     ContentCompileError,
     compile_and_write,
 )

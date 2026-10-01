@@ -9,7 +9,10 @@ from learn_to_cloud.schemas import (
     TaskResult,
     ValidationResult,
 )
-from learn_to_cloud.submission_values import submitted_value_from_raw
+from learn_to_cloud.verification.attempt_types import (
+    PreparedVerificationAttempt,
+    VerificationRunResult,
+)
 from learn_to_cloud.verification.grading_requests import (
     LLMGradingDecisionPayload,
 )
@@ -19,14 +22,11 @@ from learn_to_cloud.verification.llm_grading import (
     llm_grading_unavailable_result,
     validate_llm_grading_decision,
 )
+from learn_to_cloud.verification.submission_values import submitted_value_from_raw
 from learn_to_cloud.verification.tasks import (
     CAREER_REFLECTION_RUBRIC_TASK,
     SECURITY_SCANNING_RUBRIC_TASK,
     LLMGradingDecision,
-)
-from learn_to_cloud.verification_workflow import (
-    PreparedVerificationAttempt,
-    VerificationRunResult,
 )
 
 

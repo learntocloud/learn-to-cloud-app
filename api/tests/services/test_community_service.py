@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
-from learn_to_cloud.content_service import get_requirement_counts_by_phase
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
+from learn_to_cloud.curriculum.reads import get_requirement_counts_by_phase
 from learn_to_cloud.models import User, VerificationAttempt, utcnow
 from learn_to_cloud.services.community_service import get_community_page_data
 

@@ -4,13 +4,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from learn_to_cloud.requirements import (
+from learn_to_cloud.schemas import HandsOnRequirement
+from learn_to_cloud.services.requirements import (
     RequirementIndex,
     get_prerequisite_phase,
     get_requirement_by_slug,
     is_phase_verification_locked,
 )
-from learn_to_cloud.schemas import HandsOnRequirement
 from tests.support.requirement_factories import (
     journal_api_verifier_requirement,
 )
@@ -82,7 +82,7 @@ class TestSyncRequirementLookups:
     def test_get_requirement_by_slug_found(self):
         by_phase_order = _make_requirements_by_phase_order(3, ["req-a"])
         with patch(
-            "learn_to_cloud.requirements.get_requirements_by_phase_order",
+            "learn_to_cloud.services.requirements.get_requirements_by_phase_order",
             return_value=by_phase_order,
         ):
             req = get_requirement_by_slug("req-a")
@@ -91,7 +91,7 @@ class TestSyncRequirementLookups:
 
     def test_get_requirement_by_slug_not_found(self):
         with patch(
-            "learn_to_cloud.requirements.get_requirements_by_phase_order",
+            "learn_to_cloud.services.requirements.get_requirements_by_phase_order",
             return_value={},
         ):
             assert get_requirement_by_slug("nonexistent") is None
@@ -114,11 +114,11 @@ class TestIsPhaseVerificationLocked:
 
         with (
             patch(
-                "learn_to_cloud.requirements.get_requirements_by_phase_order",
+                "learn_to_cloud.services.requirements.get_requirements_by_phase_order",
                 return_value=by_phase_order,
             ),
             patch(
-                "learn_to_cloud.requirements.are_all_requirements_succeeded",
+                "learn_to_cloud.services.requirements.are_all_requirements_succeeded",
                 new=AsyncMock(return_value=False),
             ),
         ):
@@ -136,11 +136,11 @@ class TestIsPhaseVerificationLocked:
 
         with (
             patch(
-                "learn_to_cloud.requirements.get_requirements_by_phase_order",
+                "learn_to_cloud.services.requirements.get_requirements_by_phase_order",
                 return_value=by_phase_order,
             ),
             patch(
-                "learn_to_cloud.requirements.are_all_requirements_succeeded",
+                "learn_to_cloud.services.requirements.are_all_requirements_succeeded",
                 new=AsyncMock(return_value=True),
             ),
         ):

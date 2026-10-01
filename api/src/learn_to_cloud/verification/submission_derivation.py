@@ -10,10 +10,10 @@ Learner-controlled values are validated separately at their HTTP boundary.
 
 from __future__ import annotations
 
-from learn_to_cloud.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud.models import SubmissionType
 from learn_to_cloud.schemas import HandsOnRequirement
-from learn_to_cloud.submission_values import GitHubUrlValue
+from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
+from learn_to_cloud.verification.submission_values import GitHubUrlValue
 
 # Derivable types: the server constructs the URL from username + required_repo.
 # The template renders these as read-only fields so the learner cannot edit

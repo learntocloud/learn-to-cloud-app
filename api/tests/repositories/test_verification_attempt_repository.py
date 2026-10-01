@@ -20,7 +20,7 @@ from learn_to_cloud.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
     VerificationAttemptRepository,
 )
-from learn_to_cloud.submission_values import GitHubUrlValue, SubmittedValue
+from learn_to_cloud.verification.submission_values import GitHubUrlValue, SubmittedValue
 
 pytestmark = pytest.mark.integration
 

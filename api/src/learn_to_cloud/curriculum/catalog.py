@@ -1,9 +1,9 @@
 """Curriculum catalog: process-level reader of the compiled artifact.
 
 Loads the packaged ``curriculum.json`` artifact (see
-``content_compiler.py``) once per process and builds indexed lookups
+``compiler.py``) once per process and builds indexed lookups
 over it (by UUID, by slug, by phase). This is the production reader for
-request-serving curriculum reads (see ``content_service``); it exists so
+request-serving curriculum reads (see ``reads``); it exists so
 the API can fail fast at startup if the packaged artifact is missing,
 stale, or corrupted, and so callers never touch the database just to
 read curriculum shape.
@@ -19,7 +19,7 @@ from importlib.resources import files
 from types import MappingProxyType
 from uuid import UUID
 
-from learn_to_cloud.content_compiler import (
+from learn_to_cloud.curriculum.compiler import (
     ARTIFACT_SCHEMA_VERSION,
     compute_content_hash,
 )

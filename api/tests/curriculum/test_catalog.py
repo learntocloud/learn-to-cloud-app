@@ -16,13 +16,13 @@ from unittest.mock import patch
 
 import pytest
 
-from learn_to_cloud.content_catalog import (
+from learn_to_cloud.curriculum.catalog import (
     CurriculumCatalog,
     CurriculumCatalogError,
     get_curriculum_catalog,
     load_curriculum_catalog,
 )
-from learn_to_cloud.content_compiler import (
+from learn_to_cloud.curriculum.compiler import (
     ARTIFACT_SCHEMA_VERSION,
     compile_curriculum_artifact,
     compute_content_hash,
@@ -68,7 +68,7 @@ class _FakeResource:
 
 def _patched_resource(text: str | None):
     return patch(
-        "learn_to_cloud.content_catalog.files",
+        "learn_to_cloud.curriculum.catalog.files",
         autospec=True,
         return_value=_FakeResource(text),
     )

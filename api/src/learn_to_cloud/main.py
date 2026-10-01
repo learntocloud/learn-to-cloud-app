@@ -15,7 +15,6 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
 from learn_to_cloud.core.auth import init_oauth, oauth_transport
 from learn_to_cloud.core.azure_auth import close_credential
 from learn_to_cloud.core.config import get_web_settings
@@ -36,6 +35,7 @@ from learn_to_cloud.core.session_cookies import (
     SESSION_COOKIE_NAME,
     SessionResponseMiddleware,
 )
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
 from learn_to_cloud.rendering.templates import templates
 from learn_to_cloud.routes import (
     auth_router,

@@ -14,13 +14,13 @@ from learn_to_cloud.schemas import (
     NetworkingTokenRequirement,
     SubmissionData,
 )
-from learn_to_cloud.submission_derivation import (
-    derive_submission_value,
-    is_derivable,
-)
-from learn_to_cloud.verification_forms import (
+from learn_to_cloud.verification.forms import (
     MAX_REFLECTION_ANSWER_LENGTH,
     verification_submit_action,
+)
+from learn_to_cloud.verification.submission_derivation import (
+    derive_submission_value,
+    is_derivable,
 )
 
 

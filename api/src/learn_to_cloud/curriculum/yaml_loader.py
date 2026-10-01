@@ -2,12 +2,12 @@
 
 This module loads the curriculum tree from the authored YAML files.
 Runtime reads in the API go through the packaged curriculum catalog
-(``content_catalog.py``) via the public ``content_service`` module. The
+(``catalog.py``) via the public ``reads`` module. The
 YAML loader is authoritative for the deterministic artifact compiler
-(``content_compiler.py``) and the strict cross-file validators run in CI.
+(``compiler.py``) and the strict cross-file validators run in CI.
 
 Do not import from this module in request-serving code paths. Use
-``learn_to_cloud.content_service`` (catalog-backed, in-memory)
+``learn_to_cloud.curriculum.reads`` (catalog-backed, in-memory)
 instead.
 """
 

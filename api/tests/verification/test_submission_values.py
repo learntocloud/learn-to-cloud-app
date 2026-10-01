@@ -3,7 +3,7 @@
 import pytest
 
 from learn_to_cloud.models import SubmissionType, SubmissionValueKind
-from learn_to_cloud.submission_values import (
+from learn_to_cloud.verification.submission_values import (
     DeployedUrlValue,
     GitHubUrlValue,
     TextValue,

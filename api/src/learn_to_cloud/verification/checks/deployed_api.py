@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from learn_to_cloud.submission_values import DeployedUrlValue
 from learn_to_cloud.verification.checks.common import validation_step_result
 from learn_to_cloud.verification.core import StepContext, StepResult
 from learn_to_cloud.verification.deployed_api import validate_deployed_api
+from learn_to_cloud.verification.submission_values import DeployedUrlValue
 
 
 async def check_deployed_api(context: StepContext) -> StepResult:

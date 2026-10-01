@@ -5,8 +5,11 @@ from __future__ import annotations
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
-from learn_to_cloud.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.verification.attempt_types import (
+    PreparedVerificationAttempt,
+    VerificationRunResult,
+)
 from learn_to_cloud.verification.core import (
     Step,
     StepContext,
@@ -27,11 +30,8 @@ from learn_to_cloud.verification.repo_files import RepoFiles
 from learn_to_cloud.verification.repository_ownership import (
     check_repository_ownership,
 )
+from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
 from learn_to_cloud.verification.workflows import workflow_for
-from learn_to_cloud.verification_workflow import (
-    PreparedVerificationAttempt,
-    VerificationRunResult,
-)
 
 _tracer = trace.get_tracer(__name__)
 

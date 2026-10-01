@@ -18,7 +18,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from learn_to_cloud.content_compiler import (
+from learn_to_cloud.curriculum.compiler import (
     ARTIFACT_SCHEMA_VERSION,
     ContentCompileError,
     compile_and_write,
@@ -26,15 +26,15 @@ from learn_to_cloud.content_compiler import (
     compute_content_hash,
     render_artifact_file,
 )
-from learn_to_cloud.content_yaml_loader import ContentValidationError
+from learn_to_cloud.curriculum.yaml_loader import ContentValidationError
 
 pytestmark = pytest.mark.unit
 
 
 def _patched_content_dir(phases_dir: Path):
-    """Patch the content_yaml_loader's private content dir resolver."""
+    """Patch the YAML loader's private content dir resolver."""
     return patch(
-        "learn_to_cloud.content_yaml_loader._get_content_dir",
+        "learn_to_cloud.curriculum.yaml_loader._get_content_dir",
         autospec=True,
         return_value=phases_dir,
     )

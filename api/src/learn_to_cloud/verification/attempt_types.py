@@ -5,14 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from learn_to_cloud.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud.schemas import (
     HandsOnRequirement,
     ValidationResult,
 )
-from learn_to_cloud.submission_derivation import build_target
-from learn_to_cloud.submission_values import SubmittedValue
 from learn_to_cloud.verification.grading_requests import LLMGradingRequest
+from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
+from learn_to_cloud.verification.submission_derivation import build_target
+from learn_to_cloud.verification.submission_values import SubmittedValue
 
 VALIDATION_FAILED_ERROR_CODE = "validation_failed"
 VERIFICATION_INCOMPLETE_ERROR_CODE = "verification_incomplete"

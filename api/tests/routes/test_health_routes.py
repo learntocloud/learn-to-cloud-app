@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
 from learn_to_cloud.routes.health_routes import health, ready
 
 

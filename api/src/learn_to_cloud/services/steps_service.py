@@ -5,13 +5,13 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud.content_service import get_topic_containing_step
+from learn_to_cloud.curriculum.reads import get_topic_containing_step
 from learn_to_cloud.models import utcnow
-from learn_to_cloud.progress_reads import resolve_completed_step_uuids
 from learn_to_cloud.repositories import (
     LearnerStepCompletionRepository,
 )
 from learn_to_cloud.schemas import LearningStep
+from learn_to_cloud.services.progress_reads import resolve_completed_step_uuids
 
 if TYPE_CHECKING:
     from learn_to_cloud.schemas import Topic

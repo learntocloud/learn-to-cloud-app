@@ -3,7 +3,7 @@
 import pytest
 
 from learn_to_cloud.schemas import ValidationResult
-from learn_to_cloud.verification_workflow import outcome_for_validation
+from learn_to_cloud.verification.attempt_types import outcome_for_validation
 
 
 @pytest.mark.unit

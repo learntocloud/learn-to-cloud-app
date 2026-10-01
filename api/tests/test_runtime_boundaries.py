@@ -51,12 +51,29 @@ def test_runtime_trees_do_not_contain_test_source():
     ]
 
 
-_CORE_FILES = sorted((_ROOT / "api/src/learn_to_cloud/core").rglob("*.py"))
+_PACKAGE_ROOT = _ROOT / "api/src/learn_to_cloud"
+# Top-level learn_to_cloud modules each package may import (besides itself).
+_ALLOWED_IMPORTS = {
+    "core": set(),
+    "curriculum": {"core", "schemas"},
+    "verification": {"core", "schemas", "models", "repositories"},
+    "repositories": {"core", "models", "verification"},
+    "rendering": {"core", "schemas", "models", "verification"},
+}
+_LAYERED_FILES = [
+    path
+    for package in _ALLOWED_IMPORTS
+    for path in sorted((_PACKAGE_ROOT / package).rglob("*.py"))
+]
 
 
-@pytest.mark.parametrize("path", _CORE_FILES, ids=lambda p: str(p.relative_to(_ROOT)))
-def test_core_imports_only_core(path):
-    """Core is the bottom layer; higher layers may depend on it, never the reverse."""
+@pytest.mark.parametrize(
+    "path", _LAYERED_FILES, ids=lambda p: str(p.relative_to(_ROOT))
+)
+def test_packages_import_only_lower_layers(path):
+    """Lower layers never import services, routes, or the app entry point."""
+    package = path.relative_to(_PACKAGE_ROOT).parts[0]
+    allowed = _ALLOWED_IMPORTS[package] | {package}
     modules = []
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(node, ast.Import):
@@ -67,6 +84,5 @@ def test_core_imports_only_core(path):
     assert not [
         name
         for name in modules
-        if name.split(".")[0] == "learn_to_cloud"
-        and not name.startswith("learn_to_cloud.core")
+        if name.split(".")[0] == "learn_to_cloud" and name.split(".")[1] not in allowed
     ]

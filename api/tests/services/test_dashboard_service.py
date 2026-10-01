@@ -16,14 +16,13 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
 from learn_to_cloud.models import (
     LearnerStepCompletion,
     User,
     VerificationAttempt,
     utcnow,
 )
-from learn_to_cloud.requirements import load_requirement_index
 from learn_to_cloud.schemas import (
     LearningProgress,
     PhaseOverview,
@@ -36,6 +35,7 @@ from learn_to_cloud.services.dashboard_service import (
     _build_phase_summary,
     get_dashboard_data,
 )
+from learn_to_cloud.services.requirements import load_requirement_index
 
 # ---------------------------------------------------------------------------
 # Test helpers

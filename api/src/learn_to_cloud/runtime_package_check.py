@@ -5,7 +5,7 @@ from importlib.resources import files
 from inspect import iscoroutinefunction, signature
 from pathlib import Path
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
 from learn_to_cloud.models import SubmissionType
 from learn_to_cloud.verification.workflows import workflow_for
 

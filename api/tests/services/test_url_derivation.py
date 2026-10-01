@@ -11,7 +11,7 @@ from learn_to_cloud.schemas import (
     HandsOnRequirement,
     HandsOnRequirementAdapter,
 )
-from learn_to_cloud.submission_derivation import (
+from learn_to_cloud.verification.submission_derivation import (
     derive_submission_value,
     fork_name_from_required_repo,
     is_derivable,
@@ -82,7 +82,7 @@ class TestForkNameFromRequiredRepo:
 @pytest.mark.unit
 class TestBuildTarget:
     def test_profile_readme_builds_self_repo_target(self):
-        from learn_to_cloud.submission_derivation import build_target
+        from learn_to_cloud.verification.submission_derivation import build_target
 
         target = build_target(_req(SubmissionType.PROFILE_README), "alice")
         assert target is not None
@@ -90,7 +90,7 @@ class TestBuildTarget:
         assert target.repo == "alice"
 
     def test_repo_fork_carries_forked_from(self):
-        from learn_to_cloud.submission_derivation import build_target
+        from learn_to_cloud.verification.submission_derivation import build_target
 
         req = _req(SubmissionType.REPO_FORK, required_repo="learntocloud/linux-ctfs")
         target = build_target(req, "alice")
@@ -100,12 +100,12 @@ class TestBuildTarget:
         assert target.forked_from == "learntocloud/linux-ctfs"
 
     def test_free_form_type_returns_none(self):
-        from learn_to_cloud.submission_derivation import build_target
+        from learn_to_cloud.verification.submission_derivation import build_target
 
         assert build_target(_req(SubmissionType.CTF_TOKEN), "alice") is None
 
     def test_missing_username_returns_none(self):
-        from learn_to_cloud.submission_derivation import build_target
+        from learn_to_cloud.verification.submission_derivation import build_target
 
         assert build_target(_req(SubmissionType.PROFILE_README), None) is None
 

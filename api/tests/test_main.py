@@ -19,7 +19,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 
 from learn_to_cloud import main as main_module
-from learn_to_cloud.content_catalog import CurriculumCatalogError
+from learn_to_cloud.curriculum.catalog import CurriculumCatalogError
 from learn_to_cloud.main import (
     app,
     global_exception_handler,

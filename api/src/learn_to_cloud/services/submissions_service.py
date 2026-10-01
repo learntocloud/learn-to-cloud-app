@@ -15,16 +15,10 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
-from learn_to_cloud.progress_reads import are_all_requirements_succeeded
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
 from learn_to_cloud.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
     VerificationAttemptRepository,
-)
-from learn_to_cloud.requirements import (
-    RequirementIndex,
-    get_prerequisite_phase,
-    load_requirement_index,
 )
 from learn_to_cloud.schemas import (
     HandsOnRequirement,
@@ -32,18 +26,24 @@ from learn_to_cloud.schemas import (
     PhaseSubmissionContext,
     SubmissionData,
 )
-from learn_to_cloud.submission_values import (
-    SubmittedValue,
-    submitted_value_from_raw,
-    submitted_value_matches_requirement,
+from learn_to_cloud.services.progress_reads import are_all_requirements_succeeded
+from learn_to_cloud.services.requirements import (
+    RequirementIndex,
+    get_prerequisite_phase,
+    load_requirement_index,
+)
+from learn_to_cloud.verification.attempt_snapshot import (
+    ATTEMPT_PAYLOAD_VERSION,
+    build_requirement_snapshot,
+    compute_snapshot_hash,
 )
 from learn_to_cloud.verification.execution import (
     attempt_to_submission_data,
 )
-from learn_to_cloud.verification_attempt_snapshot import (
-    ATTEMPT_PAYLOAD_VERSION,
-    build_requirement_snapshot,
-    compute_snapshot_hash,
+from learn_to_cloud.verification.submission_values import (
+    SubmittedValue,
+    submitted_value_from_raw,
+    submitted_value_matches_requirement,
 )
 
 

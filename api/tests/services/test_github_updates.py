@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from learn_to_cloud import github_updates
+from learn_to_cloud.services import github_updates
 
 pytestmark = pytest.mark.unit
 

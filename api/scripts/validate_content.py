@@ -1,6 +1,6 @@
 """Validate curriculum content for cross-file integrity (issue #462).
 
-Runs the strict validators in ``content_yaml_loader.validate_content()``
+Runs the strict validators in ``curriculum.yaml_loader.validate_content()``
 against the currently-loaded YAML and exits non-zero on any violation.
 
 Run from the package root::
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import sys
 
-from learn_to_cloud.content_yaml_loader import (
+from learn_to_cloud.curriculum.yaml_loader import (
     clear_cache,
     validate_content,
 )

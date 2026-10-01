@@ -1,21 +1,21 @@
 """Public curriculum read API (catalog-backed).
 
 Runtime reads in the API go through the packaged, process-level
-:class:`~learn_to_cloud.content_catalog.CurriculumCatalog`
+:class:`~learn_to_cloud.curriculum.catalog.CurriculumCatalog`
 instead of the database. The catalog is loaded once per process (at
 startup, and lazily via ``get_curriculum_catalog``'s ``lru_cache``), so
 every function here is a synchronous, in-memory lookup -- no
 ``AsyncSession``, no I/O.
 
 For authoring and strict cross-file validation, use
-``learn_to_cloud.content_yaml_loader``.
+``learn_to_cloud.curriculum.yaml_loader``.
 """
 
 from __future__ import annotations
 
 from uuid import UUID
 
-from learn_to_cloud.content_catalog import get_curriculum_catalog
+from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
 from learn_to_cloud.schemas import (
     HandsOnRequirement,
     LearningStep,

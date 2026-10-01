@@ -33,9 +33,9 @@ packaged `content/curriculum.json` artifact. The `compile-curriculum` prek hook
 (part of `uv run poe static`) rejects changes when the generated artifact
 differs from the committed one.
 
-At runtime, `content_catalog.py` loads the artifact once and builds dictionaries
+At runtime, `curriculum/catalog.py` loads the artifact once and builds dictionaries
 for UUID, slug, phase, topic, step, and requirement lookup.
-`content_service.py` is the public read API.
+`curriculum/reads.py` is the public read API.
 
 ## Learner state
 

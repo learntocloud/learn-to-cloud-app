@@ -7,16 +7,16 @@ from dataclasses import dataclass
 
 from pydantic import Field
 
-from learn_to_cloud.github_repository_target import GitHubRepositoryTarget
 from learn_to_cloud.schemas import FrozenModel, ValidationResult
-from learn_to_cloud.submission_values import SubmittedValue
+from learn_to_cloud.verification.attempt_types import PreparedVerificationAttempt
 from learn_to_cloud.verification.repo_files import RepoFiles
+from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
+from learn_to_cloud.verification.submission_values import SubmittedValue
 from learn_to_cloud.verification.tasks.base import (
     EvidenceBundle,
     LLMRubricGraderConfig,
     VerificationTask,
 )
-from learn_to_cloud.verification_workflow import PreparedVerificationAttempt
 
 
 @dataclass(frozen=True, slots=True)

@@ -23,7 +23,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.middleware.sessions import SessionMiddleware
 
-from learn_to_cloud.content_service import get_phase_by_slug
 from learn_to_cloud.core.middleware import TelemetrySanitizationMiddleware
 from learn_to_cloud.core.session_cookies import (
     AUTH_COOKIE_NAME,
@@ -31,6 +30,7 @@ from learn_to_cloud.core.session_cookies import (
     SessionResponseMiddleware,
     token_digest,
 )
+from learn_to_cloud.curriculum.reads import get_phase_by_slug
 from learn_to_cloud.main import global_exception_handler
 from learn_to_cloud.models import AuthSession, User, VerificationAttempt
 from learn_to_cloud.repositories.auth_session_repository import (
@@ -47,7 +47,7 @@ from learn_to_cloud.services.sessions_service import (
     issue_session,
     optional_authenticated_account,
 )
-from learn_to_cloud.submission_values import GitHubUrlValue
+from learn_to_cloud.verification.submission_values import GitHubUrlValue
 
 pytestmark = pytest.mark.integration
 

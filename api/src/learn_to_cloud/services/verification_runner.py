@@ -8,12 +8,20 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from learn_to_cloud.services.verification_attempt_executor import (
+    finalize_verification_attempt,
+    prepare_verification_attempt,
+)
 from learn_to_cloud.services.verification_grader import (
     LLM_RESPONSE_VALIDATION,
     ContentFilteredError,
     LLMGradingError,
     grade_evidence,
     missing_grading_config,
+)
+from learn_to_cloud.verification.attempt_types import (
+    LLM_ERROR_TYPES,
+    VerificationRunResult,
 )
 from learn_to_cloud.verification.engine import run_verification
 from learn_to_cloud.verification.evidence import (
@@ -29,14 +37,6 @@ from learn_to_cloud.verification.llm_grading import (
     llm_grading_content_filtered_result,
     llm_grading_unavailable_result,
     validate_llm_grading_decision,
-)
-from learn_to_cloud.verification_attempt_executor import (
-    finalize_verification_attempt,
-    prepare_verification_attempt,
-)
-from learn_to_cloud.verification_workflow import (
-    LLM_ERROR_TYPES,
-    VerificationRunResult,
 )
 
 logger = logging.getLogger(__name__)

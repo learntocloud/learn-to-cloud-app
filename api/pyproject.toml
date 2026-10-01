@@ -5,7 +5,7 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "learn_to_cloud"
 # Only the compiled curriculum ships; authored YAML and schemas stay
-# source-only (see content_yaml_loader.py).
+# source-only (see curriculum/yaml_loader.py).
 wheel-exclude = [
     "content/phases",
     "content/schemas",

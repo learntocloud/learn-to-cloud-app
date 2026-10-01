@@ -2,7 +2,7 @@
 
 import pytest
 
-from learn_to_cloud.content_catalog import load_curriculum_catalog
+from learn_to_cloud.curriculum.catalog import load_curriculum_catalog
 from learn_to_cloud.verification.ci_status import CAPSTONE_WORKFLOW_FILE
 from learn_to_cloud.verification.devops_analysis import (
     DEVOPS_REQUIRED_JOBS,
