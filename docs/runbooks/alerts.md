@@ -4,7 +4,7 @@ Run queries in Application Insights Logs unless directed to the Log Analytics
 workspace. Narrow the time window to the incident. For authorized investigation,
 use operation and attempt IDs to correlate telemetry with saved database records.
 Do not copy credentials, submitted evidence, provider bodies, or profile values
-into notifications or incident notes. See [Telemetry](../telemetry.html).
+into notifications or incident notes. See [Telemetry](../telemetry.md).
 
 ## Signal contracts
 
@@ -51,7 +51,7 @@ exceptions
 ```
 
 Restore a failed dependency or fix the failing code. Use only a
-[schema-compatible rollback](../migrations.html#recovery); do not suppress the
+[schema-compatible rollback](../migrations.md#recovery); do not suppress the
 exception or restore legacy authentication to clear the alert.
 
 ## Telemetry pipeline failure
@@ -221,7 +221,7 @@ Recovery does not authorize historical regrading or production data changes.
 Inspect bounded rejection reasons and request outcomes. Expired and unknown
 sessions are expected, not automatic compromise alerts. Ordinary anonymous
 access emits no rejection event. See
-[Authentication and sessions](../authentication.html) for the response contract.
+[Authentication and sessions](../authentication.md) for the response contract.
 
 For unexpected login/navigation failures, check database latency, pool/lock
 errors, migration results, and runtime-role grants. A session-store outage must

@@ -98,11 +98,6 @@ tfplan
 # Dogfood / QA artifacts
 .dogfood/
 .playwright-mcp/
-talks/.browser-tmp/
-talks/test-results/
-talks/playwright-report/
-_site/
-_site-source/
 
 # Book files (copyrighted material)
 *.epub

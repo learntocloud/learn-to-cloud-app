@@ -20,8 +20,8 @@ Install only the tools needed for the work you plan to do.
 | Dog-food browser testing | `uv`, Playwright Python API and Chromium |
 | Optional Copilot MCP integrations | Aspire CLI and the configured npm MCP servers |
 
-See the [Maintainer Guide](maintainer-guide.html) for infrastructure and optional
-Copilot tooling, and [Testing](testing.html#dog-food-agent-ai-powered-qa) for
+See the [Maintainer Guide](maintainer-guide.md) for infrastructure and optional
+Copilot tooling, and [Testing](testing.md#dog-food-agent-ai-powered-qa) for
 browser testing setup.
 
 `uv` installs the required Python runtime; a matching system Python installation
@@ -83,7 +83,7 @@ For workflow changes that add a Python command, also run that exact command
 with only the environment variables supplied by the workflow. Do not rely on
 local-only environment settings.
 
-See [Testing](testing.html) for targeted commands, fixture conventions, and
+See [Testing](testing.md) for targeted commands, fixture conventions, and
 guidance on callable contracts.
 
 ### API smoke testing
@@ -99,25 +99,25 @@ unrelated listeners. Report startup logs if an endpoint fails.
 Keep request-serving database and network I/O asynchronous. Follow the owning
 module's types and helpers rather than introducing parallel conventions.
 Schema changes must remain compatible with the application still serving
-traffic; see [Database migrations](migrations.html).
+traffic; see [Database migrations](migrations.md).
 
 ## Guides by task
 
 | Task | Guide |
 |------|-------|
-| Change routes, rendering, or verification | [Architecture](architecture.html) |
-| Change login, profiles, or sessions | [Authentication and sessions](authentication.html) |
-| Add logs, spans, or application events | [Telemetry](telemetry.html) |
-| Write tests, run browser QA, or reset local submissions | [Testing](testing.html) |
-| Change the database schema | [Database migrations](migrations.html) |
-| Edit phases, topics, steps, or requirements | [Editing curriculum](curriculum.html#editing-curriculum) |
-| Understand learner progress and completion | [Progression system](progression-system.html) |
-| Configure issue triage, Copilot tools, or documentation publishing | [Maintainer Guide](maintainer-guide.html) |
-| Investigate production alerts | [Alert runbook](runbooks/alerts.html) |
+| Change routes, rendering, or verification | [Architecture](architecture.md) |
+| Change login, profiles, or sessions | [Authentication and sessions](authentication.md) |
+| Add logs, spans, or application events | [Telemetry](telemetry.md) |
+| Write tests, run browser QA, or reset local submissions | [Testing](testing.md) |
+| Change the database schema | [Database migrations](migrations.md) |
+| Edit phases, topics, steps, or requirements | [Editing curriculum](curriculum.md#editing-curriculum) |
+| Understand learner progress and completion | [Progression system](progression-system.md) |
+| Configure issue triage, Copilot tools, or documentation maintenance | [Maintainer Guide](maintainer-guide.md) |
+| Investigate production alerts | [Alert runbook](runbooks/alerts.md) |
 
 Keep general contribution workflow in this guide. Put subsystem contracts in
 their owning guides and operational procedures in runbooks; link rather than
-duplicate instructions. Add new guides to the [documentation index](index.html).
+duplicate instructions. Add new guides to the [documentation index](index.md).
 Document decisions, non-obvious guarantees, and actionable procedures. Keep
 function inventories, configurable defaults, and implementation history in
 source, tests, and version control instead of duplicating them here.

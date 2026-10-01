@@ -1,6 +1,6 @@
 # Testing
 
-See [Quality Gates](contributing.html#quality-gates) for workspace checks and
+See [Quality Gates](contributing.md#quality-gates) for workspace checks and
 API smoke testing. Node.js is required for browser-contract tests even when
 running them through pytest.
 
@@ -21,7 +21,7 @@ uv run --project api pytest api/tests/
 Mark tests as `unit` or `integration`; use `pytest_asyncio.fixture` for async
 fixtures. Application database fixtures use rollback isolation. Migration
 tests instead recreate a dedicated disposable database; see
-[Database migrations](migrations.html#migration-tests).
+[Database migrations](migrations.md#migration-tests).
 
 ## Test code and callable contracts
 

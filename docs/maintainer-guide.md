@@ -1,6 +1,6 @@
 # Maintainer Guide
 
-For everyday development, start with [Contributing](contributing.html).
+For everyday development, start with [Contributing](contributing.md).
 
 ## Azure and Terraform
 
@@ -34,7 +34,7 @@ skill rather than maintaining a second command reference here.
 Install only the integrations you use, as configured in
 [`.mcp.json`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/.mcp.json).
 Browser QA uses a separate Playwright Python installation; follow
-[Testing](testing.html#dog-food-agent-ai-powered-qa), not MCP browser setup.
+[Testing](testing.md#dog-food-agent-ai-powered-qa), not MCP browser setup.
 
 ## Issue triage
 
@@ -60,15 +60,7 @@ whether suggestions apply automatically or await review. After an authorized
 workflow change, use a clearly marked test issue to confirm the expected type and
 Priority suggestions without comments or assignments.
 
-## GitHub Pages
+## Documentation
 
-The
-[`Pages workflow`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/.github/workflows/pages.yml)
-builds `docs/` on pull requests and publishes relevant `main` changes to
-[the documentation site](https://learntocloud.github.io/learn-to-cloud-app/).
-It also supports manual publishing.
-
-Keep **Pages > Build and deployment > Source** set to **GitHub Actions**.
-Use `.html` links between published guides, and repository links for source
-files. Keep the [index](index.html) current and preserve section anchors used by
-alert descriptions, workflows, and agent instructions.
+Keep the [index](index.md) current and preserve section anchors used by alert
+descriptions, workflows, and agent instructions.

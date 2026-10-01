@@ -96,7 +96,7 @@ does not prove runtime-role access.
 ## Running Migrations Locally
 
 Start the local database and install the workspace using
-[Contributing](contributing.html). From `api/`:
+[Contributing](contributing.md). From `api/`:
 
 ```bash
 uv run alembic upgrade head
@@ -133,7 +133,7 @@ It covers the chain, head, model/schema agreement, and selected populated-data
 cases. Add representative data and runtime-role coverage for your change.
 Rehearse `upgrade head`, `downgrade -1`, and `upgrade head` again on a disposable
 database when the downgrade is supported. Run the full
-[quality gate](contributing.html#quality-gates) before pushing.
+[quality gate](contributing.md#quality-gates) before pushing.
 
 ## Recovery
 
