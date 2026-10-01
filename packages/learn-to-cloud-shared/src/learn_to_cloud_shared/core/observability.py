@@ -1,7 +1,8 @@
 """Single-pipeline Azure Monitor and OTLP configuration.
 
-Azure Monitor owns FastAPI instrumentation in production; local OTLP configures
-it explicitly with SDK defaults. HTTPX and SQLAlchemy are application-owned.
+The app owns FastAPI, HTTPX, and SQLAlchemy instrumentation on both pipelines.
+Clients the app builds are measured by ``core.outbound``; the global HTTPX
+instrumentor covers third-party httpx clients such as openai's.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.trace import Span
 
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE
+from learn_to_cloud_shared.core.outbound import sanitize_url
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +30,9 @@ def _sanitize_httpx_span(span: Span, request: RequestInfo) -> None:
     if not span.is_recording():
         return
 
-    url = request.url.copy_with(username="", password="", query=None, fragment=None)
-    span.set_attribute("http.url", str(url))
-    span.set_attribute("url.full", str(url))
+    url = sanitize_url(request.url)
+    span.set_attribute("http.url", url)
+    span.set_attribute("url.full", url)
     span.set_attribute("url.query", "")
 
 
@@ -62,6 +64,7 @@ def _configure_azure_monitor(resource: Resource) -> None:
 
     _configure_azure_monitor_sdk(
         enable_live_metrics=True,
+        instrumentation_options={"fastapi": {"enabled": False}},
         enable_trace_based_sampling_for_logs=False,
         logger_name=APP_LOGGER_NAMESPACE,
         resource=resource,
@@ -175,14 +178,12 @@ def configure_observability() -> bool:
     conn_str = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
     resource = _build_resource()
-    instrument_fastapi_for_otlp = False
 
     try:
         if conn_str:
             _configure_azure_monitor(resource)
         elif otlp_endpoint:
             _configure_otlp(resource)
-            instrument_fastapi_for_otlp = True
         else:
             logger.error(
                 "telemetry.configure.failed",
@@ -199,14 +200,13 @@ def configure_observability() -> bool:
         return False
 
     _telemetry_enabled = True
-    if instrument_fastapi_for_otlp:
-        configure_fastapi_instrumentation()
+    configure_fastapi_instrumentation()
     configure_dependency_instrumentation()
     return True
 
 
 def configure_fastapi_instrumentation() -> bool:
-    """Instrument FastAPI when the Azure Monitor distro is not active."""
+    """Instrument FastAPI without the internal ASGI send/receive spans."""
     global _fastapi_instrumented
 
     if _fastapi_instrumented:
@@ -215,7 +215,7 @@ def configure_fastapi_instrumentation() -> bool:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
     try:
-        FastAPIInstrumentor().instrument()
+        FastAPIInstrumentor().instrument(exclude_spans=["send", "receive"])
     except Exception as exc:
         logger.warning(
             "telemetry.fastapi.failed",
@@ -257,9 +257,14 @@ def instrument_database(engine: Any) -> None:
         return
 
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+    from opentelemetry.instrumentation.utils import unwrap
+    from sqlalchemy.engine import Engine
 
     try:
         SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+        # Engine.connect spans are pool checkouts; physical connects are
+        # measured by the asyncpg creator instead.
+        unwrap(Engine, "connect")
     except Exception as exc:
         logger.warning(
             "telemetry.sqlalchemy.failed",

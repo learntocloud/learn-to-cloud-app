@@ -286,5 +286,6 @@ async def test_incomplete_profile_does_not_claim_repository_absence(kind, error_
         counter.add.assert_not_called()
         assert result.message == "GitHub verification could not be completed."
     else:
-        counter.add.assert_called_once_with(1, {"error.type": "network"})
+        expected = "connection" if error_type is httpx.ConnectError else "timeout.read"
+        counter.add.assert_called_once_with(1, {"error.type": expected})
         assert "Unexpected error" not in result.message

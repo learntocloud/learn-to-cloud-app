@@ -7,9 +7,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Annotated
 
+import httpx2
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, HTTPException, Request
 from learn_to_cloud_shared.core.config import OAuthConfig, get_web_settings
+from learn_to_cloud_shared.core.outbound import Dependency, send_measured
 from learn_to_cloud_shared.models import User
 from learn_to_cloud_shared.repositories.auth_session_repository import (
     AuthSessionRepository,
@@ -26,7 +28,25 @@ from learn_to_cloud.core.session_cookies import (
 
 logger = logging.getLogger(__name__)
 
+
+class _MeasuredOAuthTransport(httpx2.AsyncBaseTransport):
+    """Shared, measured httpx2 transport for authlib's per-call OAuth clients."""
+
+    def __init__(self) -> None:
+        self._inner = httpx2.AsyncHTTPTransport()
+
+    async def handle_async_request(self, request: httpx2.Request) -> httpx2.Response:
+        return await send_measured(self._inner, Dependency.GITHUB_OAUTH, request)
+
+    async def aclose(self) -> None:
+        """Keep the pool open; authlib closes its client after every call."""
+
+    async def close_pool(self) -> None:
+        await self._inner.aclose()
+
+
 oauth = OAuth()
+oauth_transport = _MeasuredOAuthTransport()
 MAX_GITHUB_USER_ID = 2**63 - 1
 MAX_USERNAME_LENGTH = 255
 
@@ -92,7 +112,7 @@ def init_oauth(settings: OAuthConfig) -> None:
         access_token_url="https://github.com/login/oauth/access_token",
         authorize_url="https://github.com/login/oauth/authorize",
         api_base_url="https://api.github.com/",
-        client_kwargs={"scope": "read:user"},
+        client_kwargs={"scope": "read:user", "transport": oauth_transport},
     )
 
 

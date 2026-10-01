@@ -295,17 +295,17 @@ async def test_analysis_requires_a_json_object(journal, body):
 
 @pytest.mark.parametrize("operation", ["create", "analyze"])
 @pytest.mark.parametrize(
-    ("failure", "category"),
+    ("failure", "event", "category"),
     [
-        (500, "server_error"),
-        (501, "server_error"),
-        (503, "server_error"),
-        (httpx.ReadTimeout, "timeout"),
-        (httpx.ConnectError, "request_error"),
+        (500, "server_error", "http_5xx"),
+        (501, "server_error", "http_5xx"),
+        (503, "server_error", "http_5xx"),
+        (httpx.ReadTimeout, "timeout", "timeout.read"),
+        (httpx.ConnectError, "request_error", "connection"),
     ],
 )
 async def test_failures_are_not_retried_and_emit_safe_step_diagnostics(
-    journal, operation, failure, category
+    journal, operation, failure, event, category
 ):
     journal.responses[operation] = (
         httpx.Response(failure, text="private learner details")
@@ -331,9 +331,7 @@ async def test_failures_are_not_retried_and_emit_safe_step_diagnostics(
         attributes["http.response.status_code"] = failure
         journal.span.set_attribute.assert_any_call("http.response.status_code", failure)
     journal.span.set_attribute.assert_any_call("error.type", category)
-    journal.span.add_event.assert_called_once_with(
-        f"deployed_api.{category}", attributes
-    )
+    journal.span.add_event.assert_called_once_with(f"deployed_api.{event}", attributes)
     for private_value in ("private learner", "learner.example", _ENTRY_BODY["work"]):
         assert private_value not in result.message
         assert private_value not in str(journal.span.mock_calls)

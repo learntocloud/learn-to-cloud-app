@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncGenerator
-from typing import Annotated
+from typing import Annotated, Any
 
 import asyncpg
 from fastapi import Depends, Request
-from sqlalchemy import text
+from sqlalchemy import event, text
+from sqlalchemy.engine import Connection, ExceptionContext
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -26,6 +28,14 @@ from sqlalchemy.orm import DeclarativeBase
 from learn_to_cloud_shared.core.azure_auth import get_token as _get_azure_token
 from learn_to_cloud_shared.core.config import DatabaseConfig
 from learn_to_cloud_shared.core.observability import instrument_database
+from learn_to_cloud_shared.core.outbound import (
+    DEPENDENCY_NAME,
+    OTHER,
+    Dependency,
+    classify,
+    outbound_call,
+    record_attempt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,24 +61,80 @@ async def _azure_asyncpg_creator(settings: DatabaseConfig):
     token = await _get_azure_token()
 
     try:
-        return await asyncpg.connect(
-            user=settings.user,
-            password=token,
-            host=settings.host,
-            port=settings.port,
-            database=settings.name,
-            ssl="require",
-            timeout=settings.timeout,
-            server_settings={
-                "statement_timeout": str(settings.statement_timeout_ms),
+        async with outbound_call(
+            Dependency.POSTGRES,
+            "connect",
+            span_name="connect",
+            span_attributes={
+                "db.system.name": "postgresql",
+                "server.address": settings.host,
+                "server.port": settings.port,
             },
-        )
-    except asyncpg.PostgresConnectionError as exc:
+        ):
+            return await asyncpg.connect(
+                user=settings.user,
+                password=token,
+                host=settings.host,
+                port=settings.port,
+                database=settings.name,
+                ssl="require",
+                timeout=settings.timeout,
+                server_settings={
+                    "statement_timeout": str(settings.statement_timeout_ms),
+                },
+            )
+    except Exception as exc:
         logger.error(
             "db.connection.failed",
-            extra={"error.type": type(exc).__name__},
+            extra={
+                "error.type": classify(exc),
+                DEPENDENCY_NAME: Dependency.POSTGRES.value,
+            },
         )
         raise
+
+
+_SQL_OPERATIONS = frozenset(
+    {"SELECT", "INSERT", "UPDATE", "DELETE", "WITH", "BEGIN", "COMMIT", "ROLLBACK"}
+)
+_STATEMENT_STARTS = "learn_to_cloud.statement_starts"
+
+
+def _sql_operation(statement: str | None) -> str:
+    words = (statement or "").split(maxsplit=1)
+    verb = words[0].upper() if words else ""
+    return verb if verb in _SQL_OPERATIONS else OTHER
+
+
+def measure_statements(engine: AsyncEngine) -> None:
+    """Record every statement as a ``postgres`` dependency attempt."""
+    sync_engine = engine.sync_engine
+
+    @event.listens_for(sync_engine, "before_cursor_execute", named=True)
+    def _started(conn: Connection, **_: Any) -> None:
+        conn.info.setdefault(_STATEMENT_STARTS, []).append(time.perf_counter())
+
+    @event.listens_for(sync_engine, "after_cursor_execute", named=True)
+    def _finished(conn: Connection, statement: str, **_: Any) -> None:
+        starts = conn.info.get(_STATEMENT_STARTS)
+        if starts:
+            record_attempt(
+                Dependency.POSTGRES,
+                _sql_operation(statement),
+                time.perf_counter() - starts.pop(),
+            )
+
+    @event.listens_for(sync_engine, "handle_error")
+    def _failed(context: ExceptionContext) -> None:
+        conn = context.connection
+        starts = conn.info.get(_STATEMENT_STARTS) if conn is not None else None
+        if starts:
+            record_attempt(
+                Dependency.POSTGRES,
+                _sql_operation(context.statement),
+                time.perf_counter() - starts.pop(),
+                error_type=classify(context.original_exception),
+            )
 
 
 def create_engine(settings: DatabaseConfig) -> AsyncEngine:
@@ -104,6 +170,7 @@ def create_engine(settings: DatabaseConfig) -> AsyncEngine:
         engine_kwargs["async_creator"] = async_creator
 
     engine = create_async_engine(database_url, **engine_kwargs)
+    measure_statements(engine)
     instrument_database(engine)
     return engine
 

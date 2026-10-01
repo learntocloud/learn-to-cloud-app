@@ -180,9 +180,17 @@ resource "azurerm_container_app" "api_v5" {
         value = "microsoft.rate_limited"
       }
 
+      # About two traces per second; alerts use unsampled metrics, so this
+      # only bounds how much trace detail is kept for investigation.
       env {
         name  = "OTEL_TRACES_SAMPLER_ARG"
-        value = "1"
+        value = "2"
+      }
+
+      # Stable HTTP semantic conventions give auto-instrumented spans error.type.
+      env {
+        name  = "OTEL_SEMCONV_STABILITY_OPT_IN"
+        value = "http"
       }
 
       env {

@@ -61,7 +61,11 @@ def test_api_trace_sampling_policy_is_explicit_and_alert_logs_are_unsampled():
     ).read_text()
     assert 'name  = "OTEL_TRACES_SAMPLER"' in container_app
     assert 'value = "microsoft.rate_limited"' in container_app
-    assert 'name  = "OTEL_TRACES_SAMPLER_ARG"' in container_app
+    assert 'name  = "OTEL_TRACES_SAMPLER_ARG"\n        value = "2"' in container_app
+    assert (
+        'name  = "OTEL_SEMCONV_STABILITY_OPT_IN"\n        value = "http"'
+        in container_app
+    )
     assert "enable_trace_based_sampling_for_logs=False" in observability
 
 

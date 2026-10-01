@@ -57,7 +57,7 @@ def test_github_network_error_metric_uses_bounded_category():
     ):
         github_error_to_result(error, event="github.request.failed")
 
-    counter.add.assert_called_once_with(1, {"error.type": "network"})
+    counter.add.assert_called_once_with(1, {"error.type": "connection"})
 
 
 @pytest.mark.parametrize(
@@ -98,8 +98,8 @@ def test_github_403_body_can_identify_rate_limit(message):
             "provider_unavailable",
             503,
         ),
-        (httpx.ConnectError("private detail"), "network", None),
-        (httpx.ReadTimeout("private detail"), "network", None),
+        (httpx.ConnectError("private detail"), "connection", None),
+        (httpx.ReadTimeout("private detail"), "timeout.read", None),
     ],
 )
 def test_all_telemetry_uses_same_safe_bounded_attributes(
@@ -133,6 +133,7 @@ def test_all_telemetry_uses_same_safe_bounded_attributes(
     assert not result.verification_completed
     if status is None:
         assert result.message == "Could not reach GitHub. Please try again later."
+        assert result.error_code == "network"
     else:
         assert result.message == f"GitHub API error ({status}). Try again later."
 

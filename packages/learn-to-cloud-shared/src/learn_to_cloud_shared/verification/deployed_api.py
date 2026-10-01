@@ -13,7 +13,8 @@ import httpx
 from opentelemetry import trace
 
 from learn_to_cloud_shared.core.config import get_worker_settings
-from learn_to_cloud_shared.core.http_client import PooledClient
+from learn_to_cloud_shared.core.http_client import PooledClient, build_http_client
+from learn_to_cloud_shared.core.outbound import Dependency, classify
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification.errors import UpstreamResponseError
 
@@ -27,10 +28,11 @@ def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> Validatio
     step_prefix = f"{step}: " if step else ""
     span = trace.get_current_span()
     if isinstance(exc, httpx.TimeoutException):
-        span.set_attribute("error.type", "timeout")
+        error_type = classify(exc)
+        span.set_attribute("error.type", error_type)
         span.add_event(
             "deployed_api.timeout",
-            {"error.type": "timeout", "verification.operation": step or "request"},
+            {"error.type": error_type, "verification.operation": step or "request"},
         )
         return ValidationResult(
             is_valid=False,
@@ -40,12 +42,12 @@ def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> Validatio
             ),
         )
     if isinstance(exc, DeployedApiServerError):
-        span.set_attribute("error.type", "server_error")
+        span.set_attribute("error.type", "http_5xx")
         span.set_attribute("http.response.status_code", exc.status_code)
         span.add_event(
             "deployed_api.server_error",
             {
-                "error.type": "server_error",
+                "error.type": "http_5xx",
                 "verification.operation": step or "request",
                 "http.response.status_code": exc.status_code,
             },
@@ -58,11 +60,12 @@ def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> Validatio
             ),
         )
     if isinstance(exc, httpx.RequestError):
-        span.set_attribute("error.type", "request_error")
+        error_type = classify(exc)
+        span.set_attribute("error.type", error_type)
         span.add_event(
             "deployed_api.request_error",
             {
-                "error.type": "request_error",
+                "error.type": error_type,
                 "verification.operation": step or "request",
             },
         )
@@ -77,7 +80,8 @@ def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> Validatio
 
 
 def _build_deployed_api_client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(
+    return build_http_client(
+        Dependency.DEPLOYED_API,
         timeout=httpx.Timeout(
             get_worker_settings().http.external_api_timeout,
             connect=5.0,

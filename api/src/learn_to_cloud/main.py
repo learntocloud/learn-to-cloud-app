@@ -27,7 +27,7 @@ from learn_to_cloud_shared.core.logger import configure_logging
 from learn_to_cloud_shared.core.observability import configure_observability
 from starlette.middleware.sessions import SessionMiddleware
 
-from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, init_oauth
+from learn_to_cloud.core.auth import SESSION_COOKIE_NAME, init_oauth, oauth_transport
 from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
     TelemetrySanitizationMiddleware,
@@ -123,6 +123,7 @@ async def lifespan(app: fastapi.FastAPI):
         finally:
             await close_verification_grader()
             await close_github_client()
+            await oauth_transport.close_pool()
             await dispose_engine(app.state.engine)
             if app.state.settings.database.use_azure_postgres:
                 await close_credential()

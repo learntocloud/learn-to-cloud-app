@@ -7,6 +7,7 @@ import logging
 import httpx
 from opentelemetry import metrics, trace
 
+from learn_to_cloud_shared.core.outbound import classify
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification.errors import UpstreamResponseError
 
@@ -70,9 +71,10 @@ def github_error_to_result(e: Exception, *, event: str) -> ValidationResult:
             message="Resource not found on GitHub. Check the URL and try again.",
         )
 
-    error_type = (
+    error_code = (
         _github_error_type(status, response) if status is not None else "network"
     )
+    error_type = error_code if status is not None else classify(e)
     attributes: dict[str, str | int] = {"error.type": error_type}
     if status is not None:
         attributes["http.response.status_code"] = status
@@ -90,5 +92,5 @@ def github_error_to_result(e: Exception, *, event: str) -> ValidationResult:
             else "Could not reach GitHub. Please try again later."
         ),
         verification_completed=False,
-        error_code=error_type,
+        error_code=error_code,
     )

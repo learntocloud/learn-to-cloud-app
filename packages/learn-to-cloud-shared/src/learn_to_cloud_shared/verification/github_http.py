@@ -27,6 +27,7 @@ from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.github_client import (
     get_github_client as _get_github_client,
 )
+from learn_to_cloud_shared.core.outbound import track_retry_attempt
 from learn_to_cloud_shared.verification.errors import make_retriable
 from learn_to_cloud_shared.verification.github_errors import GitHubServerError
 
@@ -78,6 +79,7 @@ def raise_for_server_error(response: httpx.Response) -> None:
     stop=stop_after_attempt(3),
     wait=_wait_with_retry_after,
     retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
+    before=track_retry_attempt,
     reraise=True,
 )
 async def github_api_get(
@@ -103,6 +105,7 @@ async def github_api_get(
     stop=stop_after_attempt(3),
     wait=_wait_with_retry_after,
     retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
+    before=track_retry_attempt,
     reraise=True,
 )
 async def github_head_status(url: str) -> int:

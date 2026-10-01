@@ -14,7 +14,9 @@ from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
 from agent_framework_openai import OpenAIChatOptions
 from azure.identity.aio import DefaultAzureCredential, ManagedIdentityCredential
+from learn_to_cloud_shared.core.azure_auth import MeasuredCredential
 from learn_to_cloud_shared.core.config import get_web_settings
+from learn_to_cloud_shared.core.outbound import Dependency, outbound_call
 from learn_to_cloud_shared.verification.tasks import LLMGradingDecision
 from pydantic import ValidationError
 
@@ -187,14 +189,14 @@ class GradingConfig:
         )
 
 
-def _credential() -> DefaultAzureCredential | ManagedIdentityCredential:
+def _credential() -> MeasuredCredential:
     if get_web_settings().is_development:
-        return DefaultAzureCredential()
+        return MeasuredCredential(DefaultAzureCredential())
 
     client_id = os.getenv("AZURE_CLIENT_ID")
     if client_id:
-        return ManagedIdentityCredential(client_id=client_id)
-    return ManagedIdentityCredential()
+        return MeasuredCredential(ManagedIdentityCredential(client_id=client_id))
+    return MeasuredCredential(ManagedIdentityCredential())
 
 
 _grader: Agent[Any] | None = None
@@ -242,7 +244,9 @@ async def grade_evidence(message: str) -> LLMGradingDecision:
     """Grade one self-contained verification prompt."""
     try:
         grader = await get_verification_grader()
-        response = await grader.run(message, options=_GRADER_OPTIONS)
+        # openai's own httpx client is auto-instrumented; record only the metric.
+        async with outbound_call(Dependency.FOUNDRY, "responses"):
+            response = await grader.run(message, options=_GRADER_OPTIONS)
     except Exception as exc:
         filtered = _find_content_filter_error(exc)
         if filtered is not None:

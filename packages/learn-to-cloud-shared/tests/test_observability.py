@@ -141,7 +141,9 @@ def test_configure_observability_uses_azure_monitor_when_connection_string_set(
         request_hook=observability._sanitize_httpx_span,
         async_request_hook=observability._sanitize_async_httpx_span,
     )
-    fastapi_instrumentor.assert_not_called()
+    fastapi_instrumentor.return_value.instrument.assert_called_once_with(
+        exclude_spans=["send", "receive"]
+    )
     assert observability._telemetry_enabled is True
     assert configured is True
 
@@ -178,7 +180,9 @@ def test_configure_observability_uses_otlp_when_endpoint_set():
         request_hook=observability._sanitize_httpx_span,
         async_request_hook=observability._sanitize_async_httpx_span,
     )
-    fastapi_instrumentor.return_value.instrument.assert_called_once_with()
+    fastapi_instrumentor.return_value.instrument.assert_called_once_with(
+        exclude_spans=["send", "receive"]
+    )
     assert observability._telemetry_enabled is True
     assert configured is True
 
@@ -272,7 +276,7 @@ def test_configure_observability_noops_when_already_enabled():
 
 
 @pytest.mark.unit
-def test_configure_azure_monitor_uses_distro_instrumentation_defaults():
+def test_configure_azure_monitor_leaves_fastapi_to_the_app():
     resource = observability._build_resource()
     with patch(
         "azure.monitor.opentelemetry.configure_azure_monitor"
@@ -284,7 +288,7 @@ def test_configure_azure_monitor_uses_distro_instrumentation_defaults():
     assert kwargs["enable_live_metrics"] is True
     assert kwargs["enable_trace_based_sampling_for_logs"] is False
     assert kwargs["logger_name"] == "learn_to_cloud"
-    assert "instrumentation_options" not in kwargs
+    assert kwargs["instrumentation_options"] == {"fastapi": {"enabled": False}}
     assert kwargs["resource"] is resource
 
 
@@ -358,7 +362,9 @@ def test_fastapi_instrumentation_is_process_wide_and_idempotent():
     ) as instrumentor:
         assert observability.configure_fastapi_instrumentation() is True
         assert observability.configure_fastapi_instrumentation() is True
-    instrumentor.return_value.instrument.assert_called_once_with()
+    instrumentor.return_value.instrument.assert_called_once_with(
+        exclude_spans=["send", "receive"]
+    )
 
 
 @pytest.mark.unit
@@ -595,3 +601,30 @@ def test_instrument_database_uses_the_created_sync_engine():
         observability.instrument_database(engine)
 
     instrumentor_cls.return_value.instrument.assert_called_once_with(engine=sync_engine)
+
+
+@pytest.mark.integration
+async def test_database_spans_keep_statements_but_not_pool_checkouts(test_engine):
+    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    engine = create_async_engine(test_engine.url, poolclass=NullPool)
+    observability._dependency_tracing_enabled = True
+    try:
+        with patch("opentelemetry.trace.get_tracer_provider", return_value=provider):
+            observability.instrument_database(engine)
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    finally:
+        SQLAlchemyInstrumentor().uninstrument()
+        await engine.dispose()
+        provider.shutdown()
+
+    names = [span.name for span in exporter.get_finished_spans()]
+    assert "connect" not in names
+    assert any(name.startswith("SELECT") for name in names)

@@ -149,21 +149,25 @@ async def test_post_once_preserves_native_request_exceptions(error_type):
 
 
 @pytest.mark.parametrize(
-    ("error", "category", "message"),
+    ("error", "event", "category", "message"),
     [
         (
             httpx.ReadTimeout("private network detail"),
             "timeout",
+            "timeout.read",
             "Request timed out. Ensure your API is accessible and responding quickly.",
         ),
         (
             httpx.ConnectError("private network detail"),
             "request_error",
+            "connection",
             "Could not connect to your API. Error: ConnectError",
         ),
     ],
 )
-def test_request_mapper_preserves_messages_and_completion(error, category, message):
+def test_request_mapper_preserves_messages_and_completion(
+    error, event, category, message
+):
     span = MagicMock()
     with patch.object(deployed_api.trace, "get_current_span", return_value=span):
         result = deployed_api.deployed_api_error_to_result(error)
@@ -173,7 +177,7 @@ def test_request_mapper_preserves_messages_and_completion(error, category, messa
     assert not result.is_valid
     span.set_attribute.assert_called_once_with("error.type", category)
     span.add_event.assert_called_once_with(
-        f"deployed_api.{category}",
+        f"deployed_api.{event}",
         {"error.type": category, "verification.operation": "request"},
     )
 

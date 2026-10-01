@@ -819,7 +819,7 @@ def _evidence_flow(monkeypatch):
         (403, "authorization"),
         (429, "rate_limit"),
         (503, "provider_unavailable"),
-        ("network", "network"),
+        ("network", "timeout.read"),
     ],
 )
 async def test_failed_evidence_read_stops_grading(monkeypatch, failure, category):
