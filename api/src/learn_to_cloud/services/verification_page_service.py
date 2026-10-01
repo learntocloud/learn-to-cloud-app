@@ -23,13 +23,9 @@ from learn_to_cloud.rendering.requirement_cards import (
 from learn_to_cloud.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
-from learn_to_cloud.schemas import (
-    HandsOnRequirement,
-    Phase,
-    PhaseOverview,
-    PhaseProgress,
-    VerificationProgress,
-)
+from learn_to_cloud.schemas.curriculum import Phase, PhaseOverview
+from learn_to_cloud.schemas.progress import PhaseProgress, VerificationProgress
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
 from learn_to_cloud.services.progress_service import (
     fetch_phase_progress,
     fetch_user_progress,

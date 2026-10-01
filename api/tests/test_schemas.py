@@ -8,10 +8,10 @@ import pytest
 from pydantic import ValidationError
 
 from learn_to_cloud.models import SubmissionType, User
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.api import UserResponse
+from learn_to_cloud.schemas.requirements import (
     CtfTokenConfig,
     HandsOnRequirementAdapter,
-    UserResponse,
 )
 
 

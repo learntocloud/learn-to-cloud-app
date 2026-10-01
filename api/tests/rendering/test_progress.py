@@ -5,12 +5,10 @@ from uuid import uuid4
 import pytest
 
 from learn_to_cloud.rendering.progress import build_phase_topics, build_progress_dict
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.curriculum import LearningStep, Phase, Topic
+from learn_to_cloud.schemas.progress import (
     LearningProgress,
-    LearningStep,
-    Phase,
     PhaseProgress,
-    Topic,
     TopicProgressData,
     VerificationProgress,
 )

@@ -39,7 +39,7 @@ Create an Alembic migration for the requested schema change.
 
 ### 5. Update dependent code
 - If columns were added/renamed, update the relevant repository, service, and route layers.
-- Update `schemas.py` if the API contract changed.
+- Update the matching `schemas/` module if the API contract changed.
 - Add or update tests.
 
 ## Validation

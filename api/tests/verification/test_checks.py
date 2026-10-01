@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 
 from learn_to_cloud.models import SubmissionType
-from learn_to_cloud.schemas import TaskResult, ValidationResult
+from learn_to_cloud.schemas.verification import TaskResult, ValidationResult
 from learn_to_cloud.verification.attempt_types import PreparedVerificationAttempt
 from learn_to_cloud.verification.checks import career as career_checks
 from learn_to_cloud.verification.checks import (

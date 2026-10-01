@@ -8,9 +8,7 @@ from learn_to_cloud.models import (
 from learn_to_cloud.repositories.verification_attempt_repository import (
     AttemptCardProjection,
 )
-from learn_to_cloud.schemas import (
-    SubmissionData,
-)
+from learn_to_cloud.schemas.verification import SubmissionData
 
 MAX_VALIDATION_MESSAGE_LENGTH = 1024
 

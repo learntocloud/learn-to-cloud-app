@@ -29,7 +29,7 @@ from fastapi.responses import HTMLResponse
 from httpx import ASGITransport, AsyncClient
 
 from learn_to_cloud.core.database import get_db
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.progress import (
     DashboardData,
     LearningProgress,
     PhaseProgress,
@@ -88,7 +88,7 @@ def _patched_content():
     from learn_to_cloud.curriculum.yaml_loader import (
         get_all_phases_from_yaml,
     )
-    from learn_to_cloud.schemas import PhaseOverview, TopicOverview
+    from learn_to_cloud.schemas.curriculum import PhaseOverview, TopicOverview
 
     yaml_phases = get_all_phases_from_yaml()
     yaml_overview = tuple(
@@ -387,7 +387,7 @@ class TestAuthPageSmoke:
         from learn_to_cloud.rendering.requirement_cards import (
             build_requirement_card_context,
         )
-        from learn_to_cloud.schemas import SubmissionData
+        from learn_to_cloud.schemas.verification import SubmissionData
 
         phase = next(
             (p for p in get_all_phases_from_yaml() if p.slug == "phase1"), None

@@ -12,7 +12,7 @@ from learn_to_cloud.rendering.verification_forms import (
     TokenFormContext,
     build_verification_form_context,
 )
-from learn_to_cloud.schemas import SubmissionData
+from learn_to_cloud.schemas.verification import SubmissionData
 from learn_to_cloud.verification.forms import (
     MAX_REFLECTION_ANSWER_LENGTH,
     verification_submit_action,

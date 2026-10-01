@@ -10,10 +10,10 @@ from learn_to_cloud.curriculum.reads import (
     get_curriculum_overview,
     get_phase_by_slug,
 )
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.curriculum import PhaseOverview
+from learn_to_cloud.schemas.progress import (
     ContinuePhaseData,
     DashboardData,
-    PhaseOverview,
     PhaseProgressData,
     PhaseSummaryData,
 )

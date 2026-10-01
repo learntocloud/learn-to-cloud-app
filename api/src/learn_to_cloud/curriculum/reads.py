@@ -16,14 +16,14 @@ from __future__ import annotations
 from uuid import UUID
 
 from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
-from learn_to_cloud.schemas import (
-    HandsOnRequirement,
+from learn_to_cloud.schemas.curriculum import (
     LearningStep,
     Phase,
     PhaseOverview,
     Topic,
     TopicOverview,
 )
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
 
 
 def get_phase_by_slug(slug: str) -> Phase | None:

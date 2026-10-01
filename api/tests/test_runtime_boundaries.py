@@ -55,6 +55,7 @@ _PACKAGE_ROOT = _ROOT / "api/src/learn_to_cloud"
 # Top-level learn_to_cloud modules each package may import (besides itself).
 _ALLOWED_IMPORTS = {
     "core": set(),
+    "schemas": {"models"},
     "curriculum": {"core", "schemas"},
     "verification": {"core", "schemas", "models", "repositories"},
     "repositories": {"core", "models", "verification"},

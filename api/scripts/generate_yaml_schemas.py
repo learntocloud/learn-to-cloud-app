@@ -23,12 +23,8 @@ import json
 import sys
 from pathlib import Path
 
-from learn_to_cloud.schemas import (
-    HandsOnRequirementAdapter,
-    Phase,
-    StepAction,
-    Topic,
-)
+from learn_to_cloud.schemas.curriculum import Phase, StepAction, Topic
+from learn_to_cloud.schemas.requirements import HandsOnRequirementAdapter
 
 SCHEMAS_DIR = (
     Path(__file__).resolve().parent.parent

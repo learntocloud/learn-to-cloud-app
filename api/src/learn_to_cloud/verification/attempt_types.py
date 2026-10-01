@@ -5,10 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from learn_to_cloud.schemas import (
-    HandsOnRequirement,
-    ValidationResult,
-)
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
 from learn_to_cloud.verification.submission_derivation import build_target

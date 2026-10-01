@@ -5,15 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.requirements import (
     CareerReflectionQuestion,
     CareerReflectionRequirement,
     CtfTokenRequirement,
     DeployedApiRequirement,
     HandsOnRequirement,
     NetworkingTokenRequirement,
-    SubmissionData,
 )
+from learn_to_cloud.schemas.verification import SubmissionData
 from learn_to_cloud.verification.forms import (
     MAX_REFLECTION_ANSWER_LENGTH,
     verification_submit_action,

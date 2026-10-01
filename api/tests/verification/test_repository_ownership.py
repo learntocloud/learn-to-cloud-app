@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.github_errors import GitHubServerError
 from learn_to_cloud.verification.github_metadata import (
     GitHubApiMetadata,

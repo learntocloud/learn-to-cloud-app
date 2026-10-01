@@ -16,7 +16,8 @@ from learn_to_cloud.rendering.verification_forms import (
     VerificationFormContext,
     build_verification_form_context,
 )
-from learn_to_cloud.schemas import HandsOnRequirement, SubmissionData
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
+from learn_to_cloud.schemas.verification import SubmissionData
 
 
 @dataclass(frozen=True, slots=True)

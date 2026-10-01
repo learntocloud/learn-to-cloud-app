@@ -14,7 +14,7 @@ from learn_to_cloud.repositories.user_repository import UserRepository
 from learn_to_cloud.repositories.verification_attempt_repository import (
     VerificationAttemptRepository,
 )
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.community import (
     CommunityActivity,
     CommunityMember,
     CommunityPageData,

@@ -15,7 +15,7 @@ from opentelemetry import trace
 from learn_to_cloud.core.config import get_worker_settings
 from learn_to_cloud.core.http_client import PooledClient, build_http_client
 from learn_to_cloud.core.outbound import Dependency, classify
-from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.errors import UpstreamResponseError
 
 

@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING
 import httpx
 from opentelemetry import trace
 
-from learn_to_cloud.schemas import FrozenModel, ValidationResult
+from learn_to_cloud.schemas.base import FrozenModel
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.github_errors import GitHubServerError
 from learn_to_cloud.verification.tasks.base import (
     EvidenceBundle,

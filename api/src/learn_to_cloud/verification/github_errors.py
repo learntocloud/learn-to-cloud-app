@@ -8,7 +8,7 @@ import httpx
 from opentelemetry import metrics, trace
 
 from learn_to_cloud.core.outbound import classify
-from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.errors import UpstreamResponseError
 
 logger = logging.getLogger(__name__)

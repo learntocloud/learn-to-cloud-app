@@ -11,16 +11,18 @@ from learn_to_cloud.rendering.requirement_cards import CheckingCardContext
 from learn_to_cloud.repositories.verification_attempt_repository import (
     AttemptHistoryProjection,
 )
-from learn_to_cloud.schemas import (
-    LearningProgress,
+from learn_to_cloud.schemas.curriculum import (
     Phase,
     PhaseHandsOnVerificationOverview,
     PhaseOverview,
+)
+from learn_to_cloud.schemas.progress import (
+    LearningProgress,
     PhaseProgress,
-    PhaseSubmissionContext,
     UserProgress,
     VerificationProgress,
 )
+from learn_to_cloud.schemas.verification import PhaseSubmissionContext
 from learn_to_cloud.services.verification_page_service import (
     VerificationAttemptHistoryItem,
     get_phase_verification_workspace,

@@ -23,12 +23,8 @@ from learn_to_cloud.curriculum.compiler import (
     ARTIFACT_SCHEMA_VERSION,
     compute_content_hash,
 )
-from learn_to_cloud.schemas import (
-    HandsOnRequirement,
-    LearningStep,
-    Phase,
-    Topic,
-)
+from learn_to_cloud.schemas.curriculum import LearningStep, Phase, Topic
+from learn_to_cloud.schemas.requirements import HandsOnRequirement
 
 #: Package-relative location of the compiled artifact, as passed to
 #: ``importlib.resources.files(...).joinpath(*ARTIFACT_PACKAGE_PATH)``.

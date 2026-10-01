@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.checks.common import (
     missing_repository_result,
     validation_step_result,

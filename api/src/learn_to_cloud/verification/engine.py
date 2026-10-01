@@ -5,7 +5,7 @@ from __future__ import annotations
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
-from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.attempt_types import (
     PreparedVerificationAttempt,
     VerificationRunResult,

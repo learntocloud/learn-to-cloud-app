@@ -19,7 +19,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 
-from learn_to_cloud.schemas import (
+from learn_to_cloud.schemas.requirements import (
     HandsOnRequirement,
     HandsOnRequirementAdapter,
 )

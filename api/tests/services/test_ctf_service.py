@@ -77,7 +77,7 @@ class TestVerifyCTFToken:
         assert result.is_valid is False
 
     def test_returns_validation_result_type(self):
-        from learn_to_cloud.schemas import ValidationResult
+        from learn_to_cloud.schemas.verification import ValidationResult
 
         token = _create_valid_ctf_token()
         result = verify_ctf_token(token, "testuser")

@@ -16,7 +16,7 @@ from datetime import datetime
 import httpx
 from cachetools import TTLCache
 
-from learn_to_cloud.schemas import RepoUpdate
+from learn_to_cloud.schemas.community import RepoUpdate
 from learn_to_cloud.verification.github_http import github_api_get
 
 logger = logging.getLogger(__name__)
