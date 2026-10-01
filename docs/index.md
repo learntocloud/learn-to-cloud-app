@@ -1,7 +1,3 @@
----
-title: Learn to Cloud App Documentation
----
-
 # Learn to Cloud App Documentation
 
 Architecture, contributor, and operations documentation for the
@@ -9,19 +5,15 @@ Architecture, contributor, and operations documentation for the
 
 ## Guides
 
-- [Contributing](contributing.html)
-- [Testing and browser QA](testing.html)
-- [Application architecture](architecture.html)
-- [Authentication and sessions](authentication.html)
-- [Telemetry](telemetry.html)
-- [Curriculum architecture](curriculum.html)
-- [Progression system](progression-system.html)
-- [Database migrations](migrations.html)
-- [Maintainer Guide](maintainer-guide.html)
-- [Alert runbook](runbooks/alerts.html)
-
-## Conference talks
-
-- [Building a Ladder](talks/building-a-ladder/)
+- [Contributing](contributing.md)
+- [Testing and browser QA](testing.md)
+- [Application architecture](architecture.md)
+- [Authentication and sessions](authentication.md)
+- [Telemetry](telemetry.md)
+- [Curriculum architecture](curriculum.md)
+- [Progression system](progression-system.md)
+- [Database migrations](migrations.md)
+- [Maintainer Guide](maintainer-guide.md)
+- [Alert runbook](runbooks/alerts.md)
 
 Application users should start at [learntocloud.guide](https://learntocloud.guide).

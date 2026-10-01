@@ -123,8 +123,6 @@ timeout and overdue cleanup, with no workflow retries or checkpoints.
 
 Start with the [Contributing Guide](docs/contributing.md) for setup, quality
 gates, and links to focused development guides.
-Published architecture and operations docs are available on
-[GitHub Pages](https://learntocloud.github.io/learn-to-cloud-app/).
 
 ## Deployment
 

@@ -81,7 +81,7 @@ Preserve nonblank names as supplied, including Unicode and whitespace; do not
 split or truncate them. Missing or unusable optional names do not block login.
 Render names as escaped text and fall back to username when no name is stored.
 Do not deliberately add profile values to telemetry. Database diagnostics retain
-the tradeoff described in [Telemetry](telemetry.html).
+the tradeoff described in [Telemetry](telemetry.md).
 
 ## Changing authentication
 

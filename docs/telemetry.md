@@ -36,7 +36,7 @@ do not enable both mechanisms. Keep browser payload filtering in
 
 Preserve event names and fields consumed by alerts. Review changes together with
 [`monitoring.tf`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/infra/monitoring.tf),
-the [alert runbook](runbooks/alerts.html), and
+the [alert runbook](runbooks/alerts.md), and
 [`telemetry contract tests`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/api/tests/test_telemetry_contracts.py).
 Keep those executable contracts authoritative instead of maintaining a separate
 field registry.

@@ -2,8 +2,8 @@
 
 The API serves HTML and JSON and runs background verification. PostgreSQL owns
 accounts, sessions, and learner state; the packaged curriculum catalog owns
-content. See [Curriculum architecture](curriculum.html),
-[Authentication and sessions](authentication.html), and [Telemetry](telemetry.html).
+content. See [Curriculum architecture](curriculum.md),
+[Authentication and sessions](authentication.md), and [Telemetry](telemetry.md).
 
 ## Where changes belong
 
@@ -51,7 +51,7 @@ Do not manually unclaim work that may still be executing.
 
 Both health endpoints reject a stopped worker, but a live task does not prove
 that the queue is progressing. Use the
-[active-attempt runbook](runbooks/alerts.html#verification-active-beyond-limit)
+[active-attempt runbook](runbooks/alerts.md#verification-active-beyond-limit)
 for backlog and worker failures.
 
 For execution limits and claim behavior, consult
@@ -87,7 +87,7 @@ Preserve these distinctions:
 Required paths, rubric criteria, and evidence limits belong in
 [`verification/tasks/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/api/src/learn_to_cloud/verification/tasks),
 not a second documentation inventory. See the
-[evidence runbook](runbooks/alerts.html#incomplete-grading-evidence) for recovery.
+[evidence runbook](runbooks/alerts.md#incomplete-grading-evidence) for recovery.
 
 ## Deployed API verification
 
