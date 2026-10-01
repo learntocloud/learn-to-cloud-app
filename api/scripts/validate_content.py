@@ -7,7 +7,8 @@ Run from the package root::
 
     cd api && uv run python scripts/validate_content.py
 
-Used by CI to catch broken content before it ships.
+Runs as the ``validate-content`` prek hook to catch broken content before it
+ships.
 """
 
 from __future__ import annotations

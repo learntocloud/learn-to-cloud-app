@@ -12,8 +12,8 @@ Run from the package root::
 Pass ``--previous-artifact PATH`` to also enforce the curriculum_version
 policy (must not decrease; may repeat only if content is unchanged)
 against a prior artifact. CI does this against the artifact committed
-at the PR base / pre-push SHA (see .github/workflows/deploy.yml) and
-also diffs the result against the committed copy to catch drift.
+at the PR base / pre-push SHA (see .github/workflows/ci.yml). The
+``compile-curriculum`` prek hook catches drift from the committed copy.
 """
 
 from __future__ import annotations

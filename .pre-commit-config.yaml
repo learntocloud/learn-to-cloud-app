@@ -33,7 +33,7 @@ repos:
         files: ^api/.*\.py$
         pass_filenames: false
 
-  # squawk - migration SQL safety lint (mirrors the CI check exactly)
+  # Migration lints: SQL safety (squawk) and filename/docstring conventions
   - repo: local
     hooks:
       - id: squawk-migrations
@@ -41,6 +41,35 @@ repos:
         entry: bash -c 'cd api && uv run python scripts/lint_migration_sql.py'
         language: system
         files: ^api/alembic/versions/.*\.py$
+        pass_filenames: false
+      - id: migration-naming
+        name: migration naming lint
+        entry: bash -c 'cd api && uv run python scripts/check_migration_naming.py'
+        language: system
+        files: ^api/alembic/versions/.*\.py$
+        pass_filenames: false
+
+  # Curriculum content: validate authored YAML and regenerate committed
+  # artifacts. A regenerated file fails the hook, so drift cannot be committed.
+  - repo: local
+    hooks:
+      - id: validate-content
+        name: validate curriculum content
+        entry: bash -c 'cd api && uv run python scripts/validate_content.py'
+        language: system
+        files: ^api/src/learn_to_cloud/
+        pass_filenames: false
+      - id: generate-yaml-schemas
+        name: regenerate curriculum YAML schemas
+        entry: bash -c 'cd api && uv run python scripts/generate_yaml_schemas.py'
+        language: system
+        files: ^api/src/learn_to_cloud/
+        pass_filenames: false
+      - id: compile-curriculum
+        name: recompile curriculum.json
+        entry: bash -c 'cd api && uv run python scripts/compile_curriculum.py'
+        language: system
+        files: ^api/src/learn_to_cloud/
         pass_filenames: false
   # General file hygiene + check-yaml
   - repo: https://github.com/pre-commit/pre-commit-hooks

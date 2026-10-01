@@ -29,8 +29,9 @@ queries without sending a GitHub username or database user ID to browser
 telemetry.
 
 `scripts/compile_curriculum.py` validates the complete tree and writes the
-packaged `content/curriculum.json` artifact. CI rejects a branch when generated
-artifact content differs from the committed artifact.
+packaged `content/curriculum.json` artifact. The `compile-curriculum` prek hook
+(part of `uv run poe static`) rejects changes when the generated artifact
+differs from the committed one.
 
 At runtime, `content_catalog.py` loads the artifact once and builds dictionaries
 for UUID, slug, phase, topic, step, and requirement lookup.
@@ -71,12 +72,8 @@ rewritten.
 1. Edit the YAML files and bump `curriculum_version` in
    `api/src/learn_to_cloud/content/curriculum.meta.yaml`.
    Content changes require a version greater than the PR base artifact's version.
-2. From `api`, run:
-   ```bash
-   uv run python scripts/validate_content.py
-   uv run python scripts/compile_curriculum.py
-   uv run python scripts/generate_yaml_schemas.py
-   ```
+2. From the repository root, run `uv run poe static`. Its hooks validate the
+   content and regenerate `curriculum.json` and the YAML schemas.
    To check the version policy locally as CI does, pass
    `--previous-artifact PATH` to the compiler, where `PATH` contains the
    `curriculum.json` artifact from the PR base commit. Compiling without this
