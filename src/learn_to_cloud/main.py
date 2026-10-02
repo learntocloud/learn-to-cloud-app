@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
-from learn_to_cloud.core.auth import init_oauth, oauth_transport
+from learn_to_cloud.core.auth import init_oauth
 from learn_to_cloud.core.azure_auth import close_credential
 from learn_to_cloud.core.config import get_web_settings
 from learn_to_cloud.core.database import (
@@ -127,7 +127,6 @@ async def lifespan(app: fastapi.FastAPI):
         finally:
             await close_verification_grader()
             await close_github_client()
-            await oauth_transport.close_pool()
             await dispose_engine(app.state.engine)
             if app.state.settings.database.use_azure_postgres:
                 await close_credential()

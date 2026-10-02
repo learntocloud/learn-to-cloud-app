@@ -25,7 +25,7 @@ _NETWORK_PACKAGES = {
     "httpx": "GitHub and deployed APIs via MeasuredTransport; openai's client is "
     "traced by HTTPXClientInstrumentor and measured by outbound_call",
     "httpcore": "httpx internals",
-    "httpx2": "authlib GitHub OAuth via _MeasuredOAuthTransport",
+    "httpx2": "authlib GitHub OAuth, traced by HTTPX2ClientInstrumentor",
     "httpcore2": "httpx2 internals",
     "httpx2-jsfetch": "httpx2 browser backend, unused on CPython",
     "aiohttp": "azure-core async transport for Entra tokens, via MeasuredCredential",
@@ -100,7 +100,6 @@ _FACTORY_SITES = {
         "asyncpg.connect",
         "create_async_engine",
     },
-    "src/learn_to_cloud/core/auth.py": {"httpx2.AsyncHTTPTransport"},
     # Migration job only: a separate sync process that exports no telemetry.
     "src/learn_to_cloud/migrations/env.py": {"DefaultAzureCredential"},
     "src/learn_to_cloud/services/verification_grader.py": {

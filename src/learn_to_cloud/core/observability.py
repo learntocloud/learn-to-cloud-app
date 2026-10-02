@@ -3,7 +3,8 @@
 Azure Monitor owns FastAPI instrumentation in production; local OTLP configures
 it explicitly with SDK defaults. HTTPX and SQLAlchemy are application-owned.
 Clients the app builds are measured by ``core.outbound``; the global HTTPX
-instrumentor covers third-party httpx clients such as openai's.
+instrumentors cover third-party clients such as openai's (httpx) and authlib's
+GitHub OAuth (httpx2).
 """
 
 from __future__ import annotations
@@ -19,7 +20,10 @@ from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.httpx import (
+    HTTPX2ClientInstrumentor,
+    HTTPXClientInstrumentor,
+)
 from opentelemetry.instrumentation.logging.handler import LoggingHandler
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry.instrumentation.utils import unwrap
@@ -133,6 +137,7 @@ def configure_dependency_instrumentation() -> bool:
 
     try:
         HTTPXClientInstrumentor().instrument()
+        HTTPX2ClientInstrumentor().instrument()
     except Exception as exc:
         logger.warning(
             "telemetry.httpx.failed",
