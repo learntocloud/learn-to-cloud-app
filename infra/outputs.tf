@@ -110,11 +110,6 @@ output "api_postgres_role" {
   value       = local.api_postgres_role
 }
 
-output "verification_functions_postgres_role" {
-  description = "Inert legacy PostgreSQL role name required by historical migrations"
-  value       = local.verification_functions_postgres_role
-}
-
 output "foundry_account_name" {
   description = "Azure AI Services account backing the verification Foundry project"
   value       = azapi_resource.foundry_account.name

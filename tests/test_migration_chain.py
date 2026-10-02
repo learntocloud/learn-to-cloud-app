@@ -30,10 +30,6 @@ from sqlalchemy.pool import NullPool
 from learn_to_cloud import migrations
 
 MIGRATION_DB = "test_alembic_migrations"
-os.environ.setdefault(
-    "POSTGRES_VERIFICATION_FUNCTIONS_ROLE",
-    "ltc_verification_functions_dev",
-)
 
 # Re-export built-in tests so pytest discovers them.
 __all__ = [

@@ -30,7 +30,6 @@ jobs:
           --health-retries 5
     env:
       DATABASE__URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud
-      POSTGRES_VERIFICATION_FUNCTIONS_ROLE: ltc_verification_functions_dev
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
