@@ -31,7 +31,12 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.middleware.sessions import SessionMiddleware
 
-from learn_to_cloud.core.database import get_db
+from learn_to_cloud.core.database import (
+    create_engine,
+    create_session_maker,
+    get_db,
+)
+from learn_to_cloud.core.logger import _json_formatter
 from learn_to_cloud.core.middleware import TelemetrySanitizationMiddleware
 from learn_to_cloud.core.routing import LoginRedirectRoute
 from learn_to_cloud.core.session_cookies import (
@@ -39,6 +44,7 @@ from learn_to_cloud.core.session_cookies import (
     SESSION_COOKIE_NAME,
     SessionResponseMiddleware,
 )
+from learn_to_cloud.main import global_exception_handler
 from learn_to_cloud.models import User
 from learn_to_cloud.rendering.templates import templates
 from learn_to_cloud.routes import (
@@ -289,7 +295,6 @@ def telemetry_logs():
 
 
 def _exported_telemetry(span_exporter, log_exporter, caplog):
-    from learn_to_cloud.core.logger import _json_formatter
 
     return "\n".join(
         [span.to_json() for span in span_exporter.get_finished_spans()]
@@ -756,7 +761,6 @@ async def test_callback_profile_and_session_contract(
     warns,
     failure,
 ):
-    from learn_to_cloud.main import global_exception_handler
 
     app.add_exception_handler(Exception, global_exception_handler)
     _, exporter = telemetry_client
@@ -864,11 +868,6 @@ async def test_callback_profile_and_session_contract(
 async def test_callback_postgres_failure_rolls_back_without_issuing_session(
     app, github, test_settings, telemetry_logs, caplog, failure
 ):
-    from learn_to_cloud.core.database import (
-        create_engine,
-        create_session_maker,
-    )
-    from learn_to_cloud.main import global_exception_handler
 
     caplog.set_level(logging.INFO)
     caplog.set_level(logging.INFO, logger="sqlalchemy.engine.Engine")

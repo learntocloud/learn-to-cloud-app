@@ -7,9 +7,10 @@ Tests ASGI middleware:
 - TelemetrySanitizationMiddleware preserves paths without query credentials
 """
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
+from starlette.responses import PlainTextResponse
 
 from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
@@ -17,18 +18,12 @@ from learn_to_cloud.core.middleware import (
 )
 
 
-async def _noop_receive():
-    return {"type": "http.request", "body": b""}
+def _receive() -> AsyncMock:
+    return AsyncMock(return_value={"type": "http.request", "body": b""})
 
 
-async def _noop_send(msg: object) -> None:
-    pass
-
-
-async def _make_app_that_sends_response(scope, receive, send):
-    """Simulate an ASGI app that sends a response."""
-    await send({"type": "http.response.start", "status": 200, "headers": []})
-    await send({"type": "http.response.body", "body": b"OK"})
+def _response_start(send: AsyncMock) -> dict:
+    return send.await_args_list[0].args[0]
 
 
 @pytest.mark.unit
@@ -36,16 +31,13 @@ class TestSecurityHeadersMiddleware:
     """Test SecurityHeadersMiddleware adds expected headers."""
 
     async def test_adds_security_headers(self):
-        middleware = SecurityHeadersMiddleware(_make_app_that_sends_response)
+        middleware = SecurityHeadersMiddleware(PlainTextResponse("OK"))
         scope = {"type": "http", "path": "/api/test"}
-        sent_messages = []
+        send = AsyncMock()
 
-        async def mock_send(message):
-            sent_messages.append(message)
+        await middleware(scope, _receive(), send)
 
-        await middleware(scope, _noop_receive, mock_send)
-
-        response_start = sent_messages[0]
+        response_start = _response_start(send)
         header_names = {h[0] for h in response_start["headers"]}
 
         assert b"x-content-type-options" in header_names
@@ -57,16 +49,13 @@ class TestSecurityHeadersMiddleware:
         assert b"permissions-policy" in header_names
 
     async def test_csp_allows_frontend_telemetry_endpoints(self):
-        middleware = SecurityHeadersMiddleware(_make_app_that_sends_response)
+        middleware = SecurityHeadersMiddleware(PlainTextResponse("OK"))
         scope = {"type": "http", "path": "/"}
-        sent_messages = []
+        send = AsyncMock()
 
-        async def mock_send(message):
-            sent_messages.append(message)
+        await middleware(scope, _receive(), send)
 
-        await middleware(scope, _noop_receive, mock_send)
-
-        response_start = sent_messages[0]
+        response_start = _response_start(send)
         headers_dict = {h[0]: h[1] for h in response_start["headers"]}
         csp = headers_dict[b"content-security-policy"].decode()
         directives = {
@@ -82,66 +71,48 @@ class TestSecurityHeadersMiddleware:
         assert "https://" + "dc.services.visualstudio.com" in connect_sources
 
     async def test_skips_non_http_scopes(self):
-        calls = []
-
-        async def inner_app(scope, receive, send):
-            calls.append((scope, receive, send))
-
+        inner_app = AsyncMock()
         middleware = SecurityHeadersMiddleware(inner_app)
         scope = {"type": "websocket"}
+        receive, send = _receive(), AsyncMock()
 
-        await middleware(scope, _noop_receive, _noop_send)
-        assert calls == [(scope, _noop_receive, _noop_send)]
+        await middleware(scope, receive, send)
+
+        inner_app.assert_awaited_once_with(scope, receive, send)
 
     async def test_adds_cache_control_for_static_paths(self):
-        middleware = SecurityHeadersMiddleware(_make_app_that_sends_response)
+        middleware = SecurityHeadersMiddleware(PlainTextResponse("OK"))
         scope = {"type": "http", "path": "/static/css/styles.css"}
-        sent_messages = []
+        send = AsyncMock()
 
-        async def mock_send(message):
-            sent_messages.append(message)
+        await middleware(scope, _receive(), send)
 
-        await middleware(scope, _noop_receive, mock_send)
-
-        response_start = sent_messages[0]
+        response_start = _response_start(send)
         headers_dict = {h[0]: h[1] for h in response_start["headers"]}
         assert b"cache-control" in headers_dict
         assert b"immutable" in headers_dict[b"cache-control"]
 
     async def test_no_cache_control_for_non_static_paths(self):
-        middleware = SecurityHeadersMiddleware(_make_app_that_sends_response)
+        middleware = SecurityHeadersMiddleware(PlainTextResponse("OK"))
         scope = {"type": "http", "path": "/api/health"}
-        sent_messages = []
+        send = AsyncMock()
 
-        async def mock_send(message):
-            sent_messages.append(message)
+        await middleware(scope, _receive(), send)
 
-        await middleware(scope, _noop_receive, mock_send)
-
-        response_start = sent_messages[0]
+        response_start = _response_start(send)
         header_names = {h[0] for h in response_start["headers"]}
         assert b"cache-control" not in header_names
 
     async def test_preserves_existing_headers(self):
-        async def app_with_headers(scope, receive, send):
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 200,
-                    "headers": [(b"x-custom", b"value")],
-                }
-            )
-
-        middleware = SecurityHeadersMiddleware(app_with_headers)
+        middleware = SecurityHeadersMiddleware(
+            PlainTextResponse("", headers={"x-custom": "value"})
+        )
         scope = {"type": "http", "path": "/test"}
-        sent_messages = []
+        send = AsyncMock()
 
-        async def mock_send(message):
-            sent_messages.append(message)
+        await middleware(scope, _receive(), send)
 
-        await middleware(scope, _noop_receive, mock_send)
-
-        response_start = sent_messages[0]
+        response_start = _response_start(send)
         header_names = {h[0] for h in response_start["headers"]}
         assert b"x-custom" in header_names
         assert b"x-content-type-options" in header_names
@@ -156,7 +127,7 @@ class TestTelemetrySanitizationMiddleware:
         span.is_recording.return_value = True
         mock_trace.get_current_span.return_value = span
 
-        middleware = TelemetrySanitizationMiddleware(_make_app_that_sends_response)
+        middleware = TelemetrySanitizationMiddleware(PlainTextResponse("OK"))
         scope = {
             "type": "http",
             "scheme": "https",
@@ -166,7 +137,7 @@ class TestTelemetrySanitizationMiddleware:
             "query_string": b"token=sensitive",
         }
 
-        await middleware(scope, _noop_receive, _noop_send)
+        await middleware(scope, _receive(), AsyncMock())
 
         assert span.set_attribute.call_args_list == [
             call("http.target", path),
@@ -183,7 +154,7 @@ class TestTelemetrySanitizationMiddleware:
         span.is_recording.return_value = True
         mock_trace.get_current_span.return_value = span
 
-        middleware = TelemetrySanitizationMiddleware(_make_app_that_sends_response)
+        middleware = TelemetrySanitizationMiddleware(PlainTextResponse("OK"))
         scope = {
             "type": "http",
             "scheme": "https",
@@ -193,6 +164,6 @@ class TestTelemetrySanitizationMiddleware:
             "method": "GET",
         }
 
-        await middleware(scope, _noop_receive, _noop_send)
+        await middleware(scope, _receive(), AsyncMock())
 
         span.set_attribute.assert_any_call("url.full", "/arbitrary")

@@ -5,24 +5,22 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from learn_to_cloud.verification import repo_files as repo_files_module
+from learn_to_cloud.verification import github_api
 from learn_to_cloud.verification.evidence import (
     EvidenceError,
     apply_evidence_cap,
     collect_repo_file_evidence,
     collect_submitted_text_evidence,
 )
+from learn_to_cloud.verification.github_api import GitHubClient
 from learn_to_cloud.verification.github_errors import GitHubServerError
-from learn_to_cloud.verification.repo_files import (
-    GitHubRepoFiles,
-)
 from learn_to_cloud.verification.tasks.base import (
     EvidencePolicy,
     EvidenceSource,
     LLMRubricGraderConfig,
     VerificationTask,
 )
-from tests.support.fakes.repo_files import InMemoryRepoFiles
+from tests.support.fakes.github import FakeGitHub
 
 
 def _task(
@@ -103,7 +101,7 @@ def test_collect_submitted_text_evidence_is_passthrough():
 
 @pytest.mark.asyncio
 async def test_collect_repo_file_evidence_checks_selected_count_before_reading():
-    repo_files = InMemoryRepoFiles({"present.txt": "here", "second.txt": "also"})
+    repo_files = FakeGitHub(files={"present.txt": "here", "second.txt": "also"})
     with pytest.raises(EvidenceError, match="evidence.file_limit"):
         await collect_repo_file_evidence(
             repo_files,
@@ -134,7 +132,7 @@ async def test_failed_later_file_never_returns_partial_evidence(monkeypatch, fai
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
         monkeypatch.setattr(
-            repo_files_module, "get_github_client", AsyncMock(return_value=client)
+            github_api, "get_github_client", AsyncMock(return_value=client)
         )
         # Tree discovery uses the API helper's own client reference.
         monkeypatch.setattr(
@@ -150,7 +148,7 @@ async def test_failed_later_file_never_returns_partial_evidence(monkeypatch, fai
         )
         with pytest.raises(expected):
             await collect_repo_file_evidence(
-                GitHubRepoFiles(), "owner", "repo", ["a", "b", "c"], _task()
+                GitHubClient(), "owner", "repo", ["a", "b", "c"], _task()
             )
 
     assert requested_paths == ["a", "b"]
@@ -158,7 +156,7 @@ async def test_failed_later_file_never_returns_partial_evidence(monkeypatch, fai
 
 @pytest.mark.asyncio
 async def test_disappearing_file_never_returns_partial_evidence():
-    files = InMemoryRepoFiles({"a": "first", "c": "third"}, tree=["a", "b", "c"])
+    files = FakeGitHub(files={"a": "first", "c": "third"}, tree=["a", "b", "c"])
     task = _task()
     with pytest.raises(EvidenceError, match="evidence.changed"):
         await collect_repo_file_evidence(

@@ -11,19 +11,13 @@ from opentelemetry import trace
 from pydantic import Field, ValidationError
 
 from learn_to_cloud.schemas.verification import TaskResult, ValidationResult
+from learn_to_cloud.verification.github_api import (
+    GitHub,
+    WorkflowJobsResponseError,
+    WorkflowRun,
+)
 from learn_to_cloud.verification.github_errors import github_error_to_result
 from learn_to_cloud.verification.github_http import RETRIABLE_EXCEPTIONS
-from learn_to_cloud.verification.repo_ref import RepoRef, default_repo_ref
-from learn_to_cloud.verification.workflow_jobs import (
-    WorkflowJobs,
-    WorkflowJobsResponseError,
-    default_workflow_jobs,
-)
-from learn_to_cloud.verification.workflow_runs import (
-    WorkflowRun,
-    WorkflowRuns,
-    default_workflow_runs,
-)
 
 logger = logging.getLogger(__name__)
 DEVOPS_WORKFLOW_FILE = "ci.yml"
@@ -53,17 +47,12 @@ def _invalid_metadata() -> ValidationResult:
 async def verify_devops_pipeline(
     owner: str,
     repo: str,
-    runs: WorkflowRuns | None = None,
-    jobs: WorkflowJobs | None = None,
-    ref: RepoRef | None = None,
+    github: GitHub,
 ) -> ValidationResult:
     """Require a passing current-main run and all three successful delivery jobs."""
-    runs = runs or default_workflow_runs()
-    jobs = jobs or default_workflow_jobs()
-    ref = ref or default_repo_ref()
     stage = "workflow"
     try:
-        latest = await runs.latest_run(owner, repo, DEVOPS_WORKFLOW_FILE)
+        latest = await github.latest_run(owner, repo, DEVOPS_WORKFLOW_FILE)
         if latest is None:
             return ValidationResult(
                 is_valid=False,
@@ -91,7 +80,7 @@ async def verify_devops_pipeline(
             )
 
         stage = "jobs"
-        results = await jobs.for_attempt(owner, repo, run.id, run.run_attempt)
+        results = await github.jobs_for_attempt(owner, repo, run.id, run.run_attempt)
         if any(
             job.run_id != run.id
             or job.head_sha != run.head_sha
@@ -102,7 +91,7 @@ async def verify_devops_pipeline(
             return _invalid_metadata()
 
         stage = "branch"
-        head_sha = await ref.head_sha(owner, repo)
+        head_sha = await github.head_sha(owner, repo)
         if not isinstance(head_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", head_sha):
             return _invalid_metadata()
         if head_sha != run.head_sha:

@@ -11,6 +11,7 @@ Tests cover:
 
 from pathlib import Path
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
 
@@ -20,9 +21,16 @@ from learn_to_cloud.curriculum.yaml_loader import (
     _load_topic,
     _validate_topic_payload,
     clear_cache,
+    validate_content,
 )
 from learn_to_cloud.curriculum.yaml_loader import (
     get_all_phases_from_yaml as get_all_phases,
+)
+from learn_to_cloud.schemas.curriculum import (
+    LearningStep,
+    Phase,
+    PhaseHandsOnVerificationOverview,
+    Topic,
 )
 
 
@@ -335,12 +343,6 @@ class TestValidateContent:
         topic_slugs: list[str] | None = None,
         requirements: list | None = None,
     ):
-        from uuid import UUID
-
-        from learn_to_cloud.schemas.curriculum import (
-            Phase,
-            PhaseHandsOnVerificationOverview,
-        )
 
         return Phase(
             uuid=UUID(phase_uuid),
@@ -363,9 +365,6 @@ class TestValidateContent:
         topic_uuid: str = "00000000-0000-0000-0000-000000000010",
         learning_steps: list | None = None,
     ):
-        from uuid import UUID
-
-        from learn_to_cloud.schemas.curriculum import LearningStep, Topic
 
         return Topic(
             uuid=UUID(topic_uuid),
@@ -384,7 +383,6 @@ class TestValidateContent:
         )
 
     def test_returns_empty_list_when_no_violations(self):
-        from learn_to_cloud.curriculum.yaml_loader import validate_content
 
         phase = self._build_phase(topics=[self._build_topic()], topic_slugs=["topic1"])
         with patch(
@@ -395,10 +393,6 @@ class TestValidateContent:
             assert validate_content() == []
 
     def test_detects_duplicate_uuid_across_entities(self):
-        from uuid import UUID
-
-        from learn_to_cloud.curriculum.yaml_loader import validate_content
-        from learn_to_cloud.schemas.curriculum import LearningStep
 
         # Same UUID used for a topic and one of its steps.
         shared = "00000000-0000-0000-0000-deadbeef0001"
@@ -418,7 +412,6 @@ class TestValidateContent:
         assert any("Duplicate uuid" in e for e in errors)
 
     def test_detects_topic_slug_count_mismatch(self):
-        from learn_to_cloud.curriculum.yaml_loader import validate_content
 
         # phase declares two topics in YAML but only one loaded.
         phase = self._build_phase(
@@ -434,10 +427,6 @@ class TestValidateContent:
         assert any("expected 2 topics" in e for e in errors)
 
     def test_detects_duplicate_step_order_within_topic(self):
-        from uuid import UUID
-
-        from learn_to_cloud.curriculum.yaml_loader import validate_content
-        from learn_to_cloud.schemas.curriculum import LearningStep
 
         topic = self._build_topic(
             learning_steps=[

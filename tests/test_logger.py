@@ -10,6 +10,7 @@ Tests the stdlib-based logging configuration:
 import io
 import json
 import logging
+import sys
 
 import pytest
 from pythonjsonlogger.json import JsonFormatter
@@ -72,8 +73,6 @@ class TestJSONFormatter:
         try:
             raise ValueError("boom")
         except ValueError:
-            import sys
-
             exc_info = sys.exc_info()
 
         record = logging.LogRecord(

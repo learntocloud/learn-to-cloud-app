@@ -1,24 +1,23 @@
-"""Security scanning evidence collection (Phase 6).
+"""Phase 6 security scanning verification.
 
-Phase 6 verification is split into two steps (see ``engine.py``):
-
-  * a deterministic gate (``codeql_status``) that proves CodeQL ran green on
-    the current ``main`` HEAD, and
-  * an LLM rubric review that grades the committed workflow's *quality* and
-    confirms it targets Python.
-
-This module supplies the evidence for the review step: it fetches the fixed
-CodeQL workflow file plus any Dependabot config from the default branch. The
-old file-presence verdict logic is gone; the gate is the source of truth for
-"did scanning run and pass".
+A deterministic gate (``codeql_status``) proves CodeQL ran green on the current
+``main`` HEAD. Only then is the committed CodeQL workflow and any Dependabot
+config collected for an LLM rubric review of its quality.
 """
 
 from __future__ import annotations
 
-from learn_to_cloud.verification.evidence import (
-    collect_repo_file_evidence,
+import httpx
+
+from learn_to_cloud.verification.codeql_status import verify_codeql_status
+from learn_to_cloud.verification.core import CheckResult, GradingEvidence
+from learn_to_cloud.verification.evidence import collect_repo_file_evidence
+from learn_to_cloud.verification.github_api import GitHub
+from learn_to_cloud.verification.github_errors import (
+    GitHubServerError,
+    github_error_to_result,
 )
-from learn_to_cloud.verification.repo_files import RepoFiles, default_repo_files
+from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
 from learn_to_cloud.verification.tasks.base import (
     EvidenceBundle,
     VerificationTask,
@@ -35,8 +34,8 @@ SECURITY_SCANNING_EVIDENCE_PATHS = [CODEQL_WORKFLOW_PATH, *DEPENDABOT_CONFIG_PAT
 async def collect_security_scanning_evidence(
     owner: str,
     repo: str,
+    github: GitHub,
     task: VerificationTask = SECURITY_SCANNING_RUBRIC_TASK,
-    repo_files: RepoFiles | None = None,
 ) -> EvidenceBundle:
     """Collect bounded Phase 6 repository evidence for rubric grading.
 
@@ -44,7 +43,31 @@ async def collect_security_scanning_evidence(
     canonical optional Dependabot config from the default branch. Every selected
     file must fit in full; absent Dependabot is not a failed requirement.
     """
-    repo_files = repo_files or default_repo_files()
     return await collect_repo_file_evidence(
-        repo_files, owner, repo, SECURITY_SCANNING_EVIDENCE_PATHS, task
+        github, owner, repo, SECURITY_SCANNING_EVIDENCE_PATHS, task
+    )
+
+
+async def verify_security_scanning(
+    target: GitHubRepositoryTarget,
+    github: GitHub,
+    task: VerificationTask = SECURITY_SCANNING_RUBRIC_TASK,
+) -> CheckResult:
+    """Require CodeQL green on main, then bundle the scanning config for grading."""
+    codeql = await verify_codeql_status(target.owner, target.repo, github)
+    if not codeql.is_valid:
+        return CheckResult(validation_result=codeql)
+    try:
+        bundle = await collect_security_scanning_evidence(
+            target.owner, target.repo, github, task
+        )
+    except (GitHubServerError, httpx.HTTPStatusError, httpx.RequestError) as exc:
+        return CheckResult(
+            validation_result=github_error_to_result(
+                exc, event="security_scanning.repo_file_error"
+            )
+        )
+    return CheckResult(
+        validation_result=codeql,
+        grading=GradingEvidence(task=task, bundle=bundle),
     )

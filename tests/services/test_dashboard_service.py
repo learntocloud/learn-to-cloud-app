@@ -7,12 +7,9 @@ Tests cover:
 - Query-count regression against a real DB (curriculum read-shapes refactor)
 """
 
-from collections.abc import Iterator
-from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,6 +33,7 @@ from learn_to_cloud.services.dashboard_service import (
     get_dashboard_data,
 )
 from learn_to_cloud.services.requirements import load_requirement_index
+from tests.support.sql import captured_statements
 
 # ---------------------------------------------------------------------------
 # Test helpers
@@ -363,22 +361,6 @@ class TestGetDashboardDataAuthenticated:
 # ---------------------------------------------------------------------------
 
 
-@contextmanager
-def _count_queries() -> Iterator[list[str]]:
-    statements: list[str] = []
-
-    def _before_cursor_execute(
-        conn, cursor, statement, parameters, context, executemany
-    ):
-        statements.append(statement)
-
-    event.listen(Engine, "before_cursor_execute", _before_cursor_execute)
-    try:
-        yield statements
-    finally:
-        event.remove(Engine, "before_cursor_execute", _before_cursor_execute)
-
-
 @pytest.mark.integration
 class TestGetDashboardDataQueryCount:
     @pytest.mark.asyncio
@@ -421,7 +403,7 @@ class TestGetDashboardDataQueryCount:
         )
         await db_session.flush()
 
-        with _count_queries() as statements:
+        with captured_statements(Engine) as statements:
             result = await get_dashboard_data(db_session, user_id=user.id)
 
         assert result.total_phases > 0

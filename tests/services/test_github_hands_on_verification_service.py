@@ -3,25 +3,14 @@
 Tests cover:
 - _parse_retry_after header parsing
 - get_github_headers with and without token
-- validate_profile_readme existence check against a constructed target
-- validate_repo_fork lineage check against a constructed target
-
-The validation tests inject an :class:`InMemoryGitHubMetadata` adapter
-instead of patching internals, so they exercise the real validator logic
-through the ``GitHubMetadata`` seam.
+- validate_profile_readme and validate_repo_fork results built from the
+  repository metadata the ownership preflight already fetched
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
-import httpx
 import pytest
 
-from learn_to_cloud.verification import (
-    github_errors,
-    github_http,
-    github_metadata,
-)
-from learn_to_cloud.verification.github_errors import GitHubServerError
 from learn_to_cloud.verification.github_http import (
     _parse_retry_after,
     get_github_headers,
@@ -30,9 +19,8 @@ from learn_to_cloud.verification.github_profile import (
     validate_profile_readme,
     validate_repo_fork,
 )
+from learn_to_cloud.verification.repository_ownership import OwnedRepository
 from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
-from tests.support.fakes.github_metadata import InMemoryGitHubMetadata
-from tests.support.retrying import retry_with
 
 # ---------------------------------------------------------------------------
 # _parse_retry_after
@@ -89,204 +77,52 @@ class TestGetGitHubHeaders:
 
 
 # ---------------------------------------------------------------------------
-# validate_profile_readme
+# validate_profile_readme / validate_repo_fork
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
-class TestValidateProfileReadme:
-    @pytest.mark.asyncio
-    async def test_readme_exists_succeeds(self):
-        target = GitHubRepositoryTarget(owner="testuser", repo="testuser")
-        metadata = InMemoryGitHubMetadata(existing_urls={target.url})
-        result = await validate_profile_readme(target, metadata)
-        assert result.is_valid is True
-
-    @pytest.mark.asyncio
-    async def test_readme_not_found_fails(self):
-        target = GitHubRepositoryTarget(owner="testuser", repo="testuser")
-        metadata = InMemoryGitHubMetadata(existing_urls=set())
-        result = await validate_profile_readme(target, metadata)
-        assert result.is_valid is False
+def test_profile_readme_passes_once_ownership_confirms_the_repository():
+    result = validate_profile_readme()
+    assert result.is_valid
+    assert result.username_match
+    assert result.repo_exists
 
 
-# ---------------------------------------------------------------------------
-# validate_repo_fork
-# ---------------------------------------------------------------------------
-
-
-def _fork_target() -> GitHubRepositoryTarget:
-    return GitHubRepositoryTarget(
-        owner="testuser", repo="repo", forked_from="learntocloud/repo"
+def _owned(parent: str | None, forked_from: str | None = "learntocloud/repo"):
+    return OwnedRepository(
+        target=GitHubRepositoryTarget(
+            owner="testuser", repo="repo", forked_from=forked_from
+        ),
+        parent=parent,
     )
 
 
-@pytest.mark.unit
-class TestValidateRepoFork:
-    @pytest.mark.asyncio
-    async def test_missing_forked_from_fails(self):
-        result = await validate_repo_fork(
-            GitHubRepositoryTarget(owner="testuser", repo="repo")
-        )
-        assert result.is_valid is False
-        assert "required_repo" in result.message
-
-    @pytest.mark.asyncio
-    async def test_valid_fork_succeeds(self):
-        metadata = InMemoryGitHubMetadata(
-            repos={
-                "testuser/repo": {
-                    "fork": True,
-                    "parent": {"full_name": "learntocloud/repo"},
-                }
-            }
-        )
-        result = await validate_repo_fork(_fork_target(), metadata)
-        assert result.is_valid is True
-
-    @pytest.mark.asyncio
-    async def test_not_a_fork_fails(self):
-        metadata = InMemoryGitHubMetadata(repos={"testuser/repo": {"fork": False}})
-        result = await validate_repo_fork(_fork_target(), metadata)
-        assert result.is_valid is False
-
-    @pytest.mark.asyncio
-    async def test_wrong_parent_fails(self):
-        metadata = InMemoryGitHubMetadata(
-            repos={
-                "testuser/repo": {
-                    "fork": True,
-                    "parent": {"full_name": "someone-else/repo"},
-                }
-            }
-        )
-        result = await validate_repo_fork(_fork_target(), metadata)
-        assert result.is_valid is False
-        assert "not learntocloud/repo" in result.message
-
-    @pytest.mark.asyncio
-    async def test_repo_not_found_fails(self):
-        metadata = InMemoryGitHubMetadata(repos={})
-        result = await validate_repo_fork(_fork_target(), metadata)
-        assert result.is_valid is False
-        assert "not found" in result.message
-
-    @pytest.mark.asyncio
-    async def test_auth_error_does_not_penalise(self):
-        response = httpx.Response(401, request=httpx.Request("GET", "https://test"))
-        metadata = InMemoryGitHubMetadata(
-            repo_error=httpx.HTTPStatusError(
-                "Unauthorized", request=response.request, response=response
-            )
-        )
-        result = await validate_repo_fork(_fork_target(), metadata)
-        assert result.is_valid is False
-        assert result.verification_completed is False
-
-
-async def test_server_error_propagated():
-    metadata = InMemoryGitHubMetadata(
-        repo_error=GitHubServerError("GitHub unavailable", status_code=503)
+@pytest.mark.parametrize("parent", ["learntocloud/repo", "LearnToCloud/Repo"])
+def test_fork_of_required_upstream_passes(parent):
+    result = validate_repo_fork(_owned(parent))
+    assert result.is_valid
+    assert result.message == (
+        "Repository fork validated successfully! Verified fork of learntocloud/repo"
     )
-    result = await validate_repo_fork(_fork_target(), metadata)
-    assert result.is_valid is False
-    assert result.verification_completed is False
+    assert result.repo_exists
 
 
-@pytest.mark.parametrize("kind", ["readme", "fork"])
 @pytest.mark.parametrize(
-    ("status", "headers", "category"),
+    ("parent", "message"),
     [
-        (401, {}, "authentication"),
-        (403, {}, "authorization"),
-        (403, {"Retry-After": "30"}, "rate_limit"),
-        (404, {}, None),
-        (429, {"Retry-After": "30"}, "rate_limit"),
-        (503, {}, "provider_unavailable"),
+        (None, "Repository is not a fork"),
+        ("someone-else/repo", "Forked from someone-else/repo, not learntocloud/repo"),
     ],
 )
-async def test_real_profile_requests_keep_missing_and_unavailable_distinct(
-    kind, status, headers, category
-):
-    calls = []
-    counter = MagicMock()
-    span = MagicMock()
-
-    def handler(request):
-        calls.append(request)
-        return httpx.Response(status, headers=headers, text="private upstream detail")
-
-    get = retry_with(github_http.github_api_get, sleep=AsyncMock())
-    head = retry_with(github_http.github_head_status, sleep=AsyncMock())
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        with (
-            patch.object(
-                github_http, "_get_github_client", AsyncMock(return_value=client)
-            ),
-            patch.object(github_http, "get_github_headers", return_value={}),
-            patch.object(github_metadata, "github_api_get", get),
-            patch.object(github_metadata, "github_head_status", head),
-            patch.object(github_errors, "_GITHUB_API_ERROR_COUNTER", counter),
-            patch.object(github_errors.trace, "get_current_span", return_value=span),
-        ):
-            result = (
-                await validate_profile_readme(
-                    GitHubRepositoryTarget(owner="testuser", repo="testuser")
-                )
-                if kind == "readme"
-                else await validate_repo_fork(_fork_target())
-            )
-    assert len(calls) == (3 if status in {429, 503} else 1)
-    assert calls[0].method == ("HEAD" if kind == "readme" else "GET")
+def test_fork_with_wrong_lineage_fails_as_completed(parent, message):
+    result = validate_repo_fork(_owned(parent))
     assert not result.is_valid
+    assert result.verification_completed
+    assert result.message == message
     assert result.username_match
-    assert "private" not in result.message
-    if status == 404:
-        assert result.verification_completed
-        assert result.repo_exists is False
-        assert "not found" in result.message
-        counter.add.assert_not_called()
-    else:
-        assert not result.verification_completed
-        assert result.repo_exists is None
-        assert result.message == f"GitHub API error ({status}). Try again later."
-        counter.add.assert_called_once_with(1, {"error.type": category})
-        event = (
-            "github.url_check.failed"
-            if kind == "readme"
-            else "github.fork_check.failed"
-            if status in {429, 503}
-            else "fork_check.api_error"
-        )
-        span.add_event.assert_called_once_with(
-            event, {"error.type": category, "http.response.status_code": status}
-        )
+    assert result.repo_exists
 
 
-@pytest.mark.parametrize("kind", ["readme", "fork"])
-@pytest.mark.parametrize(
-    "error_type", [httpx.ConnectError, httpx.ReadTimeout, ValueError]
-)
-async def test_incomplete_profile_does_not_claim_repository_absence(kind, error_type):
-    error = error_type("sensitive detail")
-    metadata = InMemoryGitHubMetadata(url_error=error, repo_error=error)
-    with patch.object(github_errors, "_GITHUB_API_ERROR_COUNTER") as counter:
-        result = (
-            await validate_profile_readme(
-                GitHubRepositoryTarget(owner="testuser", repo="testuser"), metadata
-            )
-            if kind == "readme"
-            else await validate_repo_fork(_fork_target(), metadata)
-        )
-    assert not result.verification_completed
-    assert result.repo_exists is None
-    assert result.username_match
-    assert "find your profile" not in result.message
-    assert "sensitive" not in result.message
-    if error_type is ValueError:
-        counter.add.assert_not_called()
-        assert result.message == "GitHub verification could not be completed."
-    else:
-        expected = "connection" if error_type is httpx.ConnectError else "timeout.read"
-        counter.add.assert_called_once_with(1, {"error.type": expected})
-        assert "Unexpected error" not in result.message
+def test_fork_without_required_upstream_is_a_programming_error():
+    with pytest.raises(ValueError, match="requires an upstream"):
+        validate_repo_fork(_owned("learntocloud/repo", forked_from=None))

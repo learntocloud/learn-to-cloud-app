@@ -14,7 +14,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import learn_to_cloud.core.azure_auth as auth_mod
+from learn_to_cloud.core.azure_auth import close_credential, get_credential, get_token
 from learn_to_cloud.core.config import DatabaseConfig
+from learn_to_cloud.core.database import check_db_connection, get_db
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -24,7 +27,6 @@ from learn_to_cloud.core.config import DatabaseConfig
 @pytest.fixture(autouse=True)
 async def _reset_credential():
     """Reset the module-level credential cache before/after each test."""
-    from learn_to_cloud.core.azure_auth import close_credential
 
     await close_credential()
     yield
@@ -47,7 +49,6 @@ class TestAzureCredentialLocking:
         self, mock_cred_cls: MagicMock
     ):
         """Concurrent calls should create only one ManagedIdentityCredential."""
-        from learn_to_cloud.core.azure_auth import get_credential
 
         sentinel = MagicMock(name="credential_instance")
         sentinel.close = AsyncMock()
@@ -86,8 +87,6 @@ class TestAzureGetToken:
             autospec=True,
             return_value=fake_credential,
         ):
-            from learn_to_cloud.core.azure_auth import get_token
-
             token = await get_token()
 
         assert token == "test-token-123"
@@ -104,7 +103,6 @@ class TestCloseCredential:
 
     async def test_close_credential_closes_transport(self):
         """close_credential should await credential.close() and clear cache."""
-        import learn_to_cloud.core.azure_auth as auth_mod
 
         fake_credential = AsyncMock()
         fake_credential.close = AsyncMock()
@@ -124,7 +122,6 @@ class TestCloseCredential:
 
     async def test_close_credential_noop_when_none(self):
         """close_credential should be safe to call when no credential exists."""
-        import learn_to_cloud.core.azure_auth as auth_mod
 
         assert auth_mod._azure_credential is None
         await auth_mod.close_credential()  # should not raise
@@ -143,7 +140,6 @@ class TestCheckDbConnection:
 
     async def test_timeout_on_hanging_connection(self):
         """check_db_connection should raise TimeoutError if DB hangs."""
-        from learn_to_cloud.core.database import check_db_connection
 
         # Make engine.connect().__aenter__ hang
         async def hang_forever(*_args, **_kwargs):
@@ -176,7 +172,6 @@ class TestCheckDbConnection:
 
     async def test_success_path(self):
         """check_db_connection should succeed when DB responds."""
-        from learn_to_cloud.core.database import check_db_connection
 
         mock_conn = AsyncMock()
         mock_cm = AsyncMock()
@@ -221,7 +216,6 @@ class TestGetDbDependency:
 
     async def test_commit_on_success(self):
         """get_db should commit when no exception occurs."""
-        from learn_to_cloud.core.database import get_db
 
         mock_request, mock_session = self._make_mock_request()
 
@@ -238,7 +232,6 @@ class TestGetDbDependency:
 
     async def test_rollback_on_exception(self):
         """get_db should rollback when an exception is thrown into the generator."""
-        from learn_to_cloud.core.database import get_db
 
         mock_request, mock_session = self._make_mock_request()
 
@@ -254,7 +247,6 @@ class TestGetDbDependency:
 
     async def test_rollback_failure_does_not_mask_original_error(self):
         """If rollback fails, the original exception should still propagate."""
-        from learn_to_cloud.core.database import get_db
 
         mock_request, mock_session = self._make_mock_request()
         mock_session.rollback = AsyncMock(side_effect=RuntimeError("rollback failed"))

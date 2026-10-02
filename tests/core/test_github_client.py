@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
+import learn_to_cloud.core.github_client as mod
 from learn_to_cloud.core.github_client import (
     close_github_client,
     get_github_client,
@@ -22,7 +23,6 @@ from learn_to_cloud.core.github_client import (
 @pytest.fixture(autouse=True)
 async def _reset_github_client():
     """Reset the module-level singleton between tests."""
-    import learn_to_cloud.core.github_client as mod
 
     yield
     await mod._pool.close()

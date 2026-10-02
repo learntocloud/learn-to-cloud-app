@@ -29,6 +29,12 @@ from learn_to_cloud.schemas.verification import SubmissionData
 from learn_to_cloud.services.verification_page_service import (
     VerificationAttemptHistoryItem,
 )
+from tests.support.requirement_factories import (
+    career_reflection_requirement,
+    ctf_token_requirement,
+    deployed_api_requirement,
+    journal_api_verifier_requirement,
+)
 
 _ENV = templates.env
 
@@ -233,9 +239,6 @@ class TestHomePage:
 
 
 def _requirement(slug: str, name: str, description: str = ""):
-    from tests.support.requirement_factories import (
-        ctf_token_requirement,
-    )
 
     return ctf_token_requirement(
         slug=slug,
@@ -592,9 +595,6 @@ class TestPhaseVerificationCardStates:
         assert "Return to dashboard" in html
 
     def test_token_form_uses_configured_length_limits(self):
-        from tests.support.requirement_factories import (
-            ctf_token_requirement,
-        )
 
         req = ctf_token_requirement(
             slug="linux-token",
@@ -612,9 +612,6 @@ class TestPhaseVerificationCardStates:
         assert 'spellcheck="false"' in html
 
     def test_deployed_url_form_uses_url_constraints(self):
-        from tests.support.requirement_factories import (
-            deployed_api_requirement,
-        )
 
         req = deployed_api_requirement(
             slug="deployed-api",
@@ -629,9 +626,6 @@ class TestPhaseVerificationCardStates:
         assert 'autocomplete="url"' in html
 
     def test_reflection_form_constrains_every_answer(self):
-        from tests.support.requirement_factories import (
-            career_reflection_requirement,
-        )
 
         req = career_reflection_requirement(
             slug="career-reflection",
@@ -719,9 +713,6 @@ class TestPhaseVerificationCardStates:
 
     def test_readonly_derived_url_is_explained(self):
         """The auto-derived, read-only field says why it can't be edited (#701)."""
-        from tests.support.requirement_factories import (
-            journal_api_verifier_requirement,
-        )
 
         req = journal_api_verifier_requirement(
             slug="journal-api",

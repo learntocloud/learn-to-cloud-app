@@ -16,10 +16,12 @@ import logging
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.datastructures import FormData, UploadFile
 
@@ -39,7 +41,9 @@ from learn_to_cloud.routes.htmx_routes import (
     htmx_submit_verification,
     htmx_uncomplete_step,
     htmx_verification_attempt_status,
+    router,
 )
+from learn_to_cloud.services.sessions_service import require_authenticated_user
 from learn_to_cloud.services.steps_service import StepValidationError
 from learn_to_cloud.services.submissions_service import (
     VerificationAttemptSubmission,
@@ -49,6 +53,12 @@ from learn_to_cloud.verification.submission_values import (
     GitHubUrlValue,
     TextValue,
     TokenValue,
+)
+from tests.support.requirement_factories import (
+    career_reflection_requirement,
+    ctf_token_requirement,
+    profile_readme_requirement,
+    repo_fork_requirement,
 )
 
 
@@ -205,9 +215,6 @@ class TestHtmxSubmitVerification:
     """
 
     async def test_derived_route_uses_server_built_url(self):
-        from tests.support.requirement_factories import (
-            profile_readme_requirement,
-        )
 
         requirement = profile_readme_requirement(slug="profile-readme")
         request = _mock_request()
@@ -239,9 +246,6 @@ class TestHtmxSubmitVerification:
         )
 
     async def test_derived_route_rejects_spoofed_value(self):
-        from tests.support.requirement_factories import (
-            profile_readme_requirement,
-        )
 
         requirement = profile_readme_requirement(slug="profile-readme")
         request = _mock_request(
@@ -269,9 +273,6 @@ class TestHtmxSubmitVerification:
         mock_submit.assert_not_awaited()
 
     async def test_value_route_passes_only_submitted_value(self):
-        from tests.support.requirement_factories import (
-            ctf_token_requirement,
-        )
 
         requirement = ctf_token_requirement(
             slug="linux-token",
@@ -317,9 +318,6 @@ class TestHtmxSubmitVerification:
         ],
     )
     async def test_value_route_rejects_invalid_form_shapes(self, form_items):
-        from tests.support.requirement_factories import (
-            ctf_token_requirement,
-        )
 
         requirement = ctf_token_requirement(
             slug="linux-token",
@@ -348,9 +346,6 @@ class TestHtmxSubmitVerification:
         mock_submit.assert_not_awaited()
 
     async def test_reflection_route_combines_repeated_answers(self):
-        from tests.support.requirement_factories import (
-            career_reflection_requirement,
-        )
 
         requirement = career_reflection_requirement(
             slug="career-reflection",
@@ -497,9 +492,6 @@ class TestHtmxSubmitVerification:
 
     async def test_submit_unexpected_error_renders_server_error(self, _patch_templates):
         """Unexpected exceptions render a server error card."""
-        from tests.support.requirement_factories import (
-            profile_readme_requirement,
-        )
 
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
@@ -549,9 +541,6 @@ class TestHtmxSubmitVerification:
         _patch_templates.TemplateResponse.assert_not_called()
 
     async def test_repo_fork_is_rejected_by_value_route(self):
-        from tests.support.requirement_factories import (
-            repo_fork_requirement,
-        )
 
         requirement = repo_fork_requirement(
             slug="repo-fork",
@@ -580,9 +569,6 @@ class TestHtmxSubmitVerification:
         mock_create.assert_not_awaited()
 
     async def test_repo_fork_is_rejected_by_reflection_route(self):
-        from tests.support.requirement_factories import (
-            repo_fork_requirement,
-        )
 
         requirement = repo_fork_requirement(
             slug="repo-fork",
@@ -767,13 +753,6 @@ class TestHtmxVerificationAttemptStatus:
         ],
     )
     async def test_http_requires_uuid_attempt_id(self, query, status_code):
-        from uuid import UUID
-
-        from fastapi import FastAPI
-        from httpx import ASGITransport, AsyncClient
-
-        from learn_to_cloud.routes.htmx_routes import router
-        from learn_to_cloud.services.sessions_service import require_authenticated_user
 
         app = FastAPI()
         app.include_router(router)
@@ -853,9 +832,6 @@ class TestCombineReflectionAnswers:
 
     @staticmethod
     def _requirement(min_answer_length: int = 10, question_count: int = 3):
-        from tests.support.requirement_factories import (
-            career_reflection_requirement,
-        )
 
         return career_reflection_requirement(
             min_answer_length=min_answer_length,

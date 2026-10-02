@@ -2,12 +2,9 @@
 
 from importlib import import_module
 from importlib.resources import files
-from inspect import iscoroutinefunction, signature
 from pathlib import Path
 
 from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
-from learn_to_cloud.models import SubmissionType
-from learn_to_cloud.verification.workflows import workflow_for
 
 
 def main() -> None:
@@ -26,16 +23,6 @@ def main() -> None:
             raise RuntimeError(f"Runtime package contains test support: {directory}.")
 
     import_module("learn_to_cloud.verification.engine")
-    for submission_type in SubmissionType:
-        workflow = workflow_for(submission_type)
-        if workflow is None:
-            raise RuntimeError(
-                f"Runtime package has no workflow for {submission_type}."
-            )
-        for step in workflow.steps:
-            if not iscoroutinefunction(step.check):
-                raise RuntimeError(f"Workflow step {step.name} has no async check.")
-            signature(step.check).bind(object())
 
 
 if __name__ == "__main__":
