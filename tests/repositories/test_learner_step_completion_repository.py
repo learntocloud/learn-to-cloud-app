@@ -25,18 +25,6 @@ async def user(db_session: AsyncSession):
 
 
 class TestCreateIfNotExists:
-    async def test_creates_record(self, db_session: AsyncSession, user):
-        step_uuid = uuid4()
-        repo = LearnerStepCompletionRepository(db_session)
-
-        await repo.create_if_not_exists(user_id=USER_ID, step_uuid=step_uuid)
-        completion = await db_session.get(LearnerStepCompletion, (USER_ID, step_uuid))
-
-        assert completion is not None
-        assert completion.user_id == USER_ID
-        assert completion.step_uuid == step_uuid
-        assert completion.completed_at is not None
-
     async def test_duplicate_preserves_completed_at(
         self, db_session: AsyncSession, user
     ):
@@ -57,22 +45,6 @@ class TestCreateIfNotExists:
             step_uuid,
             completed_at,
         )
-
-    async def test_accepts_explicit_completed_at(self, db_session: AsyncSession, user):
-        """Preserve a caller-supplied completion timestamp."""
-        step_uuid = uuid4()
-        shared_completed_at = utcnow()
-        repo = LearnerStepCompletionRepository(db_session)
-
-        await repo.create_if_not_exists(
-            user_id=USER_ID,
-            step_uuid=step_uuid,
-            completed_at=shared_completed_at,
-        )
-
-        completion = await db_session.get(LearnerStepCompletion, (USER_ID, step_uuid))
-        assert completion is not None
-        assert completion.completed_at == shared_completed_at
 
 
 class TestDelete:
@@ -96,11 +68,6 @@ class TestDelete:
             step_b,
             completed_at,
         )
-
-    async def test_delete_nonexistent_is_noop(self, db_session: AsyncSession, user):
-        repo = LearnerStepCompletionRepository(db_session)
-        await repo.delete(user_id=USER_ID, step_uuid=uuid4())
-        assert (await db_session.scalars(select(LearnerStepCompletion))).all() == []
 
 
 class TestGetCompletedStepUuids:

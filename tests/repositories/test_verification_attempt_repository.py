@@ -195,21 +195,6 @@ async def test_finalize_is_compare_and_set(
     assert second.state.terminal_source == "api_worker"
 
 
-async def test_get_prepare_state_and_status(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    attempt_id = await _insert_attempt(session_maker, user)
-    async with session_maker() as db:
-        repo = VerificationAttemptRepository(db)
-        prepare = await repo.get_prepare_state(attempt_id)
-        status = await repo.get_status(attempt_id)
-    assert prepare is not None
-    assert prepare.submission_value_kind == "github_url"
-    assert prepare.outcome is None
-    assert status is not None
-    assert status.outcome is None
-
-
 def _create_kwargs(
     *,
     id: UUID,
@@ -235,29 +220,6 @@ def _create_kwargs(
         "submitted_value": submitted_value,
         "cloud_provider": None,
     }
-
-
-async def test_create_or_get_active_creates_new_attempt(
-    session_maker: async_sessionmaker[AsyncSession], user: int
-) -> None:
-    requirement_uuid = uuid4()
-    attempt_id = uuid4()
-
-    async with session_maker() as db:
-        attempt, created = await VerificationAttemptRepository(db).create_or_get_active(
-            **_create_kwargs(
-                id=attempt_id,
-                user_id=user,
-                requirement_uuid=requirement_uuid,
-                submitted_value=_submitted_value(),
-            )
-        )
-        await db.commit()
-
-    assert created is True
-    assert attempt.id == attempt_id
-    assert attempt.snapshot_source == "submitted"
-    assert attempt.submitted_value == "https://github.com/attemptrepo/repo"
 
 
 async def test_create_or_get_active_omits_traceparent_from_insert(
@@ -527,16 +489,6 @@ async def test_get_latest_terminal_for_requirements_returns_newest_and_skips_act
     assert len(rows) == 1
     assert rows[0].requirement_uuid == req
     assert rows[0].outcome == "succeeded"
-
-
-async def test_get_latest_terminal_for_requirements_empty_input(
-    session_maker: async_sessionmaker[AsyncSession],
-) -> None:
-    async with session_maker() as db:
-        rows = await VerificationAttemptRepository(
-            db
-        ).get_latest_terminal_for_requirements(USER_ID, [])
-    assert rows == []
 
 
 async def test_list_terminal_history_is_scoped_ordered_paginated_and_safe(

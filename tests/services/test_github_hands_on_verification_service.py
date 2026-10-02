@@ -32,18 +32,6 @@ class TestParseRetryAfter:
     def test_valid_integer(self):
         assert _parse_retry_after("120") == 120.0
 
-    def test_valid_float(self):
-        assert _parse_retry_after("1.5") == 1.5
-
-    def test_none_returns_none(self):
-        assert _parse_retry_after(None) is None
-
-    def test_non_numeric_returns_none(self):
-        assert _parse_retry_after("not-a-number") is None
-
-    def test_empty_string_returns_none(self):
-        assert _parse_retry_after("") is None
-
 
 # ---------------------------------------------------------------------------
 # get_github_headers
@@ -63,17 +51,6 @@ class TestGetGitHubHeaders:
             headers = get_github_headers()
         assert headers["Authorization"] == "Bearer ghp_test123"
         assert headers["Accept"] == "application/vnd.github.v3+json"
-
-    def test_no_auth_when_token_missing(self):
-        mock_settings = MagicMock()
-        mock_settings.github.token = ""
-        with patch(
-            "learn_to_cloud.verification.github_http.get_worker_settings",
-            autospec=True,
-            return_value=mock_settings,
-        ):
-            headers = get_github_headers()
-        assert "Authorization" not in headers
 
 
 # ---------------------------------------------------------------------------

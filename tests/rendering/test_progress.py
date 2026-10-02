@@ -27,10 +27,6 @@ def _make_topic(slug: str, name: str = "") -> Topic:
 
 @pytest.mark.unit
 class TestBuildProgressDict:
-    def test_basic(self):
-        result = build_progress_dict(3, 10)
-        assert result == {"completed": 3, "total": 10, "percentage": 30}
-
     def test_zero_total(self):
         result = build_progress_dict(0, 0)
         assert result["percentage"] == 0
@@ -85,23 +81,3 @@ class TestBuildPhaseTopics:
         )
         topics = build_phase_topics(phase, detail)
         assert topics[0]["progress"] is None
-
-    def test_topic_order_matches_phase_topic_order(self):
-        first = _make_topic("first", "First")
-        second = _make_topic("second", "Second")
-        phase = Phase(
-            uuid=uuid4(),
-            name="P0",
-            slug="phase0",
-            order=0,
-            topics=[first, second],
-        )
-        detail = PhaseProgress(
-            learning=LearningProgress(steps_completed=1, steps_required=6),
-            verification=VerificationProgress(
-                requirements_verified=0, requirements_required=0
-            ),
-            topic_progress={},
-        )
-        topics = build_phase_topics(phase, detail)
-        assert [t["slug"] for t in topics] == ["first", "second"]

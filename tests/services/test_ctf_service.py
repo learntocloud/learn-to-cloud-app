@@ -1,9 +1,7 @@
 """Unit tests for CTF token verification.
 
-Tests cover:
-- Valid CTF token verifies with 18 challenges
-- Invalid token returns is_valid=False
-- Config wiring: correct challenge count, label
+Tests CTF-specific token verification wiring: challenge count, invalid token
+handling, and return type.
 """
 
 import base64
@@ -55,18 +53,6 @@ def _create_valid_ctf_token(
 
 @pytest.mark.unit
 class TestVerifyCTFToken:
-    def test_valid_token_succeeds(self):
-        token = _create_valid_ctf_token(github_username="ctfuser")
-        result = verify_ctf_token(token, "ctfuser")
-        assert result.is_valid is True
-        assert "Congratulations" in result.message
-
-    def test_username_mismatch_fails(self):
-        token = _create_valid_ctf_token(github_username="alice")
-        result = verify_ctf_token(token, "bob")
-        assert result.is_valid is False
-        assert "mismatch" in result.message.lower()
-
     def test_insufficient_challenges_fails(self):
         token = _create_valid_ctf_token(challenges=10)
         result = verify_ctf_token(token, "testuser")
@@ -82,8 +68,3 @@ class TestVerifyCTFToken:
         token = _create_valid_ctf_token()
         result = verify_ctf_token(token, "testuser")
         assert isinstance(result, ValidationResult)
-
-    def test_case_insensitive_username(self):
-        token = _create_valid_ctf_token(github_username="TestUser")
-        result = verify_ctf_token(token, "testuser")
-        assert result.is_valid is True

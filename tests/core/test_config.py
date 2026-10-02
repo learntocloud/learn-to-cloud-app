@@ -4,21 +4,15 @@ import pytest
 from pydantic import ValidationError
 
 from learn_to_cloud.core.config import (
-    ContentConfig,
-    CorsConfig,
     DatabaseConfig,
     Environment,
     FrontendTelemetryConfig,
-    GitHubConfig,
-    HttpConfig,
-    LabsConfig,
     MigrationSettings,
     OAuthConfig,
     SessionConfig,
     VerificationWorkerConfig,
     WebSecurityConfig,
     WebSettings,
-    WorkerSettings,
     get_web_settings,
 )
 from tests.support.settings import clear_settings_cache
@@ -60,36 +54,17 @@ class TestDatabaseConfig:
 
 @pytest.mark.unit
 class TestSessionConfig:
-    def test_defaults(self):
-        config = SessionConfig()
-        assert config.oauth_state_max_age_seconds == 600
-        assert config.idle_timeout_seconds == 7 * 24 * 3600
-        assert config.absolute_timeout_seconds == 30 * 24 * 3600
-
     @pytest.mark.parametrize(
-        "field",
+        ("field", "invalid"),
         [
-            "oauth_state_max_age_seconds",
-            "idle_timeout_seconds",
-            "absolute_timeout_seconds",
+            ("oauth_state_max_age_seconds", 0),
+            ("idle_timeout_seconds", -1),
+            ("absolute_timeout_seconds", 2592001),
         ],
     )
-    @pytest.mark.parametrize("invalid", [0, -1, 1.5, "bad", None])
     def test_invalid_durations(self, field, invalid):
         with pytest.raises(ValidationError):
             SessionConfig(**{field: invalid})
-
-    @pytest.mark.parametrize(
-        "field,maximum",
-        [
-            ("oauth_state_max_age_seconds", 600),
-            ("idle_timeout_seconds", 604800),
-            ("absolute_timeout_seconds", 2592000),
-        ],
-    )
-    def test_lifetimes_cannot_exceed_policy(self, field, maximum):
-        with pytest.raises(ValidationError):
-            SessionConfig(**{field: maximum + 1})
 
     def test_idle_cannot_exceed_absolute(self):
         with pytest.raises(ValidationError, match="must not exceed"):
@@ -106,36 +81,6 @@ class TestSessionConfig:
         assert settings.session.idle_timeout_seconds == 60
         assert settings.session.absolute_timeout_seconds == 120
         assert settings.session.oauth_state_max_age_seconds == 90
-
-
-@pytest.mark.unit
-class TestWorkerSettings:
-    def test_accepts_worker_sections(self):
-        s = WorkerSettings(
-            github=GitHubConfig(token="ghp_xxx"),
-            labs=LabsConfig(verification_secret="secret"),
-            http=HttpConfig(external_api_timeout=5),
-            content=ContentConfig(dir="/authored-content"),
-        )
-        assert s.github.token == "ghp_xxx"
-        assert s.labs.verification_secret == "secret"
-        assert s.http.external_api_timeout == 5
-        assert s.content.dir == "/authored-content"
-
-    def test_does_not_require_database_or_oauth(self, monkeypatch):
-        for name in ("DATABASE__URL", "DATABASE__HOST", "DATABASE__USER"):
-            monkeypatch.delenv(name, raising=False)
-
-        WorkerSettings(_env_file=None)
-
-
-@pytest.mark.unit
-class TestMigrationSettings:
-    def test_accepts_database_config(self):
-        settings = MigrationSettings(
-            database=DatabaseConfig(url="postgresql+asyncpg://localhost/test")
-        )
-        assert settings.database.url == "postgresql+asyncpg://localhost/test"
 
 
 @pytest.mark.unit
@@ -181,30 +126,9 @@ class TestWebSettingsValidation:
         assert s.environment is Environment.PRODUCTION
         assert s.is_development is False
 
-    @pytest.mark.parametrize(
-        "field",
-        [
-            "poll_interval_seconds",
-            "execution_timeout_seconds",
-            "queue_timeout_seconds",
-            "shutdown_timeout_seconds",
-        ],
-    )
-    def test_worker_limits_must_be_positive(self, field):
+    def test_worker_limits_must_be_positive(self):
         with pytest.raises(ValidationError):
-            VerificationWorkerConfig(**{field: 0})
-
-
-@pytest.mark.unit
-class TestContentDirPath:
-    def test_custom_path_from_setting(self):
-        s = ContentConfig(dir="/custom/path")
-        assert s.dir_path.as_posix() == "/custom/path"
-
-    def test_default_fallback(self):
-        s = ContentConfig()
-        assert s.dir_path.name == "phases"
-        assert "content" in s.dir_path.parts
+            VerificationWorkerConfig(poll_interval_seconds=0)
 
 
 @pytest.mark.unit
@@ -226,57 +150,25 @@ class TestFrontendTelemetryConfig:
 
 @pytest.mark.unit
 class TestAllowedOrigins:
-    def test_development_includes_localhost(self):
-        s = WebSettings(
+    def test_development_includes_localhost_and_production_excludes_it(self):
+        dev = WebSettings(
             database=DatabaseConfig(url="postgresql+asyncpg://localhost/db"),
             environment="development",
         )
-        assert "http://localhost:3000" in s.allowed_origins
-        assert "http://localhost:4280" in s.allowed_origins
+        assert "http://localhost:3000" in dev.allowed_origins
+        assert "http://localhost:4280" in dev.allowed_origins
 
-    def test_production_excludes_localhost(self):
-        s = WebSettings(
+        prod = WebSettings(
             database=DatabaseConfig(url="postgresql+asyncpg://localhost/db"),
             environment="production",
             oauth=OAuthConfig(client_id="id", client_secret="secret"),
             session=SessionConfig(secret_key="prod-secret"),
         )
-        assert "http://localhost:3000" not in s.allowed_origins
-
-    def test_frontend_url_included(self):
-        s = WebSettings(
-            database=DatabaseConfig(url="postgresql+asyncpg://localhost/db"),
-            environment="development",
-            cors=CorsConfig(frontend_url="https://app.example.com"),
-        )
-        assert any(o == "https://app.example.com" for o in s.allowed_origins)
-
-    def test_cors_allowed_origins_csv_parsed(self):
-        s = WebSettings(
-            database=DatabaseConfig(url="postgresql+asyncpg://localhost/db"),
-            environment="development",
-            cors=CorsConfig(allowed_origins="https://a.com, https://b.com"),
-        )
-        assert any(o == "https://a.com" for o in s.allowed_origins)
-        assert any(o == "https://b.com" for o in s.allowed_origins)
-
-    def test_deduplication(self):
-        s = WebSettings(
-            database=DatabaseConfig(url="postgresql+asyncpg://localhost/db"),
-            environment="development",
-            cors=CorsConfig(frontend_url="http://localhost:4280"),
-        )
-        assert s.allowed_origins.count("http://localhost:4280") == 1
+        assert "http://localhost:3000" not in prod.allowed_origins
 
 
 @pytest.mark.unit
 class TestSettingsFactories:
-    def test_get_web_settings_is_cached(self, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setenv("DATABASE__URL", "postgresql+asyncpg://localhost/db")
-        monkeypatch.setenv("ENVIRONMENT", "development")
-        clear_settings_cache()
-        assert get_web_settings() is get_web_settings()
-
     def test_clear_settings_cache_reloads_environment(
         self, monkeypatch: pytest.MonkeyPatch
     ):

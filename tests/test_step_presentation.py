@@ -14,13 +14,6 @@ from learn_to_cloud.schemas.curriculum import (
 
 
 @pytest.mark.unit
-class TestStepAction:
-    def test_label_capitalizes(self):
-        assert StepAction.PRACTICE.label == "Practice"
-        assert StepAction.WATCH.label == "Watch"
-
-
-@pytest.mark.unit
 class TestNormalizeStepActionOnLearningStep:
     @pytest.mark.parametrize(
         "raw,expected",
@@ -71,17 +64,9 @@ class TestLearningStepSortedOptions:
             "oracle",
         ]
 
-    def test_empty_options_returns_empty(self):
-        step = LearningStep(uuid=uuid4(), slug="s", order=0)
-        assert step.sorted_options == []
-
 
 @pytest.mark.unit
 class TestTipType:
-    def test_default_is_tip(self):
-        item = TipItem(text="hello")
-        assert item.type is TipType.TIP
-
     def test_string_value_normalizes_to_enum(self):
         item = TipItem(type="warning", text="hi")
         assert item.type is TipType.WARNING

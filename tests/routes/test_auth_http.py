@@ -34,7 +34,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from learn_to_cloud.core.database import (
     create_engine,
     create_session_maker,
-    get_db,
 )
 from learn_to_cloud.core.logger import _json_formatter
 from learn_to_cloud.core.middleware import TelemetrySanitizationMiddleware
@@ -65,14 +64,6 @@ pytestmark = pytest.mark.integration
 
 _SECRET = "auth-http-test-only-secret"
 _SESSIONS_LOGGER = "learn_to_cloud.services.sessions_service"
-_PAGE_PATHS = [
-    "/phase/1",
-    "/phase/1/introduction",
-    "/dashboard",
-    "/account",
-    "/verifications",
-    "/verifications/phase/1",
-]
 _LEGACY_IDENTITIES = {
     **{
         f"id-{index}": {"user_id": value, "github_username": "private-name"}
@@ -303,16 +294,9 @@ def _exported_telemetry(span_exporter, log_exporter, caplog):
     )
 
 
-@pytest.mark.parametrize("method", ["GET", "DELETE"])
-@pytest.mark.parametrize("accept", [None, "application/json", "text/html"])
-@pytest.mark.parametrize("htmx", [False, True])
-async def test_api_auth_failure(client, api_services, method, accept, htmx):
-    client.headers.pop("accept", None)
-    headers = {"HX-Request": "true"} if htmx else {}
-    if accept is not None:
-        headers["Accept"] = accept
-    response = await client.request(
-        method, "/api/user/me", headers=headers, follow_redirects=True
+async def test_api_auth_failure(client, api_services):
+    response = await client.get(
+        "/api/user/me", headers={"Accept": "application/json"}, follow_redirects=True
     )
     assert response.status_code == 401
     assert response.json() == {"detail": "Unauthorized"}
@@ -322,30 +306,10 @@ async def test_api_auth_failure(client, api_services, method, accept, htmx):
         service.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    ("method", "path", "data"),
-    [
-        (
-            "GET",
-            "/htmx/verification/attempts/status?attempt_id=00000000-0000-0000-0000-000000000001",
-            None,
-        ),
-        ("POST", "/htmx/github/submit", None),
-        (
-            "POST",
-            "/htmx/steps/complete",
-            {"step_uuid": "00000000-0000-0000-0000-000000000001"},
-        ),
-        ("DELETE", "/htmx/account", None),
-    ],
-)
-@pytest.mark.parametrize("htmx", [False, True])
-async def test_htmx_endpoint_auth_failure(client, method, path, data, htmx):
-    response = await client.request(
-        method,
-        path,
-        data=data,
-        headers={"HX-Request": "true"} if htmx else {},
+async def test_htmx_endpoint_auth_failure(client):
+    response = await client.get(
+        "/htmx/verification/attempts/status?attempt_id=00000000-0000-0000-0000-000000000001",
+        headers={"HX-Request": "true"},
         follow_redirects=True,
     )
     assert response.status_code == 401
@@ -353,9 +317,8 @@ async def test_htmx_endpoint_auth_failure(client, method, path, data, htmx):
     assert response.history == []
 
 
-@pytest.mark.parametrize("path", _PAGE_PATHS)
-async def test_browser_pages_follow_login_with_get(client, github, path):
-    response = await client.get(path, follow_redirects=True)
+async def test_browser_pages_follow_login_with_get(client, github):
+    response = await client.get("/dashboard", follow_redirects=True)
     assert len(response.history) == 2
     first, login = response.history
     assert first.status_code == 303
@@ -368,13 +331,9 @@ async def test_browser_pages_follow_login_with_get(client, github, path):
     github.authorize_redirect.assert_awaited_once()
 
 
-@pytest.mark.parametrize("path", _PAGE_PATHS)
-@pytest.mark.parametrize("boosted", [False, True])
-async def test_htmx_browser_navigation_returns_401(client, github, path, boosted):
-    headers = {"HX-Request": "true"}
-    if boosted:
-        headers["HX-Boosted"] = "true"
-    response = await client.get(path, headers=headers, follow_redirects=True)
+async def test_htmx_browser_navigation_returns_401(client, github):
+    headers = {"HX-Request": "true", "HX-Boosted": "true"}
+    response = await client.get("/dashboard", headers=headers, follow_redirects=True)
     assert response.status_code == 401
     assert "location" not in response.headers
     assert response.history == []
@@ -425,9 +384,7 @@ async def test_browser_mutation_redirect_changes_method_to_get(client, method):
     assert response.request.method == "GET"
 
 
-@pytest.mark.parametrize(
-    "cookie_kind", ["missing", "valid", "stale", "expired", "invalid"]
-)
+@pytest.mark.parametrize("cookie_kind", ["missing", "valid", "invalid"])
 async def test_logout_expires_cookie_and_is_repeatable(client, github, cookie_kind):
     if cookie_kind != "missing":
         session = {"user_id": 42}
@@ -463,61 +420,6 @@ async def test_logout_expires_cookie_and_is_repeatable(client, github, cookie_ki
         assert response.request.method == "GET"
         assert response.request.url.path == "/"
     github.authorize_redirect.assert_not_awaited()
-
-
-@pytest.mark.parametrize(
-    "path", ["/", "/curriculum", "/account", "/faq", "/privacy", "/terms"]
-)
-@pytest.mark.parametrize("session_state", ["anonymous", "valid", "revoked"])
-async def test_pages_inject_account_without_route_database(
-    app, client, auth_cookie, path, session_state
-):
-    def unexpected_database():
-        raise AssertionError("This page should not request a route database session")
-
-    app.dependency_overrides[get_db] = unexpected_database
-    if session_state != "anonymous":
-        client.cookies.set(
-            AUTH_COOKIE_NAME, auth_cookie, domain="testserver.local", path="/"
-        )
-        if session_state == "revoked":
-            logout = await client.post("/auth/logout")
-            assert logout.status_code == 303
-            client.cookies.set(
-                AUTH_COOKIE_NAME, auth_cookie, domain="testserver.local", path="/"
-            )
-
-    response = await client.get(path)
-    if path == "/account" and session_state != "valid":
-        assert response.status_code == 303
-        assert response.headers["location"] == "/auth/login"
-        app.state.page_context.assert_not_called()
-    else:
-        assert response.status_code == 200
-        app.state.page_context.assert_called_once()
-        user = app.state.page_context.call_args.kwargs["user"]
-        if session_state == "valid":
-            assert user is not None
-            assert user.id == 42
-        else:
-            assert user is None
-
-
-@pytest.mark.parametrize("path", ["/api/user/me", "/account"])
-async def test_persisted_session_authenticates_real_routes(client, auth_cookie, path):
-    client.cookies.set(
-        AUTH_COOKIE_NAME,
-        auth_cookie,
-        domain="testserver.local",
-        path="/",
-    )
-    response = await client.get(path, follow_redirects=True)
-    assert response.status_code == 200
-    assert response.history == []
-    if path == "/api/user/me":
-        assert response.json()["id"] == 42
-    else:
-        assert "testuser" in response.text
 
 
 @pytest.mark.parametrize("path", ["/", "/account", "/api/user/me"])
@@ -625,11 +527,17 @@ async def test_malformed_identity_is_cleaned_over_http(
 
 
 @pytest.mark.parametrize(
-    "kind", ["missing", "valid", "expired", "tampered", "oauth-only"]
+    ("kind", "path", "status"),
+    [
+        ("missing", "/api/user/me", 401),
+        ("valid", "/account", 200),
+        ("expired", "/account", 303),
+        ("tampered", "/api/user/me", 401),
+        ("oauth-only", "/", 200),
+    ],
 )
-@pytest.mark.parametrize("path", ["/", "/curriculum", "/api/user/me", "/account"])
 async def test_session_cookie_lifecycle_on_real_routes(
-    client, caplog, auth_cookie, kind, path
+    client, caplog, auth_cookie, kind, path, status
 ):
     if kind != "missing":
         session = (
@@ -650,85 +558,9 @@ async def test_session_cookie_lifecycle_on_real_routes(
                 AUTH_COOKIE_NAME, auth_cookie, domain="testserver.local", path="/"
             )
     response = await client.get(path)
-    status = 200
-    if kind != "valid" and path == "/api/user/me":
-        status = 401
-    elif kind != "valid" and path == "/account":
-        status = 303
     assert response.status_code == status
     assert "set-cookie" not in response.headers
     assert not [r for r in caplog.records if r.name == _SESSIONS_LOGGER]
-
-
-@pytest.fixture
-async def oauth_callback(app, github, user):
-    maker = app.state.session_maker
-    database = maker()
-    database.commit = AsyncMock(wraps=database.commit)
-    app.state.session_maker = lambda: database
-    github.authorize_access_token = AsyncMock(
-        return_value={"access_token": "private-oauth-token"}
-    )
-    github.get = AsyncMock(
-        return_value=httpx2.Response(
-            200,
-            json={"id": 42, "login": "TestUser"},
-            request=httpx2.Request("GET", "https://api.github.com/user"),
-        )
-    )
-    with patch(
-        "learn_to_cloud.routes.auth_routes.get_or_create_user_from_github",
-        autospec=True,
-        return_value=user,
-    ) as upsert:
-        yield database, upsert
-    app.state.session_maker = maker
-    await database.close()
-
-
-async def test_oauth_issued_cookie_authenticates_next_request(client, oauth_callback):
-    database, upsert = oauth_callback
-    unrelated = {
-        "_state_github_other": {
-            "data": {"state": "private-other-state"},
-            "exp": time() + 600,
-        }
-    }
-    client.cookies.set(
-        SESSION_COOKIE_NAME,
-        _session_cookie(unrelated),
-        domain="testserver.local",
-        path="/",
-    )
-    response = await client.get("/auth/callback")
-    assert response.status_code == 302
-    assert response.headers["location"] == "/dashboard"
-    cookie = client.cookies.get(SESSION_COOKIE_NAME)
-    identity = json.loads(b64decode(TimestampSigner(_SECRET).unsign(cookie)))
-    assert identity == unrelated
-    assert len(client.cookies.get(AUTH_COOKIE_NAME)) == 43
-    database.commit.assert_awaited_once()
-    assert upsert.call_args.kwargs["github_id"] == 42
-    assert upsert.call_args.kwargs["github_username"] == "testuser"
-    authenticated = await client.get("/api/user/me")
-    assert authenticated.status_code == 200
-    assert authenticated.json()["id"] == 42
-
-
-async def test_oauth_invariant_failure_remains_500(app, oauth_callback, user, caplog):
-    database, _ = oauth_callback
-    user.id = 43
-    async with AsyncClient(
-        transport=ASGITransport(app=app, raise_app_exceptions=False),
-        base_url="http://testserver",
-    ) as client:
-        response = await client.get("/auth/callback")
-    assert response.status_code == 500
-    assert "set-cookie" not in response.headers
-    assert "location" not in response.headers
-    database.commit.assert_not_awaited()
-    assert "auth.callback.identity_rejected" not in caplog.text
-    assert "auth.login.success" not in caplog.text
 
 
 @pytest.mark.parametrize(

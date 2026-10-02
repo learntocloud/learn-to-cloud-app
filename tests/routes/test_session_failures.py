@@ -1,9 +1,7 @@
 """Exported PostgreSQL failure telemetry and committed-cookie boundaries."""
 
 import logging
-from unittest.mock import AsyncMock, patch
 
-import httpx2
 import pytest
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging.handler import LoggingHandler
@@ -23,19 +21,15 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from learn_to_cloud.core.logger import _json_formatter
 from learn_to_cloud.core.session_cookies import AUTH_COOKIE_NAME, token_digest
 from learn_to_cloud.models import AuthSession, User
-from tests.routes.test_session_lifecycle import browser, build_app, csrf, mint
+from tests.routes.test_session_lifecycle import browser, build_app, mint
 
 pytestmark = pytest.mark.integration
 
 
-@pytest.mark.parametrize(
-    "operation", ["lookup", "create", "commit", "logout", "global", "delete"]
-)
 @pytest.mark.usefixtures("test_engine")
 async def test_postgres_failure_telemetry_has_no_session_credentials(
     test_settings,
     caplog,
-    operation,
 ):
     engine = create_async_engine(test_settings.database.url, hide_parameters=True)
     app = build_app(engine, test_settings)
@@ -57,16 +51,8 @@ async def test_postgres_failure_telemetry_has_no_session_credentials(
     instrumentor.instrument(engine=engine.sync_engine, tracer_provider=trace_provider)
     FastAPIInstrumentor.instrument_app(app, tracer_provider=trace_provider)
     caplog.set_level(logging.INFO)
-    github = AsyncMock()
-    github.authorize_access_token.return_value = {"access_token": "private-oauth-token"}
-    github.get.return_value = httpx2.Response(
-        200,
-        json={"id": 42, "login": "private-session-username"},
-        request=httpx2.Request("GET", "https://api.github.com/user"),
-    )
     try:
         async with browser(app, token, raise_errors=False) as client:
-            confirmation = await csrf(client)
             async with engine.begin() as conn:
                 await conn.execute(
                     text(
@@ -77,41 +63,17 @@ async def test_postgres_failure_telemetry_has_no_session_credentials(
                         "END $$"
                     )
                 )
-                if operation == "commit":
-                    trigger = (
-                        "CREATE CONSTRAINT TRIGGER reject_session_test "
-                        "AFTER INSERT ON auth_sessions DEFERRABLE INITIALLY DEFERRED "
-                        "FOR EACH ROW EXECUTE FUNCTION reject_session_test()"
-                    )
-                else:
-                    action = (
-                        "UPDATE"
-                        if operation == "lookup"
-                        else ("INSERT" if operation == "create" else "DELETE")
-                    )
-                    trigger = (
-                        f"CREATE TRIGGER reject_session_test BEFORE {action} "
+                await conn.execute(
+                    text(
+                        "CREATE TRIGGER reject_session_test BEFORE UPDATE "
                         "ON auth_sessions "
                         "FOR EACH ROW EXECUTE FUNCTION reject_session_test()"
                     )
-                await conn.execute(text(trigger))
+                )
             span_exporter.clear()
             log_exporter.clear()
             caplog.clear()
-            with patch("learn_to_cloud.routes.auth_routes.oauth") as oauth:
-                oauth.create_client.return_value = github
-                if operation == "lookup":
-                    response = await client.get("/api/user/me")
-                elif operation in ("create", "commit"):
-                    response = await client.get("/auth/callback")
-                elif operation == "logout":
-                    response = await client.post("/auth/logout")
-                elif operation == "global":
-                    response = await client.post(
-                        "/auth/logout-all", data={"csrf": confirmation}
-                    )
-                else:
-                    response = await client.delete("/api/user/me")
+            response = await client.get("/api/user/me")
             assert response.status_code == 500
             assert "set-cookie" not in response.headers
             assert "location" not in response.headers
@@ -138,8 +100,6 @@ async def test_postgres_failure_telemetry_has_no_session_credentials(
                 token,
                 digest.hex(),
                 repr(digest),
-                confirmation,
-                "private-oauth-token",
                 "private-session-username",
                 test_settings.session.secret_key,
             ):

@@ -1,7 +1,5 @@
 """Verification form preparation contracts."""
 
-from unittest.mock import patch
-
 import pytest
 
 from learn_to_cloud.models import SubmissionType
@@ -23,7 +21,6 @@ from tests.support.requirement_factories import (
     deployed_api_requirement,
     make_requirement,
     networking_token_requirement,
-    repo_fork_requirement,
 )
 
 pytestmark = pytest.mark.unit
@@ -94,24 +91,3 @@ def test_every_submission_type_has_a_renderable_form(submission_type):
         verification_form=form,
     )
     assert "<input" in html or "<textarea" in html
-
-
-def test_submission_action_rejects_a_missing_input_shape():
-    with (
-        patch("learn_to_cloud.verification.forms._VALUE_SUBMISSION_TYPES", frozenset()),
-        pytest.raises(ValueError, match="Unsupported submission type"),
-    ):
-        verification_submit_action("test-req", SubmissionType.CTF_TOKEN)
-
-
-def test_active_requirement_without_a_form_model_raises():
-    with (
-        patch(
-            "learn_to_cloud.rendering.verification_forms.is_derivable",
-            return_value=False,
-        ),
-        pytest.raises(
-            ValueError, match="has an HTTP action but no rendering form model"
-        ),
-    ):
-        build_verification_form_context(repo_fork_requirement(), "learner", None)

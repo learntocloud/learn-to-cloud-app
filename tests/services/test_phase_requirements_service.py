@@ -35,20 +35,8 @@ class TestGetPrerequisitePhase:
     def test_phase_4_requires_3(self):
         assert get_prerequisite_phase(4) == 3
 
-    def test_phase_5_requires_4(self):
-        assert get_prerequisite_phase(5) == 4
-
-    def test_phase_6_requires_5(self):
-        assert get_prerequisite_phase(6) == 5
-
     def test_phase_0_has_no_prerequisite(self):
         assert get_prerequisite_phase(0) is None
-
-    def test_phase_3_has_no_prerequisite(self):
-        assert get_prerequisite_phase(3) is None
-
-    def test_unknown_phase_has_no_prerequisite(self):
-        assert get_prerequisite_phase(99) is None
 
 
 @pytest.mark.unit

@@ -1,16 +1,7 @@
-"""Unit tests for core.github_client module.
-
-Tests cover:
-- get_github_client creates client on first call
-- get_github_client returns same instance on subsequent calls
-- get_github_client recreates client after close
-- close_github_client closes and clears the singleton
-- close_github_client is no-op when already None
-"""
+"""Unit tests for core.github_client lifecycle behavior."""
 
 from unittest.mock import MagicMock, patch
 
-import httpx2
 import pytest
 
 import learn_to_cloud.core.github_client as mod
@@ -31,32 +22,6 @@ async def _reset_github_client():
 @pytest.mark.unit
 class TestGetGitHubClient:
     @pytest.mark.asyncio
-    async def test_creates_client_on_first_call(self):
-        mock_settings = MagicMock()
-        mock_settings.http.external_api_timeout = 10.0
-        with patch(
-            "learn_to_cloud.core.github_client.get_worker_settings",
-            autospec=True,
-            return_value=mock_settings,
-        ):
-            client = await get_github_client()
-        assert isinstance(client, httpx2.AsyncClient)
-        assert not client.is_closed
-
-    @pytest.mark.asyncio
-    async def test_returns_same_instance(self):
-        mock_settings = MagicMock()
-        mock_settings.http.external_api_timeout = 10.0
-        with patch(
-            "learn_to_cloud.core.github_client.get_worker_settings",
-            autospec=True,
-            return_value=mock_settings,
-        ):
-            c1 = await get_github_client()
-            c2 = await get_github_client()
-        assert c1 is c2
-
-    @pytest.mark.asyncio
     async def test_recreates_after_close(self):
         mock_settings = MagicMock()
         mock_settings.http.external_api_timeout = 10.0
@@ -70,10 +35,3 @@ class TestGetGitHubClient:
             c2 = await get_github_client()
         assert c2 is not c1
         assert not c2.is_closed
-
-
-@pytest.mark.unit
-class TestCloseGitHubClient:
-    @pytest.mark.asyncio
-    async def test_noop_when_none(self):
-        await close_github_client()

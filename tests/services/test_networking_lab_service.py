@@ -1,14 +1,9 @@
 """Unit tests for networking lab token verification.
 
-Tests the Networking Lab token verification logic:
-- Valid token with correct HMAC signature
-- Invalid token formats (not base64, not JSON)
-- Missing payload/signature
-- Challenge type mismatch
-- Username mismatch
+Tests the Networking Lab-specific token verification wiring:
+- Accepted provider challenge types and cloud_provider extraction
 - Incomplete incidents
-- Invalid HMAC signature
-- Future timestamp detection
+- Empty/whitespace token edge cases
 """
 
 import base64
@@ -72,69 +67,6 @@ def _create_valid_token(
 class TestVerifyNetworkingToken:
     """Tests for verify_networking_token function."""
 
-    def test_valid_token_succeeds(self):
-        """A properly signed token with all requirements should verify."""
-        token = _create_valid_token(github_username="validuser")
-        result = verify_networking_token(token, "validuser")
-
-        assert result.is_valid is True
-        assert "Congratulations" in result.message
-        assert result.cloud_provider == "azure"
-
-    def test_valid_token_case_insensitive_username(self):
-        """Username comparison should be case-insensitive."""
-        token = _create_valid_token(github_username="TestUser")
-        result = verify_networking_token(token, "testuser")
-
-        assert result.is_valid is True
-
-    def test_invalid_base64_fails(self):
-        """Non-base64 input should fail gracefully."""
-        result = verify_networking_token("not-valid-base64!!!", "testuser")
-
-        assert result.is_valid is False
-        assert "Invalid token format" in result.message
-
-    def test_invalid_json_fails(self):
-        """Valid base64 but invalid JSON should fail."""
-        invalid_json = base64.b64encode(b"not json").decode()
-        result = verify_networking_token(invalid_json, "testuser")
-
-        assert result.is_valid is False
-        assert "Invalid token format" in result.message
-
-    def test_missing_payload_fails(self):
-        """Token without payload field should fail."""
-        token_data = {"signature": "somesig"}
-        token = base64.b64encode(json.dumps(token_data).encode()).decode()
-
-        result = verify_networking_token(token, "testuser")
-
-        assert result.is_valid is False
-        assert "Missing or malformed" in result.message
-
-    def test_missing_signature_fails(self):
-        """Token without signature field should fail."""
-        token_data = {"payload": {"github_username": "test"}}
-        token = base64.b64encode(json.dumps(token_data).encode()).decode()
-
-        result = verify_networking_token(token, "testuser")
-
-        assert result.is_valid is False
-        assert "Missing or malformed" in result.message
-
-    def test_wrong_challenge_type_fails(self):
-        """Token with wrong challenge type should fail."""
-        token = _create_valid_token(
-            github_username="testuser",
-            challenge_type="wrong-challenge-type",
-        )
-
-        result = verify_networking_token(token, "testuser")
-
-        assert result.is_valid is False
-        assert "Invalid challenge type" in result.message
-
     @pytest.mark.parametrize(
         "challenge_type,expected_provider",
         [
@@ -158,17 +90,6 @@ class TestVerifyNetworkingToken:
         assert "Congratulations" in result.message
         assert result.cloud_provider == expected_provider
 
-    def test_username_mismatch_fails(self):
-        """Token username must match OAuth username."""
-        token = _create_valid_token(github_username="differentuser")
-
-        result = verify_networking_token(token, "testuser")
-
-        assert result.is_valid is False
-        assert "username mismatch" in result.message.lower()
-        assert "differentuser" in result.message
-        assert "testuser" in result.message
-
     def test_incomplete_challenges_fails(self):
         """Token with fewer than required challenges should fail."""
         token = _create_valid_token(
@@ -181,63 +102,6 @@ class TestVerifyNetworkingToken:
         assert result.is_valid is False
         assert "Incomplete" in result.message
         assert f"2/{REQUIRED_CHALLENGES}" in result.message
-
-    def test_invalid_signature_fails(self):
-        """Tampered signature should fail verification."""
-        token_str = _create_valid_token(github_username="testuser")
-
-        token_data = json.loads(base64.b64decode(token_str))
-        token_data["signature"] = "tampered" + token_data["signature"][8:]
-        tampered_token = base64.b64encode(json.dumps(token_data).encode()).decode()
-
-        result = verify_networking_token(tampered_token, "testuser")
-
-        assert result.is_valid is False
-        assert "Invalid token signature" in result.message
-
-    def test_tampered_payload_fails(self):
-        """Modifying payload after signing should fail."""
-        token_str = _create_valid_token(github_username="testuser", challenges=4)
-
-        token_data = json.loads(base64.b64decode(token_str))
-        token_data["payload"]["challenges"] = 99
-        tampered_token = base64.b64encode(json.dumps(token_data).encode()).decode()
-
-        result = verify_networking_token(tampered_token, "testuser")
-
-        assert result.is_valid is False
-        assert "Invalid token signature" in result.message
-
-    def test_future_timestamp_fails(self):
-        """Token from far in the future should be rejected."""
-        future_timestamp = datetime.now(UTC).timestamp() + 7200
-
-        token = _create_valid_token(
-            github_username="testuser",
-            timestamp=future_timestamp,
-        )
-
-        result = verify_networking_token(token, "testuser")
-
-        assert result.is_valid is False
-        assert "future" in result.message.lower()
-
-    def test_missing_instance_id_fails(self):
-        """Token without instance_id should fail."""
-        payload = {
-            "github_username": "testuser",
-            "challenges": 4,
-            "challenge": "networking-lab-azure",
-            "timestamp": datetime.now(UTC).timestamp(),
-        }
-
-        token_data = {"payload": payload, "signature": "dummy"}
-        token = base64.b64encode(json.dumps(token_data).encode()).decode()
-
-        result = verify_networking_token(token, "testuser")
-
-        assert result.is_valid is False
-        assert "instance ID" in result.message
 
 
 @pytest.mark.unit

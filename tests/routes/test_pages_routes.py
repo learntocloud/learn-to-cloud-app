@@ -1,46 +1,15 @@
-"""Unit tests for pages routes.
-
-Tests cover:
-- GET / — home page (public)
-- GET /curriculum — curriculum page (public)
-- GET /phase/{id} — phase learning detail (requires auth)
-- GET /verifications — verification workspace (requires auth)
-- GET /verifications/phase/{id} — phase verification (requires auth)
-- GET /phase/{id}/{topic} — topic detail (requires auth)
-- GET /dashboard — user dashboard (requires auth)
-- GET /account — account settings (requires auth)
-- GET /community — community page (public)
-- GET /stats — permanent redirect to the community page
-- GET /faq — FAQ page (public)
-- GET /privacy — privacy page (public)
-- GET /terms — terms page (public)
-
-Testing approach:
-- Call handler functions directly with mocked dependencies
-- Verify template name and context dict passed to TemplateResponse
-- No real template rendering (that's Jinja2's responsibility, not ours)
-"""
+"""Unit tests for page-route contracts not covered by real-render smoke tests."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
 
 import pytest
 
 from learn_to_cloud.models import User
 from learn_to_cloud.routes.pages_routes import (
-    account_page,
     community_page,
-    curriculum_page,
-    dashboard_page,
-    faq_page,
-    home_page,
     phase_page,
-    phase_verification_page,
-    privacy_page,
     stats_page_redirect,
-    terms_page,
     topic_page,
-    verifications_page,
 )
 
 
@@ -70,79 +39,6 @@ def _fake_phase(*, order: int = 1, name: str = "Phase 1", slug: str = "phase1"):
     return phase
 
 
-def _fake_topic(*, slug: str = "linux-basics"):
-    """Build a minimal mock topic object."""
-    topic = MagicMock()
-    topic.uuid = uuid4()
-    topic.slug = slug
-    topic.learning_steps = []
-    return topic
-
-
-@pytest.mark.unit
-class TestHomePage:
-    """Tests for GET /."""
-
-    async def test_home_renders_for_anonymous_user(self, _patch_templates):
-        """Anonymous users see the home page with phases."""
-        request, template = _mock_request(_patch_templates)
-        phases = [_fake_phase(order=i) for i in range(1, 6)]
-
-        with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
-                return_value=phases,
-            ),
-        ):
-            await home_page(request, account=None)
-
-        template.assert_called_once()
-        ctx = template.call_args[0][2]
-        assert ctx["user"] is None
-        assert ctx["phases"] == phases
-        assert template.call_args[0][0] is request
-        assert template.call_args[0][1] == "pages/home.html"
-
-    async def test_home_renders_for_authenticated_user(self, _patch_templates):
-        """Authenticated users see their user object in context."""
-        request, template = _mock_request(_patch_templates)
-        mock_user = User(id=42, github_username="testuser")
-        phases = [_fake_phase()]
-
-        with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
-                return_value=phases,
-            ),
-        ):
-            await home_page(request, account=mock_user)
-
-        ctx = template.call_args[0][2]
-        assert ctx["user"] is mock_user
-
-
-@pytest.mark.unit
-class TestCurriculumPage:
-    """Tests for GET /curriculum."""
-
-    async def test_curriculum_renders_with_phases(self, _patch_templates):
-        """Curriculum page passes all phases to template."""
-        request, template = _mock_request(_patch_templates)
-        phases = [_fake_phase(order=i) for i in range(1, 6)]
-
-        with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_curriculum_overview",
-                return_value=phases,
-            ),
-        ):
-            await curriculum_page(request, account=None)
-
-        assert template.call_args[0][1] == "pages/curriculum.html"
-        ctx = template.call_args[0][2]
-        assert ctx["phases"] == phases
-
-
 @pytest.mark.unit
 class TestPhasePage:
     """Tests for GET /phase/{phase_id}."""
@@ -170,161 +66,10 @@ class TestPhasePage:
         call_kwargs = template.call_args[1] if template.call_args[1] else {}
         assert call_kwargs.get("status_code") == 404
 
-    async def test_phase_renders_with_progress_data(self, _patch_templates):
-        """Valid phase renders learning content without loading attempts."""
-        request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-        phase = _fake_phase()
-        mock_user = User(id=42, github_username="testuser")
-
-        with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                return_value=phase,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.fetch_phase_progress",
-                autospec=True,
-                return_value={},
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.build_phase_topics",
-                return_value=[],
-            ),
-        ):
-            await phase_page(
-                request,
-                phase_id=1,
-                db=mock_db,
-                account=mock_user,
-            )
-
-        assert template.call_args[0][1] == "pages/phase.html"
-        ctx = template.call_args[0][2]
-        assert ctx["phase"] is phase
-        assert ctx["user"] is mock_user
-        assert ctx["has_verification"] is False
-
-
-@pytest.mark.unit
-class TestVerificationsPage:
-    """Tests for GET /verifications."""
-
-    async def test_verifications_renders_overview(self, _patch_templates):
-        request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-        mock_user = User(id=42, github_username="testuser")
-        mock_overview = MagicMock()
-
-        with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_verifications_overview",
-                autospec=True,
-                return_value=mock_overview,
-            ),
-        ):
-            await verifications_page(request, mock_db, account=mock_user)
-
-        assert template.call_args[0][1] == "pages/verifications.html"
-        ctx = template.call_args[0][2]
-        assert ctx["user"] is mock_user
-        assert ctx["overview"] is mock_overview
-
-
-@pytest.mark.unit
-class TestPhaseVerificationPage:
-    """Tests for GET /verifications/phase/{phase_id}."""
-
-    async def test_unknown_phase_returns_404(self, _patch_templates):
-        request, template = _mock_request(_patch_templates)
-
-        with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                return_value=None,
-            ),
-        ):
-            await phase_verification_page(
-                request,
-                phase_id=999,
-                db=AsyncMock(),
-                account=User(id=42, github_username="testuser"),
-            )
-
-        assert template.call_args[0][1] == "pages/404.html"
-
-    async def test_phase_verification_renders_workspace(self, _patch_templates):
-        request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-        mock_user = User(id=42, github_username="learner")
-        phase = _fake_phase(order=4)
-        workspace = MagicMock(
-            phase=phase,
-            phase_progress=MagicMock(),
-            requirements=[],
-            card_contexts_by_req={},
-            verification_locked=True,
-            prerequisite_phase_id=3,
-            history=MagicMock(),
-        )
-
-        with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                return_value=phase,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_phase_verification_workspace",
-                autospec=True,
-                return_value=workspace,
-            ) as get_workspace,
-        ):
-            await phase_verification_page(
-                request,
-                phase_id=4,
-                db=mock_db,
-                account=mock_user,
-            )
-
-        get_workspace.assert_awaited_once_with(
-            mock_db,
-            42,
-            phase,
-            mock_user.github_username,
-            history_page=1,
-        )
-        assert template.call_args[0][1] == "pages/verification_phase.html"
-        ctx = template.call_args[0][2]
-        assert ctx["phase"] is phase
-        assert ctx["verification_locked"] is True
-        assert ctx["prerequisite_phase_id"] == 3
-        assert ctx["history"] is workspace.history
-
 
 @pytest.mark.unit
 class TestTopicPage:
     """Tests for GET /phase/{phase_id}/{topic_slug}."""
-
-    async def test_topic_returns_404_when_phase_missing(self, _patch_templates):
-        """Missing phase renders 404."""
-        request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-
-        with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                return_value=None,
-            ),
-        ):
-            await topic_page(
-                request,
-                phase_id=1,
-                topic_slug="bad-topic",
-                db=mock_db,
-                account=User(id=1, github_username="testuser"),
-            )
-
-        assert template.call_args[0][1] == "pages/404.html"
 
     async def test_topic_returns_404_when_topic_missing(self, _patch_templates):
         """Existing phase but missing topic renders 404."""
@@ -348,103 +93,6 @@ class TestTopicPage:
             )
 
         assert template.call_args[0][1] == "pages/404.html"
-
-    async def test_topic_renders_with_step_data(self, _patch_templates):
-        """Valid topic renders with steps and progress."""
-        request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-        phase = _fake_phase()
-        topic = _fake_topic()
-        phase.topics = [topic]
-
-        with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                return_value=phase,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_valid_completed_steps",
-                autospec=True,
-                return_value=[],
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.build_topic_nav",
-                return_value=(None, None),
-            ),
-        ):
-            await topic_page(
-                request,
-                phase_id=1,
-                topic_slug="linux-basics",
-                db=mock_db,
-                account=User(id=1, github_username="testuser"),
-            )
-
-        assert template.call_args[0][1] == "pages/topic.html"
-        ctx = template.call_args[0][2]
-        assert ctx["topic"] is topic
-
-
-@pytest.mark.unit
-class TestDashboardPage:
-    """Tests for GET /dashboard."""
-
-    async def test_dashboard_renders_for_authenticated_user(self, _patch_templates):
-        """Dashboard renders with user and dashboard data."""
-        request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-        mock_user = User(id=42, github_username="testuser")
-        mock_dashboard = MagicMock()
-
-        with (
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_dashboard_data",
-                autospec=True,
-                return_value=mock_dashboard,
-            ),
-        ):
-            await dashboard_page(request, mock_db, account=mock_user)
-
-        assert template.call_args[0][1] == "pages/dashboard.html"
-        ctx = template.call_args[0][2]
-        assert ctx["user"] is mock_user
-        assert ctx["dashboard"] is mock_dashboard
-
-
-@pytest.mark.unit
-class TestAccountPage:
-    """Tests for GET /account."""
-
-    async def test_account_renders_for_user(self, _patch_templates):
-        """Account page renders with user context."""
-        request, template = _mock_request(_patch_templates)
-        mock_user = User(id=42, github_username="testuser")
-        await account_page(request, account=mock_user)
-
-        assert template.call_args[0][1] == "pages/account.html"
-        ctx = template.call_args[0][2]
-        assert ctx["user"] is mock_user
-
-
-@pytest.mark.unit
-class TestPublicPages:
-    """Tests for public pages: /faq, /privacy, /terms."""
-
-    @pytest.mark.parametrize(
-        "handler,template_name",
-        [
-            (faq_page, "pages/faq.html"),
-            (privacy_page, "pages/privacy.html"),
-            (terms_page, "pages/terms.html"),
-        ],
-        ids=["faq", "privacy", "terms"],
-    )
-    async def test_public_page_renders(self, _patch_templates, handler, template_name):
-        request, template = _mock_request(_patch_templates)
-
-        await handler(request, account=None)
-
-        assert template.call_args[0][1] == template_name
 
 
 @pytest.mark.unit

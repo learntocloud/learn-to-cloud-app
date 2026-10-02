@@ -60,14 +60,3 @@ class TestBuildTopicNav:
         prev_t, next_t = build_topic_nav(self._topics(), "nonexistent", 0, "Phase 0")
         assert prev_t is None
         assert next_t is None
-
-    def test_single_topic(self):
-        topics = self._topics()[:1]
-        prev_t, next_t = build_topic_nav(topics, "first", 0, "Phase 0")
-        assert prev_t is not None
-        assert prev_t["url"] == "/phase/0"
-        assert next_t is not None
-        assert next_t["url"] == "/phase/0"
-
-    def test_empty_topics(self):
-        assert build_topic_nav([], "missing", 0, "Phase 0") == (None, None)

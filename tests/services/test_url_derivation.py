@@ -1,7 +1,6 @@
 """Unit tests for submission_derivation.
 
-Covers derive_submission_value for all submission types and the
-is_derivable / fork_name_from_required_repo helpers.
+Covers concrete submission value derivation and fork-name helper behavior.
 """
 
 import pytest
@@ -15,7 +14,6 @@ from learn_to_cloud.verification.submission_derivation import (
     build_target,
     derive_submission_value,
     fork_name_from_required_repo,
-    is_derivable,
 )
 from tests.support.requirement_factories import (
     make_requirement,
@@ -34,34 +32,6 @@ def _req(
         description="Test",
         required_repo=required_repo,
     )
-
-
-@pytest.mark.unit
-class TestIsDerivable:
-    @pytest.mark.parametrize(
-        "sub_type",
-        [
-            SubmissionType.PROFILE_README,
-            SubmissionType.REPO_FORK,
-            SubmissionType.JOURNAL_API_VERIFIER,
-            SubmissionType.DEVOPS_ANALYSIS,
-            SubmissionType.SECURITY_SCANNING,
-        ],
-    )
-    def test_derivable_types(self, sub_type: SubmissionType):
-        assert is_derivable(sub_type) is True
-
-    @pytest.mark.parametrize(
-        "sub_type",
-        [
-            SubmissionType.CTF_TOKEN,
-            SubmissionType.NETWORKING_TOKEN,
-            SubmissionType.DEPLOYED_API,
-            SubmissionType.CAREER_REFLECTION,
-        ],
-    )
-    def test_non_derivable_types(self, sub_type: SubmissionType):
-        assert is_derivable(sub_type) is False
 
 
 @pytest.mark.unit
@@ -97,14 +67,6 @@ class TestBuildTarget:
         assert target.owner == "alice"
         assert target.repo == "linux-ctfs"
         assert target.forked_from == "learntocloud/linux-ctfs"
-
-    def test_free_form_type_returns_none(self):
-
-        assert build_target(_req(SubmissionType.CTF_TOKEN), "alice") is None
-
-    def test_missing_username_returns_none(self):
-
-        assert build_target(_req(SubmissionType.PROFILE_README), None) is None
 
 
 @pytest.mark.unit

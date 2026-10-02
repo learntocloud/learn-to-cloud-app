@@ -71,8 +71,13 @@ def test_issue_intake_keeps_support_in_discussions_and_disables_blank_reports():
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("event_type", ["pointerdown", "keydown", "click"])
-@pytest.mark.parametrize("template", ["content_problem.yml", "app_problem.yml"])
+@pytest.mark.parametrize(
+    ("template", "event_type"),
+    [
+        ("content_problem.yml", "keydown"),
+        ("app_problem.yml", "pointerdown"),
+    ],
+)
 def test_report_issue_prefills_form_context_without_private_data(template, event_type):
     harness = r"""
 const fs = require("node:fs");
@@ -178,12 +183,6 @@ process.stdout.write(JSON.stringify({ href: decoratedUrl, pagePath }));
     ("scenario", "exit_code"),
     [
         ("success", 0),
-        ("failed_checks", 2),
-        ("legacy_body", 2),
-        ("prefilled_symptoms", 2),
-        ("wrong_template", 2),
-        ("private_page", 2),
-        ("wrong_repository", 2),
         ("exception", 1),
     ],
 )

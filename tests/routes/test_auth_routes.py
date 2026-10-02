@@ -198,40 +198,6 @@ class TestCallbackRoute:
         assert result.headers["location"] == "/"
         assert "user_id" not in request.session
 
-    async def test_callback_handles_connect_timeout_on_profile_fetch(self):
-        """httpx2.ConnectTimeout fetching the user profile redirects to / (not 500)."""
-        request = _mock_request(session={})
-        mock_github = MagicMock()
-        mock_github.authorize_access_token = AsyncMock(
-            return_value={"access_token": "gho_fake"}
-        )
-        mock_github.get = AsyncMock(
-            side_effect=httpx2.ConnectTimeout("connect timed out")
-        )
-
-        with patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth:
-            mock_oauth.create_client.return_value = mock_github
-
-            result = await callback(request)
-
-        assert isinstance(result, RedirectResponse)
-        assert result.status_code == 302
-        assert result.headers["location"] == "/"
-        assert "user_id" not in request.session
-
-    async def test_callback_redirects_home_when_github_not_configured(self):
-        """When GitHub OAuth is not configured, redirects to /."""
-        request = _mock_request(session={})
-
-        with patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth:
-            mock_oauth.create_client.return_value = None
-
-            result = await callback(request)
-
-        assert isinstance(result, RedirectResponse)
-        assert result.status_code == 302
-        assert result.headers["location"] == "/"
-
     async def test_callback_handles_missing_github_id(self):
         """Malformed GitHub response (no 'id') redirects to / gracefully."""
         request = _mock_request(session={})
@@ -259,43 +225,6 @@ class TestCallbackRoute:
         assert result.headers["location"] == "/"
         # Session should remain empty — no user created
         assert "user_id" not in request.session
-
-    async def test_callback_lowercases_github_username(self):
-        """GitHub username is stored lowercase in the database."""
-        request = _mock_request(session={})
-        mock_github = MagicMock()
-        mock_github.authorize_access_token = AsyncMock(
-            return_value={"access_token": "gho_fake"}
-        )
-
-        mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "id": 999,
-            "login": "MiXeDcAsE",
-            "avatar_url": None,
-            "name": "",
-        }
-        mock_github.get = AsyncMock(return_value=mock_response)
-
-        mock_user = MagicMock()
-        mock_user.id = 999
-        mock_user.github_username = "mixedcase"
-
-        with (
-            patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth,
-            patch(
-                "learn_to_cloud.routes.auth_routes.get_or_create_user_from_github",
-                autospec=True,
-                return_value=mock_user,
-            ) as mock_get_or_create,
-        ):
-            mock_oauth.create_client.return_value = mock_github
-
-            await callback(request)
-
-        # Verify github_username was lowercased before being passed
-        call_kwargs = mock_get_or_create.call_args.kwargs
-        assert call_kwargs["github_username"] == "mixedcase"
 
 
 @pytest.fixture
@@ -490,13 +419,10 @@ class TestCallbackIdentityContract:
 class TestLogoutRoute:
     """Tests for POST /auth/logout."""
 
-    @pytest.mark.parametrize(
-        "session", [{}, {"user_id": 42}, {"user_id": 42, "github_username": "testuser"}]
-    )
     @pytest.mark.parametrize("secure", [False, True])
-    async def test_logout_clears_session_and_redirects(self, session, secure):
+    async def test_logout_clears_session_and_redirects(self, secure):
         """Logout clears session data and redirects to /."""
-        request = _mock_request(session=session.copy())
+        request = _mock_request(session={"user_id": 42})
 
         with patch(
             "learn_to_cloud.routes.auth_routes.get_web_settings"

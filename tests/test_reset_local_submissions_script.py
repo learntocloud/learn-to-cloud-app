@@ -9,13 +9,10 @@ def test_confirmation_accepts_explicit_yes(monkeypatch) -> None:
     assert reset_local_submissions._confirm_deletion()
 
 
-def test_confirmation_rejects_default(monkeypatch) -> None:
+def test_confirmation_rejects_default_or_missing_stdin(monkeypatch, capsys) -> None:
     monkeypatch.setattr("builtins.input", lambda _: "")
-
     assert not reset_local_submissions._confirm_deletion()
 
-
-def test_confirmation_rejects_missing_stdin(monkeypatch, capsys) -> None:
     def raise_eof(_: str) -> str:
         raise EOFError
 

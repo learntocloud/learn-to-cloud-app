@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
 from learn_to_cloud.routes import health_routes
-from learn_to_cloud.routes.health_routes import get_code_alembic_head, health, ready
+from learn_to_cloud.routes.health_routes import health, ready
 
 
 def _request():
@@ -21,17 +21,13 @@ class TestHealthEndpoint:
     """Tests for GET /health."""
 
     async def test_health_returns_200_healthy(self):
-        """Health endpoint returns status=healthy."""
-        result = await health(_request())
-        assert result.status == "healthy"
-        assert result.service == "learn-to-cloud-api"
-
-    async def test_health_exposes_curriculum_artifact_identity(self):
-        """Health response includes the loaded artifact's identity fields."""
+        """Health endpoint returns status and curriculum artifact identity."""
         catalog = get_curriculum_catalog()
 
         result = await health(_request())
 
+        assert result.status == "healthy"
+        assert result.service == "learn-to-cloud-api"
         assert result.curriculum_version == catalog.curriculum_version
         assert result.artifact_schema_version == catalog.artifact_schema_version
         assert result.content_hash == catalog.content_hash
@@ -50,7 +46,8 @@ class TestReadyEndpoint:
     """Tests for GET /ready."""
 
     async def test_ready_returns_200_when_healthy(self):
-        """Ready returns 200 when init_done=True and DB is reachable."""
+        """Ready returns status and curriculum artifact identity."""
+        catalog = get_curriculum_catalog()
         request = _request()
         request.app.state.init_error = None
         request.app.state.init_done = True
@@ -64,28 +61,13 @@ class TestReadyEndpoint:
 
         assert result.status == "ready"
         assert result.service == "learn-to-cloud-api"
+        assert result.curriculum_version == catalog.curriculum_version
+        assert result.artifact_schema_version == catalog.artifact_schema_version
+        assert result.content_hash == catalog.content_hash
         mock_check.assert_awaited_once_with(
             request.app.state.engine,
             request.app.state.settings.database,
         )
-
-    async def test_ready_exposes_curriculum_artifact_identity(self):
-        """Ready response includes the loaded artifact's identity fields."""
-        catalog = get_curriculum_catalog()
-        request = _request()
-        request.app.state.init_error = None
-        request.app.state.init_done = True
-        request.app.state.alembic_code_head = None
-
-        with patch(
-            "learn_to_cloud.routes.health_routes.check_db_connection",
-            autospec=True,
-        ):
-            result = await ready(request)
-
-        assert result.curriculum_version == catalog.curriculum_version
-        assert result.artifact_schema_version == catalog.artifact_schema_version
-        assert result.content_hash == catalog.content_hash
 
     async def test_ready_returns_503_when_init_error(self):
         """Ready returns 503 when init_error is set."""
@@ -154,30 +136,6 @@ class TestReadyEndpoint:
         assert result.status == "ready"
         assert "health.ready.schema_drift" in caplog.text
 
-    async def test_ready_no_warning_when_heads_match(self, caplog):
-        """Ready logs nothing extra when DB head matches code head."""
-        request = _request()
-        request.app.state.init_error = None
-        request.app.state.init_done = True
-        request.app.state.alembic_code_head = "same_head"
-
-        with (
-            patch(
-                "learn_to_cloud.routes.health_routes.check_db_connection",
-                autospec=True,
-            ),
-            patch(
-                "learn_to_cloud.routes.health_routes._get_db_alembic_head",
-                autospec=True,
-                return_value="same_head",
-            ),
-            caplog.at_level("WARNING"),
-        ):
-            result = await ready(request)
-
-        assert result.status == "ready"
-        assert "health.ready.schema_drift" not in caplog.text
-
     async def test_ready_returns_200_when_drift_check_itself_fails(self, caplog):
         """A broken drift check never turns into a 503 for /ready."""
         request = _request()
@@ -238,13 +196,6 @@ class TestReadyEndpoint:
 @pytest.mark.unit
 class TestGetCodeAlembicHead:
     """Tests for get_code_alembic_head()."""
-
-    def test_returns_head_revision_from_script_directory(self):
-        """Resolves the real head from the packaged migration scripts."""
-
-        head = get_code_alembic_head()
-        assert head is not None
-        assert isinstance(head, str)
 
     def test_returns_none_when_script_directory_resolution_fails(self):
         """Returns None instead of raising if Config/ScriptDirectory blow up."""

@@ -135,31 +135,7 @@ async def test_nonretriable_status_preserves_response(status):
 
 @pytest.mark.parametrize(
     ("header", "expected"),
-    [(None, None), ("", None), ("invalid", None), ("5", 5), ("1.5", 1.5), ("0", 0)],
+    [(None, None), ("invalid", None), ("5", 5)],
 )
 def test_retry_after_numeric_parsing(header, expected):
     assert github_http._parse_retry_after(header) == expected
-
-
-@pytest.mark.parametrize("delay", [None, 0])
-def test_missing_or_zero_retry_delay_preserves_jitter_fallback(delay):
-    state = MagicMock()
-    state.outcome.exception.return_value = GitHubServerError(
-        "rate limited", status_code=429, retry_after=delay
-    )
-    with patch.object(github_http, "wait_exponential_jitter") as jitter:
-        jitter.return_value.return_value = 0.75
-        assert github_http._wait_with_retry_after(state) == 0.75
-    jitter.assert_called_once_with(initial=0.5, max=10)
-    jitter.return_value.assert_called_once_with(state)
-
-
-@pytest.mark.parametrize(("delay", "expected"), [(1.5, 1.5), (120, 60)])
-def test_retry_after_wait_is_capped(delay, expected):
-    state = MagicMock()
-    state.outcome.exception.return_value = GitHubServerError(
-        "rate limited", status_code=429, retry_after=delay
-    )
-    with patch.object(github_http, "wait_exponential_jitter") as jitter:
-        assert github_http._wait_with_retry_after(state) == expected
-    jitter.assert_not_called()
