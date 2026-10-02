@@ -38,13 +38,13 @@ repos:
         name: squawk migration SQL lint
         entry: uv run python scripts/lint_migration_sql.py
         language: system
-        files: ^alembic/versions/.*\.py$
+        files: ^src/learn_to_cloud/migrations/versions/.*\.py$
         pass_filenames: false
       - id: migration-naming
         name: migration naming lint
         entry: uv run python scripts/check_migration_naming.py
         language: system
-        files: ^alembic/versions/.*\.py$
+        files: ^src/learn_to_cloud/migrations/versions/.*\.py$
         pass_filenames: false
 
   # Curriculum content: validate authored YAML and regenerate committed

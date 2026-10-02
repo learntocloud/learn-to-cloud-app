@@ -51,9 +51,9 @@ Keep table creation and its revision stamp atomic; separate concurrent work
 when it would otherwise force an early commit.
 
 Use the
-[`existing migrations`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/alembic/versions)
+[`existing migrations`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/src/learn_to_cloud/migrations/versions)
 as worked examples and review transaction boundaries explicitly.
-[`0061_auth_sessions_concurrent_indexes`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/alembic/versions/0061_auth_sessions_concurrent_indexes.py)
+[`0061_auth_sessions_concurrent_indexes`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/migrations/versions/0061_auth_sessions_concurrent_indexes.py)
 demonstrates bounded concurrent index rebuilding after interruption.
 
 ## How Migrations Run in Production
@@ -65,8 +65,9 @@ The API does not migrate on startup. The job applies migrations, verifies the
 head, and checks the physical schema against model metadata. Any failure must
 stop the API update.
 
-The runner and job configuration are authoritative:
-[`run_migrations.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/scripts/run_migrations.py)
+The job runs the `learn-to-cloud-migrate` console script. The runner and job
+configuration are authoritative:
+[`learn_to_cloud/migrations/__init__.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/migrations/__init__.py)
 and
 [`infra/migrations.tf`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/infra/migrations.tf).
 Do not start overlapping migration executions or add automatic retries around

@@ -2,7 +2,8 @@
 
 Wraps ``alembic revision`` so authors never get the default hex revision id.
 The next sequential number is derived from the highest ``NNNN_*`` filename in
-``alembic/versions/``; the message is slugified into the rest of the id.
+the migrations ``versions/`` directory; the message is slugified into the rest
+of the id.
 
 Run from the repository root::
 
@@ -23,14 +24,18 @@ import subprocess
 import sys
 from pathlib import Path
 
-_VERSIONS_DIR = Path(__file__).parent.parent / "alembic" / "versions"
+from alembic.script import ScriptDirectory
+
+from learn_to_cloud.migrations import alembic_config
+
 _NEXT_ID_PATTERN = re.compile(r"^(\d{4})_")
 _SLUG_PATTERN = re.compile(r"[^a-z0-9]+")
 
 
 def _next_revision_number() -> int:
+    versions_dir = Path(ScriptDirectory.from_config(alembic_config()).versions)
     nums: list[int] = []
-    for f in _VERSIONS_DIR.glob("*.py"):
+    for f in versions_dir.glob("*.py"):
         match = _NEXT_ID_PATTERN.match(f.stem)
         if match:
             nums.append(int(match.group(1)))

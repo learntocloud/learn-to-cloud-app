@@ -14,6 +14,9 @@ wheel-exclude = [
 [tool.fastapi]
 entrypoint = "learn_to_cloud.main:app"
 
+[tool.alembic]
+script_location = "learn_to_cloud:migrations"
+
 [project]
 name = "learn-to-cloud"
 version = "0.1.0"
@@ -58,6 +61,9 @@ dependencies = [
     "uvicorn[standard]>=0.52.1",
 ]
 
+[project.scripts]
+learn-to-cloud-migrate = "learn_to_cloud.migrations:main"
+
 [dependency-groups]
 dev = [
     "httpx>=0.28.0",
@@ -89,7 +95,8 @@ markers = [
 source = ["src/learn_to_cloud"]
 omit = [
     "tests/*",
-    "alembic/*",
+    "src/learn_to_cloud/migrations/env.py",
+    "src/learn_to_cloud/migrations/versions/*",
     "scripts/*",
     "__pycache__/*",
     ".venv/*",

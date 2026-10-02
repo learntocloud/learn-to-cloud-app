@@ -14,12 +14,11 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime
 from io import StringIO
-from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
+from alembic import command
 from alembic.autogenerate import compare_metadata
-from alembic.config import Config
 from alembic.migration import MigrationContext
 from pytest_alembic.config import Config as PytestAlembicConfig
 from pytest_alembic.tests import (
@@ -44,7 +43,7 @@ from sqlalchemy.exc import InternalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session, registry
 
-from alembic import command
+from learn_to_cloud import migrations
 from learn_to_cloud.core.database import Base
 from learn_to_cloud.models import (
     LearnerStepCompletion,
@@ -89,13 +88,10 @@ def _admin_url() -> str:
 
 @pytest.fixture()
 def alembic_config():
-    """Point pytest-alembic at our alembic.ini."""
+    """Point pytest-alembic at the packaged migration scripts."""
 
     return PytestAlembicConfig(
-        config_options={
-            "file": str(Path(__file__).parent.parent / "alembic.ini"),
-            "script_location": str(Path(__file__).parent.parent / "alembic"),
-        },
+        config_options={"script_location": migrations.SCRIPT_LOCATION},
     )
 
 
@@ -414,10 +410,7 @@ def historical_user_models():
 
 
 def test_display_name_offline_sql_is_atomic_and_bounded() -> None:
-    config = Config(str(Path(__file__).parent.parent / "alembic.ini"))
-    config.set_main_option(
-        "script_location", str(Path(__file__).parent.parent / "alembic")
-    )
+    config = migrations.alembic_config()
     upgrade_sql = StringIO()
     config.output_buffer = upgrade_sql
     command.upgrade(config, f"{_PRE_DISPLAY_NAME}:{_DISPLAY_NAME_EXPANSION}", sql=True)
@@ -439,10 +432,7 @@ def test_display_name_offline_sql_is_atomic_and_bounded() -> None:
 
 
 def test_display_name_contract_offline_sql_is_atomic_and_bounded() -> None:
-    config = Config(str(Path(__file__).parent.parent / "alembic.ini"))
-    config.set_main_option(
-        "script_location", str(Path(__file__).parent.parent / "alembic")
-    )
+    config = migrations.alembic_config()
     upgrade_sql = StringIO()
     config.output_buffer = upgrade_sql
     command.upgrade(

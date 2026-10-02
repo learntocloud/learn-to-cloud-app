@@ -12,11 +12,12 @@ from __future__ import annotations
 
 import os
 import uuid
-from pathlib import Path
 
 import pytest
 from pytest_alembic.config import Config
 from sqlalchemy import create_engine, text
+
+from learn_to_cloud import migrations
 
 MIGRATION_DB = "test_verification_attempt_grants"
 _BEFORE = "0048_validate_deployment_architecture_type"
@@ -87,10 +88,7 @@ def _admin_url() -> str:
 def alembic_config():
 
     return Config(
-        config_options={
-            "file": str(Path(__file__).parent.parent / "alembic.ini"),
-            "script_location": str(Path(__file__).parent.parent / "alembic"),
-        },
+        config_options={"script_location": migrations.SCRIPT_LOCATION},
     )
 
 

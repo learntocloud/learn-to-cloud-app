@@ -9,9 +9,6 @@ _ROOT = Path(__file__).resolve().parents[1]
 
 _APPLICATION_DEPLOY_PATHS = {
     "src/**",
-    "alembic/**",
-    "alembic.ini",
-    "scripts/run_migrations.py",
     "Dockerfile",
     "package.json",
     "package-lock.json",
