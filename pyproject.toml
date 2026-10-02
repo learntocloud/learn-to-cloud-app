@@ -43,7 +43,7 @@ dependencies = [
     "opentelemetry-instrumentation-logging==0.65b0",
     "opentelemetry-instrumentation-sqlalchemy==0.65b0",
     "opentelemetry-sdk>=1.44.0,<1.45.0",
-    "openai>=2.54.0,<3",
+    "openai>=2.54.0,<4",
     "pydantic>=2.13.3,<3",
     "pydantic-settings>=2.14.2",
     "python-json-logger>=4.1.0",
