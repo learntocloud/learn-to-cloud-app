@@ -71,7 +71,6 @@ locals {
   postgres_sku_name                     = coalesce(var.postgres_sku_name, "B_Standard_B1ms")
   postgres_storage_mb                   = coalesce(var.postgres_storage_mb, 32768)
   postgres_zone                         = coalesce(var.postgres_zone, "3")
-  verification_functions_postgres_role  = coalesce(var.postgres_verification_functions_role, "ltc_verification_functions_${var.environment}")
   smoke_auth_app_name                   = "ltc-smoke-api-${var.environment}"
   smoke_auth_audience                   = "api://${local.smoke_auth_app_name}"
   smoke_auth_client_ids = {

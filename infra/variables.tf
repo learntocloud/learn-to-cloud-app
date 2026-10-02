@@ -56,17 +56,6 @@ variable "postgres_migration_role" {
   }
 }
 
-variable "postgres_verification_functions_role" {
-  description = "Inert legacy role name required by historical migrations. Defaults to ltc_verification_functions_<environment>."
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.postgres_verification_functions_role == null || can(regex("^[A-Za-z_][A-Za-z0-9_]*$", var.postgres_verification_functions_role))
-    error_message = "postgres_verification_functions_role must be a valid PostgreSQL role identifier using letters, numbers, and underscores, and must not start with a number."
-  }
-}
-
 variable "foundry_model_deployment_name" {
   description = "Foundry model deployment name used by the verification LLM grader."
   type        = string

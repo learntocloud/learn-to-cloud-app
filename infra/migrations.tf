@@ -71,10 +71,6 @@ resource "azapi_resource" "migrations" {
                 name  = "POSTGRES_API_RUNTIME_ROLE"
                 value = local.api_postgres_role
               },
-              {
-                name  = "POSTGRES_VERIFICATION_FUNCTIONS_ROLE"
-                value = local.verification_functions_postgres_role
-              },
             ]
           },
         ]

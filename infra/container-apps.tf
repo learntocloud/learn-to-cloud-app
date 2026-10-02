@@ -184,18 +184,6 @@ resource "azurerm_container_app" "api_v5" {
         value = azapi_resource.foundry_model_deployment.name
       }
 
-      # Terraform updates settings before deploying the new image. Keep the old
-      # image's required settings inert so normal site routes remain available.
-      env {
-        name  = "VERIFICATION_FUNCTIONS__BASE_URL"
-        value = "https://127.0.0.1"
-      }
-
-      env {
-        name  = "VERIFICATION_FUNCTIONS__TOKEN_SCOPE"
-        value = "api://ltc-verification-functions-${var.environment}/.default"
-      }
-
       env {
         name  = "CORS__FRONTEND_URL"
         value = "https://learntocloud.guide"
