@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import httpcore2
 import httpx
-import httpx2
 import openai
 import pytest
 from fastapi.responses import RedirectResponse
+from opentelemetry.instrumentation.httpx import HTTPX2ClientInstrumentor
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind, StatusCode
 
-from learn_to_cloud.core.auth import init_oauth, oauth, oauth_transport
+from learn_to_cloud.core.auth import init_oauth, oauth
 from learn_to_cloud.core.config import OAuthConfig
 from learn_to_cloud.core.outbound import (
     DEPENDENCY_NAME,
@@ -36,17 +42,38 @@ def telemetry():
 
 
 @pytest.fixture
+def oauth_spans() -> Iterator[InMemorySpanExporter]:
+    """Spans from the global httpx2 instrumentor that traces authlib's requests."""
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    instrumentor = HTTPX2ClientInstrumentor()
+    instrumentor.instrument(tracer_provider=provider)
+    try:
+        yield exporter
+    finally:
+        instrumentor.uninstrument()
+        provider.shutdown()
+
+
+@pytest.fixture
 def github(monkeypatch):
-    """A real authlib GitHub client whose shared transport talks to ``routes``."""
-    routes: dict[str, httpx2.Response | type[httpx2.RequestError]] = {}
+    """A real authlib GitHub client whose connection pool answers from ``routes``."""
+    routes: dict[str, httpcore2.Response | type[httpcore2.TimeoutException]] = {}
 
-    def handle(request: httpx2.Request) -> httpx2.Response:
-        outcome = routes[str(request.url.copy_with(query=None))]
-        if isinstance(outcome, httpx2.Response):
+    def handle(request: httpcore2.Request) -> httpcore2.Response:
+        url = request.url
+        path = url.target.decode().split("?", 1)[0]
+        outcome = routes[f"{url.scheme.decode()}://{url.host.decode()}{path}"]
+        if isinstance(outcome, httpcore2.Response):
             return outcome
-        raise outcome("boom", request=request)
+        raise outcome("boom")
 
-    monkeypatch.setattr(oauth_transport, "_inner", httpx2.MockTransport(handle))
+    monkeypatch.setattr(
+        httpcore2.AsyncConnectionPool,
+        "handle_async_request",
+        AsyncMock(side_effect=handle),
+    )
     oauth._clients.pop("github", None)
     init_oauth(OAuthConfig(client_id="client-id", client_secret=SECRET))
     client = oauth.create_client("github")
@@ -72,58 +99,48 @@ def _log(caplog: pytest.LogCaptureFixture, message: str) -> logging.LogRecord:
     return record
 
 
-async def test_oauth_token_exchange_timeout_drill(github, telemetry, caplog):
-    github[TOKEN_URL] = httpx2.ReadTimeout
+def _spans_json(exporter: InMemorySpanExporter) -> str:
+    return json.dumps(
+        [json.loads(span.to_json()) for span in exporter.get_finished_spans()]
+    )
+
+
+async def test_oauth_token_exchange_timeout_drill(github, oauth_spans, caplog):
+    github[TOKEN_URL] = httpcore2.ReadTimeout
 
     result = await auth_routes.callback(_request())
 
     assert isinstance(result, RedirectResponse)
-    (span,) = telemetry.spans()
+    (span,) = oauth_spans.get_finished_spans()
     assert span.kind is SpanKind.CLIENT
     assert span.name == "POST"
     assert span.status.status_code is StatusCode.ERROR
-    assert span.attributes["url.full"] == TOKEN_URL
-    assert span.attributes[ERROR_TYPE] == "timeout.read"
-    (point,) = telemetry.points()
-    assert point[DEPENDENCY_NAME] == "github_oauth"
-    assert point[DEPENDENCY_OPERATION] == "POST"
-    assert point[ERROR_TYPE] == "timeout.read"
     record = _log(caplog, "auth.callback.token_exchange_failed")
     assert getattr(record, "error.type") == "timeout.read"
     assert getattr(record, DEPENDENCY_NAME) == "github_oauth"
-    assert SECRET not in telemetry.dump()
+    assert SECRET not in _spans_json(oauth_spans)
     assert SECRET not in caplog.text
 
 
-async def test_oauth_profile_fetch_outage_drill(github, telemetry, caplog):
-    github[TOKEN_URL] = httpx2.Response(
-        200, json={"access_token": SECRET, "token_type": "bearer"}
+async def test_oauth_profile_fetch_outage_drill(github, oauth_spans, caplog):
+    github[TOKEN_URL] = httpcore2.Response(
+        200,
+        headers=[(b"content-type", b"application/json")],
+        content=json.dumps({"access_token": SECRET, "token_type": "bearer"}).encode(),
     )
-    github["https://api.github.com/user"] = httpx2.Response(503)
+    github["https://api.github.com/user"] = httpcore2.Response(503, content=b"")
 
     result = await auth_routes.callback(_request())
 
     assert isinstance(result, RedirectResponse)
-    exchange, profile = telemetry.spans()
+    exchange, profile = oauth_spans.get_finished_spans()
     assert exchange.status.status_code is StatusCode.UNSET
-    assert profile.attributes[ERROR_TYPE] == "http_5xx"
-    assert profile.attributes["http.response.status_code"] == 503
-    by_operation = {p[DEPENDENCY_OPERATION]: p for p in telemetry.points()}
-    assert ERROR_TYPE not in by_operation["POST"]
-    assert by_operation["GET"][ERROR_TYPE] == "http_5xx"
+    assert profile.kind is SpanKind.CLIENT
+    assert profile.status.status_code is StatusCode.ERROR
     record = _log(caplog, "auth.callback.profile_fetch_failed")
     assert getattr(record, "error.type") == "http_5xx"
-    assert SECRET not in telemetry.dump()
+    assert SECRET not in _spans_json(oauth_spans)
     assert SECRET not in caplog.text
-
-
-async def test_oauth_transport_survives_authlib_closing_its_client(github):
-    github["https://api.github.com/user"] = httpx2.Response(200, json={})
-    client = oauth.create_client("github")
-
-    for _ in range(2):
-        response = await client.get("user", token={"access_token": "t"})
-        assert response.status_code == 200
 
 
 async def test_foundry_grading_timeout_drill(monkeypatch, telemetry, caplog):

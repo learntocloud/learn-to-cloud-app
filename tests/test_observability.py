@@ -51,6 +51,9 @@ def test_configure_observability_logs_missing_destination(
         patch(
             "learn_to_cloud.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
+        patch(
+            "learn_to_cloud.core.observability.HTTPX2ClientInstrumentor"
+        ) as httpx2_instrumentor,
         caplog.at_level("ERROR"),
     ):
         configured = observability.configure_observability()
@@ -58,6 +61,7 @@ def test_configure_observability_logs_missing_destination(
     azure_monitor.assert_not_called()
     otlp.assert_not_called()
     httpx_instrumentor.assert_not_called()
+    httpx2_instrumentor.assert_not_called()
     assert observability._telemetry_enabled is False
     assert configured is False
     records = [
@@ -126,6 +130,9 @@ def test_configure_observability_uses_azure_monitor_when_connection_string_set(
             "learn_to_cloud.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
         patch(
+            "learn_to_cloud.core.observability.HTTPX2ClientInstrumentor"
+        ) as httpx2_instrumentor,
+        patch(
             "learn_to_cloud.core.observability.FastAPIInstrumentor"
         ) as fastapi_instrumentor,
     ):
@@ -134,6 +141,7 @@ def test_configure_observability_uses_azure_monitor_when_connection_string_set(
     azure_monitor.assert_called_once_with(resource)
     otlp.assert_not_called()
     httpx_instrumentor.return_value.instrument.assert_called_once_with()
+    httpx2_instrumentor.return_value.instrument.assert_called_once_with()
     fastapi_instrumentor.assert_not_called()
     assert observability._telemetry_enabled is True
     assert configured is True
@@ -159,12 +167,16 @@ def test_configure_observability_uses_otlp_when_endpoint_set():
         patch(
             "learn_to_cloud.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
+        patch(
+            "learn_to_cloud.core.observability.HTTPX2ClientInstrumentor"
+        ) as httpx2_instrumentor,
     ):
         configured = observability.configure_observability()
 
     azure_monitor.assert_not_called()
     otlp.assert_called_once_with(resource)
     httpx_instrumentor.return_value.instrument.assert_called_once_with()
+    httpx2_instrumentor.return_value.instrument.assert_called_once_with()
     assert observability._telemetry_enabled is True
     assert configured is True
 
@@ -186,12 +198,16 @@ def test_configure_observability_azure_failure_is_nonfatal_by_default(
         patch(
             "learn_to_cloud.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
+        patch(
+            "learn_to_cloud.core.observability.HTTPX2ClientInstrumentor"
+        ) as httpx2_instrumentor,
         caplog.at_level("ERROR"),
     ):
         configured = observability.configure_observability()
 
     azure_monitor.assert_called_once()
     httpx_instrumentor.assert_not_called()
+    httpx2_instrumentor.assert_not_called()
     assert observability._telemetry_enabled is False
     assert configured is False
     records = [
@@ -221,11 +237,15 @@ def test_configure_observability_otlp_failure_is_nonfatal(
         patch(
             "learn_to_cloud.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
+        patch(
+            "learn_to_cloud.core.observability.HTTPX2ClientInstrumentor"
+        ) as httpx2_instrumentor,
         caplog.at_level("ERROR"),
     ):
         configured = observability.configure_observability()
 
     httpx_instrumentor.assert_not_called()
+    httpx2_instrumentor.assert_not_called()
     assert observability._telemetry_enabled is False
     assert configured is False
     records = [
@@ -249,11 +269,15 @@ def test_configure_observability_noops_when_already_enabled():
         patch(
             "learn_to_cloud.core.observability.HTTPXClientInstrumentor"
         ) as httpx_instrumentor,
+        patch(
+            "learn_to_cloud.core.observability.HTTPX2ClientInstrumentor"
+        ) as httpx2_instrumentor,
     ):
         configured = observability.configure_observability()
 
     azure_monitor.assert_not_called()
     httpx_instrumentor.assert_not_called()
+    httpx2_instrumentor.assert_not_called()
     assert configured is True
 
 
@@ -401,13 +425,19 @@ def test_configure_otlp_uses_env_driven_exporter_defaults():
 
 @pytest.mark.unit
 def test_httpx_instrumentation_is_process_wide_and_idempotent():
-    with patch(
-        "learn_to_cloud.core.observability.HTTPXClientInstrumentor"
-    ) as httpx_instrumentor:
+    with (
+        patch(
+            "learn_to_cloud.core.observability.HTTPXClientInstrumentor"
+        ) as httpx_instrumentor,
+        patch(
+            "learn_to_cloud.core.observability.HTTPX2ClientInstrumentor"
+        ) as httpx2_instrumentor,
+    ):
         assert observability.configure_dependency_instrumentation() is True
         assert observability.configure_dependency_instrumentation() is True
 
     httpx_instrumentor.return_value.instrument.assert_called_once_with()
+    httpx2_instrumentor.return_value.instrument.assert_called_once_with()
 
 
 @pytest.mark.unit
