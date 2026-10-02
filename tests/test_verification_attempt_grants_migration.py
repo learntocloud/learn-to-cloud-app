@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from pytest_alembic.config import Config
 from sqlalchemy import create_engine, text
 
 MIGRATION_DB = "test_verification_attempt_grants"
@@ -84,7 +85,6 @@ def _admin_url() -> str:
 
 @pytest.fixture()
 def alembic_config():
-    from pytest_alembic.config import Config
 
     return Config(
         config_options={

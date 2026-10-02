@@ -10,20 +10,20 @@ from pydantic import ValidationError
 
 from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification import evidence as evidence_module
-from learn_to_cloud.verification import repo_files as repo_files_module
+from learn_to_cloud.verification import github_api
 from learn_to_cloud.verification.evidence import (
     EVIDENCE_ERROR_CODES,
     EvidenceError,
     apply_evidence_cap,
     collect_repo_file_evidence,
 )
+from learn_to_cloud.verification.github_api import GitHubClient
 from learn_to_cloud.verification.grading_requests import (
     LLMGradingRequest,
     build_repo_rubric_message,
     build_text_rubric_message,
     validate_grading_request,
 )
-from learn_to_cloud.verification.repo_files import GitHubRepoFiles
 from learn_to_cloud.verification.security_scanning import (
     collect_security_scanning_evidence,
 )
@@ -34,7 +34,7 @@ from learn_to_cloud.verification.tasks import (
 from learn_to_cloud.verification.tasks.base import (
     EvidenceBundle,
 )
-from tests.support.fakes.repo_files import InMemoryRepoFiles
+from tests.support.fakes.github import FakeGitHub
 
 TASKS = [
     SECURITY_SCANNING_RUBRIC_TASK,
@@ -70,7 +70,7 @@ async def test_proven_absence_names_canonical_work_without_reads(missing):
     files.update(
         {".github/workflows/ci.yaml": "alternate", "requirements.txt": "alternate"}
     )
-    repo = InMemoryRepoFiles(files)
+    repo = FakeGitHub(files=files)
     with pytest.raises(EvidenceError, match="evidence.required_missing") as caught:
         await collect_repo_file_evidence(repo, "owner", "repo", [], task)
     result = caught.value.to_validation_result()
@@ -91,11 +91,11 @@ async def test_helpers_use_only_named_files_and_full_optional_support():
             "requirements.txt": "x" * 500_000,
         }
     )
-    repo = InMemoryRepoFiles(files)
+    repo = FakeGitHub(files=files)
     bundle = await collect_security_scanning_evidence(
         "owner",
         "repo",
-        repo_files=repo,
+        repo,
     )
     assert repo.file_reads == sorted(selected)
     assert all(item.content == "完整\nimplementation" for item in bundle.items)
@@ -109,8 +109,8 @@ async def test_dependabot_presence_is_explicit_in_the_real_prompt(present):
     if present:
         files[task.evidence.optional_files[0]] = "version: 2\nupdates: []"
     files[".github/dependabot.yaml"] = "out of contract" * 50_000
-    repo = InMemoryRepoFiles(files)
-    bundle = await collect_security_scanning_evidence("owner", "repo", repo_files=repo)
+    repo = FakeGitHub(files=files)
+    bundle = await collect_security_scanning_evidence("owner", "repo", repo)
     message = build_repo_rubric_message(
         requirement_slug="security-scanning",
         requirement_name="Security",
@@ -129,15 +129,15 @@ async def test_dependabot_presence_is_explicit_in_the_real_prompt(present):
 
 async def test_oversized_optional_dependabot_blocks_whole_packet():
     task = SECURITY_SCANNING_RUBRIC_TASK
-    repo = InMemoryRepoFiles(
-        {
+    repo = FakeGitHub(
+        files={
             task.evidence.required_files[0]: "CodeQL",
             task.evidence.optional_files[0]: "x"
             * (task.evidence.max_file_size_bytes + 1),
         }
     )
     with pytest.raises(EvidenceError, match="evidence.item_limit"):
-        await collect_security_scanning_evidence("owner", "repo", repo_files=repo)
+        await collect_security_scanning_evidence("owner", "repo", repo)
 
 
 @pytest.mark.parametrize(("count", "code"), [(24, None), (25, "evidence.file_limit")])
@@ -149,7 +149,7 @@ async def test_selected_count_limit_precedes_any_file_read(count, code):
         optional_files=[],
         max_files=24,
     )
-    repo = InMemoryRepoFiles(files)
+    repo = FakeGitHub(files=files)
     if code:
         with pytest.raises(EvidenceError, match=code):
             await collect_repo_file_evidence(repo, "owner", "repo", [], task)
@@ -391,7 +391,7 @@ def test_evidence_packet_requires_current_selection_fields(field):
 
 
 async def test_wrong_source_is_configuration_failure_before_repository_access():
-    repo = InMemoryRepoFiles({"career-reflection.md": "text"})
+    repo = FakeGitHub(files={"career-reflection.md": "text"})
     with pytest.raises(EvidenceError, match="evidence.configuration"):
         await collect_repo_file_evidence(
             repo,
@@ -406,7 +406,7 @@ async def test_wrong_source_is_configuration_failure_before_repository_access():
 @pytest.mark.parametrize("boundary", ["tree", "collector"])
 async def test_truncated_github_tree_is_never_trusted(monkeypatch, boundary):
     monkeypatch.setattr(
-        repo_files_module,
+        github_api,
         "github_api_get",
         AsyncMock(
             return_value=httpx.Response(
@@ -418,7 +418,7 @@ async def test_truncated_github_tree_is_never_trusted(monkeypatch, boundary):
             )
         ),
     )
-    repo = GitHubRepoFiles()
+    repo = GitHubClient()
     with pytest.raises(EvidenceError, match="evidence.selection") as caught:
         if boundary == "tree":
             await repo.tree("owner", "repo")
@@ -477,7 +477,7 @@ async def test_collection_telemetry_never_contains_sensitive_sentinels(monkeypat
         optional_files=[],
     )
     await collect_repo_file_evidence(
-        InMemoryRepoFiles({secret_path: content}),
+        FakeGitHub(files={secret_path: content}),
         "private-owner",
         "private-repo",
         [secret_path],

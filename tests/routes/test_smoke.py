@@ -29,6 +29,15 @@ from fastapi.responses import HTMLResponse
 from httpx import ASGITransport, AsyncClient
 
 from learn_to_cloud.core.database import get_db
+from learn_to_cloud.curriculum.yaml_loader import (
+    get_all_phases_from_yaml,
+)
+from learn_to_cloud.main import app
+from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
+from learn_to_cloud.rendering.requirement_cards import (
+    build_requirement_card_context,
+)
+from learn_to_cloud.schemas.curriculum import PhaseOverview, TopicOverview
 from learn_to_cloud.schemas.progress import (
     DashboardData,
     LearningProgress,
@@ -37,7 +46,13 @@ from learn_to_cloud.schemas.progress import (
     PhaseSummaryData,
     VerificationProgress,
 )
+from learn_to_cloud.schemas.verification import SubmissionData
 from learn_to_cloud.services.sessions_service import optional_authenticated_account
+from tests.support.requirement_factories import (
+    career_reflection_requirement,
+    ctf_token_requirement,
+    profile_readme_requirement,
+)
 
 # =============================================================================
 # Fixtures
@@ -85,10 +100,6 @@ def _fake_dashboard() -> DashboardData:
 def _patched_content():
     """Route smoke tests don't run against a real DB; redirect content reads
     to the authored YAML loader so routes get a real curriculum tree."""
-    from learn_to_cloud.curriculum.yaml_loader import (
-        get_all_phases_from_yaml,
-    )
-    from learn_to_cloud.schemas.curriculum import PhaseOverview, TopicOverview
 
     yaml_phases = get_all_phases_from_yaml()
     yaml_overview = tuple(
@@ -126,7 +137,6 @@ async def anon_client(_patched_content):
     Mocks DB dependencies and auth to return None (anonymous user).
     Does NOT require a running database.
     """
-    from learn_to_cloud.main import app
 
     mock_db = AsyncMock()
 
@@ -157,7 +167,6 @@ async def auth_client(_patched_content):
 
     Overrides the account resolver and mocks route database work.
     """
-    from learn_to_cloud.main import app
 
     mock_db = AsyncMock()
 
@@ -265,11 +274,6 @@ class TestAuthPageSmoke:
     async def test_typed_verification_submission_routes_bind_forms(
         self, auth_client: AsyncClient
     ):
-        from tests.support.requirement_factories import (
-            career_reflection_requirement,
-            ctf_token_requirement,
-            profile_readme_requirement,
-        )
 
         requirements = {
             "profile-readme": profile_readme_requirement(slug="profile-readme"),
@@ -315,9 +319,6 @@ class TestAuthPageSmoke:
 
     async def test_phase_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1 renders the phase detail template."""
-        from learn_to_cloud.curriculum.yaml_loader import (
-            get_all_phases_from_yaml,
-        )
 
         phases = get_all_phases_from_yaml()
         if not phases:
@@ -378,16 +379,6 @@ class TestAuthPageSmoke:
         self, auth_client: AsyncClient
     ):
         """A passed requirement still surfaces its rubric feedback (the why)."""
-        from datetime import UTC, datetime
-
-        from learn_to_cloud.curriculum.yaml_loader import (
-            get_all_phases_from_yaml,
-        )
-        from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
-        from learn_to_cloud.rendering.requirement_cards import (
-            build_requirement_card_context,
-        )
-        from learn_to_cloud.schemas.verification import SubmissionData
 
         phase = next(
             (p for p in get_all_phases_from_yaml() if p.slug == "phase1"), None
@@ -461,9 +452,6 @@ class TestAuthPageSmoke:
 
     async def test_topic_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1/{topic_slug} renders the topic detail template."""
-        from learn_to_cloud.curriculum.yaml_loader import (
-            get_all_phases_from_yaml,
-        )
 
         phase = next(
             (p for p in get_all_phases_from_yaml() if p.slug == "phase1"), None

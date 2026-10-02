@@ -14,6 +14,7 @@ import openai
 import pytest
 from azure.core.exceptions import ClientAuthenticationError, ServiceRequestError
 from azure.identity import CredentialUnavailableError
+from opentelemetry.instrumentation.httpx import AsyncOpenTelemetryTransport
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -237,7 +238,6 @@ async def test_retries_are_marked_on_span_and_metric(telemetry):
 
 
 async def test_measured_transport_suppresses_duplicate_httpx_spans(telemetry):
-    from opentelemetry.instrumentation.httpx import AsyncOpenTelemetryTransport
 
     native = InMemorySpanExporter()
     provider = TracerProvider()

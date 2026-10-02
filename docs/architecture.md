@@ -61,13 +61,17 @@ and the
 
 ## Changing verification
 
-Add checks to the shared
-[`verification/checks/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/src/learn_to_cloud/verification/checks)
-and compose them in
-[`workflows.py`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/verification/workflows.py).
-Keep orchestration and step telemetry in the engine, and provider error
-classification in the integration that understands the response.
-Extend check and workflow-contract tests together.
+The
+[`engine`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/verification/engine.py)
+calls each submission type's verifier directly from an exhaustive `match`, so
+adding a submission type fails type checking until it is handled. Repository
+types reuse the metadata fetched by the ownership preflight rather than asking
+GitHub again. Every GitHub read goes through the `GitHub` interface in
+`verification/github_api.py`; the engine passes one client to every check, and
+tests pass `FakeGitHub`. A verifier that needs several gates runs them in order
+itself. Keep ownership, check telemetry, and grading preparation in the
+engine, and provider error classification in the integration that understands
+the response.
 
 Preserve these distinctions:
 

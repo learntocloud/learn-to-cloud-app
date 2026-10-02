@@ -39,18 +39,17 @@ from learn_to_cloud.verification.attempt_types import (
 )
 from learn_to_cloud.verification.ci_status import verify_ci_status
 from learn_to_cloud.verification.execution import attempt_to_submission_data
+from learn_to_cloud.verification.github_api import GitHubClient
 from learn_to_cloud.verification.github_errors import (
     GitHubServerError,
     github_error_to_result,
 )
 from learn_to_cloud.verification.grading_requests import LLMGradingRequest
-from learn_to_cloud.verification.repo_files import GitHubRepoFiles
 from learn_to_cloud.verification.submission_values import value_kind_for_submission_type
 from learn_to_cloud.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
 )
-from tests.support.fakes.repo_ref import InMemoryRepoRef
-from tests.support.fakes.workflow_runs import InMemoryWorkflowRuns
+from tests.support.fakes.github import FakeGitHub
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -138,8 +137,8 @@ async def test_capstone_success_persists_commit_and_run_feedback(
     result = await verify_ci_status(
         "octocat",
         "journal-starter",
-        InMemoryWorkflowRuns(
-            {
+        FakeGitHub(
+            run={
                 "id": 789,
                 "run_number": 10,
                 "head_branch": "main",
@@ -147,9 +146,9 @@ async def test_capstone_success_persists_commit_and_run_feedback(
                 "event": "workflow_dispatch",
                 "status": "completed",
                 "conclusion": "success",
-            }
+            },
+            sha=sha,
         ),
-        InMemoryRepoRef(sha),
     )
     run_result = VerificationRunResult(
         attempt=preparation, validation_result=result, grading_requests=[]
@@ -326,11 +325,11 @@ async def test_failed_github_fetch_persists_incomplete_without_completion(
     )
     async with httpx.AsyncClient(transport=transport) as client:
         monkeypatch.setattr(
-            "learn_to_cloud.verification.repo_files.get_github_client",
+            "learn_to_cloud.verification.github_api.get_github_client",
             AsyncMock(return_value=client),
         )
         with pytest.raises(GitHubServerError) as raised:
-            await GitHubRepoFiles().file("octocat", "repo", "README.md")
+            await GitHubClient().file("octocat", "repo", "README.md")
     validation = github_error_to_result(
         raised.value, event="llm_rubric_review.repo_file_error"
     )

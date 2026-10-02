@@ -12,6 +12,7 @@ import openai
 import pytest
 from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
+from azure.identity.aio import ManagedIdentityCredential
 
 from learn_to_cloud.services import verification_grader
 from learn_to_cloud.services.verification_grader import (
@@ -242,7 +243,6 @@ def test_credential_uses_api_environment(monkeypatch, development) -> None:
 
 @pytest.mark.asyncio
 async def test_foundry_supports_async_credentials_and_transport_cleanup() -> None:
-    from azure.identity.aio import ManagedIdentityCredential
 
     credential = ManagedIdentityCredential()
     client = FoundryChatClient(

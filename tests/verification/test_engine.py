@@ -1,48 +1,34 @@
-"""Tests for the declarative verification engine."""
+"""Tests for the verification engine."""
 
 import asyncio
 import json
 import logging
 import traceback
-from dataclasses import replace
-from functools import partial
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import httpx
 import pytest
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+    InMemorySpanExporter,
+)
 from opentelemetry.trace import Status, StatusCode
 
 from learn_to_cloud.models import SubmissionType
 from learn_to_cloud.schemas.verification import TaskResult, ValidationResult
 from learn_to_cloud.verification import engine as engine_module
-from learn_to_cloud.verification import github_errors
-from learn_to_cloud.verification import repo_files as repo_files_module
-from learn_to_cloud.verification import workflows as workflows_module
+from learn_to_cloud.verification import github_api, github_errors, security_scanning
 from learn_to_cloud.verification.attempt_types import (
     PreparedVerificationAttempt,
 )
-from learn_to_cloud.verification.checks import career as career_checks
-from learn_to_cloud.verification.checks import (
-    deployed_api as deployed_api_checks,
-)
-from learn_to_cloud.verification.checks import devops as devops_checks
-from learn_to_cloud.verification.checks import github as github_checks
-from learn_to_cloud.verification.checks import security as security_checks
-from learn_to_cloud.verification.checks import tokens as tokens_checks
 from learn_to_cloud.verification.core import (
-    CheckFn,
-    Step,
-    StepContext,
-    StepResult,
-    VerificationWorkflow,
+    CheckResult,
 )
 from learn_to_cloud.verification.deployed_api import DeployedApiServerError
 from learn_to_cloud.verification.engine import run_verification
-from learn_to_cloud.verification.grading_requests import LLMGradingRequest
-from learn_to_cloud.verification.repo_files import (
-    GitHubRepoFiles,
-)
+from learn_to_cloud.verification.evidence import apply_evidence_cap
 from learn_to_cloud.verification.submission_values import submitted_value_from_raw
 from learn_to_cloud.verification.tasks.phase6 import (
     SECURITY_SCANNING_RUBRIC_TASK,
@@ -50,37 +36,44 @@ from learn_to_cloud.verification.tasks.phase6 import (
 from learn_to_cloud.verification.tasks.phase7 import (
     CAREER_REFLECTION_RUBRIC_TASK,
 )
-from tests.support.fakes.github_metadata import InMemoryGitHubMetadata
-from tests.support.fakes.repo_files import InMemoryRepoFiles
+from tests.support.fakes.github import FakeGitHub
 from tests.support.requirement_factories import (
+    career_reflection_requirement,
+    ctf_token_requirement,
+    deployed_api_requirement,
+    devops_analysis_requirement,
+    journal_api_verifier_requirement,
     make_requirement,
+    networking_token_requirement,
+    profile_readme_requirement,
     repo_fork_requirement,
+    security_scanning_requirement,
 )
 
 
 @pytest.fixture(autouse=True)
 def repository_metadata(monkeypatch):
-    metadata = InMemoryGitHubMetadata(
-        repos={
-            f"learner/{name}": {
-                "owner": {"id": 1, "login": "learner"},
-                "name": name,
-                "private": False,
-            }
-            for name in (
-                "learner",
-                "test-repo",
-                "journal-starter",
-                "devops-repo",
-                "sec-repo",
-            )
-        }
-    )
-    monkeypatch.setattr(
-        "learn_to_cloud.verification.repository_ownership.GitHubApiMetadata",
-        lambda: metadata,
-    )
+    metadata = _github()
+    monkeypatch.setattr(engine_module, "GitHubClient", lambda: metadata)
     return metadata
+
+
+def _github(**kwargs) -> FakeGitHub:
+    repos = {
+        f"learner/{name}": {
+            "owner": {"id": 1, "login": "learner"},
+            "name": name,
+            "private": False,
+        }
+        for name in (
+            "learner",
+            "test-repo",
+            "journal-starter",
+            "devops-repo",
+            "sec-repo",
+        )
+    }
+    return FakeGitHub(repos=repos, **kwargs)
 
 
 class _Span:
@@ -114,11 +107,6 @@ class _Tracer:
 
 @pytest.fixture
 def step_spans(monkeypatch):
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
-        InMemorySpanExporter,
-    )
 
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
@@ -143,77 +131,45 @@ def _job(requirement=None) -> PreparedVerificationAttempt:
     )
 
 
-def _step(check: CheckFn, task_id: str, *, name: str = "test_check") -> Step:
-    return Step(name=name, task_id=task_id, check=check)
-
-
-def _workflow(*steps: Step) -> VerificationWorkflow:
-    return VerificationWorkflow(requires_username=False, steps=steps)
-
-
-def test_workflow_requires_an_authoritative_validation_result():
-    with pytest.raises(ValueError, match="without a validation result"):
-        engine_module._aggregate([StepResult(passed=True)])
-
-
-def test_non_rubric_workflow_rejects_grading_requests():
-    request = LLMGradingRequest(
-        task=CAREER_REFLECTION_RUBRIC_TASK, message="unexpected grading request"
-    )
-    with pytest.raises(ValueError, match="Non-rubric workflow"):
-        engine_module._validate_grading_requests(_workflow(), [], [request])
-
-
-def test_successful_rubric_workflow_requires_a_grading_request():
-    workflow = VerificationWorkflow(
-        requires_username=False, rubric=CAREER_REFLECTION_RUBRIC_TASK.grader
-    )
-    with pytest.raises(ValueError, match="without a grading request"):
-        engine_module._validate_grading_requests(
-            workflow, [StepResult(passed=True)], []
-        )
-
-
-@pytest.mark.parametrize("configured", [False, True])
-async def test_step_preserves_callback_context_and_result_identity(configured):
-    result = StepResult(
-        passed=True,
+async def test_run_check_passes_inputs_and_preserves_result(monkeypatch):
+    result = CheckResult(
         validation_result=ValidationResult(is_valid=True, message="Unchanged"),
     )
-    check = AsyncMock(return_value=result)
-    kwargs = {"task": CAREER_REFLECTION_RUBRIC_TASK} if configured else {}
-    callback = partial(check, **kwargs) if configured else check
+    dispatch = AsyncMock(return_value=result)
+    monkeypatch.setattr(engine_module, "_dispatch", dispatch)
     job = _job()
-    context = StepContext(
-        job=job, repository=job.target, submitted_value=job.submitted_value
-    )
+    github = FakeGitHub()
 
-    assert await engine_module._run_step(_step(callback, "gate"), context) is result
-    check.assert_awaited_once_with(context, **kwargs)
+    assert await engine_module._run_check(job, None, github) is result
+    dispatch.assert_awaited_once_with(job, None, github)
 
 
 @pytest.mark.asyncio
-async def test_run_verification_uses_declared_steps(monkeypatch):
-    async def _gate(context: StepContext) -> StepResult:
-        return StepResult(
-            passed=True,
+async def test_run_verification_runs_the_submission_types_check(
+    monkeypatch, repository_metadata
+):
+    gate = AsyncMock(
+        return_value=CheckResult(
             validation_result=ValidationResult(
                 is_valid=True,
                 message="Gate passed",
                 task_results=[TaskResult(task_name="Gate", passed=True, feedback="ok")],
             ),
         )
-
-    monkeypatch.setattr(
-        engine_module,
-        "workflow_for",
-        lambda _t: _workflow(_step(_gate, "gate", name="test_gate_pass")),
     )
+
+    monkeypatch.setattr(engine_module, "_dispatch", gate)
     tracer = _Tracer()
     monkeypatch.setattr(engine_module, "_tracer", tracer)
 
-    result = await run_verification(_job())
+    job = _job()
+    result = await run_verification(job)
 
+    gate.assert_awaited_once()
+    called_job, repository, github = gate.await_args_list[0].args
+    assert called_job is job
+    assert repository.target == job.target
+    assert github is repository_metadata
     assert result.validation_result.is_valid is True
     assert result.validation_result.task_results == [
         TaskResult(task_name="Gate", passed=True, feedback="ok")
@@ -227,136 +183,28 @@ async def test_run_verification_uses_declared_steps(monkeypatch):
     name, span, _ = tracer.spans[-1]
     assert name == "verification.step"
     assert span.attributes == {
-        "verification.check.name": "test_gate_pass",
-        "verification.task.id": "gate",
+        "verification.check.name": "repo_fork",
         "verification.step.result": "passed",
     }
 
 
 @pytest.mark.asyncio
 async def test_step_span_records_native_exception(monkeypatch, step_spans):
-    async def _explode(context: StepContext) -> StepResult:
-        raise RuntimeError("Unexpected step failure")
+    explode = AsyncMock(side_effect=RuntimeError("Unexpected step failure"))
 
-    monkeypatch.setattr(
-        engine_module,
-        "workflow_for",
-        lambda _t: _workflow(_step(_explode, "explode", name="exploding")),
-    )
+    monkeypatch.setattr(engine_module, "_dispatch", explode)
     with pytest.raises(RuntimeError, match="Unexpected step failure"):
         await run_verification(_job())
 
     span = step_spans.get_finished_spans()[-1]
-    assert span.attributes == {
-        "verification.check.name": "exploding",
-        "verification.task.id": "explode",
-    }
+    assert span.attributes == {"verification.check.name": "repo_fork"}
     assert span.status is not None
     assert span.status.status_code is StatusCode.ERROR
     (event,) = span.events
     assert event.name == "exception"
     assert event.attributes["exception.type"] == "RuntimeError"
     assert event.attributes["exception.message"] == "Unexpected step failure"
-    assert "_explode" in event.attributes["exception.stacktrace"]
-
-
-@pytest.mark.asyncio
-async def test_failed_gate_short_circuits(monkeypatch):
-    ran: list[str] = []
-
-    async def _first(context: StepContext) -> StepResult:
-        ran.append("first")
-        return StepResult(
-            passed=False,
-            validation_result=ValidationResult(is_valid=False, message="Gate failed"),
-        )
-
-    async def _second(context: StepContext) -> StepResult:
-        ran.append("second")
-        return StepResult(passed=True)
-
-    monkeypatch.setattr(
-        engine_module,
-        "workflow_for",
-        lambda _t: _workflow(
-            _step(_first, "a"),
-            _step(_second, "b"),
-        ),
-    )
-
-    result = await run_verification(_job())
-
-    assert ran == ["first"]
-    assert result.validation_result.is_valid is False
-
-
-def test_multiple_authoritative_results_keep_latest_message_and_all_feedback():
-    first_task = TaskResult(task_name="Files", passed=True, feedback="present")
-    second_task = TaskResult(task_name="Image", passed=True, feedback="pullable")
-
-    result = engine_module._aggregate(
-        [
-            StepResult(
-                passed=True,
-                validation_result=ValidationResult(
-                    is_valid=True,
-                    message="Required files exist",
-                    username_match=True,
-                    task_results=[first_task],
-                ),
-            ),
-            StepResult(
-                passed=True,
-                validation_result=ValidationResult(
-                    is_valid=True,
-                    message="Container image is pullable",
-                    repo_exists=True,
-                    task_results=[second_task],
-                ),
-            ),
-        ]
-    )
-
-    assert result.is_valid is True
-    assert result.message == "Container image is pullable"
-    assert result.username_match is True
-    assert result.repo_exists is True
-    assert result.task_results == [first_task, second_task]
-
-
-def test_later_authoritative_failure_is_not_hidden_by_an_earlier_pass():
-    result = engine_module._aggregate(
-        [
-            StepResult(
-                passed=True,
-                validation_result=ValidationResult(
-                    is_valid=True,
-                    message="Required files exist",
-                ),
-            ),
-            StepResult(
-                passed=False,
-                validation_result=ValidationResult(
-                    is_valid=False,
-                    message="Container image is not pullable",
-                ),
-            ),
-        ]
-    )
-
-    assert result.is_valid is False
-    assert result.message == "Container image is not pullable"
-
-
-@pytest.mark.asyncio
-async def test_unregistered_type_returns_unknown_result(monkeypatch):
-    monkeypatch.setattr(engine_module, "workflow_for", lambda _t: None)
-
-    result = await run_verification(_job())
-
-    assert result.validation_result.is_valid is False
-    assert "Unknown submission type" in result.validation_result.message
-    assert result.grading_requests == []
+    assert "_run_check" in event.attributes["exception.stacktrace"]
 
 
 _REPOSITORY_TYPES = {
@@ -383,12 +231,11 @@ async def test_shared_preflight_covers_only_repository_assignments(
     )
     monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
     step = AsyncMock(
-        return_value=StepResult(
-            passed=False,
+        return_value=CheckResult(
             validation_result=ValidationResult(is_valid=False, message="existing gate"),
         )
     )
-    monkeypatch.setattr(engine_module, "_run_step", step)
+    monkeypatch.setattr(engine_module, "_run_check", step)
 
     result = await run_verification(job)
 
@@ -413,7 +260,6 @@ async def test_shared_preflight_covers_only_repository_assignments(
 async def test_canonical_repository_reaches_capstone_without_source_reads(
     monkeypatch, repository_metadata
 ):
-    from learn_to_cloud.verification.repo_files import RepoFiles
 
     lookup = AsyncMock(
         return_value={
@@ -424,16 +270,13 @@ async def test_canonical_repository_reaches_capstone_without_source_reads(
     )
     monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
     ci = AsyncMock(return_value=ValidationResult(is_valid=True, message="CI is green"))
-    monkeypatch.setattr(github_checks, "verify_ci_status", ci)
-    files = AsyncMock(spec=RepoFiles)
+    monkeypatch.setattr(engine_module, "verify_ci_status", ci)
     job = _journal_job()
 
-    result = await run_verification(job, repo_files=files)
+    result = await run_verification(job)
 
     lookup.assert_awaited_once_with("learner", "journal-starter")
-    ci.assert_awaited_once_with("new-name", "moved-repo")
-    files.file.assert_not_awaited()
-    files.tree.assert_not_awaited()
+    ci.assert_awaited_once_with("new-name", "moved-repo", repository_metadata)
     assert not result.grading_requests
     assert result.attempt is job
     assert result.attempt.github_username == "learner"
@@ -446,11 +289,6 @@ async def test_canonical_repository_reaches_capstone_without_source_reads(
 async def test_ownership_exports_bounded_telemetry(
     monkeypatch, repository_metadata, caplog, scenario
 ):
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
-        InMemorySpanExporter,
-    )
 
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
@@ -484,10 +322,9 @@ async def test_ownership_exports_bounded_telemetry(
     monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
     monkeypatch.setattr(
         engine_module,
-        "_run_step",
+        "_run_check",
         AsyncMock(
-            return_value=StepResult(
-                passed=True,
+            return_value=CheckResult(
                 validation_result=ValidationResult(is_valid=True, message="unchanged"),
             )
         ),
@@ -535,7 +372,7 @@ async def test_ownership_failure_keeps_native_diagnostics_and_correlation(
     lookup = AsyncMock(side_effect=fail_lookup)
     monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
     step = AsyncMock()
-    monkeypatch.setattr(engine_module, "_run_step", step)
+    monkeypatch.setattr(engine_module, "_run_check", step)
     counter = Mock()
     monkeypatch.setattr(github_errors, "_GITHUB_API_ERROR_COUNTER", counter)
     evidence_decision = Mock()
@@ -583,14 +420,11 @@ async def test_ownership_failure_keeps_native_diagnostics_and_correlation(
 
 
 # ---------------------------------------------------------------------------
-# Phase 3 journal API workflow: current-commit capstone workflow gate.
+# Phase 3 journal API: current-commit capstone CI gate.
 # ---------------------------------------------------------------------------
 
 
 def _journal_job() -> PreparedVerificationAttempt:
-    from tests.support.requirement_factories import (
-        journal_api_verifier_requirement,
-    )
 
     requirement = journal_api_verifier_requirement(
         slug="journal-api-implementation",
@@ -613,36 +447,26 @@ def _journal_job() -> PreparedVerificationAttempt:
     ("passed", "completed"), [(True, True), (False, True), (False, False)]
 )
 async def test_journal_workflow_never_collects_source_or_requests_grading(
-    monkeypatch, passed, completed
+    monkeypatch, repository_metadata, passed, completed
 ):
     gate_result = ValidationResult(
         is_valid=passed, verification_completed=completed, message="Capstone result"
     )
     gate = AsyncMock(return_value=gate_result)
-    monkeypatch.setattr(github_checks, "verify_ci_status", gate)
-    files = AsyncMock()
+    monkeypatch.setattr(engine_module, "verify_ci_status", gate)
     job = _journal_job()
-    workflow = engine_module.workflow_for(job.requirement.submission_type)
-    assert workflow is not None
-    assert len(workflow.steps) == 1
-    assert workflow.rubric is None
-    result = await run_verification(job, repo_files=files)
-    gate.assert_awaited_once_with("learner", "journal-starter")
-    files.tree.assert_not_awaited()
-    files.file.assert_not_awaited()
+    result = await run_verification(job)
+    gate.assert_awaited_once_with("learner", "journal-starter", repository_metadata)
     assert result.validation_result == gate_result
     assert result.grading_requests == []
 
 
 # ---------------------------------------------------------------------------
-# Phase 4/5 deterministic workflows: deployed API probe and DevOps workflow.
+# Phase 4/5 deterministic checks: deployed API probe and DevOps pipeline.
 # ---------------------------------------------------------------------------
 
 
 def _deployed_api_job() -> PreparedVerificationAttempt:
-    from tests.support.requirement_factories import (
-        deployed_api_requirement,
-    )
 
     requirement = deployed_api_requirement(slug="deployed-api")
     return PreparedVerificationAttempt(
@@ -657,9 +481,6 @@ def _deployed_api_job() -> PreparedVerificationAttempt:
 
 
 def _devops_job() -> PreparedVerificationAttempt:
-    from tests.support.requirement_factories import (
-        devops_analysis_requirement,
-    )
 
     requirement = devops_analysis_requirement(
         slug="devops-analysis",
@@ -681,7 +502,7 @@ async def test_deployed_api_workflow_passes_through_deterministic_result(monkeyp
     validate = AsyncMock(
         return_value=ValidationResult(is_valid=True, message="API is healthy")
     )
-    monkeypatch.setattr(deployed_api_checks, "validate_deployed_api", validate)
+    monkeypatch.setattr(engine_module, "validate_deployed_api", validate)
 
     result = await run_verification(_deployed_api_job())
 
@@ -696,7 +517,7 @@ async def test_deployed_api_workflow_fails_when_probe_fails(monkeypatch):
     validate = AsyncMock(
         return_value=ValidationResult(is_valid=False, message="API unreachable")
     )
-    monkeypatch.setattr(deployed_api_checks, "validate_deployed_api", validate)
+    monkeypatch.setattr(engine_module, "validate_deployed_api", validate)
 
     result = await run_verification(_deployed_api_job())
 
@@ -708,33 +529,29 @@ async def test_deployed_api_workflow_fails_when_probe_fails(monkeypatch):
 @pytest.mark.parametrize(
     ("passed", "completed"), [(True, True), (False, True), (False, False)]
 )
-async def test_devops_workflow_uses_only_run_results(monkeypatch, passed, completed):
+async def test_devops_workflow_uses_only_run_results(
+    monkeypatch, repository_metadata, passed, completed
+):
     validation = ValidationResult(
         is_valid=passed, verification_completed=completed, message="Pipeline result"
     )
     verify = AsyncMock(return_value=validation)
-    monkeypatch.setattr(devops_checks, "verify_devops_pipeline", verify)
-    files = AsyncMock()
+    monkeypatch.setattr(engine_module, "verify_devops_pipeline", verify)
 
-    result = await run_verification(_devops_job(), repo_files=files)
+    result = await run_verification(_devops_job())
 
-    verify.assert_awaited_once_with("learner", "devops-repo")
-    files.tree.assert_not_awaited()
-    files.file.assert_not_awaited()
+    verify.assert_awaited_once_with("learner", "devops-repo", repository_metadata)
     assert result.validation_result is validation
     assert result.grading_requests == []
 
 
 # ---------------------------------------------------------------------------
-# Phase 6/7 rubric workflows: security scanning gates repository evidence;
+# Phase 6/7 rubric checks: security scanning gates repository evidence;
 # career reflection prepares submitted text for grading.
 # ---------------------------------------------------------------------------
 
 
 def _security_job() -> PreparedVerificationAttempt:
-    from tests.support.requirement_factories import (
-        security_scanning_requirement,
-    )
 
     requirement = security_scanning_requirement(
         slug="security-scanning",
@@ -752,9 +569,6 @@ def _security_job() -> PreparedVerificationAttempt:
 
 
 def _career_job(text: str) -> PreparedVerificationAttempt:
-    from tests.support.requirement_factories import (
-        career_reflection_requirement,
-    )
 
     requirement = career_reflection_requirement(slug="career-reflection")
     return PreparedVerificationAttempt(
@@ -768,22 +582,18 @@ def _career_job(text: str) -> PreparedVerificationAttempt:
 
 @pytest.mark.asyncio
 async def test_security_workflow_records_grading_request_when_gate_passes(monkeypatch):
-    from learn_to_cloud.verification.tasks.phase6 import (
-        SECURITY_SCANNING_RUBRIC_TASK,
-    )
-    from tests.support.fakes.repo_files import InMemoryRepoFiles
 
     gate = AsyncMock(
         return_value=ValidationResult(is_valid=True, message="CodeQL green on main")
     )
-    monkeypatch.setattr(security_checks, "verify_codeql_status", gate)
-    repo_files = InMemoryRepoFiles(
-        {".github/workflows/codeql.yml": "name: CodeQL\non: [push]\n"}
+    monkeypatch.setattr(security_scanning, "verify_codeql_status", gate)
+    github = _github(
+        files={".github/workflows/codeql.yml": "name: CodeQL\non: [push]\n"}
     )
 
-    result = await run_verification(_security_job(), repo_files=repo_files)
+    result = await run_verification(_security_job(), github=github)
 
-    gate.assert_awaited_once_with("learner", "sec-repo")
+    gate.assert_awaited_once_with("learner", "sec-repo", github)
     assert result.validation_result.is_valid is True
     assert result.grading_requests is not None
     assert result.grading_requests is not None
@@ -793,16 +603,16 @@ async def test_security_workflow_records_grading_request_when_gate_passes(monkey
 
 @pytest.mark.asyncio
 async def test_security_workflow_skips_grading_when_gate_fails(monkeypatch):
-    from tests.support.fakes.repo_files import InMemoryRepoFiles
 
     gate = AsyncMock(
         return_value=ValidationResult(is_valid=False, message="No CodeQL runs found")
     )
-    monkeypatch.setattr(security_checks, "verify_codeql_status", gate)
+    monkeypatch.setattr(security_scanning, "verify_codeql_status", gate)
 
-    result = await run_verification(_security_job(), repo_files=InMemoryRepoFiles({}))
+    github = _github()
+    result = await run_verification(_security_job(), github=github)
 
-    gate.assert_awaited_once_with("learner", "sec-repo")
+    gate.assert_awaited_once_with("learner", "sec-repo", github)
     assert result.validation_result.is_valid is False
     assert result.grading_requests == []
 
@@ -810,7 +620,7 @@ async def test_security_workflow_skips_grading_when_gate_fails(monkeypatch):
 def _evidence_flow(monkeypatch):
     passing = ValidationResult(is_valid=True, message="Prerequisite passed.")
     monkeypatch.setattr(
-        security_checks, "verify_codeql_status", AsyncMock(return_value=passing)
+        security_scanning, "verify_codeql_status", AsyncMock(return_value=passing)
     )
     policy = SECURITY_SCANNING_RUBRIC_TASK.evidence
     return _security_job(), [*policy.required_files, *policy.optional_files]
@@ -833,7 +643,7 @@ async def test_failed_evidence_read_stops_grading(monkeypatch, failure, category
     failed_path = paths[1]
     fetched = []
     mapper = Mock(wraps=github_errors.github_error_to_result)
-    monkeypatch.setattr(security_checks, "github_error_to_result", mapper)
+    monkeypatch.setattr(security_scanning, "github_error_to_result", mapper)
     counter = Mock()
     monkeypatch.setattr(github_errors, "_GITHUB_API_ERROR_COUNTER", counter)
     tracer = _Tracer()
@@ -841,6 +651,15 @@ async def test_failed_evidence_read_stops_grading(monkeypatch, failure, category
 
     def respond(request):
         if request.url.host == "api.github.com":
+            if request.url.path == "/repos/learner/sec-repo":
+                return httpx.Response(
+                    200,
+                    json={
+                        "owner": {"id": 1, "login": "learner"},
+                        "name": "sec-repo",
+                        "private": False,
+                    },
+                )
             return httpx.Response(
                 200, json={"tree": [{"type": "blob", "path": p} for p in paths]}
             )
@@ -854,13 +673,13 @@ async def test_failed_evidence_read_stops_grading(monkeypatch, failure, category
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
         monkeypatch.setattr(
-            repo_files_module, "get_github_client", AsyncMock(return_value=client)
+            github_api, "get_github_client", AsyncMock(return_value=client)
         )
         monkeypatch.setattr(
             "learn_to_cloud.verification.github_http._get_github_client",
             AsyncMock(return_value=client),
         )
-        result = await run_verification(job, repo_files=GitHubRepoFiles())
+        result = await run_verification(job, github=github_api.GitHubClient())
 
     assert fetched == paths[:2]
     assert result.validation_result.is_valid is False
@@ -888,13 +707,13 @@ async def test_evidence_boundaries_do_not_swallow_unsupported_errors(
     monkeypatch, error
 ):
     job, paths = _evidence_flow(monkeypatch)
-    files = InMemoryRepoFiles(dict.fromkeys(paths, "evidence"))
-    monkeypatch.setattr(files, "file", AsyncMock(side_effect=error))
+    github = _github(files=dict.fromkeys(paths, "evidence"))
+    monkeypatch.setattr(github, "file", AsyncMock(side_effect=error))
     mapper = Mock(wraps=github_errors.github_error_to_result)
-    monkeypatch.setattr(security_checks, "github_error_to_result", mapper)
+    monkeypatch.setattr(security_scanning, "github_error_to_result", mapper)
 
     with pytest.raises(type(error)) as raised:
-        await run_verification(job, repo_files=files)
+        await run_verification(job, github=github)
 
     assert raised.value is error
     mapper.assert_not_called()
@@ -906,9 +725,9 @@ async def test_selected_evidence_disappearance_blocks_grading(monkeypatch):
     contents = dict.fromkeys(paths, "evidence")
     missing_path = paths[1]
     del contents[missing_path]
-    files = InMemoryRepoFiles(contents, tree=paths)
+    github = _github(files=contents, tree=paths)
 
-    result = await run_verification(job, repo_files=files)
+    result = await run_verification(job, github=github)
 
     assert result.validation_result.verification_completed is False
     assert result.validation_result.error_code == "evidence.changed"
@@ -926,12 +745,12 @@ async def test_selected_evidence_disappearance_blocks_grading(monkeypatch):
 async def test_tree_failure_stops_grading_with_tree_event(monkeypatch, error):
     job, _ = _evidence_flow(monkeypatch)
     mapper = Mock(wraps=github_errors.github_error_to_result)
-    monkeypatch.setattr(security_checks, "github_error_to_result", mapper)
-    files = InMemoryRepoFiles(tree_error=error)
+    monkeypatch.setattr(security_scanning, "github_error_to_result", mapper)
+    github = _github(tree_error=error)
     read = AsyncMock()
-    monkeypatch.setattr(files, "file", read)
+    monkeypatch.setattr(github, "file", read)
 
-    result = await run_verification(job, repo_files=files)
+    result = await run_verification(job, github=github)
 
     assert result.validation_result.verification_completed is False
     assert result.grading_requests == []
@@ -939,51 +758,11 @@ async def test_tree_failure_stops_grading_with_tree_event(monkeypatch, error):
     read.assert_not_awaited()
 
 
-@pytest.mark.asyncio
-async def test_later_incomplete_step_discards_previously_recorded_grading(monkeypatch):
-    job, paths = _evidence_flow(monkeypatch)
-    workflow = engine_module.workflow_for(job.requirement.submission_type)
-    assert workflow is not None
-    monkeypatch.setattr(
-        engine_module,
-        "workflow_for",
-        lambda _: replace(
-            workflow,
-            steps=(
-                *workflow.steps,
-                _step(security_checks.check_codeql_status, "later-gate"),
-            ),
-        ),
-    )
-    incomplete = github_errors.github_error_to_result(
-        httpx.ConnectError("connection details"), event="test.upstream_error"
-    )
-    gate = AsyncMock(
-        side_effect=[
-            ValidationResult(is_valid=True, message="Initial gate passed."),
-            incomplete,
-        ]
-    )
-    monkeypatch.setattr(security_checks, "verify_codeql_status", gate)
-    build_prompt = Mock()
-    monkeypatch.setattr(engine_module, "build_repo_rubric_message", build_prompt)
-
-    result = await run_verification(
-        job, repo_files=InMemoryRepoFiles(dict.fromkeys(paths, "evidence"))
-    )
-
-    assert gate.await_count == 2
-    assert result.validation_result.verification_completed is False
-    assert result.validation_result.message == incomplete.message
-    assert result.grading_requests == []
-    build_prompt.assert_not_called()
-
-
 async def test_repository_rubric_blocks_oversized_evidence(monkeypatch):
     job, paths = _evidence_flow(monkeypatch)
     files = dict.fromkeys(paths, "complete")
     files[paths[0]] = "x" * (51 * 1024)
-    result = await run_verification(job, repo_files=InMemoryRepoFiles(files))
+    result = await run_verification(job, github=_github(files=files))
     assert result.validation_result.error_code == "evidence.item_limit"
     assert not result.validation_result.is_valid
     assert not result.validation_result.verification_completed
@@ -994,7 +773,7 @@ async def test_oversized_reflection_is_incomplete_without_any_repository_read():
     repo = AsyncMock()
     result = await run_verification(
         _career_job("🦊" * (20 * 1024 // 4 + 1)),
-        repo_files=repo,
+        github=repo,
     )
     assert result.validation_result.error_code == "evidence.item_limit"
     assert not result.validation_result.is_valid
@@ -1010,7 +789,7 @@ async def test_absent_optional_work_still_prepares_complete_grading(monkeypatch)
     files = {
         path: "complete" for path in paths if path not in task.evidence.optional_files
     }
-    result = await run_verification(job, repo_files=InMemoryRepoFiles(files))
+    result = await run_verification(job, github=_github(files=files))
     assert result.validation_result.is_valid
     assert result.grading_requests is not None
     assert len(result.grading_requests) == 1
@@ -1021,78 +800,10 @@ async def test_absent_optional_work_still_prepares_complete_grading(monkeypatch)
     )
 
 
-@pytest.mark.parametrize("completed", [False, True])
-async def test_any_later_failed_gate_discards_earlier_grading(monkeypatch, completed):
-    job, paths = _evidence_flow(monkeypatch)
-    workflow = engine_module.workflow_for(job.requirement.submission_type)
-    assert workflow is not None
-    monkeypatch.setattr(
-        engine_module,
-        "workflow_for",
-        lambda _: replace(
-            workflow,
-            steps=(
-                *workflow.steps,
-                _step(security_checks.check_codeql_status, "later-gate"),
-            ),
-        ),
-    )
-    code = "evidence.required_missing" if completed else "evidence.total_limit"
-    monkeypatch.setattr(
-        security_checks,
-        "verify_codeql_status",
-        AsyncMock(
-            side_effect=[
-                ValidationResult(is_valid=True, message="First gate passed"),
-                ValidationResult(
-                    is_valid=False,
-                    message="Later gate blocked",
-                    error_code=code,
-                    verification_completed=completed,
-                ),
-            ]
-        ),
-    )
-    build = Mock()
-    monkeypatch.setattr(engine_module, "build_repo_rubric_message", build)
-    result = await run_verification(
-        job,
-        repo_files=InMemoryRepoFiles(dict.fromkeys(paths, "full evidence")),
-    )
-    assert result.validation_result.error_code == code
-    assert result.validation_result.verification_completed == completed
-    assert result.grading_requests == []
-    build.assert_not_called()
-
-
-def test_aggregation_preserves_incomplete_cause_over_later_learner_feedback():
-    incomplete = ValidationResult(
-        is_valid=False,
-        verification_completed=False,
-        message="Evidence could not fit",
-        error_code="evidence.total_limit",
-    )
-    missing = ValidationResult(
-        is_valid=False,
-        message="Missing required work",
-        error_code="evidence.required_missing",
-    )
-    result = engine_module._aggregate(
-        [
-            StepResult(passed=False, validation_result=incomplete),
-            StepResult(passed=False, validation_result=missing),
-        ]
-    )
-    assert not result.verification_completed
-    assert result.error_code == incomplete.error_code
-    assert result.message == incomplete.message
-
-
 @pytest.mark.parametrize("mutation", ["truncated", "missing", "wrong_task"])
 async def test_engine_rechecks_collector_result_before_recording_grading(
     monkeypatch, mutation
 ):
-    from learn_to_cloud.verification.evidence import apply_evidence_cap
 
     job = _career_job("Complete reflection")
     task = CAREER_REFLECTION_RUBRIC_TASK
@@ -1108,7 +819,7 @@ async def test_engine_rechecks_collector_result_before_recording_grading(
     else:
         bundle = bundle.model_copy(update={"task_id": "other-task"})
     monkeypatch.setattr(
-        career_checks, "collect_submitted_text_evidence", lambda *_: bundle
+        engine_module, "collect_submitted_text_evidence", lambda *_: bundle
     )
     result = await run_verification(job)
     assert result.validation_result.error_code == "evidence.selection"
@@ -1116,39 +827,10 @@ async def test_engine_rechecks_collector_result_before_recording_grading(
     assert result.grading_requests == []
 
 
-@pytest.mark.parametrize(
-    "check",
-    [
-        partial(
-            security_checks.check_security_scanning_review,
-            task=SECURITY_SCANNING_RUBRIC_TASK,
-        ),
-    ],
-)
-async def test_missing_rubric_repository_is_explicit_incomplete_configuration(check):
-    job = _job()
-    result = await engine_module._run_step(
-        _step(check, "rubric"),
-        StepContext(job=job, repository=None, submitted_value=job.submitted_value),
-    )
-    assert not result.passed
-    assert result.validation_result is not None
-    assert result.validation_result.error_code == "evidence.configuration"
-    assert not result.validation_result.verification_completed
-    assert result.grading_task is None
-
-
 @pytest.mark.asyncio
-async def test_career_workflow_prepares_text_grading_in_one_step(monkeypatch):
-    from learn_to_cloud.verification.tasks.phase7 import (
-        CAREER_REFLECTION_RUBRIC_TASK,
-    )
+async def test_career_workflow_prepares_text_grading(monkeypatch):
 
     text = "A specific, first-person reflection on my target role and projects."
-    workflow = workflows_module.workflow_for(SubmissionType.CAREER_REFLECTION)
-    assert workflow is not None
-    assert len(workflow.steps) == 1
-    assert workflow.steps[0].name == "career_reflection"
     tracer = _Tracer()
     monkeypatch.setattr(engine_module, "_tracer", tracer)
     result = await run_verification(_career_job(text))
@@ -1167,13 +849,12 @@ async def test_career_workflow_prepares_text_grading_in_one_step(monkeypatch):
     assert len(tracer.spans) == 1
     assert tracer.spans[0][1].attributes == {
         "verification.check.name": "career_reflection",
-        "verification.task.id": CAREER_REFLECTION_RUBRIC_TASK.id,
         "verification.step.result": "passed",
     }
 
 
 # ---------------------------------------------------------------------------
-# Phase 0-2 gate-only workflows: profile README, repo fork, CTF and networking
+# Phase 0-2 deterministic checks: profile README, repo fork, CTF and networking
 # tokens. All are deterministic (no grading) and require a GitHub username.
 # ---------------------------------------------------------------------------
 
@@ -1188,51 +869,59 @@ def _phase02_job(requirement, submitted_value, github_username="learner"):
     )
 
 
-@pytest.mark.asyncio
-async def test_profile_readme_workflow_passes_through_validator(monkeypatch):
-    from tests.support.requirement_factories import (
-        profile_readme_requirement,
-    )
-
-    sentinel = ValidationResult(is_valid=True, message="Profile README validated")
-
-    validate = AsyncMock(return_value=sentinel)
-    monkeypatch.setattr(github_checks, "validate_profile_readme", validate)
-
+async def test_profile_readme_passes_from_the_ownership_lookup_alone(
+    repository_metadata, monkeypatch
+):
+    lookup = AsyncMock(wraps=repository_metadata.repo_metadata)
+    monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
     job = _phase02_job(
         profile_readme_requirement(),
         "https://github.com/learner/learner",
     )
+
     result = await run_verification(job)
 
-    validate.assert_awaited_once_with(job.target)
-    assert result.validation_result is sentinel
+    lookup.assert_awaited_once_with("learner", "learner")
+    assert result.validation_result.is_valid is True
+    assert result.validation_result.message == "Profile README validated successfully!"
     assert result.grading_requests == []
 
 
-@pytest.mark.asyncio
-async def test_repo_fork_workflow_passes_through_validator(monkeypatch):
-    sentinel = ValidationResult(is_valid=True, message="Repository fork validated")
-
-    validate = AsyncMock(return_value=sentinel)
-    monkeypatch.setattr(github_checks, "validate_repo_fork", validate)
-
+@pytest.mark.parametrize(
+    ("fork_fields", "valid"),
+    [
+        ({"fork": True, "parent": {"full_name": "upstream/test-repo"}}, True),
+        ({"fork": True, "parent": {"full_name": "other/test-repo"}}, False),
+        ({"fork": False}, False),
+    ],
+)
+async def test_repo_fork_uses_the_ownership_lookup_alone(
+    repository_metadata, monkeypatch, fork_fields, valid
+):
+    lookup = AsyncMock(
+        return_value={
+            "owner": {"id": 1, "login": "learner"},
+            "name": "test-repo",
+            "private": False,
+            **fork_fields,
+        }
+    )
+    monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
     job = _phase02_job(
-        repo_fork_requirement(),
+        repo_fork_requirement(required_repo="upstream/test-repo"),
         "https://github.com/learner/test-repo",
     )
+
     result = await run_verification(job)
 
-    validate.assert_awaited_once_with(job.target)
-    assert result.validation_result is sentinel
+    lookup.assert_awaited_once_with("learner", "test-repo")
+    assert result.validation_result.is_valid is valid
+    assert result.validation_result.verification_completed
     assert result.grading_requests == []
 
 
 @pytest.mark.asyncio
 async def test_ctf_token_workflow_passes_through_validator(monkeypatch):
-    from tests.support.requirement_factories import (
-        ctf_token_requirement,
-    )
 
     captured: dict[str, str] = {}
 
@@ -1241,7 +930,7 @@ async def test_ctf_token_workflow_passes_through_validator(monkeypatch):
         captured["username"] = username
         return ValidationResult(is_valid=True, message="CTF token valid")
 
-    monkeypatch.setattr(tokens_checks, "verify_ctf_token", fake_ctf)
+    monkeypatch.setattr(engine_module, "verify_ctf_token", fake_ctf)
 
     job = _phase02_job(ctf_token_requirement(), "the-token")
     result = await run_verification(job)
@@ -1253,13 +942,10 @@ async def test_ctf_token_workflow_passes_through_validator(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_networking_token_workflow_passes_through_validator(monkeypatch):
-    from tests.support.requirement_factories import (
-        networking_token_requirement,
-    )
 
     sentinel = ValidationResult(is_valid=False, message="Networking token invalid")
     verify = Mock(return_value=sentinel)
-    monkeypatch.setattr(tokens_checks, "verify_networking_token", verify)
+    monkeypatch.setattr(engine_module, "verify_networking_token", verify)
 
     job = _phase02_job(networking_token_requirement(), "bad-token")
     result = await run_verification(job)
@@ -1271,9 +957,6 @@ async def test_networking_token_workflow_passes_through_validator(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_workflow_requiring_username_short_circuits_when_missing():
-    from tests.support.requirement_factories import (
-        ctf_token_requirement,
-    )
 
     job = _phase02_job(ctf_token_requirement(), "the-token", github_username=None)
     result = await run_verification(job)
@@ -1282,31 +965,3 @@ async def test_workflow_requiring_username_short_circuits_when_missing():
     assert result.validation_result.username_match is False
     assert "GitHub username is required" in result.validation_result.message
     assert result.grading_requests == []
-
-
-# ---------------------------------------------------------------------------
-# Registry exhaustiveness: every submission type must resolve to a workflow so
-# no type silently falls through to an "unknown submission type" error.
-# ---------------------------------------------------------------------------
-
-
-def test_every_submission_type_has_a_registered_workflow():
-    from learn_to_cloud.models import SubmissionType
-    from learn_to_cloud.verification.workflows import workflow_for
-
-    missing = [t for t in SubmissionType if workflow_for(t) is None]
-
-    assert missing == [], f"submission types without a workflow: {missing}"
-
-
-# ---------------------------------------------------------------------------
-# Every workflow step must reference a check directly.
-# ---------------------------------------------------------------------------
-
-
-def test_every_registered_workflow_step_is_valid():
-    from learn_to_cloud.verification.workflows import _WORKFLOW_REGISTRY
-
-    for submission_type, workflow in _WORKFLOW_REGISTRY.items():
-        for step in workflow.steps:
-            assert callable(step.check), submission_type

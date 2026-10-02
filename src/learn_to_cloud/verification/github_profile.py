@@ -1,160 +1,17 @@
-"""GitHub-specific validation for hands-on verification.
+"""Profile README and fork results from verified repository metadata.
 
-Validates the learner's profile README repository and repo forks. Each
-validator receives the repository target constructed from the learner's username
-plus the requirement (see ``submission_derivation``), so it checks existence and
-fork lineage without parsing a URL back into an identity.
-
-For the GitHub HTTP plumbing (retry, headers, error mapping), see
-``github_http.py``. For the existence/metadata seam these validators build on,
-see ``github_metadata.py``.
+Both checks run after the ownership preflight, which has already fetched the
+repository from GitHub, so neither makes another request.
 """
 
 from __future__ import annotations
 
-import httpx
-from opentelemetry import trace
-
 from learn_to_cloud.schemas.verification import ValidationResult
-from learn_to_cloud.verification.github_errors import github_error_to_result
-from learn_to_cloud.verification.github_http import (
-    RETRIABLE_EXCEPTIONS,
-)
-from learn_to_cloud.verification.github_metadata import (
-    GitHubApiMetadata,
-    GitHubMetadata,
-)
-from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
-
-__all__ = [
-    "GitHubMetadata",
-    "RETRIABLE_EXCEPTIONS",
-    "check_github_url_exists",
-    "check_repo_is_fork_of",
-    "validate_profile_readme",
-    "validate_repo_fork",
-]
+from learn_to_cloud.verification.repository_ownership import OwnedRepository
 
 
-async def check_github_url_exists(
-    url: str, metadata: GitHubMetadata | None = None
-) -> ValidationResult:
-    """Check if a GitHub URL exists by making a HEAD request.
-
-    Returns:
-        ValidationResult with is_valid=True if URL exists.
-        verification_completed=False when the failure is infrastructure-related
-        (network error, GitHub outage) so callers can
-        avoid penalising the user.
-
-    RETRY: 3 attempts with exponential backoff + jitter for transient failures.
-    """
-    metadata = metadata or GitHubApiMetadata()
-    try:
-        exists = await metadata.url_exists(url)
-        return ValidationResult(
-            is_valid=exists,
-            message="URL exists" if exists else "URL not found (404)",
-        )
-    except RETRIABLE_EXCEPTIONS as e:
-        return github_error_to_result(e, event="github.url_check.failed")
-    except httpx.HTTPStatusError as e:
-        return github_error_to_result(e, event="github.url_check.failed")
-    except Exception:
-        span = trace.get_current_span()
-        span.set_attribute("error.type", "unexpected_exception")
-        span.add_event(
-            "github.url_check.unexpected_error",
-            {"error.type": "unexpected_exception"},
-        )
-        return ValidationResult(
-            is_valid=False,
-            message="GitHub verification could not be completed.",
-            verification_completed=False,
-        )
-
-
-async def check_repo_is_fork_of(
-    username: str,
-    repo_name: str,
-    original_repo: str,
-    metadata: GitHubMetadata | None = None,
-) -> ValidationResult:
-    """Check if a repository is a fork of the specified original repository.
-
-    Args:
-        username: The GitHub username
-        repo_name: The repository name
-        original_repo: The original repo in format "owner/repo"
-        metadata: GitHub metadata port (defaults to the production adapter)
-
-    Returns:
-        ValidationResult with is_valid=True if repo is a fork of original_repo.
-        verification_completed=False when the failure is infrastructure-related.
-
-    RETRY: 3 attempts with exponential backoff + jitter for transient failures.
-    """
-    metadata = metadata or GitHubApiMetadata()
-    try:
-        repo_data = await metadata.repo_metadata(username, repo_name)
-        if repo_data is None:
-            return ValidationResult(
-                is_valid=False,
-                message=f"Repository {username}/{repo_name} not found",
-            )
-        if not repo_data.get("fork", False):
-            return ValidationResult(is_valid=False, message="Repository is not a fork")
-        parent = repo_data.get("parent", {})
-        parent_full_name = parent.get("full_name", "")
-        if parent_full_name.lower() == original_repo.lower():
-            return ValidationResult(
-                is_valid=True, message=f"Verified fork of {original_repo}"
-            )
-        return ValidationResult(
-            is_valid=False,
-            message=f"Forked from {parent_full_name}, not {original_repo}",
-        )
-    except RETRIABLE_EXCEPTIONS as e:
-        return github_error_to_result(e, event="github.fork_check.failed")
-    except httpx.HTTPStatusError as e:
-        return github_error_to_result(
-            e,
-            event="fork_check.api_error",
-        )
-    except Exception:
-        span = trace.get_current_span()
-        span.set_attribute("error.type", "unexpected_exception")
-        span.add_event(
-            "github.fork_check.unexpected_error",
-            {"error.type": "unexpected_exception"},
-        )
-        return ValidationResult(
-            is_valid=False,
-            message="GitHub verification could not be completed.",
-            verification_completed=False,
-        )
-
-
-async def validate_profile_readme(
-    target: GitHubRepositoryTarget,
-    metadata: GitHubMetadata | None = None,
-) -> ValidationResult:
-    """Confirm the learner's profile README repository exists.
-
-    The repository lives at ``<username>/<username>`` by construction, so this
-    only checks that it resolves.
-    """
-    result = await check_github_url_exists(target.url, metadata)
-    if not result.verification_completed:
-        return result.model_copy(update={"username_match": True, "repo_exists": None})
-    if not result.is_valid:
-        return result.model_copy(
-            update={
-                "message": f"Could not find your profile README. {result.message}",
-                "username_match": True,
-                "repo_exists": False,
-            }
-        )
+def validate_profile_readme() -> ValidationResult:
+    """Pass once ownership confirmed the learner's public profile repository."""
     return ValidationResult(
         is_valid=True,
         message="Profile README validated successfully!",
@@ -163,37 +20,25 @@ async def validate_profile_readme(
     )
 
 
-async def validate_repo_fork(
-    target: GitHubRepositoryTarget,
-    metadata: GitHubMetadata | None = None,
-) -> ValidationResult:
-    """Confirm the learner's repository is a fork of the required upstream.
-
-    The fork identity (``<username>/<fork-name>``) and the upstream it must
-    descend from (``target.forked_from``) are both known by construction, so
-    this only verifies the fork lineage against GitHub.
-    """
-    if not target.forked_from:
+def validate_repo_fork(repository: OwnedRepository) -> ValidationResult:
+    """Confirm the owned repository forks the required upstream."""
+    expected = repository.target.forked_from
+    if expected is None:
+        raise ValueError("Fork verification requires an upstream repository")
+    parent = repository.parent
+    if parent is None:
+        message = "Repository is not a fork"
+    elif parent.lower() != expected.lower():
+        message = f"Forked from {parent}, not {expected}"
+    else:
         return ValidationResult(
-            is_valid=False,
-            message="Requirement configuration error: missing required_repo",
+            is_valid=True,
+            message=(
+                f"Repository fork validated successfully! Verified fork of {expected}"
+            ),
             username_match=True,
-            repo_exists=False,
-        )
-
-    fork_result = await check_repo_is_fork_of(
-        target.owner, target.repo, target.forked_from, metadata
-    )
-    if not fork_result.is_valid:
-        return fork_result.model_copy(
-            update={
-                "username_match": True,
-                "repo_exists": False if fork_result.verification_completed else None,
-            }
+            repo_exists=True,
         )
     return ValidationResult(
-        is_valid=True,
-        message=f"Repository fork validated successfully! {fork_result.message}",
-        username_match=True,
-        repo_exists=True,
+        is_valid=False, message=message, username_match=True, repo_exists=True
     )

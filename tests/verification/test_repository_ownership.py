@@ -7,15 +7,14 @@ import httpx
 import pytest
 
 from learn_to_cloud.schemas.verification import ValidationResult
+from learn_to_cloud.verification.github_api import GitHubClient
 from learn_to_cloud.verification.github_errors import GitHubServerError
-from learn_to_cloud.verification.github_metadata import (
-    GitHubApiMetadata,
-)
 from learn_to_cloud.verification.repository_ownership import (
+    OwnedRepository,
     check_repository_ownership,
 )
 from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
-from tests.support.fakes.github_metadata import InMemoryGitHubMetadata
+from tests.support.fakes.github import FakeGitHub
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
@@ -31,9 +30,41 @@ def _repo(**changes):
     }
 
 
-async def test_matching_owner_preserves_target_and_fork_expectation():
-    metadata = InMemoryGitHubMetadata(repos={"learner/project": _repo()})
-    assert await check_repository_ownership(TARGET, 42, metadata) == TARGET
+@pytest.mark.parametrize(
+    ("fork_fields", "parent"),
+    [
+        ({}, None),
+        ({"fork": False}, None),
+        (
+            {"fork": True, "parent": {"full_name": "upstream/project"}},
+            "upstream/project",
+        ),
+    ],
+)
+async def test_matching_owner_preserves_target_and_reports_fork_parent(
+    fork_fields, parent
+):
+    metadata = FakeGitHub(repos={"learner/project": _repo(**fork_fields)})
+    assert await check_repository_ownership(TARGET, 42, metadata) == OwnedRepository(
+        target=TARGET, parent=parent
+    )
+
+
+@pytest.mark.parametrize(
+    "fork_fields",
+    [
+        {"fork": "yes"},
+        {"fork": True},
+        {"fork": True, "parent": "upstream/project"},
+        {"fork": True, "parent": {"full_name": None}},
+    ],
+)
+async def test_malformed_fork_metadata_is_incomplete(fork_fields):
+    metadata = FakeGitHub(repos={"learner/project": _repo(**fork_fields)})
+    result = await check_repository_ownership(TARGET, 42, metadata)
+    assert isinstance(result, ValidationResult)
+    assert not result.is_valid
+    assert not result.verification_completed
 
 
 @pytest.mark.parametrize("login", ["reclaimed-name", "another-user", "organization"])
@@ -44,7 +75,7 @@ async def test_wrong_owner_cannot_pass_based_on_name_or_fork(login):
         parent={"full_name": "upstream/project"},
     )
     result = await check_repository_ownership(
-        TARGET, 42, InMemoryGitHubMetadata(repos={"learner/project": data})
+        TARGET, 42, FakeGitHub(repos={"learner/project": data})
     )
     assert isinstance(result, ValidationResult)
     assert not result.is_valid
@@ -58,7 +89,7 @@ async def test_wrong_owner_cannot_pass_based_on_name_or_fork(login):
 
 
 async def test_missing_repository_has_actionable_conditional_login_guidance():
-    result = await check_repository_ownership(TARGET, 42, InMemoryGitHubMetadata())
+    result = await check_repository_ownership(TARGET, 42, FakeGitHub())
     assert isinstance(result, ValidationResult)
     assert not result.is_valid
     assert result.verification_completed
@@ -75,7 +106,7 @@ async def test_private_repository_fails_even_when_metadata_is_accessible():
     result = await check_repository_ownership(
         TARGET,
         42,
-        InMemoryGitHubMetadata(repos={"learner/project": _repo(private=True)}),
+        FakeGitHub(repos={"learner/project": _repo(private=True)}),
     )
     assert isinstance(result, ValidationResult)
     assert not result.is_valid
@@ -88,7 +119,7 @@ async def test_owner_id_is_not_coerced(owner_id):
     result = await check_repository_ownership(
         TARGET,
         42,
-        InMemoryGitHubMetadata(
+        FakeGitHub(
             repos={"learner/project": _repo(owner={"id": owner_id, "login": "learner"})}
         ),
     )
@@ -111,7 +142,7 @@ async def test_owner_id_is_not_coerced(owner_id):
 )
 async def test_malformed_metadata_is_incomplete(data, caplog):
     result = await check_repository_ownership(
-        TARGET, 42, InMemoryGitHubMetadata(repos={"learner/project": data})
+        TARGET, 42, FakeGitHub(repos={"learner/project": data})
     )
     assert isinstance(result, ValidationResult)
     assert not result.is_valid
@@ -134,9 +165,7 @@ async def test_provider_errors_do_not_fail_the_assignment(status, caplog):
     error = httpx.HTTPStatusError(
         "private-exception-content", request=response.request, response=response
     )
-    result = await check_repository_ownership(
-        TARGET, 42, InMemoryGitHubMetadata(repo_error=error)
-    )
+    result = await check_repository_ownership(TARGET, 42, FakeGitHub(repo_error=error))
     assert isinstance(result, ValidationResult)
     assert not result.is_valid
     assert not result.verification_completed
@@ -155,9 +184,7 @@ async def test_provider_errors_do_not_fail_the_assignment(status, caplog):
     ],
 )
 async def test_transport_and_decode_failures_are_incomplete(error, caplog):
-    result = await check_repository_ownership(
-        TARGET, 42, InMemoryGitHubMetadata(repo_error=error)
-    )
+    result = await check_repository_ownership(TARGET, 42, FakeGitHub(repo_error=error))
     assert isinstance(result, ValidationResult)
     assert not result.is_valid
     assert not result.verification_completed
@@ -185,11 +212,14 @@ async def test_real_metadata_adapter_checks_redirect_destination(monkeypatch, ow
             "learn_to_cloud.verification.github_http._get_github_client",
             AsyncMock(return_value=client),
         )
-        result = await check_repository_ownership(TARGET, 42, GitHubApiMetadata())
+        result = await check_repository_ownership(TARGET, 42, GitHubClient())
 
     assert paths == ["/repos/learner/project", "/repos/new-name/moved"]
     if owner_id == 42:
-        assert result == GitHubRepositoryTarget("new-name", "moved", "upstream/project")
+        assert result == OwnedRepository(
+            target=GitHubRepositoryTarget("new-name", "moved", "upstream/project"),
+            parent=None,
+        )
     else:
         assert isinstance(result, ValidationResult)
         assert not result.is_valid
@@ -201,5 +231,5 @@ async def test_unexpected_errors_propagate():
         await check_repository_ownership(
             TARGET,
             42,
-            InMemoryGitHubMetadata(repo_error=RuntimeError("internal failure")),
+            FakeGitHub(repo_error=RuntimeError("internal failure")),
         )

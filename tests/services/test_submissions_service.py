@@ -12,7 +12,7 @@ from learn_to_cloud.repositories.verification_attempt_repository import (
     AttemptAlreadyValidatedError,
     AttemptCardProjection,
 )
-from learn_to_cloud.schemas.curriculum import Phase
+from learn_to_cloud.schemas.curriculum import Phase, PhaseHandsOnVerificationOverview
 from learn_to_cloud.schemas.requirements import HandsOnRequirement
 from learn_to_cloud.services.requirements import RequirementIndex
 from learn_to_cloud.services.submissions_service import (
@@ -36,15 +36,16 @@ from learn_to_cloud.verification.submission_values import (
     TokenValue,
     submitted_value_from_raw,
 )
+from tests.support.requirement_factories import (
+    journal_api_verifier_requirement,
+    make_requirement,
+)
 
 
 def _make_mock_requirement(
     submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
 ) -> HandsOnRequirement:
     """Create a mock requirement for testing."""
-    from tests.support.requirement_factories import (
-        make_requirement,
-    )
 
     return make_requirement(
         submission_type,
@@ -90,9 +91,6 @@ def _build_index(
     requirements with the real factory so the index's type signature stays
     honest.
     """
-    from tests.support.requirement_factories import (
-        journal_api_verifier_requirement,
-    )
 
     by_phase: dict[int, list[HandsOnRequirement]] = {}
     by_slug: dict[str, HandsOnRequirement] = {}
@@ -600,9 +598,6 @@ class TestCreateVerificationAttempt:
 
 
 def _phase_with_requirement(req: HandsOnRequirement) -> Phase:
-    from uuid import uuid4
-
-    from learn_to_cloud.schemas.curriculum import PhaseHandsOnVerificationOverview
 
     return Phase(
         uuid=uuid4(),
@@ -821,9 +816,6 @@ class TestRunSubmitSmokeCheck:
 
     def test_pick_smoke_requirement_returns_earliest_phase(self):
         """The canary picks the first requirement of the earliest phase."""
-        from tests.support.requirement_factories import (
-            journal_api_verifier_requirement,
-        )
 
         early = journal_api_verifier_requirement(
             slug="early", name="early", description="early"

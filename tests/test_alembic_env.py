@@ -23,12 +23,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from alembic import context as real_context
+
 _ENV_PATH = Path(__file__).parent.parent / "alembic" / "env.py"
 
 
 def _load_env_module(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
     """Load ``alembic/env.py`` as a module without executing ``run()``."""
-    from alembic import context as real_context
 
     monkeypatch.setattr(real_context, "is_offline_mode", lambda: True)
     monkeypatch.setattr(real_context, "configure", lambda **_: None)

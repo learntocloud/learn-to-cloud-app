@@ -20,7 +20,7 @@ from learn_to_cloud.verification.tasks.base import (
 )
 
 if TYPE_CHECKING:
-    from learn_to_cloud.verification.repo_files import RepoFiles
+    from learn_to_cloud.verification.github_api import GitHub
 
 EVIDENCE_ERROR_CODES = frozenset(
     {
@@ -254,7 +254,7 @@ def apply_evidence_cap(
 
 
 async def collect_repo_file_evidence(
-    repo_files: RepoFiles,
+    github: GitHub,
     owner: str,
     repo: str,
     paths: list[str],
@@ -270,7 +270,7 @@ async def collect_repo_file_evidence(
             raise EvidenceError("evidence.configuration")
         if len(paths) != len(set(paths)):
             raise EvidenceError("evidence.configuration")
-        all_files = await repo_files.tree(owner, repo, branch)
+        all_files = await github.tree(owner, repo, branch)
         selection = resolve_evidence_selection(all_files, task)
         selected = selection.paths
         if paths and set(selected) - set(paths):
@@ -279,7 +279,7 @@ async def collect_repo_file_evidence(
             raise EvidenceError("evidence.file_limit")
         total = 0
         for path in selected:
-            content = await repo_files.file(owner, repo, path, branch)
+            content = await github.file(owner, repo, path, branch)
             if content is None:
                 raise EvidenceError("evidence.changed")
             fetched.append((path, content))

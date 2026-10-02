@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from learn_to_cloud.core.auth import init_oauth, oauth_transport
@@ -168,12 +169,15 @@ def validation_exception_handler(
 
 
 @app.exception_handler(404)
-def not_found_handler(request: Request, exc: Exception) -> HTMLResponse | JSONResponse:
+def not_found_handler(
+    request: Request, exc: StarletteHTTPException
+) -> HTMLResponse | JSONResponse:
     """Render nice 404 page for browsers, JSON for API clients."""
     if request.url.path.startswith("/api/"):
         return JSONResponse(
-            status_code=404,
-            content={"detail": "Not found"},
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=exc.headers,
         )
     return templates.TemplateResponse(
         request,
