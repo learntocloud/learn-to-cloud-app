@@ -4,7 +4,13 @@ from uuid import uuid4
 
 import pytest
 
-from learn_to_cloud.schemas.curriculum import LearningStep, StepAction, TipItem, TipType
+from learn_to_cloud.schemas.curriculum import (
+    LearningStep,
+    ProviderOption,
+    StepAction,
+    TipItem,
+    TipType,
+)
 
 
 @pytest.mark.unit
@@ -46,7 +52,6 @@ class TestNormalizeStepActionOnLearningStep:
 @pytest.mark.unit
 class TestLearningStepSortedOptions:
     def test_canonical_provider_order(self):
-        from learn_to_cloud.schemas.curriculum import ProviderOption
 
         step = LearningStep(
             uuid=uuid4(),

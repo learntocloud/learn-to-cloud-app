@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.token_base import verify_ctf_token
 
 TEST_SECRET = "test_ctf_secret_must_be_32_chars!"
@@ -77,7 +78,6 @@ class TestVerifyCTFToken:
         assert result.is_valid is False
 
     def test_returns_validation_result_type(self):
-        from learn_to_cloud.schemas.verification import ValidationResult
 
         token = _create_valid_ctf_token()
         result = verify_ctf_token(token, "testuser")

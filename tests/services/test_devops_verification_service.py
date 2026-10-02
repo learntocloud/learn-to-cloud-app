@@ -6,11 +6,11 @@ import httpx
 import pytest
 
 from learn_to_cloud.verification.devops_analysis import verify_devops_pipeline
-from learn_to_cloud.verification.workflow_jobs import (
-    GitHubApiWorkflowJobs,
+from learn_to_cloud.verification.github_api import (
+    GitHub,
+    GitHubClient,
     WorkflowJob,
 )
-from learn_to_cloud.verification.workflow_runs import GitHubApiWorkflowRuns
 
 SHA = "a" * 40
 
@@ -46,21 +46,19 @@ def _job(name, identifier, **updates):
 
 @pytest.fixture
 def ports():
-    runs = AsyncMock()
-    runs.latest_run.return_value = _run()
-    jobs = AsyncMock()
-    jobs.for_attempt.return_value = [
+    github = AsyncMock(spec=GitHub)
+    github.latest_run.return_value = _run()
+    github.jobs_for_attempt.return_value = [
         _job(name, index) for index, name in enumerate(("test", "build", "deploy"), 1)
     ]
-    ref = AsyncMock()
-    ref.head_sha.return_value = SHA
-    return runs, jobs, ref
+    github.head_sha.return_value = SHA
+    return github
 
 
 async def test_success_uses_captured_attempt_and_safe_run_url(ports):
-    runs, jobs, ref = ports
-    runs.latest_run.return_value = _run(html_url="https://untrusted.example/run")
-    result = await verify_devops_pipeline("learner", "journal", runs, jobs, ref)
+    github = ports
+    github.latest_run.return_value = _run(html_url="https://untrusted.example/run")
+    result = await verify_devops_pipeline("learner", "journal", github)
     assert result.is_valid and result.verification_completed
     assert "https://github.com/learner/journal/actions/runs/789" in result.message
     assert "untrusted" not in result.message
@@ -70,14 +68,14 @@ async def test_success_uses_captured_attempt_and_safe_run_url(ports):
         "build",
         "deploy",
     ]
-    jobs.for_attempt.assert_awaited_once_with("learner", "journal", 789, 2)
-    ref.head_sha.assert_awaited_once_with("learner", "journal")
+    github.jobs_for_attempt.assert_awaited_once_with("learner", "journal", 789, 2)
+    github.head_sha.assert_awaited_once_with("learner", "journal")
 
 
 async def test_manual_run_on_current_main_is_allowed(ports):
-    runs, jobs, ref = ports
-    runs.latest_run.return_value = _run(event="workflow_dispatch")
-    assert (await verify_devops_pipeline("o", "r", runs, jobs, ref)).is_valid
+    github = ports
+    github.latest_run.return_value = _run(event="workflow_dispatch")
+    assert (await verify_devops_pipeline("o", "r", github)).is_valid
 
 
 @pytest.mark.parametrize(
@@ -92,11 +90,11 @@ async def test_manual_run_on_current_main_is_allowed(ports):
     ],
 )
 async def test_unsuccessful_or_missing_latest_run_does_not_read_jobs(ports, run):
-    runs, jobs, ref = ports
-    runs.latest_run.return_value = run
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+    github = ports
+    github.latest_run.return_value = run
+    result = await verify_devops_pipeline("o", "r", github)
     assert not result.is_valid and result.verification_completed
-    jobs.for_attempt.assert_not_awaited()
+    github.jobs_for_attempt.assert_not_awaited()
 
 
 @pytest.mark.parametrize(
@@ -110,36 +108,36 @@ async def test_unsuccessful_or_missing_latest_run_does_not_read_jobs(ports, run)
     ],
 )
 async def test_malformed_run_is_incomplete(ports, updates):
-    runs, jobs, ref = ports
-    runs.latest_run.return_value = _run(**updates)
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+    github = ports
+    github.latest_run.return_value = _run(**updates)
+    result = await verify_devops_pipeline("o", "r", github)
     assert not result.is_valid and not result.verification_completed
-    jobs.for_attempt.assert_not_awaited()
+    github.jobs_for_attempt.assert_not_awaited()
 
 
 @pytest.mark.parametrize("missing", ["run_attempt", "id", "head_sha", "conclusion"])
 async def test_required_run_metadata_cannot_be_omitted(ports, missing):
-    runs, jobs, ref = ports
+    github = ports
     run = _run()
     del run[missing]
-    runs.latest_run.return_value = run
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+    github.latest_run.return_value = run
+    result = await verify_devops_pipeline("o", "r", github)
     assert not result.verification_completed
 
 
 async def test_success_on_old_commit_does_not_pass(ports):
-    runs, jobs, ref = ports
-    ref.head_sha.return_value = "b" * 40
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+    github = ports
+    github.head_sha.return_value = "b" * 40
+    result = await verify_devops_pipeline("o", "r", github)
     assert not result.is_valid and result.verification_completed
     assert "current main commit" in result.message
 
 
 @pytest.mark.parametrize("sha", ["", "bad", None])
 async def test_malformed_current_commit_is_incomplete(ports, sha):
-    runs, jobs, ref = ports
-    ref.head_sha.return_value = sha
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+    github = ports
+    github.head_sha.return_value = sha
+    result = await verify_devops_pipeline("o", "r", github)
     assert not result.verification_completed
 
 
@@ -148,12 +146,12 @@ async def test_malformed_current_commit_is_incomplete(ports, sha):
 )
 @pytest.mark.parametrize("name", ["test", "build", "deploy"])
 async def test_green_run_cannot_hide_unsuccessful_required_job(ports, name, outcome):
-    runs, jobs, ref = ports
-    jobs.for_attempt.return_value = [
+    github = ports
+    github.jobs_for_attempt.return_value = [
         job.model_copy(update={"conclusion": outcome}) if job.name == name else job
-        for job in jobs.for_attempt.return_value
+        for job in github.jobs_for_attempt.return_value
     ]
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+    result = await verify_devops_pipeline("o", "r", github)
     assert not result.is_valid and result.verification_completed
     assert result.task_results is not None
     failed = [task for task in result.task_results if not task.passed]
@@ -161,11 +159,11 @@ async def test_green_run_cannot_hide_unsuccessful_required_job(ports, name, outc
 
 
 async def test_unfinished_required_job_cannot_pass(ports):
-    runs, jobs, ref = ports
-    jobs.for_attempt.return_value[0] = _job(
+    github = ports
+    github.jobs_for_attempt.return_value[0] = _job(
         "test", 1, status="in_progress", conclusion=None
     )
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+    result = await verify_devops_pipeline("o", "r", github)
     assert not result.is_valid and result.verification_completed
 
 
@@ -181,11 +179,11 @@ async def test_unfinished_required_job_cannot_pass(ports):
     ],
 )
 async def test_missing_or_ambiguous_names_require_full_rerun(ports, names):
-    runs, jobs, ref = ports
-    jobs.for_attempt.return_value = [
+    github = ports
+    github.jobs_for_attempt.return_value = [
         _job(name, index) for index, name in enumerate(names, 1)
     ]
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+    result = await verify_devops_pipeline("o", "r", github)
     assert not result.is_valid and result.verification_completed
     assert result.task_results is not None
     assert any("Re-run all jobs" in task.next_steps for task in result.task_results)
@@ -202,35 +200,35 @@ async def test_missing_or_ambiguous_names_require_full_rerun(ports, names):
     ],
 )
 async def test_inconsistent_job_identity_or_metadata_is_incomplete(ports, updates):
-    runs, jobs, ref = ports
-    jobs.for_attempt.return_value[0] = _job("test", 1, **updates)
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+    github = ports
+    github.jobs_for_attempt.return_value[0] = _job("test", 1, **updates)
+    result = await verify_devops_pipeline("o", "r", github)
     assert not result.is_valid and not result.verification_completed
 
 
 async def test_additional_jobs_and_optional_attempt_field_are_allowed(ports):
-    runs, jobs, ref = ports
-    jobs.for_attempt.return_value.append(_job("docs", 4, run_attempt=None))
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+    github = ports
+    github.jobs_for_attempt.return_value.append(_job("docs", 4, run_attempt=None))
+    result = await verify_devops_pipeline("o", "r", github)
     assert result.is_valid
 
 
 @pytest.mark.parametrize("stage", ["workflow", "jobs", "branch"])
 @pytest.mark.parametrize("status", [401, 403, 404, 429, 500])
 async def test_http_failures_are_safe_and_actionable(ports, stage, status):
-    runs, jobs, ref = ports
+    github = ports
     error = httpx.HTTPStatusError(
         "sensitive response",
         request=httpx.Request("GET", "https://api.github.com/example"),
         response=httpx.Response(status),
     )
     if stage == "workflow":
-        runs.latest_run.side_effect = error
+        github.latest_run.side_effect = error
     elif stage == "jobs":
-        jobs.for_attempt.side_effect = error
+        github.jobs_for_attempt.side_effect = error
     else:
-        ref.head_sha.side_effect = error
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+        github.head_sha.side_effect = error
+    result = await verify_devops_pipeline("o", "r", github)
     assert not result.is_valid
     assert result.verification_completed == (
         status == 404 and stage in ("workflow", "branch")
@@ -239,18 +237,18 @@ async def test_http_failures_are_safe_and_actionable(ports, stage, status):
 
 
 async def test_network_failure_is_incomplete(ports):
-    runs, jobs, ref = ports
-    jobs.for_attempt.side_effect = httpx.ConnectError("private details")
-    result = await verify_devops_pipeline("o", "r", runs, jobs, ref)
+    github = ports
+    github.jobs_for_attempt.side_effect = httpx.ConnectError("private details")
+    result = await verify_devops_pipeline("o", "r", github)
     assert not result.verification_completed
     assert "private details" not in result.message
 
 
 async def test_programming_errors_propagate(ports):
-    runs, jobs, ref = ports
-    jobs.for_attempt.side_effect = RuntimeError("bug")
+    github = ports
+    github.jobs_for_attempt.side_effect = RuntimeError("bug")
     with pytest.raises(RuntimeError, match="bug"):
-        await verify_devops_pipeline("o", "r", runs, jobs, ref)
+        await verify_devops_pipeline("o", "r", github)
 
 
 @pytest.mark.parametrize(
@@ -263,20 +261,24 @@ async def test_programming_errors_propagate(ports):
     ],
 )
 async def test_malformed_jobs_http_payload_is_incomplete(monkeypatch, ports, payload):
-    runs, _, ref = ports
     monkeypatch.setattr(
-        "learn_to_cloud.verification.workflow_jobs.github_api_get",
+        "learn_to_cloud.verification.github_api.github_api_get",
         AsyncMock(return_value=httpx.Response(200, json=payload)),
     )
-    result = await verify_devops_pipeline("o", "r", runs, GitHubApiWorkflowJobs(), ref)
+    client = GitHubClient()
+    client.latest_run = ports.latest_run
+    client.head_sha = ports.head_sha
+    result = await verify_devops_pipeline("o", "r", client)
     assert not result.is_valid and not result.verification_completed
 
 
 async def test_latest_workflow_is_requested_without_success_filter(monkeypatch, ports):
-    _, jobs, ref = ports
     get = AsyncMock(return_value=httpx.Response(200, json={"workflow_runs": [_run()]}))
-    monkeypatch.setattr("learn_to_cloud.verification.workflow_runs.github_api_get", get)
-    result = await verify_devops_pipeline("o", "r", GitHubApiWorkflowRuns(), jobs, ref)
+    monkeypatch.setattr("learn_to_cloud.verification.github_api.github_api_get", get)
+    client = GitHubClient()
+    client.jobs_for_attempt = ports.jobs_for_attempt
+    client.head_sha = ports.head_sha
+    result = await verify_devops_pipeline("o", "r", client)
     assert result.is_valid
     get.assert_awaited_once_with(
         "https://api.github.com/repos/o/r/actions/workflows/ci.yml/runs",

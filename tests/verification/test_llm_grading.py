@@ -28,12 +28,13 @@ from learn_to_cloud.verification.tasks import (
     SECURITY_SCANNING_RUBRIC_TASK,
     LLMGradingDecision,
 )
+from tests.support.requirement_factories import (
+    career_reflection_requirement,
+    security_scanning_requirement,
+)
 
 
 def _run_result(is_valid: bool = True) -> VerificationRunResult:
-    from tests.support.requirement_factories import (
-        security_scanning_requirement,
-    )
 
     requirement = security_scanning_requirement(
         slug="security-scanning",
@@ -314,9 +315,6 @@ def _phase7_run_result(
     is_valid: bool = True,
     submitted_text: str = "## Question 0?\n\nMy detailed reflection answer.",
 ) -> VerificationRunResult:
-    from tests.support.requirement_factories import (
-        career_reflection_requirement,
-    )
 
     requirement = career_reflection_requirement(
         slug="career-reflection",

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from opentelemetry.instrumentation.logging.handler import LoggingHandler
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry.sdk._logs import LoggerProvider
 from opentelemetry.sdk._logs.export import (
     InMemoryLogRecordExporter,
@@ -15,6 +16,9 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import NullPool
 
 from learn_to_cloud.core import observability
 
@@ -434,10 +438,6 @@ def test_instrument_database_uses_the_created_sync_engine():
 
 @pytest.mark.integration
 async def test_database_spans_keep_statements_but_not_pool_checkouts(test_engine):
-    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-    from sqlalchemy import text
-    from sqlalchemy.ext.asyncio import create_async_engine
-    from sqlalchemy.pool import NullPool
 
     exporter = InMemorySpanExporter()
     provider = TracerProvider()

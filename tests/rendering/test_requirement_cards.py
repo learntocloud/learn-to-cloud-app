@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 
 from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.rendering.feedback import FeedbackTaskContext
 from learn_to_cloud.rendering.requirement_cards import (
     CheckingCardContext,
     FailedCardContext,
@@ -17,20 +18,22 @@ from learn_to_cloud.rendering.requirement_cards import (
     build_requirement_card_context,
     build_unavailable_requirement_card_context,
 )
+from learn_to_cloud.rendering.templates import templates
 from learn_to_cloud.rendering.verification_forms import (
     DerivedFormContext,
     TokenFormContext,
 )
 from learn_to_cloud.schemas.requirements import HandsOnRequirement
+from learn_to_cloud.schemas.verification import SubmissionData
+from tests.support.requirement_factories import (
+    make_requirement,
+)
 
 
 def _make_requirement(
     submission_type: SubmissionType,
     required_repo: str | None = None,
 ) -> HandsOnRequirement:
-    from tests.support.requirement_factories import (
-        make_requirement,
-    )
 
     return make_requirement(
         submission_type,
@@ -134,7 +137,6 @@ def _make_submission(
     error_code: str | None = None,
     submitted_value: str = "https://github.com/alice/repo",
 ):
-    from learn_to_cloud.schemas.verification import SubmissionData
 
     return SubmissionData(
         submitted_value=submitted_value,
@@ -163,7 +165,6 @@ class TestBuildRequirementCardContextCardState:
         assert ctx.error_message == "Add the required pyproject.toml."
 
     def test_evidence_failure_preserves_guidance_without_partial_feedback(self):
-        from learn_to_cloud.rendering.feedback import FeedbackTaskContext
 
         ctx = build_requirement_card_context(
             requirement=_make_requirement(SubmissionType.CTF_TOKEN),
@@ -229,7 +230,6 @@ class TestBuildRequirementCardContextCardState:
         assert ctx.error_message == "Verification did not pass."
 
     def test_processing_is_checking_regardless_of_submission(self):
-        from learn_to_cloud.rendering.templates import templates
 
         req = _make_requirement(SubmissionType.CTF_TOKEN)
         attempt_id = uuid4()

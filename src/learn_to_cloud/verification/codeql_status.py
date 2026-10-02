@@ -6,8 +6,7 @@ trust an objective GitHub signal instead of re-grading: a successful run of
 the learner's committed CodeQL workflow on the exact commit at ``main`` HEAD.
 
 Design notes:
-  * **Tokenless.** We use the public workflow-runs endpoint (via the
-    ``WorkflowRuns`` seam) and the public branch endpoint (via ``RepoRef``),
+  * **Tokenless.** We use the public workflow-runs and branch endpoints,
     both of which answer anonymously, so this gate needs no GitHub token.
   * **Advanced setup, enforced by the fixed filename.** We look up runs of
     ``.github/workflows/codeql.yml``. CodeQL *default* setup commits no
@@ -25,8 +24,7 @@ The language (Python) and workflow *quality* are judged by the LLM rubric step
 from the committed ``codeql.yml`` content, not here.
 
 URL validation and ownership checks are handled by the engine gate before this
-module is called. For the workflow-runs seam see ``workflow_runs.py``; for the
-branch-head seam see ``repo_ref.py``.
+module is called. GitHub reads go through ``github_api.py``.
 """
 
 from __future__ import annotations
@@ -35,14 +33,10 @@ import httpx
 from opentelemetry import trace
 
 from learn_to_cloud.schemas.verification import ValidationResult
+from learn_to_cloud.verification.github_api import GitHub
 from learn_to_cloud.verification.github_errors import github_error_to_result
 from learn_to_cloud.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
-)
-from learn_to_cloud.verification.repo_ref import RepoRef, default_repo_ref
-from learn_to_cloud.verification.workflow_runs import (
-    WorkflowRuns,
-    default_workflow_runs,
 )
 
 # The committed workflow filename CodeQL advanced setup creates.
@@ -52,8 +46,7 @@ CODEQL_WORKFLOW_FILE = "codeql.yml"
 async def verify_codeql_status(
     owner: str,
     repo: str,
-    runs: WorkflowRuns | None = None,
-    ref: RepoRef | None = None,
+    github: GitHub,
 ) -> ValidationResult:
     """Verify CodeQL is green on the current ``main`` HEAD of the learner's fork.
 
@@ -63,19 +56,16 @@ async def verify_codeql_status(
     Args:
         owner: Repository owner (GitHub username).
         repo: Repository name.
-        runs: Workflow-runs port (defaults to the production adapter).
-        ref: Branch-head port (defaults to the production adapter).
+        github: GitHub reads.
 
     Returns:
         ``ValidationResult`` — valid when the latest ``codeql.yml`` run on
         ``main`` is ``success`` and its ``head_sha`` equals the current
         ``main`` HEAD.
     """
-    runs = runs or default_workflow_runs()
-    ref = ref or default_repo_ref()
     span = trace.get_current_span()
     try:
-        latest_run = await runs.latest_run(owner, repo, CODEQL_WORKFLOW_FILE)
+        latest_run = await github.latest_run(owner, repo, CODEQL_WORKFLOW_FILE)
     except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as e:
         if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
             span.set_attribute("http.response.status_code", 404)
@@ -134,7 +124,7 @@ async def verify_codeql_status(
         )
 
     try:
-        head_sha = await ref.head_sha(owner, repo)
+        head_sha = await github.head_sha(owner, repo)
     except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as e:
         if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
             span.set_attribute("http.response.status_code", 404)

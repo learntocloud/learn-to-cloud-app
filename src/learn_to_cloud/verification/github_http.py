@@ -3,9 +3,7 @@
 This is the single home for talking to the GitHub API: the shared
 ``httpx.AsyncClient``, auth headers, retry policy, and the mapping of
 5xx/429 responses to the retriable :class:`GitHubServerError`. Higher-level
-seams (``GitHubMetadata``, ``WorkflowRuns``, ``RepoFiles``) and the profile
-validators build on top of these primitives instead of each re-implementing
-retry and error handling.
+``GitHubClient`` builds on these primitives.
 
 SCALABILITY:
 - Retry with exponential backoff + jitter for transient failures (3 attempts).
@@ -99,24 +97,3 @@ async def github_api_get(
     raise_for_server_error(response)
     response.raise_for_status()
     return response
-
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=_wait_with_retry_after,
-    retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
-    before=track_retry_attempt,
-    reraise=True,
-)
-async def github_head_status(url: str) -> int:
-    """Resilient GitHub HEAD returning the status code, with 5xx/429 retry.
-
-    Raises:
-        GitHubServerError: On 5xx or 429 (triggers retry).
-    """
-    client = await _get_github_client()
-    response = await client.head(url)
-    raise_for_server_error(response)
-    if response.status_code != 404:
-        response.raise_for_status()
-    return response.status_code

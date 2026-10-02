@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from learn_to_cloud.models import User
 from learn_to_cloud.repositories.user_repository import UserRepository
+from tests.support.sql import captured_statements
 
 pytestmark = pytest.mark.integration
 
@@ -79,12 +80,16 @@ class TestUpsert:
 
         flushed_profiles = []
 
-        def record_flush(session, context):
+        def record_flush(**event_args):
+            session = event_args["session"]
             flushed_profiles.append(
-                (user.display_name, user.github_username, user.avatar_url)
+                {
+                    (row.id, row.display_name, row.github_username, row.avatar_url)
+                    for row in (*session.new, *session.dirty)
+                }
             )
 
-        event.listen(db_session.sync_session, "after_flush", record_flush)
+        event.listen(db_session.sync_session, "after_flush", record_flush, named=True)
         try:
             returned = await repo.upsert(
                 99999,
@@ -95,7 +100,12 @@ class TestUpsert:
         finally:
             event.remove(db_session.sync_session, "after_flush", record_flush)
         assert returned is user
-        assert flushed_profiles == [("Pending profile", "pending", "pending-avatar")]
+        assert flushed_profiles == [
+            {
+                (99999, "Pending profile", "pending", "pending-avatar"),
+                (99998, "Pending", "unrelated", None),
+            }
+        ]
         await db_session.refresh(user)
         await db_session.refresh(unrelated)
         assert user.is_admin is True
@@ -164,13 +174,7 @@ class TestUpsert:
         self, db_session: AsyncSession
     ):
         connection = await db_session.connection()
-        statements = []
-
-        def record(conn, cursor, statement, parameters, context, executemany):
-            statements.append(statement.lower())
-
-        event.listen(connection.sync_connection, "before_cursor_execute", record)
-        try:
+        with captured_statements(connection.sync_connection) as statements:
             repo = UserRepository(db_session)
             for name in ("First", "Updated", None):
                 statements.clear()
@@ -179,8 +183,6 @@ class TestUpsert:
                 assert statements[0].startswith("insert into users")
                 assert "on conflict (id) do update" in statements[0]
                 assert "returning" in statements[0]
-        finally:
-            event.remove(connection.sync_connection, "before_cursor_execute", record)
 
     async def test_concurrent_identity_is_unique(self, test_engine: AsyncEngine):
         barrier = asyncio.Barrier(2)

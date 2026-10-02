@@ -19,7 +19,7 @@ from learn_to_cloud.verification.tasks.phase6 import (
     CODEQL_WORKFLOW_PATH,
     SECURITY_SCANNING_RUBRIC_TASK,
 )
-from tests.support.fakes.repo_files import InMemoryRepoFiles
+from tests.support.fakes.github import FakeGitHub
 
 _TEST_OWNER = "testuser"
 _TEST_REPO = "my-repo"
@@ -36,14 +36,14 @@ class TestCollectSecurityScanningEvidence:
     """Evidence collection over the fixed Phase 6 paths."""
 
     async def test_collects_codeql_and_dependabot(self):
-        repo_files = InMemoryRepoFiles(
-            {
+        github = FakeGitHub(
+            files={
                 CODEQL_WORKFLOW_PATH: _CODEQL_WORKFLOW,
                 ".github/dependabot.yml": _VALID_DEPENDABOT,
             }
         )
         bundle = await collect_security_scanning_evidence(
-            _TEST_OWNER, _TEST_REPO, repo_files=repo_files
+            _TEST_OWNER, _TEST_REPO, github
         )
         paths = {item.path for item in bundle.items}
         assert CODEQL_WORKFLOW_PATH in paths
@@ -51,19 +51,17 @@ class TestCollectSecurityScanningEvidence:
         assert bundle.task_id == SECURITY_SCANNING_RUBRIC_TASK.id
 
     async def test_missing_dependabot_is_skipped(self):
-        repo_files = InMemoryRepoFiles({CODEQL_WORKFLOW_PATH: _CODEQL_WORKFLOW})
+        github = FakeGitHub(files={CODEQL_WORKFLOW_PATH: _CODEQL_WORKFLOW})
         bundle = await collect_security_scanning_evidence(
-            _TEST_OWNER, _TEST_REPO, repo_files=repo_files
+            _TEST_OWNER, _TEST_REPO, github
         )
         paths = {item.path for item in bundle.items}
         assert paths == {CODEQL_WORKFLOW_PATH}
 
     async def test_missing_codeql_is_a_required_evidence_failure(self):
-        repo_files = InMemoryRepoFiles({"README.md": "# project\n"})
+        github = FakeGitHub(files={"README.md": "# project\n"})
         with pytest.raises(EvidenceError) as raised:
-            await collect_security_scanning_evidence(
-                _TEST_OWNER, _TEST_REPO, repo_files=repo_files
-            )
+            await collect_security_scanning_evidence(_TEST_OWNER, _TEST_REPO, github)
 
         assert raised.value.code == "evidence.required_missing"
         assert raised.value.missing == (CODEQL_WORKFLOW_PATH,)

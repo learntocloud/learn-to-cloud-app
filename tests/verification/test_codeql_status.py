@@ -12,9 +12,8 @@ Tests cover:
 
 URL validation and ownership checks are exercised by the engine gate tests.
 
-These tests inject :class:`InMemoryWorkflowRuns` and :class:`InMemoryRepoRef`
-adapters instead of patching internals, so they exercise the real
-``verify_codeql_status`` logic through the seams.
+These tests inject the in-memory GitHub seam instead of patching internals, so
+they exercise the real ``verify_codeql_status`` logic through the seam.
 """
 
 import httpx
@@ -22,8 +21,7 @@ import pytest
 
 from learn_to_cloud.verification.codeql_status import verify_codeql_status
 from learn_to_cloud.verification.github_errors import GitHubServerError
-from tests.support.fakes.repo_ref import InMemoryRepoRef
-from tests.support.fakes.workflow_runs import InMemoryWorkflowRuns
+from tests.support.fakes.github import FakeGitHub
 
 _TEST_OWNER = "testuser"
 _TEST_REPO = "journal-starter"
@@ -52,71 +50,56 @@ class TestCodeQLStatusCheck:
     """Tests for the CodeQL workflow-run + HEAD-anchoring gate."""
 
     async def test_workflow_not_found_returns_advanced_setup_message(self):
-        runs = InMemoryWorkflowRuns(error=_http_error(404))
-        result = await verify_codeql_status(
-            _TEST_OWNER, _TEST_REPO, runs, InMemoryRepoRef(_HEAD)
-        )
+        github = FakeGitHub(run_error=_http_error(404), sha=_HEAD)
+        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, github)
         assert not result.is_valid
         assert "advanced setup" in result.message.lower()
         assert "codeql.yml" in result.message
 
     async def test_no_runs_on_main(self):
-        runs = InMemoryWorkflowRuns(run=None)
-        result = await verify_codeql_status(
-            _TEST_OWNER, _TEST_REPO, runs, InMemoryRepoRef(_HEAD)
-        )
+        github = FakeGitHub(run=None, sha=_HEAD)
+        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, github)
         assert not result.is_valid
         assert "No CodeQL runs" in result.message
 
     async def test_run_in_progress(self):
-        runs = InMemoryWorkflowRuns(_run(status="in_progress", conclusion=None))
-        result = await verify_codeql_status(
-            _TEST_OWNER, _TEST_REPO, runs, InMemoryRepoRef(_HEAD)
-        )
+        github = FakeGitHub(run=_run(status="in_progress", conclusion=None), sha=_HEAD)
+        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, github)
         assert not result.is_valid
         assert "still" in result.message
 
     async def test_run_succeeded_on_current_head_passes(self):
         # CodeQL alerts do not fail the run; conclusion success is what matters.
-        runs = InMemoryWorkflowRuns(_run())
-        result = await verify_codeql_status(
-            _TEST_OWNER, _TEST_REPO, runs, InMemoryRepoRef(_HEAD)
-        )
+        github = FakeGitHub(run=_run(), sha=_HEAD)
+        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, github)
         assert result.is_valid
         assert "#10" in result.message
 
     async def test_green_but_stale_head_is_rejected(self):
-        runs = InMemoryWorkflowRuns(_run(head_sha="oldsha000"))
-        result = await verify_codeql_status(
-            _TEST_OWNER, _TEST_REPO, runs, InMemoryRepoRef(_HEAD)
-        )
+        github = FakeGitHub(run=_run(head_sha="oldsha000"), sha=_HEAD)
+        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, github)
         assert not result.is_valid
         assert "latest commit" in result.message.lower()
 
     async def test_run_failed(self):
         run_url = "https://github.com/testuser/journal-starter/actions/runs/999"
-        runs = InMemoryWorkflowRuns(
-            _run(conclusion="failure", run_number=7, html_url=run_url)
+        github = FakeGitHub(
+            run=_run(conclusion="failure", run_number=7, html_url=run_url), sha=_HEAD
         )
-        result = await verify_codeql_status(
-            _TEST_OWNER, _TEST_REPO, runs, InMemoryRepoRef(_HEAD)
-        )
+        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, github)
         assert not result.is_valid
         assert "failure" in result.message
         assert run_url in result.message
 
     async def test_branch_not_found(self):
-        runs = InMemoryWorkflowRuns(_run())
-        ref = InMemoryRepoRef(error=_http_error(404))
-        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, runs, ref)
+        github = FakeGitHub(run=_run(), sha_error=_http_error(404))
+        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, github)
         assert not result.is_valid
         assert "main branch" in result.message
 
     async def test_missing_head_sha(self):
-        runs = InMemoryWorkflowRuns(_run())
-        result = await verify_codeql_status(
-            _TEST_OWNER, _TEST_REPO, runs, InMemoryRepoRef(None)
-        )
+        github = FakeGitHub(run=_run(), sha=None)
+        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, github)
         assert not result.is_valid
 
 
@@ -125,18 +108,18 @@ class TestCodeQLStatusErrorHandling:
     """Tests for GitHub API error handling."""
 
     async def test_runs_server_error(self):
-        runs = InMemoryWorkflowRuns(
-            error=GitHubServerError("GitHub returned 500", status_code=500)
+        github = FakeGitHub(
+            run_error=GitHubServerError("GitHub returned 500", status_code=500),
+            sha=_HEAD,
         )
-        result = await verify_codeql_status(
-            _TEST_OWNER, _TEST_REPO, runs, InMemoryRepoRef(_HEAD)
-        )
+        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, github)
         assert not result.is_valid
         assert result.verification_completed is False
 
     async def test_ref_transient_failure(self):
-        runs = InMemoryWorkflowRuns(_run())
-        ref = InMemoryRepoRef(error=httpx.ConnectError("connection refused"))
-        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, runs, ref)
+        github = FakeGitHub(
+            run=_run(), sha_error=httpx.ConnectError("connection refused")
+        )
+        result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, github)
         assert not result.is_valid
         assert result.verification_completed is False

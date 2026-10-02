@@ -6,9 +6,9 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from learn_to_cloud.verification import workflow_jobs
-from learn_to_cloud.verification.workflow_jobs import (
-    GitHubApiWorkflowJobs,
+from learn_to_cloud.verification import github_api
+from learn_to_cloud.verification.github_api import (
+    GitHubClient,
     WorkflowJobsResponseError,
 )
 
@@ -43,8 +43,8 @@ async def test_collects_required_jobs_beyond_first_page(monkeypatch):
             ),
         ]
     )
-    monkeypatch.setattr(workflow_jobs, "github_api_get", get)
-    result = await GitHubApiWorkflowJobs().for_attempt("o", "r", 789, 2)
+    monkeypatch.setattr(github_api, "github_api_get", get)
+    result = await GitHubClient().jobs_for_attempt("o", "r", 789, 2)
     assert len(result) == 103
     assert [job.name for job in result[-3:]] == ["test", "build", "deploy"]
     url = "https://api.github.com/repos/o/r/actions/runs/789/attempts/2/jobs"
@@ -67,22 +67,20 @@ async def test_collects_required_jobs_beyond_first_page(monkeypatch):
     ],
 )
 async def test_incomplete_or_inconsistent_listing_is_rejected(monkeypatch, responses):
-    monkeypatch.setattr(
-        workflow_jobs, "github_api_get", AsyncMock(side_effect=responses)
-    )
+    monkeypatch.setattr(github_api, "github_api_get", AsyncMock(side_effect=responses))
     with pytest.raises(WorkflowJobsResponseError):
-        await GitHubApiWorkflowJobs().for_attempt("o", "r", 789, 2)
+        await GitHubClient().jobs_for_attempt("o", "r", 789, 2)
 
 
 async def test_pagination_limit_never_returns_partial_success(monkeypatch):
-    monkeypatch.setattr(workflow_jobs, "_MAX_PAGES", 1)
+    monkeypatch.setattr(github_api, "_JOBS_MAX_PAGES", 1)
     monkeypatch.setattr(
-        workflow_jobs,
+        github_api,
         "github_api_get",
         AsyncMock(return_value=_response(2, [_job(1)])),
     )
     with pytest.raises(WorkflowJobsResponseError, match="pagination limit"):
-        await GitHubApiWorkflowJobs().for_attempt("o", "r", 789, 2)
+        await GitHubClient().jobs_for_attempt("o", "r", 789, 2)
 
 
 @pytest.mark.parametrize(
@@ -92,17 +90,17 @@ async def test_required_metadata_cannot_be_omitted(monkeypatch, field):
     job = _job(1)
     del job[field]
     monkeypatch.setattr(
-        workflow_jobs, "github_api_get", AsyncMock(return_value=_response(1, [job]))
+        github_api, "github_api_get", AsyncMock(return_value=_response(1, [job]))
     )
     with pytest.raises(ValidationError):
-        await GitHubApiWorkflowJobs().for_attempt("o", "r", 789, 2)
+        await GitHubClient().jobs_for_attempt("o", "r", 789, 2)
 
 
 async def test_optional_run_attempt_is_not_required(monkeypatch):
     job = _job(1)
     del job["run_attempt"]
     monkeypatch.setattr(
-        workflow_jobs, "github_api_get", AsyncMock(return_value=_response(1, [job]))
+        github_api, "github_api_get", AsyncMock(return_value=_response(1, [job]))
     )
-    result = await GitHubApiWorkflowJobs().for_attempt("o", "r", 789, 2)
+    result = await GitHubClient().jobs_for_attempt("o", "r", 789, 2)
     assert len(result) == 1 and result[0].run_attempt is None

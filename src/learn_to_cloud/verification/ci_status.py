@@ -11,14 +11,9 @@ from opentelemetry import trace
 from pydantic import ValidationError
 
 from learn_to_cloud.schemas.verification import TaskResult, ValidationResult
+from learn_to_cloud.verification.github_api import GitHub, WorkflowRun
 from learn_to_cloud.verification.github_errors import github_error_to_result
 from learn_to_cloud.verification.github_http import RETRIABLE_EXCEPTIONS
-from learn_to_cloud.verification.repo_ref import RepoRef, default_repo_ref
-from learn_to_cloud.verification.workflow_runs import (
-    WorkflowRun,
-    WorkflowRuns,
-    default_workflow_runs,
-)
 
 logger = logging.getLogger(__name__)
 CAPSTONE_WORKFLOW_FILE = "verify-capstone.yml"
@@ -45,15 +40,12 @@ def _invalid_metadata() -> ValidationResult:
 async def verify_ci_status(
     owner: str,
     repo: str,
-    runs: WorkflowRuns | None = None,
-    ref: RepoRef | None = None,
+    github: GitHub,
 ) -> ValidationResult:
     """Require the latest manual capstone run to pass on current main HEAD."""
-    runs = runs or default_workflow_runs()
-    ref = ref or default_repo_ref()
     span = trace.get_current_span()
     try:
-        latest_run = await runs.latest_run(owner, repo, CAPSTONE_WORKFLOW_FILE)
+        latest_run = await github.latest_run(owner, repo, CAPSTONE_WORKFLOW_FILE)
         run = (
             WorkflowRun.model_validate(latest_run, strict=True)
             if latest_run is not None
@@ -113,7 +105,7 @@ async def verify_ci_status(
         )
 
     try:
-        head_sha = await ref.head_sha(owner, repo)
+        head_sha = await github.head_sha(owner, repo)
     except (ValidationError, JSONDecodeError, UnicodeDecodeError):
         return _invalid_metadata()
     except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:

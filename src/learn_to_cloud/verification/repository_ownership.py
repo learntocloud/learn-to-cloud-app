@@ -1,20 +1,27 @@
 """Shared ownership preflight for repository-based verification."""
 
 import logging
+from dataclasses import dataclass
 from json import JSONDecodeError
+from typing import Any
 
 import httpx
 
 from learn_to_cloud.schemas.verification import ValidationResult
+from learn_to_cloud.verification.github_api import GitHub
 from learn_to_cloud.verification.github_errors import github_error_to_result
 from learn_to_cloud.verification.github_http import RETRIABLE_EXCEPTIONS
-from learn_to_cloud.verification.github_metadata import (
-    GitHubApiMetadata,
-    GitHubMetadata,
-)
 from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class OwnedRepository:
+    """A repository GitHub confirmed the learner owns, with its fork parent."""
+
+    target: GitHubRepositoryTarget
+    parent: str | None
 
 
 def _invalid_metadata() -> ValidationResult:
@@ -29,15 +36,28 @@ def _invalid_metadata() -> ValidationResult:
     )
 
 
+def _fork_parent(data: dict[str, Any]) -> str | None:
+    """Return the fork parent's full name, or None when the repo is not a fork."""
+    fork = data.get("fork", False)
+    if not isinstance(fork, bool):
+        raise ValueError("fork is not a boolean")
+    if not fork:
+        return None
+    parent = data.get("parent")
+    full_name = parent.get("full_name") if isinstance(parent, dict) else None
+    if not isinstance(full_name, str):
+        raise ValueError("fork has no parent full_name")
+    return full_name
+
+
 async def check_repository_ownership(
     target: GitHubRepositoryTarget,
     user_id: int,
-    metadata: GitHubMetadata | None = None,
-) -> GitHubRepositoryTarget | ValidationResult:
-    """Return the owned public repository's canonical target or a failed check."""
-    metadata = metadata or GitHubApiMetadata()
+    github: GitHub,
+) -> OwnedRepository | ValidationResult:
+    """Return the owned public repository's canonical metadata or a failed check."""
     try:
-        data = await metadata.repo_metadata(target.owner, target.repo)
+        data = await github.repo_metadata(target.owner, target.repo)
     except (JSONDecodeError, UnicodeDecodeError):
         return _invalid_metadata()
     except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
@@ -61,6 +81,10 @@ async def check_repository_ownership(
     login = owner.get("login")
     name = data.get("name")
     private = data.get("private")
+    try:
+        parent = _fork_parent(data)
+    except ValueError:
+        return _invalid_metadata()
     if (
         not isinstance(owner_id, int)
         or isinstance(owner_id, bool)
@@ -88,6 +112,9 @@ async def check_repository_ownership(
             username_match=True,
             repo_exists=True,
         )
-    return GitHubRepositoryTarget(
-        owner=login, repo=name, forked_from=target.forked_from
+    return OwnedRepository(
+        target=GitHubRepositoryTarget(
+            owner=login, repo=name, forked_from=target.forked_from
+        ),
+        parent=parent,
     )

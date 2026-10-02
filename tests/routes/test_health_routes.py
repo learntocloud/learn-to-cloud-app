@@ -6,7 +6,8 @@ import pytest
 from fastapi import HTTPException
 
 from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
-from learn_to_cloud.routes.health_routes import health, ready
+from learn_to_cloud.routes import health_routes
+from learn_to_cloud.routes.health_routes import get_code_alembic_head, health, ready
 
 
 def _request():
@@ -240,7 +241,6 @@ class TestGetCodeAlembicHead:
 
     def test_returns_head_revision_from_script_directory(self):
         """Resolves the real head from the repo's alembic/ script directory."""
-        from learn_to_cloud.routes.health_routes import get_code_alembic_head
 
         head = get_code_alembic_head()
         assert head is not None
@@ -248,7 +248,6 @@ class TestGetCodeAlembicHead:
 
     def test_returns_none_when_script_directory_resolution_fails(self):
         """Returns None instead of raising if Config/ScriptDirectory blow up."""
-        from learn_to_cloud.routes import health_routes
 
         with patch.object(
             health_routes.ScriptDirectory,

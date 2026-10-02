@@ -11,6 +11,9 @@ Architecture follows best practices from:
 
 # Set environment variables BEFORE any imports that trigger Settings validation
 import os
+import socket
+
+from sqlalchemy.engine import make_url
 
 os.environ.setdefault(
     "DATABASE__URL",
@@ -62,7 +65,6 @@ def _build_test_database_url() -> tuple[str, str, int]:
     Returns (test_url, host, port). The test database is always
     'test_learn_to_cloud' regardless of what DATABASE__URL specifies.
     """
-    from sqlalchemy.engine import make_url
 
     raw = os.environ.get(
         "DATABASE__URL",
@@ -109,8 +111,6 @@ def _check_db_available() -> bool:
     global _DB_AVAILABLE
     if _DB_AVAILABLE is not None:
         return _DB_AVAILABLE
-
-    import socket
 
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

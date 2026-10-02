@@ -21,6 +21,7 @@ import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
+from pytest_alembic.config import Config as PytestAlembicConfig
 from pytest_alembic.tests import (
     test_model_definitions_match_ddl,
     test_single_head_revision,
@@ -33,7 +34,6 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
-    event,
     func,
     inspect,
     select,
@@ -53,6 +53,7 @@ from learn_to_cloud.models import (
 )
 from learn_to_cloud.repositories import user_repository
 from learn_to_cloud.repositories.user_repository import UserRepository
+from tests.support.sql import captured_statements
 
 MIGRATION_DB = "test_alembic_migrations"
 os.environ.setdefault(
@@ -89,9 +90,8 @@ def _admin_url() -> str:
 @pytest.fixture()
 def alembic_config():
     """Point pytest-alembic at our alembic.ini."""
-    from pytest_alembic.config import Config
 
-    return Config(
+    return PytestAlembicConfig(
         config_options={
             "file": str(Path(__file__).parent.parent / "alembic.ini"),
             "script_location": str(Path(__file__).parent.parent / "alembic"),
@@ -741,85 +741,81 @@ async def test_display_name_expansion_historical_runtime_compatibility(
     async_engine = create_async_engine(
         alembic_engine.url.set(drivername="postgresql+asyncpg")
     )
-    statements = []
-
-    def record_statement(conn, cursor, statement, parameters, context, executemany):
-        statements.append(statement.lower())
-
-    event.listen(async_engine.sync_engine, "before_cursor_execute", record_statement)
     try:
-        async with AsyncSession(
-            async_engine, autoflush=False, expire_on_commit=False
-        ) as db:
-            created = (
-                await db.execute(
-                    pg_insert(user_model)
-                    .values(id=7001, github_username="legacy", first_name="First")
-                    .on_conflict_do_nothing(index_elements=["id"])
-                    .returning(user_model)
-                )
-            ).scalar_one()
-            assert isinstance(created, user_model)
-            assert (created.first_name, created.last_name) == ("First", None)
-            conflict = (
-                await db.execute(
-                    pg_insert(user_model)
-                    .values(id=7001, github_username="ignored", first_name="Ignored")
-                    .on_conflict_do_nothing(index_elements=["id"])
-                    .returning(user_model)
-                )
-            ).scalar_one_or_none()
-            assert conflict is None
-            assert (
-                await db.scalar(select(user_model).where(user_model.id == 7001))
-                is created
-            )
-            assert created.first_name == "First"
-            stored = await db.get(user_model, 7004)
-            assert stored is not None
-            created_at = stored.created_at
-            for first_name, last_name in (("Later", "Write"), (None, None)):
-                statement = pg_insert(user_model).values(
-                    id=7004,
-                    github_username="stored",
-                    first_name=first_name,
-                    last_name=last_name,
-                )
-                updated = (
+        with captured_statements(async_engine.sync_engine) as statements:
+            async with AsyncSession(
+                async_engine, autoflush=False, expire_on_commit=False
+            ) as db:
+                created = (
                     await db.execute(
-                        statement.on_conflict_do_update(
-                            index_elements=["id"],
-                            set_={
-                                "first_name": statement.excluded.first_name,
-                                "last_name": statement.excluded.last_name,
-                            },
-                        ).returning(user_model),
-                        execution_options={"populate_existing": True},
+                        pg_insert(user_model)
+                        .values(id=7001, github_username="legacy", first_name="First")
+                        .on_conflict_do_nothing(index_elements=["id"])
+                        .returning(user_model)
                     )
                 ).scalar_one()
-                assert updated is stored
-                assert (updated.first_name, updated.last_name) == (
-                    first_name,
-                    last_name,
+                assert isinstance(created, user_model)
+                assert (created.first_name, created.last_name) == ("First", None)
+                conflict = (
+                    await db.execute(
+                        pg_insert(user_model)
+                        .values(
+                            id=7001, github_username="ignored", first_name="Ignored"
+                        )
+                        .on_conflict_do_nothing(index_elements=["id"])
+                        .returning(user_model)
+                    )
+                ).scalar_one_or_none()
+                assert conflict is None
+                assert (
+                    await db.scalar(select(user_model).where(user_model.id == 7001))
+                    is created
                 )
-                assert updated.is_admin is True
-                assert updated.created_at == created_at
-            normal = user_model(id=7003, github_username="normal", first_name="Normal")
-            db.add(normal)
-            await db.flush()
-            normal.last_name = "Write"
-            await db.flush()
-            await db.commit()
-            db.expunge_all()
-            selected = await db.get(user_model, 7003)
-            assert selected is not None
-            assert (selected.first_name, selected.last_name) == ("Normal", "Write")
-            await db.delete(selected)
-            await db.commit()
+                assert created.first_name == "First"
+                stored = await db.get(user_model, 7004)
+                assert stored is not None
+                created_at = stored.created_at
+                for first_name, last_name in (("Later", "Write"), (None, None)):
+                    statement = pg_insert(user_model).values(
+                        id=7004,
+                        github_username="stored",
+                        first_name=first_name,
+                        last_name=last_name,
+                    )
+                    updated = (
+                        await db.execute(
+                            statement.on_conflict_do_update(
+                                index_elements=["id"],
+                                set_={
+                                    "first_name": statement.excluded.first_name,
+                                    "last_name": statement.excluded.last_name,
+                                },
+                            ).returning(user_model),
+                            execution_options={"populate_existing": True},
+                        )
+                    ).scalar_one()
+                    assert updated is stored
+                    assert (updated.first_name, updated.last_name) == (
+                        first_name,
+                        last_name,
+                    )
+                    assert updated.is_admin is True
+                    assert updated.created_at == created_at
+                normal = user_model(
+                    id=7003, github_username="normal", first_name="Normal"
+                )
+                db.add(normal)
+                await db.flush()
+                normal.last_name = "Write"
+                await db.flush()
+                await db.commit()
+                db.expunge_all()
+                selected = await db.get(user_model, 7003)
+                assert selected is not None
+                assert (selected.first_name, selected.last_name) == ("Normal", "Write")
+                await db.delete(selected)
+                await db.commit()
     finally:
-        event.remove(
-            async_engine.sync_engine, "before_cursor_execute", record_statement
-        )
         await async_engine.dispose()
     assert statements
     assert all("display_name" not in statement for statement in statements)
@@ -872,101 +868,99 @@ async def test_display_name_cutover_runtime_compatibility(
     async_engine = create_async_engine(
         alembic_engine.url.set(drivername="postgresql+asyncpg")
     )
-    statements: list[str] = []
-
-    def record_statement(conn, cursor, statement, parameters, context, executemany):
-        statements.append(statement.lower())
-
-    event.listen(async_engine.sync_engine, "before_cursor_execute", record_statement)
     try:
-        async with AsyncSession(
-            async_engine, autoflush=False, expire_on_commit=False
-        ) as db:
-            repo = UserRepository(db)
-            created = await repo.upsert(
-                7001, github_username="profile", display_name="  First  Last 李  "
-            )
-            assert isinstance(created, user_model)
-            assert created.display_name == "  First  Last 李  "
-            inserted = await repo.upsert(
-                7002, github_username="inserted", display_name="Original"
-            )
-            assert isinstance(inserted, user_model)
-            created_at = inserted.created_at
-            updated_at = inserted.updated_at
-            updated = await repo.upsert(
-                7002,
-                github_username="updated",
-                display_name="Updated Profile",
-                avatar_url="https://example.com/updated.png",
-            )
-            assert isinstance(updated, user_model)
-            assert updated is inserted
-            assert (updated.id, updated.github_username) == (7002, "updated")
-            assert updated.display_name == "Updated Profile"
-            assert updated.avatar_url == "https://example.com/updated.png"
-            assert updated.created_at == created_at
-            assert updated.updated_at > updated_at
-            cleared = await repo.upsert(7002, github_username="updated")
-            assert cleared is inserted
-            assert (cleared.display_name, cleared.avatar_url) == (None, None)
-            stored_before = await db.scalar(
-                select(user_model).where(user_model.id == 7004)
-            )
-            assert stored_before is not None
-            assert stored_before.display_name == "Stored Legacy"
-            stored = await repo.upsert(
-                7004, github_username="stored", display_name=None
-            )
-            assert stored is stored_before
-            assert stored.display_name is None
-            assert stored.is_admin is True
-            assert stored.created_at == datetime(2024, 1, 1, tzinfo=UTC)
-
-            normal = user_model(
-                id=7003, github_username="normal", display_name="Normal"
-            )
-            db.add(normal)
-            await db.flush()
-            normal.display_name = "Normal Write"
-            await db.flush()
-            assert (
-                await db.scalar(select(user_model).where(user_model.id == 7003))
-                is normal
-            )
-            assert set(u.id for u in await repo.get_by_ids([7001, 7002, 7003])) == {
-                7001,
-                7002,
-                7003,
-            }
-            assert await repo.get_by_ids([]) == []
-            assert (
-                await db.scalar(select(user_model).where(user_model.id == 7999)) is None
-            )
-            assert await db.scalar(select(func.count()).select_from(user_model)) == 4
-
-            db.add(
-                LearnerStepCompletion(
-                    user_id=7003, step_uuid=UUID(int=7003), completed_at=created_at
+        with captured_statements(async_engine.sync_engine) as statements:
+            async with AsyncSession(
+                async_engine, autoflush=False, expire_on_commit=False
+            ) as db:
+                repo = UserRepository(db)
+                created = await repo.upsert(
+                    7001, github_username="profile", display_name="  First  Last 李  "
                 )
-            )
-            await db.commit()
-            db.expunge_all()
-            selected = (
-                await db.execute(select(user_model).where(user_model.id == 7003))
-            ).scalar_one()
-            assert selected.display_name == "Normal Write"
-            await repo.delete(7003)
-            assert (
-                await db.scalar(select(user_model).where(user_model.id == 7003)) is None
-            )
-            assert await db.scalar(select(LearnerStepCompletion.user_id)) is None
-            assert await db.scalar(select(func.count()).select_from(user_model)) == 3
-            await db.commit()
+                assert isinstance(created, user_model)
+                assert created.display_name == "  First  Last 李  "
+                inserted = await repo.upsert(
+                    7002, github_username="inserted", display_name="Original"
+                )
+                assert isinstance(inserted, user_model)
+                created_at = inserted.created_at
+                updated_at = inserted.updated_at
+                updated = await repo.upsert(
+                    7002,
+                    github_username="updated",
+                    display_name="Updated Profile",
+                    avatar_url="https://example.com/updated.png",
+                )
+                assert isinstance(updated, user_model)
+                assert updated is inserted
+                assert (updated.id, updated.github_username) == (7002, "updated")
+                assert updated.display_name == "Updated Profile"
+                assert updated.avatar_url == "https://example.com/updated.png"
+                assert updated.created_at == created_at
+                assert updated.updated_at > updated_at
+                cleared = await repo.upsert(7002, github_username="updated")
+                assert cleared is inserted
+                assert (cleared.display_name, cleared.avatar_url) == (None, None)
+                stored_before = await db.scalar(
+                    select(user_model).where(user_model.id == 7004)
+                )
+                assert stored_before is not None
+                assert stored_before.display_name == "Stored Legacy"
+                stored = await repo.upsert(
+                    7004, github_username="stored", display_name=None
+                )
+                assert stored is stored_before
+                assert stored.display_name is None
+                assert stored.is_admin is True
+                assert stored.created_at == datetime(2024, 1, 1, tzinfo=UTC)
+
+                normal = user_model(
+                    id=7003, github_username="normal", display_name="Normal"
+                )
+                db.add(normal)
+                await db.flush()
+                normal.display_name = "Normal Write"
+                await db.flush()
+                assert (
+                    await db.scalar(select(user_model).where(user_model.id == 7003))
+                    is normal
+                )
+                assert set(u.id for u in await repo.get_by_ids([7001, 7002, 7003])) == {
+                    7001,
+                    7002,
+                    7003,
+                }
+                assert await repo.get_by_ids([]) == []
+                assert (
+                    await db.scalar(select(user_model).where(user_model.id == 7999))
+                    is None
+                )
+                assert (
+                    await db.scalar(select(func.count()).select_from(user_model)) == 4
+                )
+
+                db.add(
+                    LearnerStepCompletion(
+                        user_id=7003, step_uuid=UUID(int=7003), completed_at=created_at
+                    )
+                )
+                await db.commit()
+                db.expunge_all()
+                selected = (
+                    await db.execute(select(user_model).where(user_model.id == 7003))
+                ).scalar_one()
+                assert selected.display_name == "Normal Write"
+                await repo.delete(7003)
+                assert (
+                    await db.scalar(select(user_model).where(user_model.id == 7003))
+                    is None
+                )
+                assert await db.scalar(select(LearnerStepCompletion.user_id)) is None
+                assert (
+                    await db.scalar(select(func.count()).select_from(user_model)) == 3
+                )
+                await db.commit()
     finally:
-        event.remove(
-            async_engine.sync_engine, "before_cursor_execute", record_statement
-        )
         await async_engine.dispose()
 
     assert statements

@@ -14,6 +14,7 @@ containing the words ``"is duplicated"``. The migration must propagate.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -139,7 +140,6 @@ def _run_alembic_upgrade(project: Path) -> subprocess.CompletedProcess[str]:
     env_overrides = {
         "DATABASE__URL": f"sqlite:///{project / 'test.db'}",
     }
-    import os
 
     env = {**os.environ, **env_overrides}
     return subprocess.run(

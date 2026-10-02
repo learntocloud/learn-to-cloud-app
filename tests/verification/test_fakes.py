@@ -2,18 +2,14 @@
 
 import pytest
 
-from learn_to_cloud.verification.repo_files import RepoFiles
-from learn_to_cloud.verification.repo_ref import RepoRef
-from learn_to_cloud.verification.workflow_runs import WorkflowRuns
-from tests.support.fakes.repo_files import InMemoryRepoFiles
-from tests.support.fakes.repo_ref import InMemoryRepoRef
-from tests.support.fakes.workflow_runs import InMemoryWorkflowRuns
+from learn_to_cloud.verification.github_api import GitHub, WorkflowJob
+from tests.support.fakes.github import FakeGitHub
 
 
-async def test_repo_files_copies_inputs_and_returns_independent_trees():
+async def test_fake_github_copies_inputs_and_returns_independent_trees():
     files = {"README.md": "original"}
     tree = ["README.md", "missing.md"]
-    adapter: RepoFiles = InMemoryRepoFiles(files, tree=tree)
+    adapter: GitHub = FakeGitHub(files=files, tree=tree)
     files["README.md"] = "changed"
     tree.clear()
 
@@ -30,20 +26,20 @@ async def test_repo_files_copies_inputs_and_returns_independent_trees():
     assert await adapter.file("owner", "repo", "missing.md") is None
 
 
-async def test_repo_files_distinguishes_default_and_explicit_empty_tree():
+async def test_fake_github_distinguishes_default_and_explicit_empty_tree():
     files = {"README.md": "content"}
-    default = InMemoryRepoFiles(files)
-    empty = InMemoryRepoFiles(files, tree=[])
+    default = FakeGitHub(files=files)
+    empty = FakeGitHub(files=files, tree=[])
 
     assert await default.tree("owner", "repo") == ["README.md"]
     assert await empty.tree("owner", "repo") == []
     assert await empty.file("owner", "repo", "README.md") == "content"
-    assert await InMemoryRepoFiles().tree("owner", "repo") == []
+    assert await FakeGitHub().tree("owner", "repo") == []
 
 
-async def test_repo_files_raises_the_configured_error():
+async def test_fake_github_raises_the_configured_tree_error():
     error = RuntimeError("tree failure")
-    adapter = InMemoryRepoFiles(tree_error=error)
+    adapter = FakeGitHub(tree_error=error)
 
     with pytest.raises(RuntimeError) as raised:
         await adapter.tree("owner", "repo")
@@ -52,15 +48,15 @@ async def test_repo_files_raises_the_configured_error():
 
 
 @pytest.mark.parametrize("sha", [None, "current-head"])
-async def test_repo_ref_accepts_compatible_keywords(sha):
-    adapter: RepoRef = InMemoryRepoRef(sha)
+async def test_fake_github_head_sha_accepts_compatible_keywords(sha):
+    adapter: GitHub = FakeGitHub(sha=sha)
 
     assert await adapter.head_sha(owner="owner", repo="repo", branch="feature") == sha
 
 
 @pytest.mark.parametrize("run", [None, {"head_sha": "current-head"}])
-async def test_workflow_runs_accepts_compatible_keywords(run):
-    adapter: WorkflowRuns = InMemoryWorkflowRuns(run)
+async def test_fake_github_latest_run_accepts_compatible_keywords(run):
+    adapter: GitHub = FakeGitHub(run=run)
 
     assert (
         await adapter.latest_run(
@@ -70,15 +66,31 @@ async def test_workflow_runs_accepts_compatible_keywords(run):
     )
 
 
-async def test_reference_and_workflow_fakes_preserve_exception_identity():
+async def test_fake_github_preserves_exception_identity():
     error = RuntimeError("upstream failure")
-    reference = InMemoryRepoRef(error=error)
-    runs = InMemoryWorkflowRuns(error=error)
+    github = FakeGitHub(sha_error=error, run_error=error)
 
     with pytest.raises(RuntimeError) as raised:
-        await reference.head_sha("owner", "repo")
+        await github.head_sha("owner", "repo")
     assert raised.value is error
 
     with pytest.raises(RuntimeError) as raised:
-        await runs.latest_run("owner", "repo", "ci.yml")
+        await github.latest_run("owner", "repo", "ci.yml")
     assert raised.value is error
+
+
+async def test_fake_github_returns_repository_metadata_and_jobs():
+    job = WorkflowJob(
+        id=1,
+        run_id=2,
+        run_attempt=3,
+        head_sha="a" * 40,
+        name="test",
+        status="completed",
+        conclusion="success",
+    )
+    github = FakeGitHub(repos={"owner/repo": {"name": "repo"}}, jobs=[job])
+
+    assert await github.repo_metadata("owner", "repo") == {"name": "repo"}
+    assert await github.repo_metadata("missing", "repo") is None
+    assert await github.jobs_for_attempt("owner", "repo", 2, 3) == [job]

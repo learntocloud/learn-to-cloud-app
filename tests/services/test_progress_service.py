@@ -18,6 +18,7 @@ from learn_to_cloud.schemas.curriculum import (
     LearningStep,
     Phase,
     PhaseHandsOnVerificationOverview,
+    PhaseOverview,
     Topic,
 )
 from learn_to_cloud.schemas.progress import (
@@ -34,7 +35,9 @@ from learn_to_cloud.services.progress_service import (
     phase_progress_to_data,
     resolve_continue_destination,
 )
+from learn_to_cloud.services.requirements import RequirementIndex
 from tests.support.requirement_factories import (
+    journal_api_verifier_requirement,
     repo_fork_requirement,
 )
 
@@ -322,8 +325,6 @@ class TestPhaseProgressToData:
 class TestFetchUserProgress:
     @pytest.mark.asyncio
     async def test_queries_db_and_returns_progress(self):
-        from learn_to_cloud.schemas.curriculum import PhaseOverview
-        from learn_to_cloud.services.requirements import RequirementIndex
 
         phase_overview = (PhaseOverview(name="Phase 0", slug="phase0", order=0),)
         step_uuid = uuid4()
@@ -375,8 +376,6 @@ class TestFetchUserProgress:
         requirement, each in a different phase. A UUID absent from
         ``phase_order_by_*_uuid`` must not inflate any phase's progress.
         """
-        from learn_to_cloud.schemas.curriculum import PhaseOverview
-        from learn_to_cloud.services.requirements import RequirementIndex
 
         phase_overview = (
             PhaseOverview(name="Phase 0", slug="phase0", order=0),
@@ -455,10 +454,6 @@ class TestFetchPhaseProgress:
     @pytest.mark.asyncio
     async def test_not_complete_when_verification_pending(self):
         """All steps done but verification pending must not be complete."""
-        from learn_to_cloud.schemas.curriculum import PhaseHandsOnVerificationOverview
-        from tests.support.requirement_factories import (
-            journal_api_verifier_requirement,
-        )
 
         topic = _make_topic(steps=["s1", "s2"])
         req = journal_api_verifier_requirement(slug="req1", name="R", description="d")
@@ -494,10 +489,6 @@ class TestFetchPhaseProgress:
     @pytest.mark.asyncio
     async def test_is_complete_when_all_done(self):
         """All steps and verification done means both-measures complete."""
-        from learn_to_cloud.schemas.curriculum import PhaseHandsOnVerificationOverview
-        from tests.support.requirement_factories import (
-            journal_api_verifier_requirement,
-        )
 
         topic = _make_topic(steps=["s1", "s2"])
         req = journal_api_verifier_requirement(slug="req1", name="R", description="d")
