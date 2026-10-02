@@ -184,9 +184,10 @@ Never bypass ownership to work around an outage.
 
 ## GitHub upstream verification failures
 
-Inspect bounded `error.type` and `http.response.status_code` when present.
+Inspect `error.type` and `http.response.status_code` when present.
 Distinguish rate limits from access errors, including rate-limited 403s.
-Network failures have no HTTP status. A genuine initial 404 retains its
+Network failures have no HTTP status; their `error.type` is the exception
+class name, such as `ReadTimeout`. A genuine initial 404 retains its
 missing/private-resource meaning, not an outage classification.
 
 Restore application credentials, permissions, connectivity, or provider

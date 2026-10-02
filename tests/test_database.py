@@ -60,8 +60,7 @@ class TestAzureCredentialLocking:
             get_credential(),
         )
 
-        assert all(r is results[0] for r in results)
-        assert results[0]._inner is sentinel
+        assert all(r is sentinel for r in results)
         mock_cred_cls.assert_called_once()
 
 

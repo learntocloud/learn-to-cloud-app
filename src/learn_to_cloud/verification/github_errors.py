@@ -1,24 +1,16 @@
-"""GitHub response errors, learner results, and bounded operational telemetry."""
+"""GitHub response errors, learner results, and operational telemetry."""
 
 from __future__ import annotations
 
 import logging
 
 import httpx
-from opentelemetry import metrics, trace
+from opentelemetry import trace
 
-from learn_to_cloud.core.outbound import classify
 from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.errors import UpstreamResponseError
 
 logger = logging.getLogger(__name__)
-
-_meter = metrics.get_meter("learn_to_cloud")
-_GITHUB_API_ERROR_COUNTER = _meter.create_counter(
-    name="github.api_error",
-    description="GitHub API calls that failed with an auth, client, or server error",
-    unit="{error}",
-)
 
 
 class GitHubServerError(UpstreamResponseError):
@@ -74,7 +66,7 @@ def github_error_to_result(e: Exception, *, event: str) -> ValidationResult:
     error_code = (
         _github_error_type(status, response) if status is not None else "network"
     )
-    error_type = error_code if status is not None else classify(e)
+    error_type = error_code if status is not None else type(e).__qualname__
     attributes: dict[str, str | int] = {"error.type": error_type}
     if status is not None:
         attributes["http.response.status_code"] = status
@@ -83,7 +75,6 @@ def github_error_to_result(e: Exception, *, event: str) -> ValidationResult:
         span.set_attribute(key, value)
     span.add_event(event, attributes)
     logger.warning(event, extra=attributes)
-    _GITHUB_API_ERROR_COUNTER.add(1, {"error.type": error_type})
     return ValidationResult(
         is_valid=False,
         message=(

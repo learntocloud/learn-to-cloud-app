@@ -18,13 +18,6 @@ from learn_to_cloud.core.auth import (
     validate_identity,
 )
 from learn_to_cloud.core.config import get_web_settings
-from learn_to_cloud.core.outbound import (
-    DEPENDENCY_NAME,
-    OTHER,
-    Dependency,
-    classify,
-    classify_status,
-)
 from learn_to_cloud.core.session_cookies import (
     AUTH_COOKIE_NAME,
     csrf_token,
@@ -64,9 +57,8 @@ def _prepare_oauth_state(request: Request) -> dict:
 
 def _profile_error_type(exc: httpx2.HTTPError) -> str:
     if isinstance(exc, httpx2.HTTPStatusError):
-        response = exc.response
-        return classify_status(response.status_code, response.headers) or OTHER
-    return classify(exc)
+        return str(exc.response.status_code)
+    return type(exc).__qualname__
 
 
 def _reject_identity(reason: IdentityRejectionReason) -> RedirectResponse:
@@ -114,19 +106,10 @@ async def callback(request: Request) -> RedirectResponse:
     _prepare_oauth_state(request)
     try:
         token = await github.authorize_access_token(request)
-    except OAuthError as exc:
+    except (OAuthError, httpx2.HTTPError) as exc:
         logger.warning(
             "auth.callback.token_exchange_failed",
-            extra={"error.type": type(exc).__name__},
-        )
-        return RedirectResponse(url="/", status_code=302)
-    except httpx2.HTTPError as exc:
-        logger.warning(
-            "auth.callback.token_exchange_failed",
-            extra={
-                "error.type": classify(exc),
-                DEPENDENCY_NAME: Dependency.GITHUB_OAUTH.value,
-            },
+            extra={"error.type": type(exc).__qualname__},
         )
         return RedirectResponse(url="/", status_code=302)
 
@@ -136,10 +119,7 @@ async def callback(request: Request) -> RedirectResponse:
     except httpx2.HTTPError as exc:
         logger.warning(
             "auth.callback.profile_fetch_failed",
-            extra={
-                "error.type": _profile_error_type(exc),
-                DEPENDENCY_NAME: Dependency.GITHUB_OAUTH.value,
-            },
+            extra={"error.type": _profile_error_type(exc)},
         )
         return RedirectResponse(url="/", status_code=302)
 

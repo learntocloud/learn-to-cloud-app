@@ -9,19 +9,8 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from typing import Any
 
 import httpx
-
-from learn_to_cloud.core.outbound import Dependency, MeasuredTransport
-
-
-def build_http_client(
-    dependency: Dependency, *, limits: httpx.Limits, **client_kwargs: Any
-) -> httpx.AsyncClient:
-    """Build the only kind of ``httpx.AsyncClient`` runtime code may use."""
-    transport = MeasuredTransport(dependency, httpx.AsyncHTTPTransport(limits=limits))
-    return httpx.AsyncClient(transport=transport, **client_kwargs)
 
 
 class PooledClient:

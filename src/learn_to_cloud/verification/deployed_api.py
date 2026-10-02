@@ -13,8 +13,7 @@ import httpx
 from opentelemetry import trace
 
 from learn_to_cloud.core.config import get_worker_settings
-from learn_to_cloud.core.http_client import PooledClient, build_http_client
-from learn_to_cloud.core.outbound import Dependency, classify
+from learn_to_cloud.core.http_client import PooledClient
 from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.errors import UpstreamResponseError
 
@@ -28,7 +27,7 @@ def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> Validatio
     step_prefix = f"{step}: " if step else ""
     span = trace.get_current_span()
     if isinstance(exc, httpx.TimeoutException):
-        error_type = classify(exc)
+        error_type = type(exc).__qualname__
         span.set_attribute("error.type", error_type)
         span.add_event(
             "deployed_api.timeout",
@@ -42,12 +41,13 @@ def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> Validatio
             ),
         )
     if isinstance(exc, DeployedApiServerError):
-        span.set_attribute("error.type", "http_5xx")
+        error_type = str(exc.status_code)
+        span.set_attribute("error.type", error_type)
         span.set_attribute("http.response.status_code", exc.status_code)
         span.add_event(
             "deployed_api.server_error",
             {
-                "error.type": "http_5xx",
+                "error.type": error_type,
                 "verification.operation": step or "request",
                 "http.response.status_code": exc.status_code,
             },
@@ -60,7 +60,7 @@ def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> Validatio
             ),
         )
     if isinstance(exc, httpx.RequestError):
-        error_type = classify(exc)
+        error_type = type(exc).__qualname__
         span.set_attribute("error.type", error_type)
         span.add_event(
             "deployed_api.request_error",
@@ -80,8 +80,7 @@ def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> Validatio
 
 
 def _build_deployed_api_client() -> httpx.AsyncClient:
-    return build_http_client(
-        Dependency.DEPLOYED_API,
+    return httpx.AsyncClient(
         timeout=httpx.Timeout(
             get_worker_settings().http.external_api_timeout,
             connect=5.0,

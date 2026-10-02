@@ -15,7 +15,6 @@ async def test_exhausted_http_errors_retain_status_and_map_once(status):
     calls = []
     sleeps = AsyncMock()
     span = MagicMock()
-    counter = MagicMock()
 
     def handler(request):
         calls.append(request)
@@ -32,13 +31,12 @@ async def test_exhausted_http_errors_retain_status_and_map_once(status):
                 github_http, "_get_github_client", AsyncMock(return_value=client)
             ),
             patch.object(github_http, "get_github_headers", return_value={}),
-            patch.object(github_errors, "_GITHUB_API_ERROR_COUNTER", counter),
             patch.object(github_errors.trace, "get_current_span", return_value=span),
             patch.object(github_errors.logger, "warning") as warning,
         ):
             with pytest.raises(GitHubServerError) as raised:
                 await operation("https://api.github.com/private-repo")
-            counter.add.assert_not_called()
+            warning.assert_not_called()
             result = github_errors.github_error_to_result(
                 raised.value, event="test.github.failed"
             )
@@ -54,7 +52,6 @@ async def test_exhausted_http_errors_retain_status_and_map_once(status):
     assert result.message == f"GitHub API error ({status}). Try again later."
     category = "rate_limit" if status == 429 else "provider_unavailable"
     attributes = {"error.type": category, "http.response.status_code": status}
-    counter.add.assert_called_once_with(1, {"error.type": category})
     span.add_event.assert_called_once_with("test.github.failed", attributes)
     warning.assert_called_once_with("test.github.failed", extra=attributes)
     if status == 429:

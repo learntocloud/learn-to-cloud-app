@@ -13,7 +13,6 @@ from learn_to_cloud.verification.github_errors import GitHubServerError
 @pytest.mark.parametrize("status", [200, 404, 401, 403, 429, 500, 503])
 async def test_raw_file_is_one_attempt_and_only_404_is_missing(status):
     requests = []
-    counter = MagicMock()
     span = MagicMock()
 
     def handler(request):
@@ -33,7 +32,6 @@ async def test_raw_file_is_one_attempt_and_only_404_is_missing(status):
                 return_value={"Accept": "application/vnd.github.v3+json"},
             ),
             patch.object(github_api.trace, "get_current_span", return_value=span),
-            patch.object(github_errors, "_GITHUB_API_ERROR_COUNTER", counter),
             patch.object(github_errors.logger, "warning") as warning,
         ):
             adapter: GitHub = GitHubClient()
@@ -62,7 +60,6 @@ async def test_raw_file_is_one_attempt_and_only_404_is_missing(status):
     else:
         span.add_event.assert_not_called()
     warning.assert_not_called()
-    counter.add.assert_not_called()
 
 
 @pytest.mark.parametrize("error_type", [httpx.ConnectError, httpx.ReadTimeout])

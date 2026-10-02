@@ -297,11 +297,11 @@ async def test_analysis_requires_a_json_object(journal, body):
 @pytest.mark.parametrize(
     ("failure", "event", "category"),
     [
-        (500, "server_error", "http_5xx"),
-        (501, "server_error", "http_5xx"),
-        (503, "server_error", "http_5xx"),
-        (httpx.ReadTimeout, "timeout", "timeout.read"),
-        (httpx.ConnectError, "request_error", "connection"),
+        (500, "server_error", "500"),
+        (501, "server_error", "501"),
+        (503, "server_error", "503"),
+        (httpx.ReadTimeout, "timeout", "ReadTimeout"),
+        (httpx.ConnectError, "request_error", "ConnectError"),
     ],
 )
 async def test_failures_are_not_retried_and_emit_safe_step_diagnostics(
