@@ -21,7 +21,9 @@ gh auth status
 Use the repository's
 [`review-terraform` procedure](https://github.com/learntocloud/learn-to-cloud-app/blob/main/.github/skills/review-terraform/SKILL.md)
 for plans and permission review. Planning does not authorize applying or changing
-state. Production deployment runs through
+state. Infrastructure applies run through
+[`infra-deploy.yml`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/.github/workflows/infra-deploy.yml)
+and application releases through
 [`app-deploy.yml`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/.github/workflows/app-deploy.yml).
 
 ## Optional Copilot tooling

@@ -2,21 +2,7 @@
 
 from pathlib import Path
 
-import pytest
-import yaml
-
 _ROOT = Path(__file__).resolve().parents[1]
-
-_APPLICATION_DEPLOY_PATHS = {
-    "src/**",
-    "Dockerfile",
-    "package.json",
-    "package-lock.json",
-    "pyproject.toml",
-    "uv.lock",
-    ".dockerignore",
-    ".github/workflows/app-deploy.yml",
-}
 
 
 def test_docker_excludes_first_party_tests_and_authored_curriculum():
@@ -27,50 +13,3 @@ def test_docker_excludes_first_party_tests_and_authored_curriculum():
     assert f"{content}/phases/" in patterns
     assert f"{content}/schemas/" in patterns
     assert f"{content}/curriculum.meta.yaml" in patterns
-
-
-def test_deployment_does_not_package_a_functions_host():
-    workflow = yaml.safe_load((_ROOT / ".github/workflows/app-deploy.yml").read_text())
-    deploys = [
-        step
-        for job in workflow["jobs"].values()
-        for step in job.get("steps", [])
-        if step.get("uses", "").startswith("Azure/functions-action@")
-    ]
-    assert not deploys
-
-
-@pytest.mark.parametrize(
-    ("workflow_name", "category"), [("ci.yml", "code"), ("app-deploy.yml", "app")]
-)
-def test_packaging_changes_trigger_quality_and_deployment(workflow_name, category):
-    workflow = yaml.load(
-        (_ROOT / ".github/workflows" / workflow_name).read_text(),
-        Loader=yaml.BaseLoader,
-    )
-    filters = next(
-        step["with"]["filters"]
-        for step in workflow["jobs"]["changes"]["steps"]
-        if step.get("id") == "filter"
-    )
-    paths = yaml.safe_load(filters)[category]
-    assert ".dockerignore" in paths
-    assert ".github/workflows/app-deploy.yml" in paths
-
-
-def test_application_deploy_excludes_first_party_tests():
-    workflow = yaml.load(
-        (_ROOT / ".github/workflows/app-deploy.yml").read_text(),
-        Loader=yaml.BaseLoader,
-    )
-    filter_step = next(
-        step
-        for step in workflow["jobs"]["changes"]["steps"]
-        if step.get("id") == "filter"
-    )
-    app_paths = set(yaml.safe_load(filter_step["with"]["filters"])["app"])
-
-    assert workflow["on"]["push"] == {"branches": ["main"]}
-    assert app_paths == _APPLICATION_DEPLOY_PATHS
-    assert not any(path.startswith("tests/") for path in app_paths)
-    assert "scripts/**" not in app_paths

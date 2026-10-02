@@ -129,27 +129,23 @@ gates, and links to focused development guides.
 
 ## Deployment
 
-Pushes to `main` select deployment work by changed paths:
+CI runs on pull requests. Pushes to `main` deploy through two independent
+pipelines, selected by changed paths:
 
-- Application runtime changes build and validate the API and migration images,
-  run migrations, update the API, and verify production in one deployment job.
-  API changes are treated conservatively as runtime changes, except for the
-  first-party test tree. Tests, documentation, and root-level
-  tooling still run CI but do not deploy production.
-- Infrastructure changes call `infra-deploy.yml` to plan and apply Terraform,
-  then verify production without building images, running migrations, or updating
-  the API image. Terraform can still update the API's configuration.
-- Combined changes apply infrastructure before the application deployment.
+- `app-deploy.yml` runs for application runtime changes (`src/`, `Dockerfile`,
+  dependency manifests). It builds and pushes the API and migration images,
+  runs migrations, updates the API, and verifies production. It reads Terraform
+  outputs but never plans or applies infrastructure. Tests and documentation do
+  not deploy.
+- `infra-deploy.yml` runs for `infra/` changes. It plans and applies Terraform,
+  then verifies production without building images or running migrations.
 
-`app-deploy.yml` remains the single production entry point so combined releases
-are ordered and production deployments do not overlap. Application-only releases
-read Terraform outputs but do not plan or apply infrastructure. CI is unchanged.
+Ship infrastructure and application changes as separate pull requests: merge the
+infrastructure change and let it deploy before merging application code that
+depends on it.
 
-For manual runs of **Application Deploy**, choose `application` (the default),
-`infrastructure`, or `all`. A manual **Infrastructure Deploy** run remains
-plan-only. Use `all` for coordinated database/identity changes or recovery that
-also requires migrations and an application rollout; infrastructure-only mode is
-not a database bootstrap procedure.
+A manual **Infrastructure Deploy** run is plan-only unless `apply` is selected.
+A manual **Application Deploy** run redeploys the current `main`.
 
 After a failed deployment, fix and rerun it before shipping another release.
 Path selection describes the current push, not everything since the last
