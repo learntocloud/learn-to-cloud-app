@@ -25,7 +25,6 @@ dependencies = [
     "agent-framework-openai>=1.14.1",
     "alembic>=1.18.5",
     "asyncpg>=0.31.0",
-    "psycopg2-binary>=2.9.12",
     "authlib>=1.7.0",
     # The aio extra installs aiohttp, which azure.identity.aio needs at runtime.
     "azure-core[aio]>=1.41.0",
