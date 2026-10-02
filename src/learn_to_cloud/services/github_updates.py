@@ -1,7 +1,7 @@
 """Latest-commit lookups for the public community experience.
 
 Reuses the resilient ``github_api_get`` seam (auth headers, retry, and
-5xx/429 mapping) rather than hand-rolling httpx. Results are cached in a
+5xx/429 mapping) rather than hand-rolling httpx2. Results are cached in a
 short-lived process-level ``TTLCache`` because the page is public
 and the unauthenticated GitHub API is rate limited (60 req/hr/IP). Any
 lookup failure degrades to an ``unavailable`` entry so the page still
@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-import httpx
+import httpx2
 from cachetools import TTLCache
 
 from learn_to_cloud.schemas.community import RepoUpdate
@@ -81,7 +81,7 @@ async def _fetch_latest_commit(owner: str, repo: str) -> RepoUpdate:
         if not commits:
             return _unavailable(owner, repo)
         return _parse_commit(owner, repo, commits[0])
-    except (httpx.HTTPError, ValueError, KeyError, IndexError) as exc:
+    except (httpx2.HTTPError, ValueError, KeyError, IndexError) as exc:
         logger.warning(
             "community.github_commit_failed",
             extra={

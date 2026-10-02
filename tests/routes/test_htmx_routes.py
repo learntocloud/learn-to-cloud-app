@@ -21,7 +21,7 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.datastructures import FormData, UploadFile
 
@@ -421,7 +421,7 @@ class TestHtmxSubmitVerification:
                 return_value=attempt_submission,
             ) as mock_create_attempt,
             patch(
-                "httpx.AsyncClient",
+                "httpx2.AsyncClient",
                 side_effect=AssertionError("Submission must not start external work"),
             ) as mock_http_client,
         ):
@@ -620,7 +620,7 @@ class TestHtmxVerificationAttemptStatus:
                     requirements_by_uuid={attempt.requirement_uuid: requirement}
                 ),
             ),
-            patch("httpx.AsyncClient") as http_client,
+            patch("httpx2.AsyncClient") as http_client,
         ):
             repository.return_value.get_status.return_value = attempt
             result = await htmx_verification_attempt_status(

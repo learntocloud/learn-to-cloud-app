@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.verification import github_errors
@@ -18,10 +18,10 @@ def _status_error(
     status: int,
     *,
     headers: dict[str, str] | None = None,
-) -> httpx.HTTPStatusError:
-    request = httpx.Request("GET", "https://api.github.com/resource")
-    response = httpx.Response(status, headers=headers, request=request)
-    return httpx.HTTPStatusError("failed", request=request, response=response)
+) -> httpx2.HTTPStatusError:
+    request = httpx2.Request("GET", "https://api.github.com/resource")
+    response = httpx2.Response(status, headers=headers, request=request)
+    return httpx2.HTTPStatusError("failed", request=request, response=response)
 
 
 @pytest.mark.parametrize(
@@ -44,8 +44,8 @@ def test_github_http_error_uses_bounded_category(error, expected, caplog):
 
 
 def test_github_network_error_type_is_the_exception_class(caplog):
-    request = httpx.Request("GET", "https://api.github.com/resource")
-    error = httpx.ConnectError("sensitive network detail", request=request)
+    request = httpx2.Request("GET", "https://api.github.com/resource")
+    error = httpx2.ConnectError("sensitive network detail", request=request)
     github_error_to_result(error, event="github.request.failed")
 
     (record,) = caplog.records
@@ -60,13 +60,13 @@ def test_github_network_error_type_is_the_exception_class(caplog):
     ],
 )
 def test_github_403_body_can_identify_rate_limit(message, caplog):
-    request = httpx.Request("GET", "https://api.github.com/resource")
-    response = httpx.Response(
+    request = httpx2.Request("GET", "https://api.github.com/resource")
+    response = httpx2.Response(
         403,
         json={"message": message},
         request=request,
     )
-    error = httpx.HTTPStatusError("failed", request=request, response=response)
+    error = httpx2.HTTPStatusError("failed", request=request, response=response)
     github_error_to_result(error, event="github.request.failed")
 
     (record,) = caplog.records
@@ -86,8 +86,8 @@ def test_github_403_body_can_identify_rate_limit(message, caplog):
             "provider_unavailable",
             503,
         ),
-        (httpx.ConnectError("private detail"), "ConnectError", None),
-        (httpx.ReadTimeout("private detail"), "ReadTimeout", None),
+        (httpx2.ConnectError("private detail"), "ConnectError", None),
+        (httpx2.ReadTimeout("private detail"), "ReadTimeout", None),
     ],
 )
 def test_all_telemetry_uses_same_safe_bounded_attributes(
@@ -125,10 +125,10 @@ def test_all_telemetry_uses_same_safe_bounded_attributes(
     "body", ["invalid JSON", "null", "[]", '"secret"', '{"message":42}']
 )
 def test_malformed_or_nonobject_403_body_remains_authorization(body, caplog):
-    response = httpx.Response(
-        403, text=body, request=httpx.Request("GET", "https://api.github.com/private")
+    response = httpx2.Response(
+        403, text=body, request=httpx2.Request("GET", "https://api.github.com/private")
     )
-    error = httpx.HTTPStatusError(
+    error = httpx2.HTTPStatusError(
         "private", request=response.request, response=response
     )
     result = github_error_to_result(error, event="github.test_failure")

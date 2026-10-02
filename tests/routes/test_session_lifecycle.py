@@ -16,7 +16,7 @@ import httpx2
 import pytest
 from authlib.integrations.starlette_client import OAuth
 from fastapi import FastAPI, Request
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 from itsdangerous import TimestampSigner
 from sqlalchemy import event, func, inspect, select, update
 from sqlalchemy.exc import IntegrityError

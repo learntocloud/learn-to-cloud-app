@@ -2,7 +2,7 @@
 
 from inspect import Parameter, signature
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.verification import deployed_api, github_http
@@ -28,7 +28,7 @@ def test_response_status_is_required_and_keyword_only():
 
 
 def test_make_retriable_preserves_explicit_network_types():
-    assert BASE_RETRIABLE == (httpx.RequestError, httpx.TimeoutException)
+    assert BASE_RETRIABLE == (httpx2.RequestError, httpx2.TimeoutException)
     assert make_retriable() == BASE_RETRIABLE
     assert make_retriable(GitHubServerError) == (*BASE_RETRIABLE, GitHubServerError)
 

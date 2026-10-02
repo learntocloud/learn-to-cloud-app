@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import httpx
+import httpx2
 
 BASE_RETRIABLE: tuple[type[Exception], ...] = (
-    httpx.RequestError,
-    httpx.TimeoutException,
+    httpx2.RequestError,
+    httpx2.TimeoutException,
 )
 
 

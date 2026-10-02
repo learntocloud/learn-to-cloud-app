@@ -7,7 +7,7 @@ config collected for an LLM rubric review of its quality.
 
 from __future__ import annotations
 
-import httpx
+import httpx2
 
 from learn_to_cloud.verification.codeql_status import verify_codeql_status
 from learn_to_cloud.verification.core import CheckResult, GradingEvidence
@@ -61,7 +61,7 @@ async def verify_security_scanning(
         bundle = await collect_security_scanning_evidence(
             target.owner, target.repo, github, task
         )
-    except (GitHubServerError, httpx.HTTPStatusError, httpx.RequestError) as exc:
+    except (GitHubServerError, httpx2.HTTPStatusError, httpx2.RequestError) as exc:
         return CheckResult(
             validation_result=github_error_to_result(
                 exc, event="security_scanning.repo_file_error"

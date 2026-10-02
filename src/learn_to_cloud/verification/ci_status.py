@@ -6,7 +6,7 @@ import logging
 import re
 from json import JSONDecodeError
 
-import httpx
+import httpx2
 from opentelemetry import trace
 from pydantic import ValidationError
 
@@ -53,8 +53,8 @@ async def verify_ci_status(
         )
     except (ValidationError, JSONDecodeError, UnicodeDecodeError):
         return _invalid_metadata()
-    except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
-        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 404:
+    except (httpx2.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
+        if isinstance(exc, httpx2.HTTPStatusError) and exc.response.status_code == 404:
             span.add_event("capstone.workflow_not_found")
             return ValidationResult(
                 is_valid=False,
@@ -108,8 +108,8 @@ async def verify_ci_status(
         head_sha = await github.head_sha(owner, repo)
     except (ValidationError, JSONDecodeError, UnicodeDecodeError):
         return _invalid_metadata()
-    except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
-        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 404:
+    except (httpx2.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
+        if isinstance(exc, httpx2.HTTPStatusError) and exc.response.status_code == 404:
             span.add_event("capstone.branch_not_found")
             return ValidationResult(
                 is_valid=False,

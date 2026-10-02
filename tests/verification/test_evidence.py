@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.verification import github_api
@@ -119,18 +119,18 @@ async def test_failed_later_file_never_returns_partial_evidence(monkeypatch, fai
 
     def respond(request):
         if request.url.host == "api.github.com":
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 json={"tree": [{"type": "blob", "path": p} for p in ["a", "b", "c"]]},
             )
         requested_paths.append(request.url.path.rsplit("/", 1)[-1])
         if len(requested_paths) == 1:
-            return httpx.Response(200, text="successfully fetched first file")
+            return httpx2.Response(200, text="successfully fetched first file")
         if failure == "network":
-            raise httpx.ReadTimeout("private connection details", request=request)
-        return httpx.Response(failure, text="private provider response")
+            raise httpx2.ReadTimeout("private connection details", request=request)
+        return httpx2.Response(failure, text="private provider response")
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(respond)) as client:
         monkeypatch.setattr(
             github_api, "get_github_client", AsyncMock(return_value=client)
         )
@@ -140,11 +140,11 @@ async def test_failed_later_file_never_returns_partial_evidence(monkeypatch, fai
             AsyncMock(return_value=client),
         )
         expected = (
-            httpx.ReadTimeout
+            httpx2.ReadTimeout
             if failure == "network"
             else GitHubServerError
             if failure in (429, 503)
-            else httpx.HTTPStatusError
+            else httpx2.HTTPStatusError
         )
         with pytest.raises(expected):
             await collect_repo_file_evidence(

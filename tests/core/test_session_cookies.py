@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 
 from learn_to_cloud.core.session_cookies import (
     AUTH_COOKIE_NAME,

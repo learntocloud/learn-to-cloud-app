@@ -2,7 +2,7 @@
 
 Verifiers depend on the :class:`GitHub` protocol. Production uses
 :class:`GitHubClient`; tests pass an in-memory fake. Methods raise
-``httpx.HTTPStatusError`` and the retriable :class:`GitHubServerError`;
+``httpx2.HTTPStatusError`` and the retriable :class:`GitHubServerError`;
 callers map those to results.
 """
 
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Protocol
 
-import httpx
+import httpx2
 from opentelemetry import trace
 from pydantic import Field, TypeAdapter
 
@@ -105,7 +105,7 @@ class GitHubClient:
     async def repo_metadata(self, owner: str, repo: str) -> dict[str, Any] | None:
         try:
             response = await github_api_get(f"{_API}/{owner}/{repo}")
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             if e.response.status_code == 404:
                 return None
             raise

@@ -16,7 +16,7 @@ These tests inject the in-memory GitHub seam instead of patching internals, so
 they exercise the real ``verify_codeql_status`` logic through the seam.
 """
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.verification.codeql_status import verify_codeql_status
@@ -40,9 +40,9 @@ def _run(**overrides):
     return run
 
 
-def _http_error(status: int) -> httpx.HTTPStatusError:
-    response = httpx.Response(status, request=httpx.Request("GET", "https://test"))
-    return httpx.HTTPStatusError("err", request=response.request, response=response)
+def _http_error(status: int) -> httpx2.HTTPStatusError:
+    response = httpx2.Response(status, request=httpx2.Request("GET", "https://test"))
+    return httpx2.HTTPStatusError("err", request=response.request, response=response)
 
 
 @pytest.mark.unit
@@ -118,7 +118,7 @@ class TestCodeQLStatusErrorHandling:
 
     async def test_ref_transient_failure(self):
         github = FakeGitHub(
-            run=_run(), sha_error=httpx.ConnectError("connection refused")
+            run=_run(), sha_error=httpx2.ConnectError("connection refused")
         )
         result = await verify_codeql_status(_TEST_OWNER, _TEST_REPO, github)
         assert not result.is_valid

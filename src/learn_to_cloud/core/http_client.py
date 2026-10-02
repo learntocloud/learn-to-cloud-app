@@ -1,4 +1,4 @@
-"""Shared lazy-singleton factory for pooled ``httpx.AsyncClient`` instances.
+"""Shared lazy-singleton factory for pooled ``httpx2.AsyncClient`` instances.
 
 Multiple services (GitHub API, deployed-API verification) need a long-lived,
 connection-pooled async client.  Rather than each module rolling its own
@@ -10,23 +10,23 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 
-import httpx
+import httpx2
 
 
 class PooledClient:
-    """Lazy, async-safe singleton wrapper around a pooled ``httpx.AsyncClient``.
+    """Lazy, async-safe singleton wrapper around a pooled ``httpx2.AsyncClient``.
 
     The first call to :meth:`get` builds the client by invoking *factory*;
     subsequent calls return the same instance until :meth:`close` is called
     (or the client is closed externally).
     """
 
-    def __init__(self, factory: Callable[[], httpx.AsyncClient]):
+    def __init__(self, factory: Callable[[], httpx2.AsyncClient]):
         self._factory = factory
-        self._client: httpx.AsyncClient | None = None
+        self._client: httpx2.AsyncClient | None = None
         self._lock = asyncio.Lock()
 
-    async def get(self) -> httpx.AsyncClient:
+    async def get(self) -> httpx2.AsyncClient:
         if self._client is not None and not self._client.is_closed:
             return self._client
 

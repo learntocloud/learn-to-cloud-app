@@ -57,6 +57,8 @@ def configure_logging() -> None:
     for name in (
         "httpx",
         "httpcore",
+        "httpx2",
+        "httpcore2",
         "uvicorn.access",
         "azure.core.pipeline.policies.http_logging_policy",
         "azure.identity",

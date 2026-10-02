@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, call
 
-import httpx
+import httpx2
 import pytest
 from pydantic import ValidationError
 
@@ -27,7 +27,7 @@ def _job(identifier, **updates):
 
 
 def _response(total, jobs):
-    return httpx.Response(200, json={"total_count": total, "jobs": jobs})
+    return httpx2.Response(200, json={"total_count": total, "jobs": jobs})
 
 
 async def test_collects_required_jobs_beyond_first_page(monkeypatch):

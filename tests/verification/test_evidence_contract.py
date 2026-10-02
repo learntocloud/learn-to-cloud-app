@@ -4,7 +4,7 @@ import json
 from hashlib import sha256
 from unittest.mock import AsyncMock, Mock
 
-import httpx
+import httpx2
 import pytest
 from pydantic import ValidationError
 
@@ -409,7 +409,7 @@ async def test_truncated_github_tree_is_never_trusted(monkeypatch, boundary):
         github_api,
         "github_api_get",
         AsyncMock(
-            return_value=httpx.Response(
+            return_value=httpx2.Response(
                 200,
                 json={
                     "truncated": True,

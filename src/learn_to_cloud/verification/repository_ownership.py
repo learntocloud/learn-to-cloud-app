@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from json import JSONDecodeError
 from typing import Any
 
-import httpx
+import httpx2
 
 from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification.github_api import GitHub
@@ -60,7 +60,7 @@ async def check_repository_ownership(
         data = await github.repo_metadata(target.owner, target.repo)
     except (JSONDecodeError, UnicodeDecodeError):
         return _invalid_metadata()
-    except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
+    except (httpx2.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
         return github_error_to_result(exc, event="github.ownership.api_error")
 
     if data is None:

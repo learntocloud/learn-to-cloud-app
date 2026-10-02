@@ -7,7 +7,7 @@ import traceback
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
-import httpx
+import httpx2
 import pytest
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -294,9 +294,9 @@ async def test_ownership_exports_bounded_telemetry(
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     monkeypatch.setattr(engine_module, "_tracer", provider.get_tracer("ownership-test"))
-    response = httpx.Response(
+    response = httpx2.Response(
         403,
-        request=httpx.Request(
+        request=httpx2.Request(
             "GET", "https://api.github.com/repos/private-name/private-repo"
         ),
         headers={"retry-after": "120"},
@@ -312,7 +312,7 @@ async def test_ownership_exports_bounded_telemetry(
         }
     )
     if scenario == "unavailable":
-        lookup.side_effect = httpx.HTTPStatusError(
+        lookup.side_effect = httpx2.HTTPStatusError(
             "private-provider-body private-token",
             request=response.request,
             response=response,
@@ -652,7 +652,7 @@ async def test_failed_evidence_read_stops_grading(monkeypatch, failure, category
     def respond(request):
         if request.url.host == "api.github.com":
             if request.url.path == "/repos/learner/sec-repo":
-                return httpx.Response(
+                return httpx2.Response(
                     200,
                     json={
                         "owner": {"id": 1, "login": "learner"},
@@ -660,18 +660,18 @@ async def test_failed_evidence_read_stops_grading(monkeypatch, failure, category
                         "private": False,
                     },
                 )
-            return httpx.Response(
+            return httpx2.Response(
                 200, json={"tree": [{"type": "blob", "path": p} for p in paths]}
             )
         path = request.url.path.split("/main/", 1)[1]
         fetched.append(path)
         if path != failed_path:
-            return httpx.Response(200, text="Evidence content")
+            return httpx2.Response(200, text="Evidence content")
         if failure == "network":
-            raise httpx.ReadTimeout("private connection details", request=request)
-        return httpx.Response(failure, text="private response details")
+            raise httpx2.ReadTimeout("private connection details", request=request)
+        return httpx2.Response(failure, text="private response details")
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(respond)) as client:
         monkeypatch.setattr(
             github_api, "get_github_client", AsyncMock(return_value=client)
         )
@@ -739,7 +739,7 @@ async def test_selected_evidence_disappearance_blocks_grading(monkeypatch):
     "error",
     [
         github_errors.GitHubServerError("Unavailable", status_code=503),
-        httpx.ConnectError("private connection details"),
+        httpx2.ConnectError("private connection details"),
     ],
 )
 async def test_tree_failure_stops_grading_with_tree_event(monkeypatch, error):

@@ -6,7 +6,7 @@ import logging
 import re
 from json import JSONDecodeError
 
-import httpx
+import httpx2
 from opentelemetry import trace
 from pydantic import Field, ValidationError
 
@@ -107,8 +107,8 @@ async def verify_devops_pipeline(
         WorkflowJobsResponseError,
     ):
         return _invalid_metadata()
-    except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
-        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 404:
+    except (httpx2.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as exc:
+        if isinstance(exc, httpx2.HTTPStatusError) and exc.response.status_code == 404:
             if stage == "workflow":
                 return ValidationResult(
                     is_valid=False,

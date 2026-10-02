@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-import httpx
+import httpx2
 from opentelemetry import trace
 
 from learn_to_cloud.schemas.verification import ValidationResult
@@ -17,7 +17,7 @@ class GitHubServerError(UpstreamResponseError):
     """Raised when GitHub returns a retriable 5xx or 429 response."""
 
 
-def _github_error_type(status: int, response: httpx.Response | None = None) -> str:
+def _github_error_type(status: int, response: httpx2.Response | None = None) -> str:
     if status == 429:
         return "rate_limit"
     if status == 403 and response is not None:
@@ -48,13 +48,13 @@ def _github_error_type(status: int, response: httpx.Response | None = None) -> s
 def github_error_to_result(e: Exception, *, event: str) -> ValidationResult:
     """Map supported GitHub failures once, keeping missing resources quiet."""
     status: int | None = None
-    response: httpx.Response | None = None
+    response: httpx2.Response | None = None
     if isinstance(e, GitHubServerError):
         status = e.status_code
-    elif isinstance(e, httpx.HTTPStatusError):
+    elif isinstance(e, httpx2.HTTPStatusError):
         response = e.response
         status = response.status_code
-    elif not isinstance(e, httpx.RequestError):
+    elif not isinstance(e, httpx2.RequestError):
         raise e
 
     if status == 404:

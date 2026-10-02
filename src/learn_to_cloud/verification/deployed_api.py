@@ -9,7 +9,7 @@ import socket
 from typing import Any
 from urllib.parse import quote, urlparse
 
-import httpx
+import httpx2
 from opentelemetry import trace
 
 from learn_to_cloud.core.config import get_worker_settings
@@ -26,7 +26,7 @@ def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> Validatio
     """Map deployed-API failures while retaining completed learner results."""
     step_prefix = f"{step}: " if step else ""
     span = trace.get_current_span()
-    if isinstance(exc, httpx.TimeoutException):
+    if isinstance(exc, httpx2.TimeoutException):
         error_type = type(exc).__qualname__
         span.set_attribute("error.type", error_type)
         span.add_event(
@@ -59,7 +59,7 @@ def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> Validatio
                 "Please check your deployment."
             ),
         )
-    if isinstance(exc, httpx.RequestError):
+    if isinstance(exc, httpx2.RequestError):
         error_type = type(exc).__qualname__
         span.set_attribute("error.type", error_type)
         span.add_event(
@@ -79,14 +79,14 @@ def deployed_api_error_to_result(exc: Exception, *, step: str = "") -> Validatio
     raise exc
 
 
-def _build_deployed_api_client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(
-        timeout=httpx.Timeout(
+def _build_deployed_api_client() -> httpx2.AsyncClient:
+    return httpx2.AsyncClient(
+        timeout=httpx2.Timeout(
             get_worker_settings().http.external_api_timeout,
             connect=5.0,
         ),
         follow_redirects=False,
-        limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+        limits=httpx2.Limits(max_connections=20, max_keepalive_connections=10),
     )
 
 
@@ -97,7 +97,7 @@ _VALID_SENTIMENTS = {"positive", "negative", "neutral"}
 _ANALYSIS_TIMEOUT_SECONDS = 30.0
 
 
-async def _get_client() -> httpx.AsyncClient:
+async def _get_client() -> httpx2.AsyncClient:
     """Return the shared pooled HTTP client for deployed API requests."""
     return await _pool.get()
 
@@ -177,7 +177,7 @@ class _SsrfError(Exception):
     """Raised when a response reveals a connection to a private IP."""
 
 
-def _check_response_ip(response: httpx.Response) -> None:
+def _check_response_ip(response: httpx2.Response) -> None:
     """Reject a private response peer; this cannot undo the request already sent."""
     stream = response.extensions.get("network_stream")
     if stream is None:
@@ -254,7 +254,7 @@ async def _post_once(
     *,
     json_body: dict | None = None,
     timeout: float | None = None,
-) -> httpx.Response:
+) -> httpx2.Response:
     """POST once with shared connection limits and response-peer checks."""
     client = await _get_client()
     request_options: dict[str, Any] = {
@@ -292,8 +292,8 @@ async def _create_entry(entries_url: str) -> ValidationResult | str:
             message="URL must point to a publicly accessible server.",
         )
     except (
-        httpx.TimeoutException,
-        httpx.RequestError,
+        httpx2.TimeoutException,
+        httpx2.RequestError,
         DeployedApiServerError,
     ) as exc:
         return deployed_api_error_to_result(exc, step="POST /entries")
@@ -366,8 +366,8 @@ async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
             message="URL must point to a publicly accessible server.",
         )
     except (
-        httpx.TimeoutException,
-        httpx.RequestError,
+        httpx2.TimeoutException,
+        httpx2.RequestError,
         DeployedApiServerError,
     ) as exc:
         result = deployed_api_error_to_result(

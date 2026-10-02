@@ -4,7 +4,7 @@ import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.verification import deployed_api
@@ -36,8 +36,8 @@ class JournalApi:
         self.requests = []
         self.span = MagicMock()
         self.responses = {
-            "create": httpx.Response(201, json={"entry": {"id": _ENTRY_ID}}),
-            "analyze": httpx.Response(200, json=_analysis()),
+            "create": httpx2.Response(201, json={"entry": {"id": _ENTRY_ID}}),
+            "analyze": httpx2.Response(200, json=_analysis()),
         }
 
     def handle(self, request):
@@ -51,8 +51,8 @@ class JournalApi:
         return response
 
     async def run(self, url="https://learner.example"):
-        async with httpx.AsyncClient(
-            transport=httpx.MockTransport(self.handle),
+        async with httpx2.AsyncClient(
+            transport=httpx2.MockTransport(self.handle),
             timeout=7.0,
             follow_redirects=False,
         ) as client:
@@ -128,7 +128,7 @@ async def test_create_requires_only_a_string_id_not_entry_fields(
     journal, status, wrapped
 ):
     entry = {"id": _ENTRY_ID, "work": [], "created_at": "not-a-date"}
-    journal.responses["create"] = httpx.Response(
+    journal.responses["create"] = httpx2.Response(
         status, json={"entry": entry} if wrapped else entry
     )
 
@@ -151,8 +151,8 @@ async def test_create_requires_only_a_string_id_not_entry_fields(
     ],
 )
 async def test_created_id_is_encoded_as_one_path_segment(journal, entry_id, encoded):
-    journal.responses["create"] = httpx.Response(201, json={"id": entry_id})
-    journal.responses["analyze"] = httpx.Response(200, json=_analysis(entry_id))
+    journal.responses["create"] = httpx2.Response(201, json={"id": entry_id})
+    journal.responses["analyze"] = httpx2.Response(200, json=_analysis(entry_id))
 
     result = await journal.run()
 
@@ -165,7 +165,7 @@ async def test_created_id_is_encoded_as_one_path_segment(journal, entry_id, enco
 
 
 async def test_invalid_unicode_id_fails_before_analysis(journal):
-    journal.responses["create"] = httpx.Response(
+    journal.responses["create"] = httpx2.Response(
         201, content=b'{"entry":{"id":"\\ud800"}}'
     )
 
@@ -194,7 +194,9 @@ async def test_invalid_unicode_id_fails_before_analysis(journal):
     ],
 )
 async def test_missing_nonstring_or_blank_id_stops_after_create(journal, body):
-    journal.responses["create"] = httpx.Response(201, content=json.dumps(body).encode())
+    journal.responses["create"] = httpx2.Response(
+        201, content=json.dumps(body).encode()
+    )
 
     result = await journal.run()
 
@@ -211,7 +213,7 @@ async def test_missing_nonstring_or_blank_id_stops_after_create(journal, body):
 async def test_malformed_response_json_is_a_completed_failure(
     journal, operation, content
 ):
-    journal.responses[operation] = httpx.Response(200, content=content)
+    journal.responses[operation] = httpx2.Response(200, content=content)
 
     result = await journal.run()
 
@@ -227,7 +229,7 @@ async def test_malformed_response_json_is_a_completed_failure(
 async def test_unexpected_status_stops_without_retries_or_redirects(
     journal, operation, status
 ):
-    journal.responses[operation] = httpx.Response(
+    journal.responses[operation] = httpx2.Response(
         status, headers={"Location": "https://redirect.example"}
     )
 
@@ -268,7 +270,7 @@ async def test_invalid_analysis_fields_are_completed_failures(
 ):
     analysis = _analysis()
     analysis[field] = value
-    journal.responses["analyze"] = httpx.Response(200, json=analysis)
+    journal.responses["analyze"] = httpx2.Response(200, json=analysis)
 
     result = await journal.run()
 
@@ -281,7 +283,7 @@ async def test_invalid_analysis_fields_are_completed_failures(
 
 @pytest.mark.parametrize("body", [[], "not an object", None])
 async def test_analysis_requires_a_json_object(journal, body):
-    journal.responses["analyze"] = httpx.Response(
+    journal.responses["analyze"] = httpx2.Response(
         200, content=json.dumps(body).encode()
     )
 
@@ -300,15 +302,15 @@ async def test_analysis_requires_a_json_object(journal, body):
         (500, "server_error", "500"),
         (501, "server_error", "501"),
         (503, "server_error", "503"),
-        (httpx.ReadTimeout, "timeout", "ReadTimeout"),
-        (httpx.ConnectError, "request_error", "ConnectError"),
+        (httpx2.ReadTimeout, "timeout", "ReadTimeout"),
+        (httpx2.ConnectError, "request_error", "ConnectError"),
     ],
 )
 async def test_failures_are_not_retried_and_emit_safe_step_diagnostics(
     journal, operation, failure, event, category
 ):
     journal.responses[operation] = (
-        httpx.Response(failure, text="private learner details")
+        httpx2.Response(failure, text="private learner details")
         if isinstance(failure, int)
         else failure("private learner details")
     )
@@ -342,7 +344,7 @@ async def test_failures_are_not_retried_and_emit_safe_step_diagnostics(
 async def test_private_response_peer_stops_without_more_requests(journal, operation):
     stream = MagicMock()
     stream.get_extra_info.return_value = ("10.0.0.1", 443)
-    journal.responses[operation] = httpx.Response(
+    journal.responses[operation] = httpx2.Response(
         200, extensions={"network_stream": stream}
     )
 

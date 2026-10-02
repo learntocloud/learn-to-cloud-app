@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.services import github_updates
@@ -58,7 +58,7 @@ async def test_degrades_gracefully_on_http_error():
     with patch.object(
         github_updates,
         "github_api_get",
-        new=AsyncMock(side_effect=httpx.ConnectError("boom")),
+        new=AsyncMock(side_effect=httpx2.ConnectError("boom")),
     ):
         updates = await github_updates.get_latest_curriculum_commits()
 
