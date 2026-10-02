@@ -22,14 +22,14 @@ import sys
 import tempfile
 from pathlib import Path
 
-from alembic.config import Config
 from alembic.script import ScriptDirectory
 
+from learn_to_cloud.migrations import alembic_config
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
-VERSIONS_DIR = REPO_ROOT / "alembic" / "versions"
 
 
-def _get_new_migration_files(base: str) -> list[Path]:
+def _get_new_migration_files(base: str, versions_dir: Path) -> list[Path]:
     """Return migration files added (not modified) vs the base branch."""
     try:
         # Diff the whole tree so git can pair moved files as renames; a
@@ -49,7 +49,7 @@ def _get_new_migration_files(base: str) -> list[Path]:
     for line in result.stdout.strip().splitlines():
         path = REPO_ROOT / line
         if (
-            path.parent == VERSIONS_DIR
+            path.parent == versions_dir
             and path.suffix == ".py"
             and path.name != "__init__.py"
         ):
@@ -126,7 +126,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    new_files = _get_new_migration_files(args.base)
+    script_dir = ScriptDirectory.from_config(alembic_config())
+    versions_dir = Path(script_dir.versions).resolve()
+
+    new_files = _get_new_migration_files(args.base, versions_dir)
     if not new_files:
         print("No new migration files found. Nothing to lint.")
         return 0
@@ -134,9 +137,6 @@ def main() -> int:
     print(f"Found {len(new_files)} new migration(s) to lint:")
     for f in new_files:
         print(f"  {f.name}")
-
-    cfg = Config("alembic.ini")
-    script_dir = ScriptDirectory.from_config(cfg)
 
     failed = False
     for migration_file in new_files:

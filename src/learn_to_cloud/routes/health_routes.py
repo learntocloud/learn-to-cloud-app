@@ -1,9 +1,7 @@
 """Health check endpoints."""
 
 import logging
-from pathlib import Path
 
-from alembic.config import Config
 from alembic.script import ScriptDirectory
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
@@ -13,16 +11,12 @@ from starlette import status
 
 from learn_to_cloud.core.database import check_db_connection
 from learn_to_cloud.curriculum.catalog import get_curriculum_catalog
+from learn_to_cloud.migrations import alembic_config
 from learn_to_cloud.schemas.api import HealthResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
-
-# alembic.ini sits at the project root, four directories up from this file
-# (routes -> learn_to_cloud -> src -> root). The API runtime image preserves the
-# same relative depth with PYTHONPATH=/app/src.
-_ALEMBIC_INI = Path(__file__).parent.parent.parent.parent / "alembic.ini"
 
 
 def get_code_alembic_head() -> str | None:
@@ -32,7 +26,7 @@ def get_code_alembic_head() -> str | None:
     detection is best-effort and never blocks application startup.
     """
     try:
-        script = ScriptDirectory.from_config(Config(str(_ALEMBIC_INI)))
+        script = ScriptDirectory.from_config(alembic_config())
         return script.get_current_head()
     except Exception as exc:
         logger.error(

@@ -45,8 +45,7 @@ resource "azapi_resource" "migrations" {
           {
             name    = "migrations"
             image   = "${azurerm_container_registry.main.login_server}/migrations:latest"
-            command = ["python"]
-            args    = ["scripts/run_migrations.py"]
+            command = ["learn-to-cloud-migrate"]
             resources = {
               cpu    = 0.5
               memory = "1Gi"

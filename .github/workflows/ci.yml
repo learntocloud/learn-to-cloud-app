@@ -37,8 +37,6 @@ jobs:
             code:
               - 'src/**'
               - 'tests/**'
-              - 'alembic/**'
-              - 'alembic.ini'
               - 'scripts/**'
               - 'Dockerfile'
               - 'package.json'

@@ -15,7 +15,7 @@ only to legacy files that still have it.
 Dead off-chain revisions are ignored because
 ``ScriptDirectory.walk_revisions()`` only walks the active graph.
 
-Run from the repository root so ``alembic.ini`` resolves correctly::
+Run from the repository root::
 
     uv run python scripts/check_migration_naming.py
 """
@@ -26,8 +26,9 @@ import re
 import sys
 from pathlib import Path
 
-from alembic.config import Config
 from alembic.script import ScriptDirectory
+
+from learn_to_cloud.migrations import alembic_config
 
 _REVISION_ID_PATTERN = re.compile(r"^\d{4}_[a-z0-9_]+$")
 _DOCSTRING_REVISES_PATTERN = re.compile(r"^\s*Revises:\s*(\S+)\s*$", re.MULTILINE)
@@ -74,8 +75,7 @@ def _check_docstring_consistency(
 
 
 def main() -> int:
-    cfg = Config("alembic.ini")
-    script = ScriptDirectory.from_config(cfg)
+    script = ScriptDirectory.from_config(alembic_config())
 
     naming_failures: list[str] = []
     docstring_failures: list[str] = []

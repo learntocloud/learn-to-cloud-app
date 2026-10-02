@@ -1,6 +1,6 @@
 """Regression test for issue #432: silent migration failure.
 
-Before this fix, ``alembic/env.py`` swallowed any exception whose message
+Before this fix, the migrations ``env.py`` swallowed any exception whose message
 contained the substrings ``"duplicate"`` or ``"already exists"``, treating it
 as "another worker already applied" and exiting cleanly. A real
 ``UniqueViolation`` on ``CREATE UNIQUE INDEX`` matched and got silently
@@ -19,14 +19,15 @@ import shutil
 import subprocess
 import sys
 import textwrap
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
 
-_PRODUCTION_ENV_PY = Path(__file__).parent.parent / "alembic" / "env.py"
+_PRODUCTION_ENV_PY = Path(str(files("learn_to_cloud").joinpath("migrations", "env.py")))
 
 
-def _write_fixture_project(root: Path, db_path: Path) -> None:
+def _write_fixture_project(root: Path) -> None:
     """Stand up a minimal alembic project that imports the production env.py."""
     alembic_dir = root / "alembic"
     versions_dir = alembic_dir / "versions"
@@ -51,37 +52,7 @@ def _write_fixture_project(root: Path, db_path: Path) -> None:
         )
     )
 
-    (root / "alembic.ini").write_text(
-        textwrap.dedent(
-            f"""\
-            [alembic]
-            script_location = alembic
-            sqlalchemy.url = sqlite:///{db_path}
-
-            [loggers]
-            keys = root,alembic
-            [handlers]
-            keys = console
-            [formatters]
-            keys = generic
-            [logger_root]
-            level = WARN
-            handlers = console
-            qualname =
-            [logger_alembic]
-            level = INFO
-            handlers =
-            qualname = alembic
-            [handler_console]
-            class = StreamHandler
-            args = (sys.stderr,)
-            level = NOTSET
-            formatter = generic
-            [formatter_generic]
-            format = %(levelname)-5.5s [%(name)s] %(message)s
-            """
-        )
-    )
+    (root / "alembic.ini").write_text("[alembic]\nscript_location = alembic\n")
 
     (versions_dir / "0001_baseline.py").write_text(
         textwrap.dedent(
@@ -161,8 +132,7 @@ def test_env_py_does_not_swallow_duplicate_errors(tmp_path: Path) -> None:
     this test will fail — alembic upgrade will exit 0 with the SQLite DB
     sitting at 0001_baseline.
     """
-    db_path = tmp_path / "test.db"
-    _write_fixture_project(tmp_path, db_path)
+    _write_fixture_project(tmp_path)
 
     result = _run_alembic_upgrade(tmp_path)
 

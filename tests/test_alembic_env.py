@@ -1,16 +1,12 @@
-"""Unit tests for ``alembic/env.py`` URL helpers.
+"""Unit tests for the migrations ``env.py`` URL helpers.
 
-Head-verification used to live in env.py (``_verify_schema_at_head``) but
-was replaced with the official ``alembic.command.current(check_heads=True)``
-call from ``scripts/run_migrations.py``. The four tests for the deleted
-helper were removed with the function. The end-to-end regression for
-issue #432 still lives in ``test_alembic_env_regression.py`` which runs
-``alembic upgrade head`` against a deliberately failing migration and
-asserts the failure propagates.
+The end-to-end regression for issue #432 lives in
+``test_alembic_env_regression.py``, which runs ``alembic upgrade head``
+against a deliberately failing migration and asserts the failure propagates.
 
-``alembic/env.py`` runs migrations at import time, so we can't just
-``import``  it. We load it with ``importlib.util`` from the alembic
-directory after monkeypatching the alembic context to skip ``run()``.
+``env.py`` runs migrations at import time, so we can't just ``import`` it.
+We load it with ``importlib.util`` after monkeypatching the alembic context
+to skip ``run()``.
 """
 
 from __future__ import annotations
@@ -18,24 +14,24 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
+from importlib.resources import files
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
 from alembic import context as real_context
 
-_ENV_PATH = Path(__file__).parent.parent / "alembic" / "env.py"
+_ENV_PATH = Path(str(files("learn_to_cloud").joinpath("migrations", "env.py")))
 
 
 def _load_env_module(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
-    """Load ``alembic/env.py`` as a module without executing ``run()``."""
+    """Load ``env.py`` as a module without executing ``run()``."""
 
     monkeypatch.setattr(real_context, "is_offline_mode", lambda: True)
     monkeypatch.setattr(real_context, "configure", lambda **_: None)
 
     fake_config = MagicMock()
-    fake_config.config_file_name = None
+    fake_config.cmd_opts = None
     monkeypatch.setattr(real_context, "config", fake_config, raising=False)
 
     class _NoopTx:

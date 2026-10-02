@@ -8,7 +8,7 @@ Create an Alembic migration for the requested schema change.
 ## Before you start
 
 1. Check `src/learn_to_cloud/models.py` for the current model definitions.
-2. Check `alembic/versions/` for recent migrations to understand naming and patterns.
+2. Check `src/learn_to_cloud/migrations/versions/` for recent migrations to understand naming and patterns.
 
 ## Steps
 
@@ -25,7 +25,7 @@ uv run alembic revision --autogenerate -m "description_of_change"
 ```
 
 ### 3. Review the generated migration
-- Open the new file in `alembic/versions/`.
+- Open the new file in `src/learn_to_cloud/migrations/versions/`.
 - Verify the `upgrade()` and `downgrade()` functions are correct.
 - Ensure indexes and constraints have explicit names.
 - Check that `downgrade()` properly reverses all changes.

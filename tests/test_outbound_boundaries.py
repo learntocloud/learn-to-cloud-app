@@ -102,6 +102,8 @@ _FACTORY_SITES = {
         "create_async_engine",
     },
     "src/learn_to_cloud/core/auth.py": {"httpx2.AsyncHTTPTransport"},
+    # Migration job only: a separate sync process that exports no telemetry.
+    "src/learn_to_cloud/migrations/env.py": {"DefaultAzureCredential"},
     "src/learn_to_cloud/services/verification_grader.py": {
         "DefaultAzureCredential",
         "FoundryChatClient",

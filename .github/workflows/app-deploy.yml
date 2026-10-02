@@ -68,9 +68,6 @@ jobs:
           filters: |
             app:
               - 'src/**'
-              - 'alembic/**'
-              - 'alembic.ini'
-              - 'scripts/run_migrations.py'
               - 'Dockerfile'
               - 'package.json'
               - 'package-lock.json'
@@ -290,8 +287,7 @@ jobs:
               --resource-group "$RESOURCE_GROUP" \
               --container-name migrations \
               --image "$IMAGE" \
-              --command python \
-              --args scripts/run_migrations.py \
+              --command learn-to-cloud-migrate \
               --env-vars \
                 DATABASE__HOST="$DATABASE_HOST" \
                 DATABASE__USER="$DATABASE_USER" \

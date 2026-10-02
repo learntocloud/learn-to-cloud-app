@@ -240,7 +240,7 @@ class TestGetCodeAlembicHead:
     """Tests for get_code_alembic_head()."""
 
     def test_returns_head_revision_from_script_directory(self):
-        """Resolves the real head from the repo's alembic/ script directory."""
+        """Resolves the real head from the packaged migration scripts."""
 
         head = get_code_alembic_head()
         assert head is not None

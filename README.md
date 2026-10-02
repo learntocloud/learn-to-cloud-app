@@ -107,10 +107,10 @@ timeout and overdue cleanup, with no workflow retries or checkpoints.
 │       ├── repositories/ # Database access
 │       ├── verification/ # Verification checks and engine
 │       ├── content/      # Curriculum YAML and compiled JSON
+│       ├── migrations/   # Alembic migrations (shipped in the package)
 │       ├── templates/    # Jinja2 templates (HTMX)
 │       └── static/       # CSS, JS, images
 ├── tests/                # pytest suite
-├── alembic/              # Database migrations
 ├── scripts/              # Dev and operator scripts
 ├── docs/                 # Contributor docs
 ├── infra/                # Terraform (Azure)

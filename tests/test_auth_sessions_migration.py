@@ -1,15 +1,14 @@
 """Populated session migration, retry, downgrade, and nonowner privilege tests."""
 
 from io import StringIO
-from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
-from alembic.config import Config
+from alembic import command, op
 from sqlalchemy import delete, func, insert, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 
-from alembic import command, op
+from learn_to_cloud import migrations
 from learn_to_cloud.models import AuthSession, LearnerStepCompletion, User
 from tests.test_migration_chain import alembic_config as alembic_config
 from tests.test_migration_chain import alembic_engine as alembic_engine
@@ -211,10 +210,7 @@ def test_api_runtime_dml_without_ownership_or_functions_access(
 
 
 def test_offline_session_ddl_has_atomic_stamp_and_bounded_concurrent_indexes():
-    config = Config(str(Path(__file__).parent.parent / "alembic.ini"))
-    config.set_main_option(
-        "script_location", str(Path(__file__).parent.parent / "alembic")
-    )
+    config = migrations.alembic_config()
     output = StringIO()
     config.output_buffer = output
     command.upgrade(config, f"{BASE}:{HEAD}", sql=True)
