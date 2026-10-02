@@ -7,7 +7,7 @@ import inspect
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
-import httpx
+import httpx2
 import openai
 import pytest
 from agent_framework import Agent
@@ -39,8 +39,8 @@ def test_agent_framework_api_contract() -> None:
 
 
 def _content_filter_bad_request() -> openai.BadRequestError:
-    request = httpx.Request("POST", "https://example.openai.azure.com/")
-    response = httpx.Response(400, request=request)
+    request = httpx2.Request("POST", "https://example.openai.azure.com/")
+    response = httpx2.Response(400, request=request)
     return openai.BadRequestError(
         "content filtered",
         response=response,
@@ -123,8 +123,8 @@ def test_grade_evidence_propagates_cancellation(monkeypatch) -> None:
 def test_grade_evidence_preserves_safe_provider_outage_category(
     monkeypatch, status
 ) -> None:
-    request = httpx.Request("POST", "https://example.com")
-    response = httpx.Response(status, request=request)
+    request = httpx2.Request("POST", "https://example.com")
+    response = httpx2.Response(status, request=request)
     error = openai.InternalServerError(
         "private provider response",
         response=response,
@@ -147,13 +147,13 @@ def test_grade_evidence_preserves_safe_provider_outage_category(
     [
         (
             openai.APITimeoutError(
-                request=httpx.Request("POST", "https://example.com")
+                request=httpx2.Request("POST", "https://example.com")
             ),
             "llm.timeout",
         ),
         (
             openai.APIConnectionError(
-                request=httpx.Request("POST", "https://example.com")
+                request=httpx2.Request("POST", "https://example.com")
             ),
             "llm.network",
         ),
