@@ -26,7 +26,6 @@ updates:
         patterns:
           - "alembic"
           - "asyncpg"
-          - "psycopg2-binary"
           - "sqlalchemy"
       python-all:
         patterns:
@@ -41,7 +40,6 @@ updates:
           - "starlette"
           - "alembic"
           - "asyncpg"
-          - "psycopg2-binary"
           - "sqlalchemy"
 
   # npm dependencies (Tailwind CSS)

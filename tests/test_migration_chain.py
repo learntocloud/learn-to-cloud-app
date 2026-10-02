@@ -11,8 +11,10 @@ See: https://github.com/learntocloud/learn-to-cloud-app/issues/439
 
 from __future__ import annotations
 
+import asyncio
 import os
 
+import asyncpg
 import pytest
 from pytest_alembic.config import Config as PytestAlembicConfig
 from pytest_alembic.tests import (
@@ -21,7 +23,9 @@ from pytest_alembic.tests import (
     test_up_down_consistency,
     test_upgrade,
 )
-from sqlalchemy import create_engine, text
+from sqlalchemy import make_url
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import NullPool
 
 from learn_to_cloud import migrations
 
@@ -40,16 +44,35 @@ __all__ = [
 ]
 
 
-def _sync_url() -> str:
-    raw = os.environ.get(
-        "DATABASE__URL",
-        "postgresql+asyncpg://postgres:postgres@127.0.0.1:55432/learntocloud",
+def _base_url():
+    return make_url(
+        os.environ.get(
+            "DATABASE__URL",
+            "postgresql+asyncpg://postgres:postgres@127.0.0.1:55432/learntocloud",
+        )
     )
-    return raw.replace("+asyncpg", "+psycopg2")
 
 
-def _admin_url() -> str:
-    return _sync_url().rsplit("/", 1)[0] + "/postgres"
+async def _recreate_migration_db(*, create: bool) -> None:
+    url = _base_url()
+    conn = await asyncpg.connect(
+        user=url.username,
+        password=url.password,
+        host=url.host,
+        port=url.port,
+        database="postgres",
+    )
+    try:
+        await conn.execute(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+            "WHERE datname = $1 AND pid <> pg_backend_pid()",
+            MIGRATION_DB,
+        )
+        await conn.execute(f"DROP DATABASE IF EXISTS {MIGRATION_DB}")
+        if create:
+            await conn.execute(f"CREATE DATABASE {MIGRATION_DB}")
+    finally:
+        await conn.close()
 
 
 # ------------------------------------------------------------------ #
@@ -68,35 +91,15 @@ def alembic_config():
 
 @pytest.fixture()
 def alembic_engine():
-    """Provide a clean, dedicated database for migration tests."""
-    admin_eng = create_engine(_admin_url(), isolation_level="AUTOCOMMIT")
+    """Provide a clean, dedicated database for migration tests.
 
-    with admin_eng.connect() as conn:
-        conn.execute(
-            text(
-                "SELECT pg_terminate_backend(pid) "
-                "FROM pg_stat_activity "
-                f"WHERE datname = '{MIGRATION_DB}' "
-                "AND pid <> pg_backend_pid()"
-            )
-        )
-        conn.execute(text(f"DROP DATABASE IF EXISTS {MIGRATION_DB}"))
-        conn.execute(text(f"CREATE DATABASE {MIGRATION_DB}"))
-    admin_eng.dispose()
-    mig_url = _sync_url().rsplit("/", 1)[0] + f"/{MIGRATION_DB}"
-    engine = create_engine(mig_url)
+    NullPool keeps connections from leaking across the event loops that
+    pytest-alembic and env.py each create with ``asyncio.run``.
+    """
+    asyncio.run(_recreate_migration_db(create=True))
+    engine = create_async_engine(
+        _base_url().set(database=MIGRATION_DB), poolclass=NullPool
+    )
     yield engine
-    engine.dispose()
-
-    admin_eng = create_engine(_admin_url(), isolation_level="AUTOCOMMIT")
-    with admin_eng.connect() as conn:
-        conn.execute(
-            text(
-                "SELECT pg_terminate_backend(pid) "
-                "FROM pg_stat_activity "
-                f"WHERE datname = '{MIGRATION_DB}' "
-                "AND pid <> pg_backend_pid()"
-            )
-        )
-        conn.execute(text(f"DROP DATABASE IF EXISTS {MIGRATION_DB}"))
-    admin_eng.dispose()
+    asyncio.run(engine.dispose())
+    asyncio.run(_recreate_migration_db(create=False))

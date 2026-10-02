@@ -7,24 +7,63 @@ as "another worker already applied" and exiting cleanly. A real
 ignored, leaving production stuck on an older schema for days while CI
 reported successful deploys.
 
-This test invokes the real production env.py against SQLite with a
+This test invokes the real production env.py against a dedicated
+PostgreSQL database with a
 two-revision chain whose second revision raises a Postgres-style error
 containing the words ``"is duplicated"``. The migration must propagate.
 """
 
 from __future__ import annotations
 
+import asyncio
 import os
 import shutil
 import subprocess
 import sys
 import textwrap
+from collections.abc import Iterator
 from importlib.resources import files
 from pathlib import Path
 
+import asyncpg
 import pytest
+from sqlalchemy import make_url
 
 _PRODUCTION_ENV_PY = Path(str(files("learn_to_cloud").joinpath("migrations", "env.py")))
+_REGRESSION_DB = "test_alembic_env_regression"
+
+
+def _base_url():
+    return make_url(
+        os.environ.get(
+            "DATABASE__URL",
+            "postgresql+asyncpg://postgres:postgres@127.0.0.1:55432/learntocloud",
+        )
+    )
+
+
+async def _recreate_regression_db(*, create: bool) -> None:
+    url = _base_url()
+    conn = await asyncpg.connect(
+        user=url.username,
+        password=url.password,
+        host=url.host,
+        port=url.port,
+        database="postgres",
+    )
+    try:
+        await conn.execute(f"DROP DATABASE IF EXISTS {_REGRESSION_DB} WITH (FORCE)")
+        if create:
+            await conn.execute(f"CREATE DATABASE {_REGRESSION_DB}")
+    finally:
+        await conn.close()
+
+
+@pytest.fixture()
+def regression_db_url() -> Iterator[str]:
+    asyncio.run(_recreate_regression_db(create=True))
+    yield _base_url().set(database=_REGRESSION_DB).render_as_string(hide_password=False)
+    asyncio.run(_recreate_regression_db(create=False))
 
 
 def _write_fixture_project(root: Path) -> None:
@@ -95,8 +134,8 @@ def _write_fixture_project(root: Path) -> None:
 
             def upgrade() -> None:
                 op.execute(
-                    "SELECT RAISE(ABORT, "
-                    "'Key (user_id, requirement_id) is duplicated.')"
+                    "DO $$ BEGIN RAISE EXCEPTION "
+                    "'Key (user_id, requirement_id) is duplicated.'; END $$"
                 )
 
             def downgrade() -> None:
@@ -106,13 +145,11 @@ def _write_fixture_project(root: Path) -> None:
     )
 
 
-def _run_alembic_upgrade(project: Path) -> subprocess.CompletedProcess[str]:
+def _run_alembic_upgrade(
+    project: Path, database_url: str
+) -> subprocess.CompletedProcess[str]:
     """Run ``alembic upgrade head`` against the fixture project."""
-    env_overrides = {
-        "DATABASE__URL": f"sqlite:///{project / 'test.db'}",
-    }
-
-    env = {**os.environ, **env_overrides}
+    env = {**os.environ, "DATABASE__URL": database_url}
     return subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
         cwd=project,
@@ -127,14 +164,16 @@ def _run_alembic_upgrade(project: Path) -> subprocess.CompletedProcess[str]:
     shutil.which(sys.executable) is None,
     reason="Python interpreter not available for subprocess",
 )
-def test_env_py_does_not_swallow_duplicate_errors(tmp_path: Path) -> None:
+def test_env_py_does_not_swallow_duplicate_errors(
+    tmp_path: Path, regression_db_url: str
+) -> None:
     """If env.py ever silently swallows a 'duplicate'-flavored error again,
-    this test will fail — alembic upgrade will exit 0 with the SQLite DB
+    this test will fail — alembic upgrade will exit 0 with the database
     sitting at 0001_baseline.
     """
     _write_fixture_project(tmp_path)
 
-    result = _run_alembic_upgrade(tmp_path)
+    result = _run_alembic_upgrade(tmp_path, regression_db_url)
 
     assert result.returncode != 0, (
         "alembic upgrade must propagate the failure. "

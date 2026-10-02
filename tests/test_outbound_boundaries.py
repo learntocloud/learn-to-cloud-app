@@ -35,7 +35,6 @@ _NETWORK_PACKAGES = {
     "openai": "Foundry grading over httpx",
     "asyncpg": "PostgreSQL driver under SQLAlchemy",
     "sqlalchemy": "PostgreSQL statements, traced by SQLAlchemyInstrumentor",
-    "psycopg2-binary": "Alembic migration job only, not runtime code",
     "azure-monitor-opentelemetry": "telemetry export, not a dependency",
     "azure-monitor-opentelemetry-exporter": "telemetry export, not a dependency",
     "grpcio": "OTLP telemetry export, not a dependency",
