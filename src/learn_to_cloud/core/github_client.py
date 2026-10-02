@@ -9,14 +9,12 @@ from __future__ import annotations
 import httpx
 
 from learn_to_cloud.core.config import get_worker_settings
-from learn_to_cloud.core.http_client import PooledClient, build_http_client
-from learn_to_cloud.core.outbound import Dependency
+from learn_to_cloud.core.http_client import PooledClient
 
 
 def _build_github_client() -> httpx.AsyncClient:
     settings = get_worker_settings()
-    return build_http_client(
-        Dependency.GITHUB,
+    return httpx.AsyncClient(
         timeout=settings.http.external_api_timeout,
         follow_redirects=True,
         limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),

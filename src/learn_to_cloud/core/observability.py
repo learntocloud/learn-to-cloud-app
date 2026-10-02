@@ -1,10 +1,9 @@
 """Single-pipeline Azure Monitor and OTLP configuration.
 
 Azure Monitor owns FastAPI instrumentation in production; local OTLP configures
-it explicitly with SDK defaults. HTTPX and SQLAlchemy are application-owned.
-Clients the app builds are measured by ``core.outbound``; the global HTTPX
-instrumentors cover third-party clients such as openai's (httpx) and authlib's
-GitHub OAuth (httpx2).
+it explicitly with SDK defaults. HTTPX and SQLAlchemy are application-owned:
+the global HTTPX instrumentors trace every httpx and httpx2 client, including
+openai's and authlib's.
 """
 
 from __future__ import annotations
@@ -156,8 +155,7 @@ def instrument_database(engine: Any) -> None:
 
     try:
         SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
-        # Engine.connect spans are pool checkouts; physical connects are
-        # measured by the asyncpg creator instead.
+        # Engine.connect spans are pool checkouts, not physical connects.
         unwrap(Engine, "connect")
     except Exception as exc:
         logger.warning(

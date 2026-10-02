@@ -1,16 +1,13 @@
-"""Failure drills for the API's own outbound boundaries: GitHub OAuth and Foundry."""
+"""Failure drills for GitHub OAuth requests traced by the httpx2 instrumentor."""
 
 from __future__ import annotations
 
 import json
 import logging
 from collections.abc import Iterator
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import httpcore2
-import httpx
-import openai
 import pytest
 from fastapi.responses import RedirectResponse
 from opentelemetry.instrumentation.httpx import HTTPX2ClientInstrumentor
@@ -21,24 +18,10 @@ from opentelemetry.trace import SpanKind, StatusCode
 
 from learn_to_cloud.core.auth import init_oauth, oauth
 from learn_to_cloud.core.config import OAuthConfig
-from learn_to_cloud.core.outbound import (
-    DEPENDENCY_NAME,
-    DEPENDENCY_OPERATION,
-    ERROR_TYPE,
-)
 from learn_to_cloud.routes import auth_routes
-from learn_to_cloud.services import verification_grader
-from tests.support.telemetry import capture_outbound_telemetry
 
 SECRET = "sentinel-secret-7f3a"
 TOKEN_URL = "https://github.com/login/oauth/access_token"
-
-
-@pytest.fixture
-def telemetry():
-    with capture_outbound_telemetry() as captured:
-        yield captured
-    captured.assert_bounded()
 
 
 @pytest.fixture
@@ -116,8 +99,7 @@ async def test_oauth_token_exchange_timeout_drill(github, oauth_spans, caplog):
     assert span.name == "POST"
     assert span.status.status_code is StatusCode.ERROR
     record = _log(caplog, "auth.callback.token_exchange_failed")
-    assert getattr(record, "error.type") == "timeout.read"
-    assert getattr(record, DEPENDENCY_NAME) == "github_oauth"
+    assert getattr(record, "error.type") == "ReadTimeout"
     assert SECRET not in _spans_json(oauth_spans)
     assert SECRET not in caplog.text
 
@@ -138,29 +120,6 @@ async def test_oauth_profile_fetch_outage_drill(github, oauth_spans, caplog):
     assert profile.kind is SpanKind.CLIENT
     assert profile.status.status_code is StatusCode.ERROR
     record = _log(caplog, "auth.callback.profile_fetch_failed")
-    assert getattr(record, "error.type") == "http_5xx"
+    assert getattr(record, "error.type") == "503"
     assert SECRET not in _spans_json(oauth_spans)
-    assert SECRET not in caplog.text
-
-
-async def test_foundry_grading_timeout_drill(monkeypatch, telemetry, caplog):
-    cause = httpx.ConnectTimeout("slow")
-    error = openai.APITimeoutError(request=httpx.Request("POST", "https://x"))
-    error.__cause__ = cause
-    grader = SimpleNamespace(run=AsyncMock(side_effect=error))
-    monkeypatch.setattr(
-        verification_grader,
-        "get_verification_grader",
-        AsyncMock(return_value=grader),
-    )
-
-    with pytest.raises(verification_grader.LLMGradingError):
-        await verification_grader.grade_evidence(f"grade this: {SECRET}")
-
-    assert telemetry.spans() == []
-    (point,) = telemetry.points()
-    assert point[DEPENDENCY_NAME] == "foundry"
-    assert point[DEPENDENCY_OPERATION] == "responses"
-    assert point[ERROR_TYPE] == "timeout.connect"
-    assert SECRET not in telemetry.dump()
     assert SECRET not in caplog.text

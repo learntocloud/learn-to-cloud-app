@@ -36,28 +36,20 @@ def _status_error(
         (_status_error(422), "client_error"),
     ],
 )
-def test_github_http_error_metric_uses_bounded_category(error, expected):
-    counter = MagicMock()
-    with patch(
-        "learn_to_cloud.verification.github_errors._GITHUB_API_ERROR_COUNTER",
-        counter,
-    ):
-        github_error_to_result(error, event="github.request.failed")
+def test_github_http_error_uses_bounded_category(error, expected, caplog):
+    github_error_to_result(error, event="github.request.failed")
 
-    counter.add.assert_called_once_with(1, {"error.type": expected})
+    (record,) = caplog.records
+    assert getattr(record, "error.type") == expected
 
 
-def test_github_network_error_metric_uses_bounded_category():
-    counter = MagicMock()
+def test_github_network_error_type_is_the_exception_class(caplog):
     request = httpx.Request("GET", "https://api.github.com/resource")
     error = httpx.ConnectError("sensitive network detail", request=request)
-    with patch(
-        "learn_to_cloud.verification.github_errors._GITHUB_API_ERROR_COUNTER",
-        counter,
-    ):
-        github_error_to_result(error, event="github.request.failed")
+    github_error_to_result(error, event="github.request.failed")
 
-    counter.add.assert_called_once_with(1, {"error.type": "connection"})
+    (record,) = caplog.records
+    assert getattr(record, "error.type") == "ConnectError"
 
 
 @pytest.mark.parametrize(
@@ -67,7 +59,7 @@ def test_github_network_error_metric_uses_bounded_category():
         "You have triggered an abuse detection mechanism.",
     ],
 )
-def test_github_403_body_can_identify_rate_limit(message):
+def test_github_403_body_can_identify_rate_limit(message, caplog):
     request = httpx.Request("GET", "https://api.github.com/resource")
     response = httpx.Response(
         403,
@@ -75,14 +67,10 @@ def test_github_403_body_can_identify_rate_limit(message):
         request=request,
     )
     error = httpx.HTTPStatusError("failed", request=request, response=response)
-    counter = MagicMock()
-    with patch(
-        "learn_to_cloud.verification.github_errors._GITHUB_API_ERROR_COUNTER",
-        counter,
-    ):
-        github_error_to_result(error, event="github.request.failed")
+    github_error_to_result(error, event="github.request.failed")
 
-    counter.add.assert_called_once_with(1, {"error.type": "rate_limit"})
+    (record,) = caplog.records
+    assert getattr(record, "error.type") == "rate_limit"
 
 
 @pytest.mark.parametrize(
@@ -98,19 +86,15 @@ def test_github_403_body_can_identify_rate_limit(message):
             "provider_unavailable",
             503,
         ),
-        (httpx.ConnectError("private detail"), "connection", None),
-        (httpx.ReadTimeout("private detail"), "timeout.read", None),
+        (httpx.ConnectError("private detail"), "ConnectError", None),
+        (httpx.ReadTimeout("private detail"), "ReadTimeout", None),
     ],
 )
 def test_all_telemetry_uses_same_safe_bounded_attributes(
     error, category, status, caplog
 ):
     span = MagicMock()
-    counter = MagicMock()
-    with (
-        patch.object(github_errors, "_GITHUB_API_ERROR_COUNTER", counter),
-        patch.object(github_errors.trace, "get_current_span", return_value=span),
-    ):
+    with patch.object(github_errors.trace, "get_current_span", return_value=span):
         result = github_error_to_result(error, event="github.test_failure")
 
     attributes = {"error.type": category}
@@ -120,7 +104,6 @@ def test_all_telemetry_uses_same_safe_bounded_attributes(
         call.args[0]: call.args[1] for call in span.set_attribute.call_args_list
     } == (attributes)
     span.add_event.assert_called_once_with("github.test_failure", attributes)
-    counter.add.assert_called_once_with(1, {"error.type": category})
     assert len(caplog.records) == 1
     record = caplog.records[0]
     assert record.levelname == "WARNING"
@@ -141,29 +124,25 @@ def test_all_telemetry_uses_same_safe_bounded_attributes(
 @pytest.mark.parametrize(
     "body", ["invalid JSON", "null", "[]", '"secret"', '{"message":42}']
 )
-def test_malformed_or_nonobject_403_body_remains_authorization(body):
+def test_malformed_or_nonobject_403_body_remains_authorization(body, caplog):
     response = httpx.Response(
         403, text=body, request=httpx.Request("GET", "https://api.github.com/private")
     )
     error = httpx.HTTPStatusError(
         "private", request=response.request, response=response
     )
-    with patch.object(github_errors, "_GITHUB_API_ERROR_COUNTER") as counter:
-        result = github_error_to_result(error, event="github.test_failure")
-    counter.add.assert_called_once_with(1, {"error.type": "authorization"})
+    result = github_error_to_result(error, event="github.test_failure")
+    (record,) = caplog.records
+    assert getattr(record, "error.type") == "authorization"
     assert not result.verification_completed
 
 
 def test_404_is_completed_missing_work_without_operational_telemetry(caplog):
-    with (
-        patch.object(github_errors, "_GITHUB_API_ERROR_COUNTER") as counter,
-        patch.object(github_errors.trace, "get_current_span") as get_span,
-    ):
+    with patch.object(github_errors.trace, "get_current_span") as get_span:
         result = github_error_to_result(_status_error(404), event="github.test_failure")
     assert result.verification_completed
     assert not result.is_valid
     assert "not found" in result.message
-    counter.add.assert_not_called()
     get_span.assert_not_called()
     assert not caplog.records
 
@@ -178,12 +157,10 @@ def test_404_is_completed_missing_work_without_operational_telemetry(caplog):
 )
 def test_unsupported_errors_propagate_without_github_telemetry(error, caplog):
     with (
-        patch.object(github_errors, "_GITHUB_API_ERROR_COUNTER") as counter,
         patch.object(github_errors.trace, "get_current_span") as get_span,
         pytest.raises(type(error)) as raised,
     ):
         github_error_to_result(error, event="github.test_failure")
     assert raised.value is error
-    counter.add.assert_not_called()
     get_span.assert_not_called()
     assert not caplog.records

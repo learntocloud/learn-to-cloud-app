@@ -155,13 +155,13 @@ async def test_post_once_preserves_native_request_exceptions(error_type):
         (
             httpx.ReadTimeout("private network detail"),
             "timeout",
-            "timeout.read",
+            "ReadTimeout",
             "Request timed out. Ensure your API is accessible and responding quickly.",
         ),
         (
             httpx.ConnectError("private network detail"),
             "request_error",
-            "connection",
+            "ConnectError",
             "Could not connect to your API. Error: ConnectError",
         ),
     ],

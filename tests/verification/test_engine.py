@@ -373,8 +373,8 @@ async def test_ownership_failure_keeps_native_diagnostics_and_correlation(
     monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
     step = AsyncMock()
     monkeypatch.setattr(engine_module, "_run_check", step)
-    counter = Mock()
-    monkeypatch.setattr(github_errors, "_GITHUB_API_ERROR_COUNTER", counter)
+    github_warning = Mock()
+    monkeypatch.setattr(github_errors.logger, "warning", github_warning)
     evidence_decision = Mock()
     monkeypatch.setattr(engine_module, "record_evidence_decision", evidence_decision)
     job = _job()
@@ -396,7 +396,7 @@ async def test_ownership_failure_keeps_native_diagnostics_and_correlation(
     assert job.target is not None
     lookup.assert_awaited_once_with(job.target.owner, job.target.repo)
     step.assert_not_awaited()
-    counter.add.assert_not_called()
+    github_warning.assert_not_called()
     evidence_decision.assert_not_called()
     ownership_span, attempt_span = step_spans.get_finished_spans()
     assert ownership_span.name == "verification.step"
@@ -634,7 +634,7 @@ def _evidence_flow(monkeypatch):
         (403, "authorization"),
         (429, "rate_limit"),
         (503, "provider_unavailable"),
-        ("network", "timeout.read"),
+        ("network", "ReadTimeout"),
     ],
 )
 async def test_failed_evidence_read_stops_grading(monkeypatch, failure, category):
@@ -644,8 +644,8 @@ async def test_failed_evidence_read_stops_grading(monkeypatch, failure, category
     fetched = []
     mapper = Mock(wraps=github_errors.github_error_to_result)
     monkeypatch.setattr(security_scanning, "github_error_to_result", mapper)
-    counter = Mock()
-    monkeypatch.setattr(github_errors, "_GITHUB_API_ERROR_COUNTER", counter)
+    github_warning = Mock()
+    monkeypatch.setattr(github_errors.logger, "warning", github_warning)
     tracer = _Tracer()
     monkeypatch.setattr(engine_module, "_tracer", tracer)
 
@@ -688,7 +688,7 @@ async def test_failed_evidence_read_stops_grading(monkeypatch, failure, category
     assert result.grading_requests == []
     mapper.assert_called_once()
     assert mapper.call_args.kwargs == {"event": "security_scanning.repo_file_error"}
-    counter.add.assert_called_once_with(1, {"error.type": category})
+    assert github_warning.call_args.kwargs["extra"]["error.type"] == category
     assert tracer.spans[0][1].attributes["verification.step.result"] == "passed"
     assert tracer.spans[-1][1].attributes["verification.step.result"] == "unavailable"
     assert tracer.spans[-1][1].status is not None

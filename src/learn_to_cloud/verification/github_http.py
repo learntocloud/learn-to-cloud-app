@@ -25,7 +25,6 @@ from learn_to_cloud.core.config import get_worker_settings
 from learn_to_cloud.core.github_client import (
     get_github_client as _get_github_client,
 )
-from learn_to_cloud.core.outbound import track_retry_attempt
 from learn_to_cloud.verification.errors import make_retriable
 from learn_to_cloud.verification.github_errors import GitHubServerError
 
@@ -77,7 +76,6 @@ def raise_for_server_error(response: httpx.Response) -> None:
     stop=stop_after_attempt(3),
     wait=_wait_with_retry_after,
     retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
-    before=track_retry_attempt,
     reraise=True,
 )
 async def github_api_get(
