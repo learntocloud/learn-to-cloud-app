@@ -20,7 +20,6 @@ from learn_to_cloud.schemas.community import (
     CommunityPageData,
     CommunityPhaseActivity,
 )
-from learn_to_cloud.services.github_updates import get_latest_curriculum_commits
 
 
 async def get_community_page_data(db: AsyncSession) -> CommunityPageData:
@@ -92,11 +91,8 @@ async def get_community_page_data(db: AsyncSession) -> CommunityPageData:
         key=lambda m: m.github_username.lower(),
     )
 
-    repo_updates = await get_latest_curriculum_commits()
-
     return CommunityPageData(
         activity=activity,
         phase_activity=phase_activity,
         graduates=graduates,
-        repo_updates=repo_updates,
     )

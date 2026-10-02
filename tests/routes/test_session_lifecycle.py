@@ -144,10 +144,6 @@ async def session_apps(test_engine, test_settings):
             "learn_to_cloud.routes.auth_routes.get_web_settings",
             return_value=test_settings,
         ),
-        patch(
-            "learn_to_cloud.services.community_service.get_latest_curriculum_commits",
-            new=AsyncMock(return_value=[]),
-        ),
     ):
         yield apps
 

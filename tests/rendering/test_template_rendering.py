@@ -1009,7 +1009,6 @@ def test_community_page_renders_activity_and_canonical_footer_link():
             )
         ],
         graduates=[],
-        repo_updates=[],
     )
 
     html = _render(
@@ -1037,7 +1036,6 @@ def test_community_page_renders_safe_external_resource_links():
         ),
         phase_activity=[],
         graduates=[],
-        repo_updates=[],
     )
 
     html = _render(
@@ -1059,7 +1057,6 @@ def test_community_page_renders_safe_external_resource_links():
         assert f'href="{url}"' in html
     assert html.count('rel="noopener noreferrer"') >= len(expected_links)
     assert "No verification activity has been recorded in the past 7 days." in html
-    assert "Curriculum updates are temporarily unavailable." in html
     assert "Discord" in html
     assert "GitHub Discussions" in html
     assert "Follow @madebygps" in html

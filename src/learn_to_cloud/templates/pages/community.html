@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set footer_margin = "mt-8" %}
 {% block title %}Community - Learn to Cloud{% endblock %}
-{% block description %}Meet the Learn to Cloud community, explore verified learner progress, celebrate curriculum graduates, and see the latest updates.{% endblock %}
+{% block description %}Meet the Learn to Cloud community, explore verified learner progress and celebrate curriculum graduates.{% endblock %}
 
 {% block content %}
 <header class="pb-10">
@@ -92,39 +92,6 @@
     <p class="mt-5 text-sm leading-6 text-gray-600 dark:text-gray-400">No learner has verified the required technical curriculum yet. The first graduate will appear here.</p>
     {% endif %}
 </section>
-
-<details class="mt-12 border-t border-gray-200 pt-6 dark:border-gray-700">
-    <summary class="min-h-11 cursor-pointer rounded-sm py-3 text-base font-medium text-gray-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:text-white">Latest curriculum updates</summary>
-    {% if community.repo_updates %}
-    <ul class="mt-4">
-        {% for repo in community.repo_updates %}
-        <li class="border-b border-gray-200 py-5 dark:border-gray-700">
-            <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-6">
-                <div class="min-w-0">
-                    <a href="{{ repo.url }}" target="_blank" rel="noopener noreferrer" class="text-link break-words">{{ repo.name }}</a>
-                    {% if repo.available %}
-                    <a href="{{ repo.commit_url }}" target="_blank" rel="noopener noreferrer"
-                       class="flex min-h-11 items-center break-words text-sm leading-6 text-gray-600 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-400 dark:hover:text-blue-300">
-                        {{ repo.commit_message or "(no commit message)" }}
-                    </a>
-                    {% else %}
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Latest activity unavailable right now.</p>
-                    {% endif %}
-                </div>
-                {% if repo.available and (repo.commit_author or repo.committed_at) %}
-                <p class="text-xs text-gray-500 dark:text-gray-400 sm:pt-3">
-                    {% if repo.commit_author %}{{ repo.commit_author }}{% endif %}
-                    {% if repo.committed_at %}<span class="mx-1">&middot;</span>{{ repo.committed_at.strftime('%b %d, %Y') }}{% endif %}
-                </p>
-                {% endif %}
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p class="mt-5 text-sm leading-6 text-gray-600 dark:text-gray-400">Curriculum updates are temporarily unavailable.</p>
-    {% endif %}
-</details>
 
 {% if not user %}
 <section class="mt-10 border-t border-gray-200 pt-10 dark:border-gray-700" aria-labelledby="join-heading">

@@ -1,7 +1,5 @@
 """Integration tests for the public community payload."""
 
-from unittest.mock import AsyncMock, patch
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,11 +64,7 @@ async def test_graduates_are_full_curriculum_completers(
         await _complete_phase(db_session, user_id=60001, phase_order=order)
     await _complete_phase(db_session, user_id=60002, phase_order=completable[0])
 
-    with patch(
-        "learn_to_cloud.services.community_service.get_latest_curriculum_commits",
-        new=AsyncMock(return_value=[]),
-    ):
-        community = await get_community_page_data(db_session)
+    community = await get_community_page_data(db_session)
 
     assert [member.github_username for member in community.graduates] == ["grad"]
     assert community.graduates[0].model_dump() == {
@@ -88,11 +82,7 @@ async def test_activity_uses_authoritative_attempts_and_current_phase_mapping(
     await db_session.flush()
     await _complete_phase(db_session, user_id=60003, phase_order=first_completable)
 
-    with patch(
-        "learn_to_cloud.services.community_service.get_latest_curriculum_commits",
-        new=AsyncMock(return_value=[]),
-    ):
-        community = await get_community_page_data(db_session)
+    community = await get_community_page_data(db_session)
 
     assert community.activity.active_learners == 1
     assert community.activity.attempts == counts[first_completable]
