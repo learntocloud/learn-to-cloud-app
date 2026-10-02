@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.verification import github_errors, github_http
@@ -18,14 +18,14 @@ async def test_exhausted_http_errors_retain_status_and_map_once(status):
 
     def handler(request):
         calls.append(request)
-        return httpx.Response(
+        return httpx2.Response(
             status,
             headers={"Retry-After": "120"},
             text="private upstream body",
         )
 
     operation = retry_with(github_http.github_api_get, sleep=sleeps)
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
         with (
             patch.object(
                 github_http, "_get_github_client", AsyncMock(return_value=client)
@@ -62,13 +62,13 @@ async def test_exhausted_http_errors_retain_status_and_map_once(status):
 async def test_transient_http_recovery_returns_success(status):
     handler = Mock(
         side_effect=[
-            httpx.Response(status, json={"ok": True}),
-            httpx.Response(status, json={"ok": True}),
-            httpx.Response(200, json={"ok": True}),
+            httpx2.Response(status, json={"ok": True}),
+            httpx2.Response(status, json={"ok": True}),
+            httpx2.Response(200, json={"ok": True}),
         ]
     )
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
         with (
             patch.object(
                 github_http, "_get_github_client", AsyncMock(return_value=client)
@@ -84,12 +84,12 @@ async def test_transient_http_recovery_returns_success(status):
     assert result.status_code == 200
 
 
-@pytest.mark.parametrize("error_type", [httpx.ConnectError, httpx.ReadTimeout])
+@pytest.mark.parametrize("error_type", [httpx2.ConnectError, httpx2.ReadTimeout])
 async def test_request_failures_retain_original_exception(error_type):
     error = error_type("private connectivity detail")
     handler = Mock(side_effect=error)
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
         with (
             patch.object(
                 github_http, "_get_github_client", AsyncMock(return_value=client)
@@ -112,12 +112,12 @@ async def test_nonretriable_status_preserves_response(status):
 
     def handler(request):
         requests.append(request)
-        return httpx.Response(
+        return httpx2.Response(
             status, headers={"Retry-After": "55"}, text="private body"
         )
 
     sleep = AsyncMock()
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
         with (
             patch.object(
                 github_http, "_get_github_client", AsyncMock(return_value=client)
@@ -125,7 +125,7 @@ async def test_nonretriable_status_preserves_response(status):
             patch.object(github_http, "get_github_headers", return_value={}),
         ):
             operation = retry_with(github_http.github_api_get, sleep=sleep)
-            with pytest.raises(httpx.HTTPStatusError) as raised:
+            with pytest.raises(httpx2.HTTPStatusError) as raised:
                 await operation("https://github.com/x")
             assert raised.value.response.status_code == status
             assert raised.value.response.headers["Retry-After"] == "55"

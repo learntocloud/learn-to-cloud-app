@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.verification.devops_analysis import verify_devops_pipeline
@@ -217,10 +217,10 @@ async def test_additional_jobs_and_optional_attempt_field_are_allowed(ports):
 @pytest.mark.parametrize("status", [401, 403, 404, 429, 500])
 async def test_http_failures_are_safe_and_actionable(ports, stage, status):
     github = ports
-    error = httpx.HTTPStatusError(
+    error = httpx2.HTTPStatusError(
         "sensitive response",
-        request=httpx.Request("GET", "https://api.github.com/example"),
-        response=httpx.Response(status),
+        request=httpx2.Request("GET", "https://api.github.com/example"),
+        response=httpx2.Response(status),
     )
     if stage == "workflow":
         github.latest_run.side_effect = error
@@ -238,7 +238,7 @@ async def test_http_failures_are_safe_and_actionable(ports, stage, status):
 
 async def test_network_failure_is_incomplete(ports):
     github = ports
-    github.jobs_for_attempt.side_effect = httpx.ConnectError("private details")
+    github.jobs_for_attempt.side_effect = httpx2.ConnectError("private details")
     result = await verify_devops_pipeline("o", "r", github)
     assert not result.verification_completed
     assert "private details" not in result.message
@@ -263,7 +263,7 @@ async def test_programming_errors_propagate(ports):
 async def test_malformed_jobs_http_payload_is_incomplete(monkeypatch, ports, payload):
     monkeypatch.setattr(
         "learn_to_cloud.verification.github_api.github_api_get",
-        AsyncMock(return_value=httpx.Response(200, json=payload)),
+        AsyncMock(return_value=httpx2.Response(200, json=payload)),
     )
     client = GitHubClient()
     client.latest_run = ports.latest_run
@@ -273,7 +273,7 @@ async def test_malformed_jobs_http_payload_is_incomplete(monkeypatch, ports, pay
 
 
 async def test_latest_workflow_is_requested_without_success_filter(monkeypatch, ports):
-    get = AsyncMock(return_value=httpx.Response(200, json={"workflow_runs": [_run()]}))
+    get = AsyncMock(return_value=httpx2.Response(200, json={"workflow_runs": [_run()]}))
     monkeypatch.setattr("learn_to_cloud.verification.github_api.github_api_get", get)
     client = GitHubClient()
     client.jobs_for_attempt = ports.jobs_for_attempt

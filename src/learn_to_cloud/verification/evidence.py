@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from hashlib import sha256
 from typing import TYPE_CHECKING
 
-import httpx
+import httpx2
 from opentelemetry import trace
 
 from learn_to_cloud.schemas.base import FrozenModel
@@ -293,8 +293,8 @@ async def collect_repo_file_evidence(
     except (
         EvidenceError,
         GitHubServerError,
-        httpx.HTTPStatusError,
-        httpx.RequestError,
+        httpx2.HTTPStatusError,
+        httpx2.RequestError,
     ) as exc:
         record_evidence_decision(
             exc.code if isinstance(exc, EvidenceError) else "retrieval",

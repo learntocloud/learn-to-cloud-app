@@ -3,7 +3,7 @@
 from json import JSONDecodeError
 from unittest.mock import AsyncMock
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.schemas.verification import ValidationResult
@@ -156,13 +156,13 @@ async def test_malformed_metadata_is_incomplete(data, caplog):
 
 @pytest.mark.parametrize("status", [401, 403, 429, 500, 503])
 async def test_provider_errors_do_not_fail_the_assignment(status, caplog):
-    response = httpx.Response(
+    response = httpx2.Response(
         status,
-        request=httpx.Request("GET", "https://api.github.com/repos/private-user/repo"),
+        request=httpx2.Request("GET", "https://api.github.com/repos/private-user/repo"),
         headers={"retry-after": "120"} if status in {403, 429} else {},
         json={"message": "private-provider-response"},
     )
-    error = httpx.HTTPStatusError(
+    error = httpx2.HTTPStatusError(
         "private-exception-content", request=response.request, response=response
     )
     result = await check_repository_ownership(TARGET, 42, FakeGitHub(repo_error=error))
@@ -176,8 +176,8 @@ async def test_provider_errors_do_not_fail_the_assignment(status, caplog):
 @pytest.mark.parametrize(
     "error",
     [
-        httpx.ConnectError("private-network-details"),
-        httpx.ReadTimeout("private-timeout-details"),
+        httpx2.ConnectError("private-network-details"),
+        httpx2.ReadTimeout("private-timeout-details"),
         GitHubServerError("private-server-details", status_code=503),
         JSONDecodeError("private-json-details", "", 0),
         UnicodeDecodeError("utf-8", b"\xff", 0, 1, "private-decode-details"),
@@ -198,15 +198,15 @@ async def test_real_metadata_adapter_checks_redirect_destination(monkeypatch, ow
     def respond(request):
         paths.append(request.url.path)
         if request.url.path == "/repos/learner/project":
-            return httpx.Response(
+            return httpx2.Response(
                 301, headers={"location": "https://api.github.com/repos/new-name/moved"}
             )
-        return httpx.Response(
+        return httpx2.Response(
             200, json=_repo(owner={"id": owner_id, "login": "new-name"}, name="moved")
         )
 
-    async with httpx.AsyncClient(
-        transport=httpx.MockTransport(respond), follow_redirects=True
+    async with httpx2.AsyncClient(
+        transport=httpx2.MockTransport(respond), follow_redirects=True
     ) as client:
         monkeypatch.setattr(
             "learn_to_cloud.verification.github_http._get_github_client",

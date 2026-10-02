@@ -33,7 +33,6 @@ dependencies = [
     "azure-monitor-opentelemetry>=1.8.10",
     "cachetools>=7.0.6",
     "fastapi>=0.141.1,<1",
-    "httpx>=0.28.1,<1",
     "httpx2>=2.12.0",
     "itsdangerous>=2.1.0",
     "jinja2>=3.1.0",
@@ -65,6 +64,7 @@ learn-to-cloud-migrate = "learn_to_cloud.migrations:main"
 
 [dependency-groups]
 dev = [
+    # openai's exception types require httpx requests/responses in tests.
     "httpx>=0.28.0",
     "poethepoet>=0.48.0",
     "prek>=0.4.12",

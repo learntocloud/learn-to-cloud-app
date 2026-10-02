@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.verification import github_api, github_errors
@@ -17,11 +17,11 @@ async def test_raw_file_is_one_attempt_and_only_404_is_missing(status):
 
     def handler(request):
         requests.append(request)
-        return httpx.Response(
+        return httpx2.Response(
             status, text="private file content", headers={"Retry-After": "7"}
         )
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
         with (
             patch.object(
                 github_api, "get_github_client", AsyncMock(return_value=client)
@@ -47,7 +47,7 @@ async def test_raw_file_is_one_attempt_and_only_404_is_missing(status):
                 assert raised.value.retry_after == (7 if status == 429 else None)
                 assert "private" not in str(raised.value)
             else:
-                with pytest.raises(httpx.HTTPStatusError) as raised:
+                with pytest.raises(httpx2.HTTPStatusError) as raised:
                     await adapter.file("owner", "repo", "README.md", "feature")
                 assert raised.value.response.status_code == status
                 assert raised.value.response.headers["Retry-After"] == "7"
@@ -62,12 +62,12 @@ async def test_raw_file_is_one_attempt_and_only_404_is_missing(status):
     warning.assert_not_called()
 
 
-@pytest.mark.parametrize("error_type", [httpx.ConnectError, httpx.ReadTimeout])
+@pytest.mark.parametrize("error_type", [httpx2.ConnectError, httpx2.ReadTimeout])
 async def test_raw_file_preserves_request_error_without_retry(error_type):
     error = error_type("private network details")
     handler = Mock(side_effect=error)
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
         with (
             patch.object(
                 github_api, "get_github_client", AsyncMock(return_value=client)
@@ -81,7 +81,7 @@ async def test_raw_file_preserves_request_error_without_retry(error_type):
 
 
 async def test_tree_forwards_branch_and_selects_only_blobs(monkeypatch):
-    response = httpx.Response(
+    response = httpx2.Response(
         200,
         json={
             "tree": [
@@ -109,12 +109,12 @@ async def test_tree_forwards_branch_and_selects_only_blobs(monkeypatch):
 @pytest.mark.parametrize(
     "error",
     [
-        httpx.ReadTimeout("upstream timeout"),
+        httpx2.ReadTimeout("upstream timeout"),
         GitHubServerError("upstream unavailable", status_code=503),
-        httpx.HTTPStatusError(
+        httpx2.HTTPStatusError(
             "missing repository",
-            request=httpx.Request("GET", "https://api.github.com"),
-            response=httpx.Response(404),
+            request=httpx2.Request("GET", "https://api.github.com"),
+            response=httpx2.Response(404),
         ),
     ],
 )

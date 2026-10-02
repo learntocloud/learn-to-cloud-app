@@ -12,7 +12,7 @@ import httpx2
 import pytest
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse, RedirectResponse
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 from itsdangerous import TimestampSigner
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging.handler import LoggingHandler

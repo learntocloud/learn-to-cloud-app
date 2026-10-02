@@ -17,9 +17,9 @@ _NETWORK_PACKAGE = re.compile(
 
 # Every locked package that can open network connections, and how it is covered.
 _NETWORK_PACKAGES = {
-    "httpx": "GitHub, deployed APIs, and openai, traced by HTTPXClientInstrumentor",
+    "httpx": "openai transport only, traced by HTTPXClientInstrumentor",
     "httpcore": "httpx internals",
-    "httpx2": "authlib GitHub OAuth, traced by HTTPX2ClientInstrumentor",
+    "httpx2": "GitHub, OAuth, and deployed APIs, traced by HTTPX2ClientInstrumentor",
     "httpcore2": "httpx2 internals",
     "httpx2-jsfetch": "httpx2 browser backend, unused on CPython",
     "aiohttp": "azure-core async transport for Entra tokens",

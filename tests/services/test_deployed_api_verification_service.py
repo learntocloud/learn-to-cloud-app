@@ -4,7 +4,7 @@ import asyncio
 import socket
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.verification import deployed_api
@@ -90,18 +90,18 @@ async def test_unresolvable_dns_returns_learner_feedback():
 def test_public_or_unavailable_response_peer_is_allowed(peer):
     stream = MagicMock()
     stream.get_extra_info.return_value = peer
-    _check_response_ip(httpx.Response(200, extensions={"network_stream": stream}))
+    _check_response_ip(httpx2.Response(200, extensions={"network_stream": stream}))
 
 
 def test_missing_response_stream_is_allowed():
-    _check_response_ip(httpx.Response(200))
+    _check_response_ip(httpx2.Response(200))
 
 
 @pytest.mark.parametrize("address", ["10.0.0.1", "169.254.169.254"])
 def test_private_response_peer_is_blocked(address):
     stream = MagicMock()
     stream.get_extra_info.return_value = (address, 443)
-    response = httpx.Response(200, extensions={"network_stream": stream})
+    response = httpx2.Response(200, extensions={"network_stream": stream})
     with pytest.raises(_SsrfError):
         _check_response_ip(response)
 
@@ -112,9 +112,9 @@ async def test_post_once_preserves_safe_server_error_data(status):
 
     def handler(request):
         requests.append(request)
-        return httpx.Response(status, text="private learner response body")
+        return httpx2.Response(status, text="private learner response body")
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
         with (
             patch.object(deployed_api, "_get_client", AsyncMock(return_value=client)),
             pytest.raises(DeployedApiServerError) as raised,
@@ -128,7 +128,7 @@ async def test_post_once_preserves_safe_server_error_data(status):
     assert str(raised.value) == f"Server returned {status}"
 
 
-@pytest.mark.parametrize("error_type", [httpx.ConnectError, httpx.ReadTimeout])
+@pytest.mark.parametrize("error_type", [httpx2.ConnectError, httpx2.ReadTimeout])
 async def test_post_once_preserves_native_request_exceptions(error_type):
     requests = []
     error = error_type("private transport detail")
@@ -137,7 +137,7 @@ async def test_post_once_preserves_native_request_exceptions(error_type):
         requests.append(request)
         raise error
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
         with (
             patch.object(deployed_api, "_get_client", AsyncMock(return_value=client)),
             pytest.raises(error_type) as raised,
@@ -153,13 +153,13 @@ async def test_post_once_preserves_native_request_exceptions(error_type):
     ("error", "event", "category", "message"),
     [
         (
-            httpx.ReadTimeout("private network detail"),
+            httpx2.ReadTimeout("private network detail"),
             "timeout",
             "ReadTimeout",
             "Request timed out. Ensure your API is accessible and responding quickly.",
         ),
         (
-            httpx.ConnectError("private network detail"),
+            httpx2.ConnectError("private network detail"),
             "request_error",
             "ConnectError",
             "Could not connect to your API. Error: ConnectError",

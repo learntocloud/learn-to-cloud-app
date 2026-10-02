@@ -4,7 +4,7 @@ import logging
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
-import httpx
+import httpx2
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -320,10 +320,10 @@ async def test_failed_github_fetch_persists_incomplete_without_completion(
     preparation = await prepare_verification_attempt(
         attempt.id, session_maker=session_maker
     )
-    transport = httpx.MockTransport(
-        lambda _: httpx.Response(503, text="private upstream details")
+    transport = httpx2.MockTransport(
+        lambda _: httpx2.Response(503, text="private upstream details")
     )
-    async with httpx.AsyncClient(transport=transport) as client:
+    async with httpx2.AsyncClient(transport=transport) as client:
         monkeypatch.setattr(
             "learn_to_cloud.verification.github_api.get_github_client",
             AsyncMock(return_value=client),

@@ -1,18 +1,18 @@
 """Low-level GitHub HTTP plumbing shared by verification services.
 
 This is the single home for talking to the GitHub API: the shared
-``httpx.AsyncClient``, auth headers, retry policy, and the mapping of
+``httpx2.AsyncClient``, auth headers, retry policy, and the mapping of
 5xx/429 responses to the retriable :class:`GitHubServerError`. Higher-level
 ``GitHubClient`` builds on these primitives.
 
 SCALABILITY:
 - Retry with exponential backoff + jitter for transient failures (3 attempts).
-- Connection pooling via the shared ``httpx.AsyncClient``.
+- Connection pooling via the shared ``httpx2.AsyncClient``.
 """
 
 from __future__ import annotations
 
-import httpx
+import httpx2
 from tenacity import (
     RetryCallState,
     retry,
@@ -59,7 +59,7 @@ def get_github_headers() -> dict[str, str]:
     return headers
 
 
-def raise_for_server_error(response: httpx.Response) -> None:
+def raise_for_server_error(response: httpx2.Response) -> None:
     """Map a 5xx or 429 response to the retriable :class:`GitHubServerError`."""
     if response.status_code >= 500:
         raise GitHubServerError(
@@ -82,12 +82,12 @@ async def github_api_get(
     url: str,
     *,
     params: dict[str, str | int] | None = None,
-) -> httpx.Response:
+) -> httpx2.Response:
     """Resilient GitHub API GET with retry and 5xx/429 mapping.
 
     Raises:
         GitHubServerError: On 5xx or 429 (triggers retry).
-        httpx.HTTPStatusError: On non-retriable HTTP errors (4xx).
+        httpx2.HTTPStatusError: On non-retriable HTTP errors (4xx).
     """
     client = await _get_github_client()
     headers = get_github_headers()

@@ -10,7 +10,7 @@ Tests cover:
 
 from unittest.mock import MagicMock, patch
 
-import httpx
+import httpx2
 import pytest
 
 import learn_to_cloud.core.github_client as mod
@@ -40,7 +40,7 @@ class TestGetGitHubClient:
             return_value=mock_settings,
         ):
             client = await get_github_client()
-        assert isinstance(client, httpx.AsyncClient)
+        assert isinstance(client, httpx2.AsyncClient)
         assert not client.is_closed
 
     @pytest.mark.asyncio

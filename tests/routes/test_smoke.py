@@ -1,6 +1,6 @@
 """Smoke tests — verify every page template renders without crashing.
 
-These tests use httpx.AsyncClient against the real FastAPI app with real
+These tests use httpx2.AsyncClient against the real FastAPI app with real
 Jinja2 templates.  They mock DB-dependent services and auth but exercise
 the full ASGI stack: middleware → route → template → response.
 
@@ -26,7 +26,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 from fastapi.responses import HTMLResponse
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 
 from learn_to_cloud.core.database import get_db
 from learn_to_cloud.curriculum.yaml_loader import (

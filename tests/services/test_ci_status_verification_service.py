@@ -3,7 +3,7 @@
 from json import JSONDecodeError
 from unittest.mock import AsyncMock
 
-import httpx
+import httpx2
 import pytest
 
 from learn_to_cloud.verification.ci_status import verify_ci_status
@@ -139,8 +139,8 @@ async def test_missing_or_invalid_main_sha_is_unavailable(github, sha):
 
 
 def _http_error(status):
-    response = httpx.Response(status, request=httpx.Request("GET", "https://test"))
-    return httpx.HTTPStatusError(
+    response = httpx2.Response(status, request=httpx2.Request("GET", "https://test"))
+    return httpx2.HTTPStatusError(
         "private response", request=response.request, response=response
     )
 
@@ -167,8 +167,8 @@ async def test_missing_resource_explains_required_action(github, source):
         _http_error(403),
         GitHubServerError("private response", status_code=429),
         GitHubServerError("private response", status_code=503),
-        httpx.ConnectError("private response"),
-        httpx.ReadTimeout("private response"),
+        httpx2.ConnectError("private response"),
+        httpx2.ReadTimeout("private response"),
         JSONDecodeError("private response", "", 0),
     ],
 )
@@ -192,7 +192,7 @@ async def test_programming_errors_propagate(github, source):
 async def test_malformed_workflow_response_is_unavailable(monkeypatch, github, payload):
     monkeypatch.setattr(
         "learn_to_cloud.verification.github_api.github_api_get",
-        AsyncMock(return_value=httpx.Response(200, json=payload)),
+        AsyncMock(return_value=httpx2.Response(200, json=payload)),
     )
     client = GitHubClient()
     client.head_sha = github.head_sha
@@ -203,7 +203,7 @@ async def test_malformed_workflow_response_is_unavailable(monkeypatch, github, p
 async def test_malformed_branch_response_is_unavailable(monkeypatch, github):
     monkeypatch.setattr(
         "learn_to_cloud.verification.github_api.github_api_get",
-        AsyncMock(return_value=httpx.Response(200, json=[])),
+        AsyncMock(return_value=httpx2.Response(200, json=[])),
     )
     client = GitHubClient()
     client.latest_run = github.latest_run

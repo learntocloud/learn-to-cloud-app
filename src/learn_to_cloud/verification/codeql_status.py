@@ -29,7 +29,7 @@ module is called. GitHub reads go through ``github_api.py``.
 
 from __future__ import annotations
 
-import httpx
+import httpx2
 from opentelemetry import trace
 
 from learn_to_cloud.schemas.verification import ValidationResult
@@ -66,8 +66,8 @@ async def verify_codeql_status(
     span = trace.get_current_span()
     try:
         latest_run = await github.latest_run(owner, repo, CODEQL_WORKFLOW_FILE)
-    except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as e:
-        if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
+    except (httpx2.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as e:
+        if isinstance(e, httpx2.HTTPStatusError) and e.response.status_code == 404:
             span.set_attribute("http.response.status_code", 404)
             span.add_event("codeql.workflow_not_found")
             return ValidationResult(
@@ -125,8 +125,8 @@ async def verify_codeql_status(
 
     try:
         head_sha = await github.head_sha(owner, repo)
-    except (httpx.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as e:
-        if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
+    except (httpx2.HTTPStatusError, *RETRIABLE_EXCEPTIONS) as e:
+        if isinstance(e, httpx2.HTTPStatusError) and e.response.status_code == 404:
             span.set_attribute("http.response.status_code", 404)
             span.add_event("codeql.branch_not_found")
             return ValidationResult(
