@@ -337,15 +337,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cachetools"
-version = "7.2.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/29/2c/3f18755527b03ca9ff6be724bd5370cb777c76a87f17301377cf04a4729b/cachetools-7.2.0.tar.gz", hash = "sha256:bcac1a1b8da6909994a2957238a57b8140dab7c5c5c69a43669654fe87a33c1d", size = 41129, upload-time = "2026-09-16T20:48:27.209Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cc/bb/1c6e7a89b11da19f137e4ef5a5c5fe47a5bb686449ba343944ccf8fb34b2/cachetools-7.2.0-py3-none-any.whl", hash = "sha256:3045213f186b89fdd95d94441354c4bd87c570b7a38d8c3fd1d9dd37f6dc90d8", size = 16918, upload-time = "2026-09-16T20:48:25.575Z" },
-]
-
-[[package]]
 name = "certifi"
 version = "2026.7.22"
 source = { registry = "https://pypi.org/simple" }
@@ -798,7 +789,6 @@ dependencies = [
     { name = "azure-core", extra = ["aio"] },
     { name = "azure-identity" },
     { name = "azure-monitor-opentelemetry" },
-    { name = "cachetools" },
     { name = "fastapi" },
     { name = "httptools" },
     { name = "httpx2" },
@@ -849,7 +839,6 @@ requires-dist = [
     { name = "azure-core", extras = ["aio"], specifier = ">=1.41.0" },
     { name = "azure-identity", specifier = ">=1.25.3" },
     { name = "azure-monitor-opentelemetry", specifier = ">=1.8.10" },
-    { name = "cachetools", specifier = ">=7.0.6" },
     { name = "fastapi", specifier = ">=0.141.1,<1" },
     { name = "httptools", specifier = ">=0.8.0" },
     { name = "httpx2", specifier = ">=2.12.0" },
