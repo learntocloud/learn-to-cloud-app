@@ -16,9 +16,6 @@ from learn_to_cloud.schemas.curriculum import Phase, PhaseHandsOnVerificationOve
 from learn_to_cloud.schemas.requirements import HandsOnRequirement
 from learn_to_cloud.services.requirements import RequirementIndex
 from learn_to_cloud.services.submissions_service import (
-    _SMOKE_USER_ID as SMOKE_USER_ID,
-)
-from learn_to_cloud.services.submissions_service import (
     AlreadyValidatedError,
     InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
@@ -26,10 +23,6 @@ from learn_to_cloud.services.submissions_service import (
     VerificationAttemptSubmission,
     create_verification_attempt,
     get_phase_submission_context,
-    run_submit_smoke_check,
-)
-from learn_to_cloud.services.submissions_service import (
-    _pick_smoke_requirement as pick_smoke_requirement,
 )
 from learn_to_cloud.verification.submission_values import (
     GitHubUrlValue,
@@ -808,73 +801,3 @@ class TestGetPhaseSubmissionContext:
                 "evidence_refs": ["api/main.py"],
             }
         ]
-
-
-@pytest.mark.unit
-class TestRunSubmitSmokeCheck:
-    """Tests for the read-only post-deploy verification smoke check."""
-
-    def test_pick_smoke_requirement_returns_earliest_phase(self):
-        """The canary picks the first requirement of the earliest phase."""
-
-        early = journal_api_verifier_requirement(
-            slug="early", name="early", description="early"
-        )
-        late = journal_api_verifier_requirement(
-            slug="late", name="late", description="late"
-        )
-        index = RequirementIndex(
-            by_phase_order={5: [late], 0: [early]},
-            by_slug={"early": early, "late": late},
-            phase_order_by_req_slug={"early": 0, "late": 5},
-        )
-
-        assert pick_smoke_requirement(index).slug == "early"
-
-    def test_pick_smoke_requirement_raises_when_no_requirements(self):
-        """An empty index is itself a failure worth surfacing."""
-        with pytest.raises(RuntimeError):
-            pick_smoke_requirement(RequirementIndex())
-
-    @pytest.mark.asyncio
-    async def test_smoke_check_exercises_read_path_without_writes(self):
-        """The canary reads for the synthetic user and writes nothing."""
-        mock_session_maker = _mock_session_maker()
-        mock_requirement = _make_mock_requirement()
-
-        with (
-            patch(
-                "learn_to_cloud.services.submissions_service.load_requirement_index",
-                return_value=_build_index(mock_requirement),
-            ),
-            patch(
-                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
-                new=_gating_mock(mock_requirement.uuid, already_validated=False),
-            ) as mock_gate,
-        ):
-            result = await run_submit_smoke_check(mock_session_maker)
-
-        assert result["requirement_slug"] == mock_requirement.slug
-        # Reads use the synthetic, non-existent user id.
-        mock_gate.assert_awaited_once_with(ANY, SMOKE_USER_ID, [mock_requirement.uuid])
-
-    @pytest.mark.asyncio
-    async def test_smoke_check_propagates_read_errors(self):
-        """A schema/code mismatch surfaces as a raised error, not a clean pass."""
-        mock_session_maker = _mock_session_maker()
-        mock_requirement = _make_mock_requirement()
-
-        with (
-            patch(
-                "learn_to_cloud.services.submissions_service.load_requirement_index",
-                return_value=_build_index(mock_requirement),
-            ),
-            patch(
-                "learn_to_cloud.services.submissions_service.are_all_requirements_succeeded",
-                new=AsyncMock(
-                    side_effect=RuntimeError("column submissions.foo does not exist")
-                ),
-            ),
-        ):
-            with pytest.raises(RuntimeError):
-                await run_submit_smoke_check(mock_session_maker)

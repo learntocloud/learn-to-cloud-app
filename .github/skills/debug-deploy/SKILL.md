@@ -5,8 +5,8 @@ description: Diagnose and resolve GitHub Actions application deployment, Terrafo
 
 # Debug Deploy
 
-Use `gh run list --workflow=app-deploy.yml` for application release failures
-or `gh run list --workflow=infra-deploy.yml` for Terraform plan and apply failures.
+Use `gh run list --workflow=deploy.yml` for Terraform and application release
+failures; the failed step shows which stage broke.
 Inspect the selected run with `gh run view <id> --log-failed`. Diagnose evidence
 from the failed step before changing code or infrastructure.
 

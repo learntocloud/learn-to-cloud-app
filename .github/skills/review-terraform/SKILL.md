@@ -26,7 +26,7 @@ Report planned resource actions, unexplained changes, and any blocked checks.
 Do not recommend merge with unresolved destroy/replacement, identity,
 authentication, state-access, or authorization concerns.
 
-Production applies must run through `infra-deploy.yml`, which applies on merge
-to `main` independently of application deployment. Review does not authorize
+Production applies must run through `deploy.yml`, which applies on merge to
+`main` before releasing the application. Review does not authorize
 apply, state mutation, imports, unlocks, or access changes. Never infer safety
 from `terraform validate` alone.

@@ -2,13 +2,12 @@
 
 An attempt row stores the *requirement definition* it was submitted against
 (``requirement_snapshot``) plus a hash of that snapshot
-(``requirement_snapshot_hash``) so the Functions role can run verification
-without any curriculum grants. This module is the single source of truth for
-how that snapshot is built, hashed, and validated so the API writer (a later
-PR) and the Functions reader stay in exact agreement.
+(``requirement_snapshot_hash``) so verification runs against the definition the
+learner submitted, even if the curriculum changes later. This module is the
+single source of truth for how that snapshot is built, hashed, and validated.
 
 ``ATTEMPT_PAYLOAD_VERSION`` is the contract version stamped on every
-``submitted`` attempt. The prepare activity rejects any attempt whose stored
+``submitted`` attempt. The attempt executor rejects any attempt whose stored
 ``payload_version`` this code cannot run, so an incompatible producer can never
 be silently mis-executed.
 """

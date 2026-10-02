@@ -16,7 +16,7 @@ PR delivery, use `gh-stack` instead, including its publishing safeguards.
    `infra/**` and application runtime paths (`src/`, `Dockerfile`,
    `pyproject.toml`, `uv.lock`, `package*.json`), stop and split them into two
    PRs: ship the infrastructure PR first, and ship the application PR only after
-   its merge and `infra-deploy.yml` run succeed. Then run `uv run poe check`. Follow
+   its merge and `deploy.yml` run succeed. Then run `uv run poe check`. Follow
    [Quality Gates](../../../docs/contributing.md#quality-gates) for additional
    checks, including API smoke testing after Python application changes.
 3. Review the staged diff and commit with a conventional message plus required
@@ -29,10 +29,11 @@ Merging is a separate action requiring explicit user intent. If authorized,
 prefer squash merge and respect branch protection.
 
 Deployment runs only after deploy-relevant changes merge to `main`. Find the
-push run for the merge SHA (`infra-deploy.yml` for `infra/` changes,
-`app-deploy.yml` for application changes) and watch it with
-`gh run watch --exit-status`. Verify `/health` and `/ready` after success. A
-tests/skills/docs-only merge may correctly trigger no deployment.
+`deploy.yml` push run for the merge SHA and watch it with
+`gh run watch --exit-status`. A run may be replaced while waiting by a newer
+one, which releases the newer `main` instead. Verify `/health` and `/ready`
+after success. A tests/skills/docs-only merge may correctly trigger no
+deployment.
 
 Use `debug-deploy` for nontrivial failures. Never bypass a failed quality gate
 or silently include unrelated files.

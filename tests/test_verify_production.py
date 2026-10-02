@@ -1,4 +1,4 @@
-"""Guard the production verification script's readiness and smoke gates."""
+"""Guard the production verification script's image and readiness gates."""
 
 import os
 import subprocess
@@ -12,34 +12,29 @@ _AZ_STUB = """#!/bin/bash
 set -eu
 case "$*" in
   "containerapp show "*)
-    [[ "$*" == *properties.latestRevisionName* ]]
-    echo new ;;
-  "containerapp revision list "*)
-    [[ "$*" == *registry/api:commit* ]]
-    echo new ;;
+    printf '{"revision":"new","image":"%s"}' "$LATEST_IMAGE" ;;
   "containerapp revision show "*)
     [[ "$*" == *"--revision new "* ]]
     printf '{"health":"%s","running":"%s","traffic":%s}' "$HEALTH" "$RUNNING" "$TRAFFIC"
     ;;
   "containerapp logs show "*) ;;
-  "account get-access-token "*) echo token ;;
   *) exit 1 ;;
 esac
 """
 
 
 @pytest.mark.parametrize(
-    ("expected_image", "health", "running", "traffic", "http", "success"),
+    ("latest_image", "health", "running", "traffic", "http", "success"),
     [
         ("registry/api:commit", "Healthy", "Running", "100", "200", True),
-        ("", "Healthy", "Running", "100", "200", True),
-        ("", "Unhealthy", "Failed", "0", "200", False),
-        ("", "Healthy", "Running", "0", "200", False),
+        ("registry/api:other", "Healthy", "Running", "100", "200", False),
+        ("registry/api:commit", "Unhealthy", "Failed", "0", "200", False),
+        ("registry/api:commit", "Healthy", "Running", "0", "200", False),
         ("registry/api:commit", "Healthy", "Running", "100", "503", False),
     ],
 )
 def test_verify_production(
-    tmp_path, expected_image, health, running, traffic, http, success
+    tmp_path, latest_image, health, running, traffic, http, success
 ):
     for name, body in {
         "az": _AZ_STUB,
@@ -57,8 +52,8 @@ def test_verify_production(
             "APP_NAME": "api",
             "RESOURCE_GROUP": "resource-group",
             "API_URL": "https://example.invalid",
-            "SMOKE_SCOPE": "api://smoke/.default",
-            "EXPECTED_IMAGE": expected_image,
+            "EXPECTED_IMAGE": "registry/api:commit",
+            "LATEST_IMAGE": latest_image,
             "HEALTH": health,
             "RUNNING": running,
             "TRAFFIC": traffic,

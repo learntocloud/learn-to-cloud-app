@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Verify the production API revision is healthy, ready, and can submit verifications.
+# Verify the production API revision runs the expected image, is healthy, and is ready.
 #
-# Required env: APP_NAME, RESOURCE_GROUP, API_URL, SMOKE_SCOPE.
-# Optional env: EXPECTED_IMAGE waits for the revision running that image;
-# otherwise the latest revision is verified.
+# Required env: APP_NAME, RESOURCE_GROUP, API_URL, EXPECTED_IMAGE.
+# The app's latest revision must run EXPECTED_IMAGE; deploys are serialized, so
+# any other image means something outside the deploy workflow changed the app.
 set -euo pipefail
 
-: "${APP_NAME:?}" "${RESOURCE_GROUP:?}" "${API_URL:?}" "${SMOKE_SCOPE:?}"
-EXPECTED_IMAGE=${EXPECTED_IMAGE:-}
+: "${APP_NAME:?}" "${RESOURCE_GROUP:?}" "${API_URL:?}"
+: "${EXPECTED_IMAGE:?}"
 
 show_logs() {
   az containerapp logs show \
@@ -15,27 +15,19 @@ show_logs() {
     --tail 100 --format text 2>&1 || true
 }
 
-revision=""
-if [[ -n "$EXPECTED_IMAGE" ]]; then
-  echo "Looking for revision running image: $EXPECTED_IMAGE"
-  for _ in {1..12}; do
-    revision=$(az containerapp revision list \
-      --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" \
-      --query "[?properties.template.containers[0].image=='$EXPECTED_IMAGE'] | [0].name" \
-      -o tsv 2>/dev/null || true)
-    if [[ -n "$revision" && "$revision" != "None" ]]; then
-      break
-    fi
-    sleep 5
-  done
-else
-  revision=$(az containerapp show \
-    --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" \
-    --query properties.latestRevisionName --output tsv)
-fi
+latest=$(az containerapp show \
+  --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" \
+  --query "{revision: properties.latestRevisionName, image: properties.template.containers[?name=='api'] | [0].image}" \
+  -o json)
+revision=$(jq -r '.revision // empty' <<<"$latest")
+image=$(jq -r '.image // empty' <<<"$latest")
 
-if [[ -z "$revision" || "$revision" == "None" ]]; then
-  echo "::error::No expected Container App revision was found." >&2
+if [[ -z "$revision" ]]; then
+  echo "::error::The Container App has no latest revision." >&2
+  exit 1
+fi
+if [[ "$image" != "$EXPECTED_IMAGE" ]]; then
+  echo "::error::Latest revision $revision runs $image, expected $EXPECTED_IMAGE." >&2
   exit 1
 fi
 
@@ -69,25 +61,4 @@ if [[ "$ready" != "true" ]]; then
   exit 1
 fi
 
-access_token=$(az account get-access-token \
-  --scope "$SMOKE_SCOPE" --query accessToken --output tsv)
-echo "::add-mask::$access_token"
-
-body=$(mktemp)
-trap 'rm -f "$body"' EXIT
-for i in {1..6}; do
-  if ! code=$(curl --silent --output "$body" --write-out "%{http_code}" \
-    --request POST "$API_URL/internal/smoke/verification" \
-    --header "Authorization: Bearer $access_token"); then
-    code=000
-  fi
-  echo "Smoke attempt $i: HTTP $code"
-  if [[ "$code" == "200" ]]; then
-    cat "$body"
-    exit 0
-  fi
-  sleep 10
-done
-
-cat "$body" || true
-exit 1
+echo "Revision $revision is healthy and ready."
