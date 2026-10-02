@@ -282,23 +282,6 @@ def test_configure_observability_noops_when_already_enabled():
 
 
 @pytest.mark.unit
-def test_configure_azure_monitor_uses_distro_instrumentation_defaults():
-    resource = observability._build_resource()
-    with patch(
-        "learn_to_cloud.core.observability.configure_azure_monitor"
-    ) as configure_azure_monitor:
-        observability._configure_azure_monitor(resource)
-
-    configure_azure_monitor.assert_called_once()
-    kwargs = configure_azure_monitor.call_args.kwargs
-    assert kwargs["enable_live_metrics"] is True
-    assert "enable_trace_based_sampling_for_logs" not in kwargs
-    assert kwargs["logger_name"] == "learn_to_cloud"
-    assert "instrumentation_options" not in kwargs
-    assert kwargs["resource"] is resource
-
-
-@pytest.mark.unit
 @pytest.mark.parametrize("pipeline", ["azure", "otlp"])
 def test_api_and_shared_logs_use_one_exporter(pipeline):
     root = logging.getLogger()

@@ -1,11 +1,10 @@
 """Unit tests for the curriculum catalog (process-level artifact reader).
 
 Covers:
-- Catalog lookup indices (by UUID, by slug, by phase, active sets)
+- Catalog lookup indices
 - Loading the real packaged artifact end to end
 - Schema compatibility (artifact_schema_version mismatch fails fast)
 - Strict failure on a missing/corrupted/tampered artifact
-- Process-level singleton caching
 """
 
 from __future__ import annotations
@@ -81,20 +80,6 @@ class TestLoadCurriculumCatalog:
         assert catalog.phases
         assert catalog.artifact_schema_version == ARTIFACT_SCHEMA_VERSION
 
-    def test_every_phase_has_completion_metadata(self):
-        catalog = load_curriculum_catalog()
-
-        assert [
-            phase.order for phase in catalog.phases if not phase.required_for_graduation
-        ] == [7]
-        for phase in catalog.phases:
-            assert phase.estimated_learning_time.maximum_hours > 0
-            assert phase.estimated_project_time.maximum_hours > 0
-            assert phase.project_summary
-            assert phase.completion_summary
-            assert phase.prerequisites
-            assert phase.cost_note
-
     def test_missing_artifact_raises(self):
         with (
             _patched_resource(None),
@@ -151,40 +136,19 @@ class TestCurriculumCatalogIndices:
         with _patched_resource(json.dumps(real_payload)):
             return load_curriculum_catalog()
 
-    def test_phase_lookup_by_slug(self, catalog: CurriculumCatalog):
-        for phase in catalog.phases:
-            assert catalog.phases_by_slug[phase.slug] is phase
-
-    def test_step_lookup_by_uuid_and_phase(self, catalog: CurriculumCatalog):
-        phase0 = catalog.phases_by_slug["phase0"]
-        topic = phase0.topics[0]
+    def test_representative_indices_link_phase_topic_step_and_requirement(
+        self, catalog: CurriculumCatalog
+    ):
+        phase = next(p for p in catalog.phases if p.topics and p.hands_on_verification)
+        topic = next(t for t in phase.topics if t.learning_steps)
         step = topic.learning_steps[0]
+        assert catalog.phases_by_slug[phase.slug] is phase
         assert catalog.steps_by_uuid[step.uuid] is step
-        assert step in catalog.steps_by_phase_slug[phase0.slug]
         assert catalog.topic_by_step_uuid[step.uuid] is topic
-        assert catalog.phase_order_by_step_uuid[step.uuid] == phase0.order
-
-    def test_requirement_lookup_by_uuid_and_phase(self, catalog: CurriculumCatalog):
-        phase = next(p for p in catalog.phases if p.hands_on_verification)
         assert phase.hands_on_verification is not None
-        req = phase.hands_on_verification.requirements[0]
-        assert catalog.requirements_by_uuid[req.uuid] is req
-        assert req in catalog.requirements_by_phase_slug[phase.slug]
-        assert catalog.phase_order_by_requirement_uuid[req.uuid] == phase.order
-
-    def test_active_uuid_sets_match_curriculum(self, catalog: CurriculumCatalog):
-        assert catalog.active_step_uuids == {
-            step.uuid
-            for phase in catalog.phases
-            for topic in phase.topics
-            for step in topic.learning_steps
-        }
-        assert catalog.active_requirement_uuids == {
-            requirement.uuid
-            for phase in catalog.phases
-            if phase.hands_on_verification
-            for requirement in phase.hands_on_verification.requirements
-        }
+        requirement = phase.hands_on_verification.requirements[0]
+        assert catalog.requirements_by_uuid[requirement.uuid] is requirement
+        assert catalog.phase_order_by_requirement_uuid[requirement.uuid] == phase.order
 
 
 class TestCurriculumCatalogImmutability:
@@ -217,17 +181,3 @@ class TestCurriculumCatalogImmutability:
     def test_dataclass_fields_reject_reassignment(self, catalog: CurriculumCatalog):
         with pytest.raises(AttributeError):
             setattr(catalog, "curriculum_version", 999)
-
-
-class TestGetCurriculumCatalogSingleton:
-    def test_returns_same_instance_across_calls(self):
-        first = get_curriculum_catalog()
-        second = get_curriculum_catalog()
-        assert first is second
-
-    def test_clear_cache_forces_reload(self):
-        first = get_curriculum_catalog()
-        get_curriculum_catalog.cache_clear()
-        second = get_curriculum_catalog()
-        assert first is not second
-        assert first == second

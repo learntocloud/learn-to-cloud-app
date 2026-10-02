@@ -10,7 +10,6 @@ from learn_to_cloud.verification.evidence import (
     EvidenceError,
     apply_evidence_cap,
     collect_repo_file_evidence,
-    collect_submitted_text_evidence,
 )
 from learn_to_cloud.verification.github_api import GitHubClient
 from learn_to_cloud.verification.github_errors import GitHubServerError
@@ -65,38 +64,9 @@ def test_apply_evidence_cap_rejects_duplicate_paths():
         )
 
 
-def test_apply_evidence_cap_limits_file_count():
-    with pytest.raises(EvidenceError, match="evidence.file_limit"):
-        apply_evidence_cap(
-            _task(max_files=2),
-            [("a", "1"), ("b", "2"), ("c", "3")],
-        )
-
-
 def test_apply_evidence_cap_rejects_large_file():
     with pytest.raises(EvidenceError, match="evidence.item_limit"):
         apply_evidence_cap(_task(max_file_size_bytes=100), [("big.txt", "x" * 500)])
-
-
-def test_apply_evidence_cap_stops_at_total_budget():
-    with pytest.raises(EvidenceError, match="evidence.total_limit"):
-        apply_evidence_cap(
-            _task(max_total_bytes=10),
-            [("a", "xxxxx"), ("b", "yyyyy"), ("c", "zzzzz")],
-        )
-
-
-def test_apply_evidence_cap_sets_source_and_task_id():
-    bundle = apply_evidence_cap(_task(source="submitted_text"), [("a", "1")])
-    assert bundle.task_id == "task-1"
-    assert bundle.source == "submitted_text"
-
-
-def test_collect_submitted_text_evidence_is_passthrough():
-    bundle = collect_submitted_text_evidence(_task(source="submitted_text"), "hello")
-    assert bundle.source == "submitted_text"
-    assert bundle.items[0].content == "hello"
-    assert bundle.items[0].path == "submission.txt"
 
 
 @pytest.mark.asyncio

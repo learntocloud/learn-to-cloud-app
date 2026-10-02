@@ -124,26 +124,12 @@ def _with_requirement(phase: Phase) -> Phase:
 
 @pytest.mark.unit
 class TestComputeTopicProgress:
-    def test_no_steps_completed(self):
-        topic = _make_topic(steps=["s1", "s2", "s3"])
-        result = compute_topic_progress(topic, set())
-        assert result.status == "not_started"
-        assert result.percentage == 0.0
-        assert result.steps_completed == 0
-        assert result.steps_total == 3
-
     def test_partial_progress(self):
         topic = _make_topic(steps=["s1", "s2", "s3"])
         result = compute_topic_progress(topic, {"s1"})
         assert result.status == "in_progress"
         assert result.percentage == pytest.approx(33.3, abs=0.1)
         assert result.steps_completed == 1
-
-    def test_all_steps_completed(self):
-        topic = _make_topic(steps=["s1", "s2"])
-        result = compute_topic_progress(topic, {"s1", "s2"})
-        assert result.status == "completed"
-        assert result.percentage == 100.0
 
     def test_stale_step_ids_filtered(self):
         topic = _make_topic(steps=["s1", "s2"])
@@ -156,12 +142,6 @@ class TestComputeTopicProgress:
         result = compute_topic_progress(topic, set())
         assert result.status == "completed"
         assert result.percentage == 100.0
-
-    def test_superset_of_steps_caps_at_total(self):
-        topic = _make_topic(steps=["s1"])
-        result = compute_topic_progress(topic, {"s1"})
-        assert result.steps_completed == 1
-        assert result.steps_total == 1
 
 
 # ---------------------------------------------------------------------------

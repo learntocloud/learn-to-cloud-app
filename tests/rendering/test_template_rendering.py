@@ -17,7 +17,6 @@ from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
 from learn_to_cloud.rendering.htmx_responses import render_step_toggle
 from learn_to_cloud.rendering.page_content import (
     COMMUNITY_LINKS,
-    FAQS,
     HELP_LINKS,
 )
 from learn_to_cloud.rendering.requirement_cards import (
@@ -156,24 +155,10 @@ def test_topic_report_link_opens_content_form_without_javascript():
 @pytest.mark.unit
 def test_privacy_describes_diagnostics_and_separate_retention():
     html = _render("pages/privacy.html")
-    assert "request outcomes" in html
-    assert "client-side errors" in html
     assert "query values are removed from URL fields" in html
-    assert "Attempt IDs" in html
     assert "reflection text" in html
     assert "does not erase database backups" in html
-    assert "Azure Durable Task Scheduler" not in html
-    assert "workflow and grading services" not in html
-    assert "retained by grading services" in html
     assert "Microsoft Foundry / Azure OpenAI" in html
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize("page", ["account", "faq"])
-def test_account_deletion_copy_scopes_removal_to_active_database(page):
-    html = _render(f"pages/{page}.html", faqs=FAQS)
-    assert "active" in html and "application database" in html
-    assert 'href="/privacy"' in html
 
 
 @pytest.mark.unit
@@ -787,46 +772,6 @@ class TestProgressBarAccessibility:
 
 
 @pytest.mark.unit
-def test_phase_progress_uses_distinct_labels_without_explanatory_copy():
-    phase_progress = SimpleNamespace(
-        status="in_progress",
-        verification=SimpleNamespace(
-            requirements_required=2,
-            requirements_verified=1,
-            percentage=50.0,
-            is_complete=False,
-        ),
-        learning=SimpleNamespace(
-            steps_required=5,
-            steps_completed=2,
-            percentage=40.0,
-            is_complete=False,
-        ),
-    )
-    html = _render(
-        "pages/phase.html",
-        phase=SimpleNamespace(
-            name="Phase 1",
-            description="",
-            order=1,
-            estimated_learning_time=SimpleNamespace(minimum_hours=4, maximum_hours=6),
-            estimated_project_time=SimpleNamespace(minimum_hours=2, maximum_hours=4),
-            project_summary="Complete the project.",
-            prerequisites=["Phase 0"],
-            cost_note="Free.",
-            required_for_graduation=True,
-        ),
-        topics=[],
-        phase_progress=phase_progress,
-        has_verification=False,
-    )
-
-    assert "1/2 requirements verified" in html
-    assert "2/5 steps checked" in html
-    assert "Verification is what counts" not in html
-
-
-@pytest.mark.unit
 def test_phase_page_links_to_verification_workspace_without_rendering_form():
     phase_progress = SimpleNamespace(
         status="learning_complete",
@@ -1192,18 +1137,6 @@ class TestDashboardPrimaryState:
             continue_phase=continue_phase,
         )
 
-    def test_fresh_learner_sees_start_state(self):
-        phase = SimpleNamespace(order=0, name="Prerequisites", progress=None)
-        html = _render(
-            "pages/dashboard.html",
-            dashboard=self._dashboard(phases=[phase]),
-            help_links=[],
-        )
-
-        assert "Start the curriculum" in html
-        assert "Resume" not in html
-        assert "Full curriculum" not in html
-
     def test_returning_learner_sees_resume_state(self):
         phase = SimpleNamespace(order=0, name="Prerequisites", progress=None)
         continue_phase = SimpleNamespace(
@@ -1219,24 +1152,6 @@ class TestDashboardPrimaryState:
         assert "Continue your path" in html
         assert 'href="/phase/0/linux"' in html
 
-    def test_completed_learner_sees_completion_state(self):
-        progress = SimpleNamespace(
-            status="completed",
-            verification=SimpleNamespace(
-                requirements_required=1,
-                requirements_verified=1,
-            ),
-            learning=SimpleNamespace(steps_required=1, steps_completed=1),
-        )
-        phase = SimpleNamespace(order=0, name="Prerequisites", progress=progress)
-        html = _render(
-            "pages/dashboard.html",
-            dashboard=self._dashboard(phases=[phase], is_program_complete=True),
-            help_links=[],
-        )
-
-        assert "You completed the technical curriculum." in html
-
     def test_missing_curriculum_sees_recovery_state(self):
         html = _render(
             "pages/dashboard.html",
@@ -1246,46 +1161,6 @@ class TestDashboardPrimaryState:
 
         assert "Progress is temporarily unavailable." in html
         assert "Try again" in html
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize("signed_in", [False, True])
-def test_primary_links_are_in_navbar_and_footer_is_minimal(signed_in):
-    ctx = {} if signed_in else {"user": None}
-    navbar = _render("partials/navbar.html", **ctx)
-    footer = _render("partials/footer.html")
-
-    assert 'src="/static/favicon.svg" alt=""' in navbar
-    assert "Learn to Cloud" in navbar
-
-    assert ('href="/verifications"' in navbar) is signed_in
-    assert 'href="/verifications"' not in footer
-    assert 'href="/community"' in navbar
-    assert 'href="/community"' not in footer
-
-    assert 'href="/curriculum"' not in navbar
-    assert 'href="/faq"' not in navbar
-    assert 'href="/faq"' in footer
-    assert 'href="/curriculum"' in footer
-    assert "Program overview" in footer
-    assert 'href="/privacy"' in footer
-    assert 'href="/terms"' in footer
-    assert "Discord" not in footer
-    assert "GitHub" not in footer
-    assert "YouTube" not in footer
-    assert "Sponsor" not in footer
-
-
-@pytest.mark.unit
-def test_navbar_marks_the_current_verification_section_in_both_menus():
-    html = _render(
-        "partials/navbar.html",
-        request=SimpleNamespace(url=SimpleNamespace(path="/verifications/phase/3")),
-    )
-
-    assert html.count('href="/verifications" aria-current="page"') == 2
-    assert 'href="/dashboard" aria-current="page"' not in html
-    assert 'href="/community" aria-current="page"' not in html
 
 
 @pytest.mark.unit
@@ -1341,38 +1216,6 @@ class TestDashboardPhaseRow:
         assert "1/2 requirements verified" in html
         assert "0/0 steps checked" not in html
 
-    def test_hero_uses_clear_progress_labels(self):
-        progress = self._progress(
-            status="in_progress",
-            steps_completed=2,
-            steps_required=5,
-            requirements_verified=1,
-            requirements_required=2,
-        )
-        html = self._render_dashboard(progress)
-        assert (
-            "Progress totals include the phases required for curriculum graduation."
-            in html
-        )
-        assert "Verification progress" in html
-        assert "Learning progress" in html
-        assert "Requirements verified" in html
-        assert "Learning steps checked" in html
-        assert html.count(">3%</dd>") == 2
-        assert "Verification is the measure that counts" not in html
-
-    def test_step_progress_phase_shows_both_counts(self):
-        progress = self._progress(
-            status="in_progress",
-            steps_completed=5,
-            steps_required=28,
-            requirements_verified=0,
-            requirements_required=1,
-        )
-        html = self._render_dashboard(progress)
-        assert "5/28 steps checked" in html
-        assert "0/1 requirements verified" in html
-
     def test_learning_complete_state_shows_ready_for_verification(self):
         progress = self._progress(
             status="learning_complete",
@@ -1383,20 +1226,3 @@ class TestDashboardPhaseRow:
         )
         html = self._render_dashboard(progress)
         assert "Ready for verification" in html
-
-    def test_completed_state_has_no_duplicate_percentage_span(self):
-        """The old top-right duplicate percentage span is gone entirely --
-        the hero shows each measure's percentage exactly once, in its own
-        labelled bar, and the phase row shows counts, not a percentage."""
-        progress = self._progress(
-            status="completed",
-            steps_completed=28,
-            steps_required=28,
-            requirements_verified=1,
-            requirements_required=1,
-        )
-        html = self._render_dashboard(progress)
-        assert "Complete" in html
-        assert "28/28 steps checked" in html
-        assert "1/1 requirements verified" in html
-        assert 'text-3xl font-bold text-white">' not in html

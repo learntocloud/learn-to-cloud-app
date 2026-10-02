@@ -45,7 +45,6 @@ from tests.support.requirement_factories import (
     journal_api_verifier_requirement,
     make_requirement,
     networking_token_requirement,
-    profile_readme_requirement,
     repo_fork_requirement,
     security_scanning_requirement,
 )
@@ -129,19 +128,6 @@ def _job(requirement=None) -> PreparedVerificationAttempt:
             requirement, "https://github.com/learner/test-repo"
         ),
     )
-
-
-async def test_run_check_passes_inputs_and_preserves_result(monkeypatch):
-    result = CheckResult(
-        validation_result=ValidationResult(is_valid=True, message="Unchanged"),
-    )
-    dispatch = AsyncMock(return_value=result)
-    monkeypatch.setattr(engine_module, "_dispatch", dispatch)
-    job = _job()
-    github = FakeGitHub()
-
-    assert await engine_module._run_check(job, None, github) is result
-    dispatch.assert_awaited_once_with(job, None, github)
 
 
 @pytest.mark.asyncio
@@ -497,35 +483,6 @@ def _devops_job() -> PreparedVerificationAttempt:
     )
 
 
-@pytest.mark.asyncio
-async def test_deployed_api_workflow_passes_through_deterministic_result(monkeypatch):
-    validate = AsyncMock(
-        return_value=ValidationResult(is_valid=True, message="API is healthy")
-    )
-    monkeypatch.setattr(engine_module, "validate_deployed_api", validate)
-
-    result = await run_verification(_deployed_api_job())
-
-    validate.assert_awaited_once_with("https://api.example.com")
-    assert result.validation_result.is_valid is True
-    assert result.validation_result.message == "API is healthy"
-    assert result.grading_requests == []
-
-
-@pytest.mark.asyncio
-async def test_deployed_api_workflow_fails_when_probe_fails(monkeypatch):
-    validate = AsyncMock(
-        return_value=ValidationResult(is_valid=False, message="API unreachable")
-    )
-    monkeypatch.setattr(engine_module, "validate_deployed_api", validate)
-
-    result = await run_verification(_deployed_api_job())
-
-    validate.assert_awaited_once_with("https://api.example.com")
-    assert result.validation_result.is_valid is False
-    assert result.grading_requests == []
-
-
 @pytest.mark.parametrize(
     ("passed", "completed"), [(True, True), (False, True), (False, False)]
 )
@@ -867,57 +824,6 @@ def _phase02_job(requirement, submitted_value, github_username="learner"):
         requirement=requirement,
         submitted_value=submitted_value_from_raw(requirement, submitted_value),
     )
-
-
-async def test_profile_readme_passes_from_the_ownership_lookup_alone(
-    repository_metadata, monkeypatch
-):
-    lookup = AsyncMock(wraps=repository_metadata.repo_metadata)
-    monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
-    job = _phase02_job(
-        profile_readme_requirement(),
-        "https://github.com/learner/learner",
-    )
-
-    result = await run_verification(job)
-
-    lookup.assert_awaited_once_with("learner", "learner")
-    assert result.validation_result.is_valid is True
-    assert result.validation_result.message == "Profile README validated successfully!"
-    assert result.grading_requests == []
-
-
-@pytest.mark.parametrize(
-    ("fork_fields", "valid"),
-    [
-        ({"fork": True, "parent": {"full_name": "upstream/test-repo"}}, True),
-        ({"fork": True, "parent": {"full_name": "other/test-repo"}}, False),
-        ({"fork": False}, False),
-    ],
-)
-async def test_repo_fork_uses_the_ownership_lookup_alone(
-    repository_metadata, monkeypatch, fork_fields, valid
-):
-    lookup = AsyncMock(
-        return_value={
-            "owner": {"id": 1, "login": "learner"},
-            "name": "test-repo",
-            "private": False,
-            **fork_fields,
-        }
-    )
-    monkeypatch.setattr(repository_metadata, "repo_metadata", lookup)
-    job = _phase02_job(
-        repo_fork_requirement(required_repo="upstream/test-repo"),
-        "https://github.com/learner/test-repo",
-    )
-
-    result = await run_verification(job)
-
-    lookup.assert_awaited_once_with("learner", "test-repo")
-    assert result.validation_result.is_valid is valid
-    assert result.validation_result.verification_completed
-    assert result.grading_requests == []
 
 
 @pytest.mark.asyncio

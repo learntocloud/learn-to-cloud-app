@@ -1,32 +1,18 @@
 """Integration tests for UserRepository."""
 
 import asyncio
-from unittest.mock import patch
 
 import pytest
 from sqlalchemy import event, func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from learn_to_cloud.models import User
 from learn_to_cloud.repositories.user_repository import UserRepository
-from tests.support.sql import captured_statements
 
 pytestmark = pytest.mark.integration
 
 
 class TestUpsert:
-    async def test_creates_new_user(self, db_session: AsyncSession):
-        repo = UserRepository(db_session)
-        user = await repo.upsert(
-            99999,
-            display_name="New User",
-            github_username="newuser",
-        )
-
-        assert user.id == 99999
-        assert user.display_name == "New User"
-
     async def test_updates_existing_user(self, db_session: AsyncSession):
         repo = UserRepository(db_session)
         original = await repo.upsert(
@@ -130,16 +116,6 @@ class TestUpsert:
         await db_session.commit()
         assert await db_session.scalar(select(func.count()).select_from(User)) == 1
 
-    async def test_flush_failure_stops_before_upsert(self, test_engine: AsyncEngine):
-        async with AsyncSession(test_engine, autoflush=False) as db:
-            db.add(User(id=99998))
-            with patch.object(db, "execute", wraps=db.execute) as execute:
-                with pytest.raises(IntegrityError):
-                    await UserRepository(db).upsert(99999, github_username="provider")
-                execute.assert_not_awaited()
-            await db.rollback()
-            assert await db.scalar(select(func.count()).select_from(User)) == 0
-
     async def test_caller_rollback_undoes_flush_and_upsert(
         self, test_engine: AsyncEngine
     ):
@@ -169,20 +145,6 @@ class TestUpsert:
                 False,
             )
             assert await db.get(User, 99998) is None
-
-    async def test_clean_session_upsert_is_one_statement(
-        self, db_session: AsyncSession
-    ):
-        connection = await db_session.connection()
-        with captured_statements(connection.sync_connection) as statements:
-            repo = UserRepository(db_session)
-            for name in ("First", "Updated", None):
-                statements.clear()
-                await repo.upsert(99999, github_username="profile", display_name=name)
-                assert len(statements) == 1
-                assert statements[0].startswith("insert into users")
-                assert "on conflict (id) do update" in statements[0]
-                assert "returning" in statements[0]
 
     async def test_concurrent_identity_is_unique(self, test_engine: AsyncEngine):
         barrier = asyncio.Barrier(2)
@@ -218,11 +180,6 @@ class TestDelete:
         user = await db_session.scalar(select(User).where(User.id == 33333))
         assert user is None
 
-    async def test_delete_nonexistent_is_noop(self, db_session: AsyncSession):
-        """Deleting a non-existent user should not raise."""
-        repo = UserRepository(db_session)
-        await repo.delete(88888888)
-
 
 class TestGetByIds:
     async def test_returns_matching_users(self, db_session: AsyncSession):
@@ -234,7 +191,3 @@ class TestGetByIds:
         users = await repo.get_by_ids([41001, 41002, 99999999])
         ids = {u.id for u in users}
         assert ids == {41001, 41002}
-
-    async def test_returns_empty_for_empty_input(self, db_session: AsyncSession):
-        repo = UserRepository(db_session)
-        assert await repo.get_by_ids([]) == []

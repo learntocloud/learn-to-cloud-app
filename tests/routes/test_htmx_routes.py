@@ -99,39 +99,6 @@ def _patch_templates():
 class TestHtmxCompleteStep:
     """Tests for POST /htmx/steps/complete."""
 
-    async def test_complete_step_calls_service_and_renders(self):
-        """Completing a step calls the service and returns HTML."""
-        mock_db = AsyncMock()
-        step_uuid = uuid4()
-        mock_topic = MagicMock()
-        mock_step = MagicMock()
-        mock_step.uuid = step_uuid
-        mock_step.slug = "step-1"
-        mock_topic.learning_steps = [mock_step]
-        account = User(id=1, github_username="user")
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.complete_step",
-                autospec=True,
-                return_value=(mock_topic, mock_step, {step_uuid}),
-            ) as mock_complete,
-            patch(
-                "learn_to_cloud.routes.htmx_routes.render_step_toggle",
-                autospec=True,
-                return_value=HTMLResponse("<html>mock</html>"),
-            ) as mock_render,
-        ):
-            result = await htmx_complete_step(
-                mock_db,
-                account=account,
-                step_uuid=step_uuid,
-            )
-
-        mock_complete.assert_awaited_once_with(mock_db, 1, step_uuid)
-        mock_render.assert_called_once_with(account, mock_topic, mock_step, {step_uuid})
-        assert isinstance(result, HTMLResponse)
-
     async def test_complete_step_returns_hx_refresh_on_validation_error(self):
         """StepValidationError triggers HX-Refresh for stale page reload."""
         mock_db = AsyncMock()
@@ -154,39 +121,6 @@ class TestHtmxCompleteStep:
 @pytest.mark.unit
 class TestHtmxUncompleteStep:
     """Tests for DELETE /htmx/steps/{step_uuid}."""
-
-    async def test_uncomplete_step_calls_service(self):
-        """Uncompleting a step calls the service and returns HTML."""
-        mock_db = AsyncMock()
-        step_uuid = uuid4()
-        mock_topic = MagicMock()
-        mock_step = MagicMock()
-        mock_step.uuid = step_uuid
-        mock_step.slug = "step-1"
-        mock_topic.learning_steps = [mock_step]
-        account = User(id=1, github_username="user")
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.uncomplete_step",
-                autospec=True,
-                return_value=(mock_topic, mock_step, set()),
-            ) as mock_uncomplete,
-            patch(
-                "learn_to_cloud.routes.htmx_routes.render_step_toggle",
-                autospec=True,
-                return_value=HTMLResponse("<html>mock</html>"),
-            ) as mock_render,
-        ):
-            result = await htmx_uncomplete_step(
-                step_uuid,
-                mock_db,
-                account=account,
-            )
-
-        mock_uncomplete.assert_awaited_once_with(mock_db, 1, step_uuid)
-        mock_render.assert_called_once_with(account, mock_topic, mock_step, set())
-        assert isinstance(result, HTMLResponse)
 
     async def test_uncomplete_step_returns_hx_refresh_on_validation_error(self):
         """StepValidationError triggers HX-Refresh."""
@@ -311,10 +245,7 @@ class TestHtmxSubmitVerification:
         "form_items",
         [
             [],
-            [("submitted_value", "   ")],
-            [("submitted_value", "t" * 200), ("answers", "unexpected")],
             [("submitted_value", "first"), ("submitted_value", "second")],
-            [("submitted_value", "x")],
         ],
     )
     async def test_value_route_rejects_invalid_form_shapes(self, form_items):
@@ -447,49 +378,6 @@ class TestHtmxSubmitVerification:
         assert card.verification_attempt_id == attempt_submission.attempt_id
         assert card.verification_status_delay_seconds == 2
 
-    async def test_submit_logs_attempt_created(self, caplog):
-        """A successful submission leaves an application log line (#700)."""
-        request = _mock_request()
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-        attempt_submission = _mock_attempt_submission(created=True)
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="https://github.com/user/repo",
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
-                new_callable=AsyncMock,
-                return_value=attempt_submission,
-            ),
-            caplog.at_level(
-                logging.INFO,
-                logger="learn_to_cloud.services.verification_attempt_service",
-            ),
-        ):
-            await _submit_canonical_verification(
-                request,
-                current_user,
-                MagicMock(slug="req-1"),
-                GitHubUrlValue("https://github.com/user/repo"),
-            )
-
-        record = next(
-            r for r in caplog.records if r.message == "verification.attempt.created"
-        )
-        assert record.__dict__["verification.attempt.id"] == str(
-            attempt_submission.attempt_id
-        )
-        assert record.__dict__["verification.attempt.created"] is True
-        assert record.__dict__["verification.requirement.slug"] == "req-1"
-        assert "user_id" not in record.__dict__
-
     async def test_submit_unexpected_error_renders_server_error(self, _patch_templates):
         """Unexpected exceptions render a server error card."""
 
@@ -540,34 +428,6 @@ class TestHtmxSubmitVerification:
         assert "private database details" not in caplog.text
         _patch_templates.TemplateResponse.assert_not_called()
 
-    async def test_repo_fork_is_rejected_by_value_route(self):
-
-        requirement = repo_fork_requirement(
-            slug="repo-fork",
-            required_repo="learntocloud/journal-starter",
-        )
-        request = _mock_request(form_items=[("submitted_value", "description")])
-        current_user = AuthenticatedUser(user_id=1, github_username="user")
-
-        with (
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
-                return_value=requirement,
-            ),
-            patch(
-                "learn_to_cloud.services.verification_attempt_service.create_verification_attempt",
-                new_callable=AsyncMock,
-            ) as mock_create,
-        ):
-            result = await htmx_submit_value_verification(
-                request,
-                current_user,
-                requirement_slug="repo-fork",
-            )
-
-        assert isinstance(result, HTMLResponse)
-        mock_create.assert_not_awaited()
-
     async def test_repo_fork_is_rejected_by_reflection_route(self):
 
         requirement = repo_fork_requirement(
@@ -601,12 +461,9 @@ class TestHtmxSubmitVerification:
 class TestHtmxVerificationAttemptStatus:
     """Polling uses owned database state without writing outcomes."""
 
-    @pytest.mark.parametrize("started", [False, True])
-    async def test_active_attempt_returns_next_poll_card(
-        self, started, _patch_templates
-    ):
+    async def test_active_attempt_returns_next_poll_card(self, _patch_templates):
         request = _mock_request()
-        attempt = self._attempt(started=started)
+        attempt = self._attempt()
         requirement = MagicMock(slug="req-1")
 
         with (

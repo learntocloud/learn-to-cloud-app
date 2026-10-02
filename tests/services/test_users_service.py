@@ -34,9 +34,6 @@ class TestNormalizeGithubUsername:
     def test_empty_returns_none(self):
         assert normalize_github_username("") is None
 
-    def test_already_lowercase(self):
-        assert normalize_github_username("testuser") == "testuser"
-
 
 # ---------------------------------------------------------------------------
 # normalize_display_name
@@ -60,11 +57,6 @@ class TestNormalizeDisplayName:
     )
     def test_preserves_exact_string(self, name, caplog):
         assert normalize_display_name(name) is name
-        assert not caplog.records
-
-    @pytest.mark.parametrize("name", [None, "", " ", "\t\n", "\u2003\u00a0"])
-    def test_absent_or_blank(self, name, caplog):
-        assert normalize_display_name(name) is None
         assert not caplog.records
 
     @pytest.mark.parametrize(

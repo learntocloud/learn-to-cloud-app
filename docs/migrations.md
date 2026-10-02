@@ -130,8 +130,9 @@ review modified historical migrations. Its exclusions and rationale live in
 A clean lint result is not approval of every operation.
 
 The migration suite recreates its dedicated `test_alembic_migrations` database.
-It covers the chain, head, model/schema agreement, and selected populated-data
-cases. Add representative data and runtime-role coverage for your change.
+It covers the chain, head, model/schema agreement, and every downgrade. Add
+representative data and runtime-role coverage for your change while it rolls
+out; remove revision-specific tests once production is past that revision.
 Rehearse `upgrade head`, `downgrade -1`, and `upgrade head` again on a disposable
 database when the downgrade is supported. Run the full
 [quality gate](contributing.md#quality-gates) before pushing.

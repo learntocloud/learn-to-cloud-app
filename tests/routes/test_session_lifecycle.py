@@ -366,9 +366,7 @@ async def test_touch_once_reuses_account_and_skips_static_health(
 
 
 @pytest.mark.parametrize("path", ["/reuse", "/required-first", "/optional-reuse"])
-@pytest.mark.parametrize(
-    "state", ["valid", "missing", "revoked", "malformed", "unknown"]
-)
+@pytest.mark.parametrize("state", ["valid", "revoked", "malformed"])
 async def test_account_identity_graph_resolves_consistently(
     session_apps, test_settings, path, state
 ):

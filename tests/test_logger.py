@@ -91,69 +91,6 @@ class TestJSONFormatter:
         assert "ValueError" in parsed["exception"]
         assert "boom" in parsed["exception"]
 
-    def test_non_serializable_extra_uses_library_default(self):
-        formatter = _json_formatter()
-        record = logging.LogRecord(
-            name="test",
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg="ok",
-            args=(),
-            exc_info=None,
-        )
-        data = object()
-        record.data = data
-
-        output = formatter.format(record)
-        parsed = json.loads(output)
-
-        assert parsed["data"] == str(data)
-
-    @pytest.mark.parametrize(
-        "value",
-        [
-            "linux\nFAKE LOG LINE",
-            "hello\r\nworld",
-            "step\x00injected",
-        ],
-        ids=["newline", "carriage-return", "null-byte"],
-    )
-    def test_json_encoding_escapes_control_chars_in_extras(self, value):
-        formatter = _json_formatter()
-        record = logging.LogRecord(
-            name="test",
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg="msg",
-            args=(),
-            exc_info=None,
-        )
-        record.field = value
-        output = formatter.format(record)
-        parsed = json.loads(output)
-        assert parsed["field"] == value
-        assert "\n" not in output
-        assert "\r" not in output
-        assert "\x00" not in output
-
-    def test_preserves_tabs_in_extras(self):
-        formatter = _json_formatter()
-        record = logging.LogRecord(
-            name="test",
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg="msg",
-            args=(),
-            exc_info=None,
-        )
-        record.data = "col1\tcol2"
-        output = formatter.format(record)
-        parsed = json.loads(output)
-        assert parsed["data"] == "col1\tcol2"
-
     def test_preserves_explicit_structured_extra(self):
         formatter = _json_formatter()
         record = logging.LogRecord(

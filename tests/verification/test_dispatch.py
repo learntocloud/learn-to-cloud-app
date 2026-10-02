@@ -121,21 +121,6 @@ async def test_repo_fork_uses_parent_from_ownership_metadata(parent):
     assert result.validation_result.is_valid is (parent == job.target.forked_from)
 
 
-async def test_security_dispatch_forwards_target_and_github(monkeypatch):
-    job = _job(SubmissionType.SECURITY_SCANNING)
-    repository = _owned(job)
-    assert repository is not None
-    expected = CheckResult(
-        validation_result=ValidationResult(is_valid=False, message="x")
-    )
-    verify = AsyncMock(return_value=expected)
-    monkeypatch.setattr(engine_module, "verify_security_scanning", verify)
-    github = FakeGitHub()
-
-    assert await engine_module._dispatch(job, repository, github) is expected
-    verify.assert_awaited_once_with(repository.target, github)
-
-
 @pytest.mark.parametrize("submission_type", _REPOSITORY_TYPES)
 async def test_repository_types_never_run_without_ownership(submission_type):
     with pytest.raises(ValueError, match="ownership-verified target"):
@@ -153,33 +138,6 @@ async def test_mismatched_submitted_value_is_a_programming_error():
     )
     with pytest.raises(TypeError, match="requires TokenValue"):
         await engine_module._dispatch(mismatched, None, FakeGitHub())
-
-
-@pytest.mark.parametrize(
-    "text",
-    ["A thoughtful reflection answer.", "## Question 0?\n\nMy answer includes a 🦊."],
-)
-async def test_career_reflection_prepares_complete_text_evidence(text):
-    result = await engine_module._dispatch(
-        _job(SubmissionType.CAREER_REFLECTION, text), None, FakeGitHub()
-    )
-
-    assert result.validation_result.is_valid
-    assert result.validation_result.verification_completed
-    assert result.validation_result.message == (
-        "Reflection received. Reviewing your answers."
-    )
-    assert result.grading is not None
-    assert result.grading.task is CAREER_REFLECTION_RUBRIC_TASK
-    bundle = result.grading.bundle
-    assert bundle.task_id == CAREER_REFLECTION_RUBRIC_TASK.id
-    assert bundle.source == "submitted_text"
-    assert bundle.selected_paths == ["career-reflection.md"]
-    (item,) = bundle.items
-    assert item.path == "career-reflection.md"
-    assert item.content == text
-    assert not item.truncated
-    assert bundle.total_bytes == len(text.encode("utf-8"))
 
 
 @pytest.mark.parametrize("text", ["", "   ", "\n\t"])

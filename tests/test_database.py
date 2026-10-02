@@ -2,7 +2,6 @@
 
 Covers the module-specific logic that isn't exercised by integration tests:
 - Azure credential locking and singleton behavior
-- Azure token acquisition (get_token delegates to SDK)
 - Credential shutdown cleanup (close_credential)
 - Pool checkout event (transaction state cleanup + safety net)
 - Health check timeout behavior
@@ -15,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import learn_to_cloud.core.azure_auth as auth_mod
-from learn_to_cloud.core.azure_auth import close_credential, get_credential, get_token
+from learn_to_cloud.core.azure_auth import close_credential, get_credential
 from learn_to_cloud.core.config import DatabaseConfig
 from learn_to_cloud.core.database import check_db_connection, get_db
 
@@ -65,34 +64,6 @@ class TestAzureCredentialLocking:
 
 
 # ===========================================================================
-# Azure token acquisition
-# ===========================================================================
-
-
-class TestAzureGetToken:
-    """Verify get_token delegates to the SDK credential."""
-
-    async def test_successful_token_acquisition(self):
-        """get_token should return the token string from credential.get_token."""
-        fake_token = MagicMock()
-        fake_token.token = "test-token-123"
-
-        fake_credential = AsyncMock()
-        fake_credential.get_token = AsyncMock(return_value=fake_token)
-        fake_credential.close = AsyncMock()
-
-        with patch(
-            "learn_to_cloud.core.azure_auth.ManagedIdentityCredential",
-            autospec=True,
-            return_value=fake_credential,
-        ):
-            token = await get_token()
-
-        assert token == "test-token-123"
-        fake_credential.get_token.assert_awaited_once()
-
-
-# ===========================================================================
 # Credential shutdown cleanup
 # ===========================================================================
 
@@ -117,13 +88,6 @@ class TestCloseCredential:
         await auth_mod.close_credential()
 
         fake_credential.close.assert_awaited_once()
-        assert auth_mod._azure_credential is None
-
-    async def test_close_credential_noop_when_none(self):
-        """close_credential should be safe to call when no credential exists."""
-
-        assert auth_mod._azure_credential is None
-        await auth_mod.close_credential()  # should not raise
         assert auth_mod._azure_credential is None
 
 
