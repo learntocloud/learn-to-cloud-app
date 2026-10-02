@@ -3,28 +3,26 @@ name: Application Deploy
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'Dockerfile'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.dockerignore'
+      - 'scripts/verify_production.sh'
+      - '.github/workflows/app-deploy.yml'
   workflow_dispatch:
     inputs:
-      target:
-        description: What to deploy
-        required: true
-        default: application
-        type: choice
-        options:
-          - application
-          - infrastructure
-          - all
       force_rebuild:
         description: Force rebuild without cache
         required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
+        default: false
+        type: boolean
 
 concurrency:
-  group: production-deploy-${{ github.ref }}
+  group: production-app
   cancel-in-progress: false
 
 permissions:
@@ -41,11 +39,14 @@ env:
   ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
 jobs:
-  changes:
+  deploy:
     runs-on: ubuntu-latest
-    outputs:
-      app: ${{ github.event_name == 'workflow_dispatch' && inputs.target != 'infrastructure' || github.event_name != 'workflow_dispatch' && steps.filter.outputs.app == 'true' }}
-      infra: ${{ github.event_name == 'workflow_dispatch' && inputs.target != 'application' || github.event_name != 'workflow_dispatch' && steps.filter.outputs.infra == 'true' }}
+    timeout-minutes: 60
+    env:
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_USE_OIDC: true
+      FORCE_REBUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild }}
     steps:
       - name: Validate deployment context
         run: |
@@ -57,60 +58,6 @@ jobs:
           : "${AZURE_ENV_NAME:?AZURE_ENV_NAME repository variable is required}"
           : "${AZURE_SUBSCRIPTION_ID:?AZURE_SUBSCRIPTION_ID repository variable is required}"
 
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 2
-
-      - name: Detect deployment changes
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        id: filter
-        with:
-          filters: |
-            app:
-              - 'src/**'
-              - 'Dockerfile'
-              - 'package.json'
-              - 'package-lock.json'
-              - 'pyproject.toml'
-              - 'uv.lock'
-              - '.dockerignore'
-              - '.github/workflows/app-deploy.yml'
-            infra:
-              - 'infra/**'
-              - '.github/workflows/infra-deploy.yml'
-
-  quality:
-    needs: [changes]
-    uses: ./.github/workflows/ci.yml
-    with:
-      force_all: ${{ github.event_name == 'workflow_dispatch' }}
-
-  infrastructure:
-    needs: [changes, quality]
-    if: needs.changes.outputs.infra == 'true'
-    uses: ./.github/workflows/infra-deploy.yml
-    with:
-      apply: true
-    secrets: inherit
-
-  deploy:
-    name: ${{ needs.changes.outputs.app == 'true' && 'Deploy application' || 'Verify infrastructure' }}
-    if: >-
-      always() &&
-      !cancelled() &&
-      needs.changes.result == 'success' &&
-      needs.quality.result == 'success' &&
-      (needs.infrastructure.result == 'success' || needs.infrastructure.result == 'skipped') &&
-      (needs.changes.outputs.app == 'true' ||
-       needs.changes.outputs.infra == 'true')
-    needs: [changes, quality, infrastructure]
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    env:
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_USE_OIDC: true
-    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Terraform
@@ -135,12 +82,13 @@ jobs:
         working-directory: infra
         run: |
           set -euo pipefail
+          outputs=$(terraform output -json)
 
           publish_output() {
             local output_name=$1
             local terraform_name=$2
             local value
-            value=$(terraform output -raw "$terraform_name")
+            value=$(jq -r --arg name "$terraform_name" '.[$name].value // empty' <<<"$outputs")
             if [[ -z "$value" ]]; then
               echo "::error::Terraform output $terraform_name is empty." >&2
               exit 1
@@ -164,51 +112,50 @@ jobs:
           publish_output smoke_auth_scope smoke_auth_scope
 
       - name: Log in to ACR
-        if: needs.changes.outputs.app == 'true'
         env:
           REGISTRY: ${{ steps.context.outputs.container_registry_name }}
         run: az acr login --name "$REGISTRY"
 
       - name: Set up Docker Buildx
-        if: needs.changes.outputs.app == 'true'
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
-      - name: Build API image for validation
-        if: needs.changes.outputs.app == 'true'
+      - name: Build and push API image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: Dockerfile
           target: api-runtime
           platforms: linux/amd64
-          load: true
-          push: false
+          push: true
           tags: ${{ steps.context.outputs.container_registry_endpoint }}/api:${{ github.sha }}
           labels: git-commit=${{ github.sha }}
           cache-from: type=gha,scope=api-runtime
           cache-to: type=gha,scope=api-runtime,mode=max
-          no-cache: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild == 'true' }}
-          pull: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild == 'true' }}
+          # Keep the deployable manifest compatible with Azure Container Apps.
+          provenance: false
+          no-cache: ${{ env.FORCE_REBUILD == 'true' }}
+          pull: ${{ env.FORCE_REBUILD == 'true' }}
 
-      - name: Build migrations image for validation
-        if: needs.changes.outputs.app == 'true'
+      - name: Build and push migrations image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: Dockerfile
           target: migrations-runtime
           platforms: linux/amd64
-          load: true
-          push: false
+          push: true
           tags: ${{ steps.context.outputs.container_registry_endpoint }}/migrations:${{ github.sha }}
           labels: git-commit=${{ github.sha }}
           cache-from: type=gha,scope=migrations-runtime
           cache-to: type=gha,scope=migrations-runtime,mode=max
-          no-cache: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild == 'true' }}
-          pull: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild == 'true' }}
+          # Keep the deployable manifest compatible with Azure Container Apps.
+          provenance: false
+          no-cache: ${{ env.FORCE_REBUILD == 'true' }}
+          pull: ${{ env.FORCE_REBUILD == 'true' }}
 
-      - name: Validate runtime images
-        if: needs.changes.outputs.app == 'true'
+      # Terraform's container templates reference :latest, so promote only
+      # images that pass the runtime package check.
+      - name: Validate and promote runtime images
         env:
           REGISTRY: ${{ steps.context.outputs.container_registry_endpoint }}
         run: |
@@ -224,48 +171,12 @@ jobs:
           main()
           PY
 
-      - name: Publish API image
-        if: needs.changes.outputs.app == 'true'
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
-        with:
-          context: .
-          file: Dockerfile
-          target: api-runtime
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ steps.context.outputs.container_registry_endpoint }}/api:${{ github.sha }}
-            ${{ steps.context.outputs.container_registry_endpoint }}/api:latest
-          labels: git-commit=${{ github.sha }}
-          cache-from: type=gha,scope=api-runtime
-          # Keep the deployable manifest compatible with Azure Container Apps.
-          provenance: false
-          # Reuse the smoke-tested build result instead of resolving new base images.
-          no-cache: false
-          pull: false
-
-      - name: Publish migrations image
-        if: needs.changes.outputs.app == 'true'
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
-        with:
-          context: .
-          file: Dockerfile
-          target: migrations-runtime
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ steps.context.outputs.container_registry_endpoint }}/migrations:${{ github.sha }}
-            ${{ steps.context.outputs.container_registry_endpoint }}/migrations:latest
-          labels: git-commit=${{ github.sha }}
-          cache-from: type=gha,scope=migrations-runtime
-          # Keep the deployable manifest compatible with Azure Container Apps.
-          provenance: false
-          # Reuse the smoke-tested build result instead of resolving new base images.
-          no-cache: false
-          pull: false
+          for image in api migrations; do
+            docker buildx imagetools create \
+              --tag "$REGISTRY/$image:latest" "$REGISTRY/$image:$GITHUB_SHA"
+          done
 
       - name: Run database migrations
-        if: needs.changes.outputs.app == 'true'
         env:
           MIGRATION_JOB_NAME: ${{ steps.context.outputs.migration_job_name }}
           MIGRATION_CLIENT_ID: ${{ steps.context.outputs.migration_identity_client_id }}
@@ -340,7 +251,6 @@ jobs:
           exit 1
 
       - name: Deploy to Container App
-        if: needs.changes.outputs.app == 'true'
         env:
           APP_NAME: ${{ steps.context.outputs.api_container_app_name }}
           RESOURCE_GROUP: ${{ steps.context.outputs.resource_group_name }}
@@ -352,105 +262,11 @@ jobs:
             --container-name api \
             --image "$IMAGE"
 
-      - name: Verify production readiness
-        timeout-minutes: 10
+      - name: Verify production
         env:
           APP_NAME: ${{ steps.context.outputs.api_container_app_name }}
-          ARTIFACT_DEPLOYED: ${{ needs.changes.outputs.app }}
-          REGISTRY: ${{ steps.context.outputs.container_registry_endpoint }}
           RESOURCE_GROUP: ${{ steps.context.outputs.resource_group_name }}
-          READY_URL: ${{ steps.context.outputs.api_url }}/ready
-        run: |
-          set -euo pipefail
-
-          EXPECTED_IMAGE=""
-          if [[ "$ARTIFACT_DEPLOYED" == "true" ]]; then
-            EXPECTED_IMAGE="$REGISTRY/api:$GITHUB_SHA"
-          fi
-
-          REVISION=""
-          if [[ -n "$EXPECTED_IMAGE" ]]; then
-            echo "Looking for revision running image: $EXPECTED_IMAGE"
-            for i in {1..12}; do
-              REVISION=$(az containerapp revision list \
-                --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" \
-                --query "[?properties.template.containers[0].image=='$EXPECTED_IMAGE'] | [0].name" \
-                -o tsv 2>/dev/null || true)
-              if [[ -n "$REVISION" && "$REVISION" != "None" ]]; then
-                break
-              fi
-              sleep 5
-            done
-          else
-            REVISION=$(az containerapp show \
-              --name "$APP_NAME" \
-              --resource-group "$RESOURCE_GROUP" \
-              --query properties.latestRevisionName \
-              --output tsv)
-          fi
-
-          if [[ -z "$REVISION" || "$REVISION" == "None" ]]; then
-            echo "::error::No expected Container App revision was found." >&2
-            exit 1
-          fi
-
-          for i in {1..36}; do
-            STATE=$(az containerapp revision show \
-              --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --revision "$REVISION" \
-              --query "{health:properties.healthState, running:properties.runningState, traffic:properties.trafficWeight}" \
-              -o json 2>/dev/null || echo '{}')
-            HEALTH=$(echo "$STATE" | jq -r '.health // "Unknown"')
-            RUNNING=$(echo "$STATE" | jq -r '.running // "Unknown"')
-            TRAFFIC=$(echo "$STATE" | jq -r '.traffic // 0')
-            echo "Attempt $i: revision=$REVISION health=$HEALTH running=$RUNNING traffic=$TRAFFIC"
-
-            if [[ "$RUNNING" =~ ^(ActivationFailed|Failed)$ ]]; then
-              az containerapp logs show \
-                --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --revision "$REVISION" \
-                --tail 100 --format text 2>&1 || true
-              exit 1
-            fi
-            if [[ "$HEALTH" == "Healthy" && "$TRAFFIC" -gt 0 ]]; then
-              code=$(curl -s -o /dev/null -w "%{http_code}" "$READY_URL" || true)
-              if [[ "$code" == "200" ]]; then
-                exit 0
-              fi
-            fi
-            sleep 10
-          done
-          az containerapp logs show \
-            --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --revision "$REVISION" \
-            --tail 100 --format text 2>&1 || true
-          exit 1
-
-      - name: Smoke test verification submit path
-        timeout-minutes: 3
-        env:
+          API_URL: ${{ steps.context.outputs.api_url }}
           SMOKE_SCOPE: ${{ steps.context.outputs.smoke_auth_scope }}
-          SMOKE_URL: ${{ steps.context.outputs.api_url }}/internal/smoke/verification
-        run: |
-          set -euo pipefail
-          access_token=$(az account get-access-token \
-            --scope "$SMOKE_SCOPE" \
-            --query accessToken \
-            --output tsv)
-          echo "::add-mask::$access_token"
-
-          code=000
-          for i in {1..6}; do
-            if ! code=$(curl --silent --output /tmp/entra_smoke_body.txt \
-              --write-out "%{http_code}" \
-              --request POST "$SMOKE_URL" \
-              --header "Authorization: Bearer $access_token"); then
-              code=000
-            fi
-            echo "Attempt $i: HTTP $code"
-            if [[ "$code" == "200" ]]; then
-              cat /tmp/entra_smoke_body.txt || true
-              exit 0
-            fi
-            sleep 10
-          done
-
-          cat /tmp/entra_smoke_body.txt || true
-          exit 1
+          EXPECTED_IMAGE: ${{ steps.context.outputs.container_registry_endpoint }}/api:${{ github.sha }}
+        run: scripts/verify_production.sh
