@@ -5,7 +5,7 @@ The SDK handles token caching, retries, and refresh internally.
 
 Note: azure.identity.aio's default async transport requires the `aiohttp`
 package at runtime, even though azure-identity does not declare it as a
-dependency. Keep `aiohttp` pinned in pyproject.toml or this raises
+dependency. Keep the `azure-core[aio]` extra in pyproject.toml or this raises
 `ImportError: aiohttp package is not installed` on first token request.
 """
 
