@@ -23,21 +23,17 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
-import time
 from importlib import import_module
 
 from alembic import context
-from azure.identity import DefaultAzureCredential
-from sqlalchemy import URL, Connection, make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy import Connection
+from sqlalchemy.ext.asyncio import AsyncEngine
 
-from learn_to_cloud.core.azure_auth import AZURE_PG_SCOPE
-from learn_to_cloud.core.config import (
-    get_migration_settings,
-)
 from learn_to_cloud.core.database import Base
+from learn_to_cloud.migrations.connection import (
+    create_migration_engine,
+    database_url,
+)
 
 # Import models so Base.metadata is populated for autogenerate.
 import_module("learn_to_cloud.models")
@@ -54,56 +50,10 @@ if config.cmd_opts is not None:
 target_metadata = Base.metadata
 
 
-def _get_azure_token_with_retry() -> str:
-    """Return an Entra ID token for PostgreSQL with retry.
-
-    Managed-identity sidecars can take up to ~30s to come up on Container
-    Apps cold starts, so we retry a handful of times with exponential
-    backoff before giving up.
-    """
-    max_attempts = 6
-    initial_wait = 2
-
-    client_id = os.environ.get("AZURE_CLIENT_ID")
-    cred_kwargs: dict[str, str] = {}
-    if client_id:
-        cred_kwargs["managed_identity_client_id"] = client_id
-
-    last_error: Exception | None = None
-    for attempt in range(max_attempts):
-        try:
-            credential = DefaultAzureCredential(**cred_kwargs)
-            return credential.get_token(AZURE_PG_SCOPE).token
-        except Exception as e:
-            last_error = e
-            if attempt < max_attempts - 1:
-                time.sleep(initial_wait * (2**attempt))
-
-    raise RuntimeError(
-        f"Failed to acquire Azure AD token after {max_attempts} attempts"
-    ) from last_error
-
-
-def _get_database_url(*, with_token: bool) -> URL:
-    """Return an asyncpg URL; offline mode only needs the dialect."""
-    settings = get_migration_settings().database
-    if settings.use_azure_postgres:
-        return URL.create(
-            "postgresql+asyncpg",
-            username=settings.user,
-            password=_get_azure_token_with_retry() if with_token else None,
-            host=settings.host,
-            port=settings.port,
-            database=settings.name,
-            query={"ssl": "require"},
-        )
-    return make_url(settings.url)
-
-
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode (emit SQL, no DB connection)."""
     context.configure(
-        url=_get_database_url(with_token=False),
+        url=database_url(with_token=False),
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=True,
@@ -140,9 +90,7 @@ def run_migrations_online() -> None:
     engine: AsyncEngine | None = config.attributes.get("connection", None)
     owns_engine = engine is None
     if engine is None:
-        engine = create_async_engine(
-            _get_database_url(with_token=True), poolclass=NullPool
-        )
+        engine = create_migration_engine()
 
     async def run_and_dispose() -> None:
         try:

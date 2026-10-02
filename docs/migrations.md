@@ -59,11 +59,12 @@ demonstrates bounded concurrent index rebuilding after interruption.
 ## How Migrations Run in Production
 
 The
-[`deployment workflow`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/.github/workflows/app-deploy.yml)
+[`deployment workflow`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/.github/workflows/deploy.yml)
 starts a single-runner Container Apps migration job with an immutable image tag.
 The API does not migrate on startup. The job applies migrations, verifies the
-head, and checks the physical schema against model metadata. Any failure must
-stop the API update.
+head, checks the physical schema against model metadata, and checks that the API
+runtime role (`POSTGRES_API_RUNTIME_ROLE`) has `SELECT`, `INSERT`, `UPDATE`, and
+`DELETE` on every model table. Any failure must stop the API update.
 
 The job runs the `learn-to-cloud-migrate` console script. The runner and job
 configuration are authoritative:

@@ -129,27 +129,30 @@ gates, and links to focused development guides.
 
 ## Deployment
 
-CI runs on pull requests. Pushes to `main` deploy through two independent
-pipelines, selected by changed paths:
+CI runs on pull requests. Pushes to `main` that change infrastructure,
+application runtime files, or the deploy workflow run `deploy.yml`, one ordered
+pipeline that runs a single deploy at a time:
 
-- `app-deploy.yml` runs for application runtime changes (`src/`, `Dockerfile`,
-  dependency manifests). It builds and pushes the API and migration images,
-  runs migrations, updates the API, and verifies production. It reads Terraform
-  outputs but never plans or applies infrastructure. Tests and documentation do
-  not deploy.
-- `infra-deploy.yml` runs for `infra/` changes. It plans and applies Terraform,
-  then verifies production without building images or running migrations.
+1. Plans Terraform and applies it when there are changes.
+2. Releases the API when application files (`src/`, `Dockerfile`, dependency
+   manifests) differ from the commit production currently runs. It builds and
+   pushes the API and migration images, runs migrations, and updates the API.
+3. Verifies that the latest revision runs the expected image, is healthy, and
+   returns 200 from `/ready`.
 
-Ship infrastructure and application changes as separate pull requests: merge the
-infrastructure change and let it deploy before merging application code that
-depends on it.
+Each run releases the latest `main`, not just the commit that triggered it, so
+a run that waited behind another deploy cannot roll production back. Tests and
+documentation do not deploy.
 
-A manual **Infrastructure Deploy** run is plan-only unless `apply` is selected.
-A manual **Application Deploy** run redeploys the current `main`.
+Ship infrastructure and application changes as separate pull requests,
+infrastructure first, so either can be reverted on its own.
 
-After a failed deployment, fix and rerun it before shipping another release.
-Path selection describes the current push, not everything since the last
-successful deployment. Do not use an old workflow run as an image-only rollback.
+A manual **Deploy** run redeploys the current `main`; select `force_rebuild` to
+rebuild the API without cache. Select `plan_only` to plan Terraform for the
+selected branch without applying or deploying.
+
+After a failed deployment, fix and rerun it before shipping another release. Do
+not use an old workflow run as an image-only rollback.
 
 ## License
 

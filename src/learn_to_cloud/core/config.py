@@ -151,12 +151,6 @@ class SessionConfig(FrozenConfig):
         return self
 
 
-class SmokeTestConfig(FrozenConfig):
-    """Post-deploy smoke-test authorization config."""
-
-    allowed_client_id: str = ""
-
-
 class CorsConfig(FrozenConfig):
     """Frontend URL and CORS config."""
 
@@ -229,7 +223,6 @@ class WebSettings(BaseSettings):
     database: DatabaseConfig
     oauth: OAuthConfig = OAuthConfig()
     session: SessionConfig = SessionConfig()
-    smoke_test: SmokeTestConfig = SmokeTestConfig()
     cors: CorsConfig = CorsConfig()
     frontend_telemetry: FrontendTelemetryConfig = FrontendTelemetryConfig()
     verification_worker: VerificationWorkerConfig = VerificationWorkerConfig()
