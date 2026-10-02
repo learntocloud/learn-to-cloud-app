@@ -52,7 +52,6 @@ _NETWORK_PACKAGES = {
     "requests-oauthlib": "msrest dependency of the telemetry exporter",
     "urllib3": "requests internals",
     "httptools": "uvicorn inbound HTTP parser",
-    "websockets": "uvicorn inbound websocket support",
 }
 
 _FORBIDDEN_IMPORTS = (
