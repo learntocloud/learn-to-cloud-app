@@ -1046,7 +1046,6 @@ def test_community_page_renders_safe_external_resource_links():
     )
 
     expected_links = {
-        "https://discord.gg/st7g2Hp77r",
         "https://github.com/learntocloud/learn-to-cloud-app/discussions",
         "https://youtube.com/made-by-gps",
         "https://github.com/learntocloud/learn-to-cloud-app",
@@ -1057,14 +1056,14 @@ def test_community_page_renders_safe_external_resource_links():
         assert f'href="{url}"' in html
     assert html.count('rel="noopener noreferrer"') >= len(expected_links)
     assert "No verification activity has been recorded in the past 7 days." in html
-    assert "Discord" in html
+    assert "discord.gg" not in html
     assert "GitHub Discussions" in html
     assert "Follow @madebygps" in html
     assert "Follow @learntocloud" in html
 
 
 @pytest.mark.unit
-def test_dashboard_help_section_links_to_discord():
+def test_dashboard_help_section_links_to_issue_report():
     dashboard = SimpleNamespace(
         phases=[],
         learning_percentage=0,
@@ -1077,7 +1076,7 @@ def test_dashboard_help_section_links_to_discord():
 
     html = _render("pages/dashboard.html", dashboard=dashboard, help_links=HELP_LINKS)
 
-    assert 'href="https://discord.gg/st7g2Hp77r"' in html
+    assert "discord.gg" not in html
     (link,) = _report_links(html)
     _assert_report_form(link, "app_problem.yml", "page=dashboard")
     assert 'href="https://x.com/madebygps"' not in html
