@@ -53,7 +53,7 @@ learning_steps:
   order: 6
   action: 'Practice:'
   title: Join the Learn to Cloud Discord
-  url: https://discord.gg/st7g2Hp77r
+  url: https://discord.gg/kDUStZnczs
   description: Join the Learn to Cloud Discord server to connect with other learners and get help as you work through the curriculum.
   done_when: You've joined the server and read the community rules.
   slug: phase0-topic0-practice-join-discord

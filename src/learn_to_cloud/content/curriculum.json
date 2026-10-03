@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "3f46991dd03ce30cf0ededd937409920c14838ea1f33e1e42cae5c5f35b220b5",
-  "curriculum_version": 24,
+  "content_hash": "1913ffa204531644a71cb6e9987e570df1d24c7aa6d1f907a4aa1b0a80f1717c",
+  "curriculum_version": 25,
   "phases": [
     {
       "completion_summary": "You built a foundation in Linux, networking, programming, cloud computing, and DevOps and created a public learning profile.",
@@ -151,7 +151,7 @@
               "slug": "phase0-topic0-practice-join-discord",
               "tips": [],
               "title": "Join the Learn to Cloud Discord",
-              "url": "https://discord.gg/st7g2Hp77r",
+              "url": "https://discord.gg/kDUStZnczs",
               "uuid": "018392db-e453-4349-a162-cee0ee69b7f4"
             }
           ],
