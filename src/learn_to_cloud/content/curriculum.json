@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "1913ffa204531644a71cb6e9987e570df1d24c7aa6d1f907a4aa1b0a80f1717c",
-  "curriculum_version": 25,
+  "content_hash": "c3b1b96adb9542719f9ac05a5da55c6f2a6b1215bd2ee9e50ab8398d8d4feaa7",
+  "curriculum_version": 26,
   "phases": [
     {
       "completion_summary": "You built a foundation in Linux, networking, programming, cloud computing, and DevOps and created a public learning profile.",
@@ -144,14 +144,14 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Join the Learn to Cloud Discord server to connect with other learners and get help as you work through the curriculum.",
-              "done_when": "You've joined the server and read the community rules.",
+              "description": "Reply to the Introduce yourself discussion to meet other learners. Use GitHub Discussions to ask questions as you work through the curriculum, and open an issue when something is broken.",
+              "done_when": "You've replied to the Introduce yourself discussion.",
               "options": [],
               "order": 6,
-              "slug": "phase0-topic0-practice-join-discord",
+              "slug": "phase0-topic0-practice-introduce-yourself",
               "tips": [],
-              "title": "Join the Learn to Cloud Discord",
-              "url": "https://discord.gg/kDUStZnczs",
+              "title": "Introduce yourself on GitHub Discussions",
+              "url": "https://github.com/learntocloud/learn-to-cloud-app/discussions/956",
               "uuid": "018392db-e453-4349-a162-cee0ee69b7f4"
             }
           ],
