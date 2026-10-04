@@ -144,14 +144,6 @@
         @apply grid gap-4 rounded-2xl border border-gray-200 p-5 transition-colors hover:border-blue-300 hover:bg-blue-50/50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:border-gray-700 dark:hover:border-blue-700 dark:hover:bg-blue-950/30 dark:focus-visible:outline-blue-300 sm:grid-cols-[1fr_auto] sm:items-center;
     }
 
-    .verification-result-summary {
-        @apply mt-4 flex items-center gap-4 rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-800/60;
-    }
-
-    .verification-result-count {
-        @apply shrink-0 text-3xl font-semibold tracking-tight;
-    }
-
     .verification-check-row {
         @apply flex items-start gap-3 rounded-lg border-l-2 p-3;
     }

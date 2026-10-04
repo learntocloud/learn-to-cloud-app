@@ -11,7 +11,6 @@
             states: new Map(Array.from(root.querySelectorAll('[data-verification-state]'),
                 card => [card.id, card.dataset.verificationState])),
             complete: root.dataset.phaseComplete === 'true',
-            progress: root.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow'),
             focusedId: document.activeElement?.closest('[data-verification-state]')?.id,
         };
     }
@@ -64,14 +63,6 @@
                 }
             }
             if (celebrate) root.querySelector('[data-phase-celebration]')?.classList.add('verification-success');
-            const bar = root.querySelector('[role="progressbar"]');
-            if (bar && before.progress !== null && before.progress !== undefined
-                && before.progress !== bar.getAttribute('aria-valuenow')) {
-                bar.firstElementChild.animate([
-                    { width: before.progress + '%' },
-                    { width: bar.getAttribute('aria-valuenow') + '%' },
-                ], { duration: 600, easing: 'ease-out' });
-            }
         }
 
         if (result) {

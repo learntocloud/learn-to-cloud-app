@@ -576,8 +576,8 @@ class TestPhaseVerificationCardStates:
         assert ':disabled="!valid"' in html
         assert 'href="/phase/1"' in html
         assert "Review Phase 1 learning" in html
-        assert 'href="/dashboard"' in html
-        assert "Return to dashboard" in html
+        assert "0 of 1 requirements verified" in html
+        assert 'role="progressbar"' not in html
 
     def test_token_form_uses_configured_length_limits(self):
 
@@ -904,6 +904,7 @@ def test_phase_verification_renders_paginated_safe_attempt_history():
     assert "submitted-token-value" not in html
     assert 'href="/verifications/phase/3?history_page=1"' in html
     assert 'href="/verifications/phase/3?history_page=3"' in html
+    assert '<details class="mt-2" open>' in html
 
 
 @pytest.mark.unit
