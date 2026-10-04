@@ -30,14 +30,12 @@ from learn_to_cloud.verification.github_profile import (
 )
 from learn_to_cloud.verification.grading_requests import (
     LLMGradingRequest,
-    build_repo_rubric_message,
     build_text_rubric_message,
 )
 from learn_to_cloud.verification.repository_ownership import (
     OwnedRepository,
     check_repository_ownership,
 )
-from learn_to_cloud.verification.repository_target import GitHubRepositoryTarget
 from learn_to_cloud.verification.security_scanning import verify_security_scanning
 from learn_to_cloud.verification.submission_values import (
     DeployedUrlValue,
@@ -60,15 +58,10 @@ _USERNAME_OPTIONAL = frozenset(
 
 def _grading_request(
     job: PreparedVerificationAttempt,
-    target: GitHubRepositoryTarget | None,
     deterministic_result: ValidationResult,
     grading: GradingEvidence,
 ) -> LLMGradingRequest:
-    """Build the recorded grading request from a passing check's evidence.
-
-    A task whose evidence source is ``submitted_text`` grades free text with no
-    repository (Phase 7); every other task requires a repository target.
-    """
+    """Build the recorded grading request from a passing check's evidence."""
     task = grading.task
     evidence = grading.bundle.model_dump(mode="json")
     allowed_evidence_refs = [
@@ -80,26 +73,13 @@ def _grading_request(
         allowed_evidence_refs.extend(
             task_result.task_name for task_result in deterministic_result.task_results
         )
-    if task.evidence.source == "submitted_text":
-        message = build_text_rubric_message(
-            requirement_slug=job.requirement.slug,
-            requirement_name=job.requirement.name,
-            deterministic_result=deterministic_result,
-            task=task,
-            evidence=evidence,
-        )
-    else:
-        if target is None:
-            raise ValueError(f"Repository rubric task {task.id} has no target")
-        message = build_repo_rubric_message(
-            requirement_slug=job.requirement.slug,
-            requirement_name=job.requirement.name,
-            deterministic_result=deterministic_result,
-            owner=target.owner,
-            repo=target.repo,
-            task=task,
-            evidence=evidence,
-        )
+    message = build_text_rubric_message(
+        requirement_slug=job.requirement.slug,
+        requirement_name=job.requirement.name,
+        deterministic_result=deterministic_result,
+        task=task,
+        evidence=evidence,
+    )
     return LLMGradingRequest(
         task=task,
         message=message,
@@ -166,7 +146,8 @@ async def _dispatch(
             target = _owned(repository).target
             result = await verify_devops_pipeline(target.owner, target.repo, github)
         case SubmissionType.SECURITY_SCANNING:
-            return await verify_security_scanning(_owned(repository).target, github)
+            target = _owned(repository).target
+            result = await verify_security_scanning(target, github)
         case SubmissionType.CAREER_REFLECTION:
             return _career_reflection(_value(job, TextValue).text)
         case _:
@@ -244,7 +225,6 @@ async def run_verification(
                 )
             span.set_attribute("verification.step.result", "passed")
             repository = ownership
-            target = ownership.target
 
     result = await _run_check(job, repository, github)
     validation_result = result.validation_result
@@ -257,7 +237,7 @@ async def run_verification(
     ):
         try:
             grading_requests = [
-                _grading_request(job, target, validation_result, result.grading)
+                _grading_request(job, validation_result, result.grading)
             ]
         except EvidenceError as exc:
             record_evidence_decision(exc.code)

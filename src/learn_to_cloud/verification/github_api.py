@@ -11,16 +11,11 @@ from __future__ import annotations
 from typing import Any, Literal, Protocol
 
 import httpx2
-from opentelemetry import trace
 from pydantic import Field, TypeAdapter
 
-from learn_to_cloud.core.github_client import get_github_client
 from learn_to_cloud.schemas.base import FrozenModel
-from learn_to_cloud.verification.evidence import EvidenceError
 from learn_to_cloud.verification.github_http import (
-    get_github_headers,
     github_api_get,
-    raise_for_server_error,
 )
 
 _API = "https://api.github.com/repos"
@@ -117,16 +112,6 @@ class GitHub(Protocol):
         self, owner: str, repo: str, deployment_id: int
     ) -> DeploymentStatus | None: ...
 
-    async def tree(self, owner: str, repo: str, branch: str = "main") -> list[str]:
-        """Return every blob path in the repository."""
-        ...
-
-    async def file(
-        self, owner: str, repo: str, path: str, branch: str = "main"
-    ) -> str | None:
-        """Return a file's text, or ``None`` only when it does not exist."""
-        ...
-
 
 class GitHubClient:
     """Production :class:`GitHub` backed by the GitHub HTTP API."""
@@ -217,31 +202,3 @@ class GitHubClient:
             response.json(), strict=True
         )
         return statuses[0] if statuses else None
-
-    async def tree(self, owner: str, repo: str, branch: str = "main") -> list[str]:
-        response = await github_api_get(
-            f"{_API}/{owner}/{repo}/git/trees/{branch}", params={"recursive": 1}
-        )
-        tree_data = response.json()
-        if tree_data.get("truncated"):
-            raise EvidenceError("evidence.selection")
-        return [
-            item["path"]
-            for item in tree_data.get("tree", [])
-            if item.get("type") == "blob"
-        ]
-
-    async def file(
-        self, owner: str, repo: str, path: str, branch: str = "main"
-    ) -> str | None:
-        client = await get_github_client()
-        response = await client.get(
-            f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}",
-            headers=get_github_headers(),
-        )
-        if response.status_code == 404:
-            trace.get_current_span().add_event("github.repo_file.fetch_failed")
-            return None
-        raise_for_server_error(response)
-        response.raise_for_status()
-        return response.text

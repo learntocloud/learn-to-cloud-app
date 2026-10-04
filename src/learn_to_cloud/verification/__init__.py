@@ -7,7 +7,8 @@ Runs inside the API verification worker. Submodules:
     ci_status         - CI test-pass check
     token_base        - HMAC token verification for CTF + Networking Lab
     devops_verification   - Current-commit delivery workflow and job results
-    security_scanning - CodeQL gate + scanning config evidence
+    security_scanning - CodeQL gate and live HTTPS-only gate
+    secure_deployment - Production URL lookup plus plain-HTTP and HSTS probes
     deployed_api      - Live journal creation and AI analysis
     errors            - Verification error types and error-to-result mappers
     tasks/            - Task definitions per phase

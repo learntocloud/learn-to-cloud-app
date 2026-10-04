@@ -4,14 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from hashlib import sha256
-from typing import TYPE_CHECKING
 
-import httpx2
 from opentelemetry import trace
 
 from learn_to_cloud.schemas.base import FrozenModel
 from learn_to_cloud.schemas.verification import ValidationResult
-from learn_to_cloud.verification.github_errors import GitHubServerError
 from learn_to_cloud.verification.tasks.base import (
     EvidenceBundle,
     EvidenceItem,
@@ -19,13 +16,9 @@ from learn_to_cloud.verification.tasks.base import (
     VerificationTask,
 )
 
-if TYPE_CHECKING:
-    from learn_to_cloud.verification.github_api import GitHub
-
 EVIDENCE_ERROR_CODES = frozenset(
     {
         "evidence.required_missing",
-        "evidence.changed",
         "evidence.file_limit",
         "evidence.item_limit",
         "evidence.total_limit",
@@ -49,11 +42,6 @@ class EvidenceError(ValueError):
     def to_validation_result(self) -> ValidationResult:
         if self.code == "evidence.required_missing":
             message = "Missing required evidence: " + ", ".join(self.missing) + "."
-        elif self.code == "evidence.changed":
-            message = (
-                "Your work was not judged because repository evidence changed "
-                "while it was read. Retry after the repository stops changing."
-            )
         else:
             message = (
                 "Your work was not judged. The verifier could not assemble the "
@@ -83,13 +71,11 @@ def record_evidence_decision(
     total_bytes: int = 0,
 ) -> None:
     """Emit only fixed decision labels and aggregate numeric measurements."""
-    if reason not in EVIDENCE_ERROR_CODES | {"complete", "retrieval"}:
+    if reason not in EVIDENCE_ERROR_CODES | {"complete"}:
         raise ValueError("Unknown evidence telemetry reason")
     outcome = {
         "complete": "complete",
         "evidence.required_missing": "required_missing",
-        "evidence.changed": "retrieval_failed",
-        "retrieval": "retrieval_failed",
     }.get(reason, "incomplete")
     trace.get_current_span().add_event(
         "verification.evidence.assembled",
@@ -162,7 +148,6 @@ def validate_evidence_bundle(task: VerificationTask, bundle: EvidenceBundle) -> 
     selected = bundle.selected_paths
     if (
         bundle.task_id != task.id
-        or bundle.source != policy.source
         or not paths
         or len(paths) != len(set(paths))
         or len(selected) != len(set(selected))
@@ -253,76 +238,10 @@ def apply_evidence_cap(
     return bundle
 
 
-async def collect_repo_file_evidence(
-    github: GitHub,
-    owner: str,
-    repo: str,
-    paths: list[str],
-    task: VerificationTask,
-    branch: str = "main",
-) -> EvidenceBundle:
-    """Resolve presence first, then read every selected file in full."""
-    fetched: list[tuple[str, str]] = []
-    selected: list[str] = []
-    try:
-        validate_evidence_policy(task.evidence)
-        if task.evidence.source != "repo_files":
-            raise EvidenceError("evidence.configuration")
-        if len(paths) != len(set(paths)):
-            raise EvidenceError("evidence.configuration")
-        all_files = await github.tree(owner, repo, branch)
-        selection = resolve_evidence_selection(all_files, task)
-        selected = selection.paths
-        if paths and set(selected) - set(paths):
-            raise EvidenceError("evidence.configuration")
-        if len(selected) > task.evidence.max_files:
-            raise EvidenceError("evidence.file_limit")
-        total = 0
-        for path in selected:
-            content = await github.file(owner, repo, path, branch)
-            if content is None:
-                raise EvidenceError("evidence.changed")
-            fetched.append((path, content))
-            size = len(content.encode("utf-8"))
-            total += size
-            if size > task.evidence.max_file_size_bytes:
-                raise EvidenceError("evidence.item_limit")
-            if total > task.evidence.max_total_bytes:
-                raise EvidenceError("evidence.total_limit")
-        bundle = _assemble(task, fetched, selection)
-    except (
-        EvidenceError,
-        GitHubServerError,
-        httpx2.HTTPStatusError,
-        httpx2.RequestError,
-    ) as exc:
-        record_evidence_decision(
-            exc.code if isinstance(exc, EvidenceError) else "retrieval",
-            selected_count=len(selected),
-            collected_count=len(fetched),
-            total_bytes=sum(len(content.encode("utf-8")) for _, content in fetched),
-        )
-        if isinstance(exc, EvidenceError):
-            exc.recorded = True
-        raise
-    record_evidence_decision(
-        "complete",
-        selected_count=len(selected),
-        collected_count=len(fetched),
-        total_bytes=bundle.total_bytes,
-    )
-    return bundle
-
-
 def collect_submitted_text_evidence(
     task: VerificationTask,
     text: str,
     path: str = "submission.txt",
 ) -> EvidenceBundle:
-    """Wrap the full submitted text without repository access."""
-    if task.evidence.source != "submitted_text":
-        error = EvidenceError("evidence.configuration")
-        record_evidence_decision(error.code)
-        error.recorded = True
-        raise error
+    """Wrap the full submitted text as an evidence bundle."""
     return apply_evidence_cap(task, [(path, text)])

@@ -971,8 +971,6 @@ def test_incomplete_history_and_current_card_share_safe_explanation(cause, error
     if error_code == "evidence.total_limit":
         assert html.count("Retrying unchanged work may not help.") == 2
         assert "You can try again." not in html
-    elif error_code == "evidence.changed":
-        assert html.count("after the repository stops changing.") == 2
     else:
         assert html.count("You can try again.") == 2
     if cause == "<script>unsafe</script>":

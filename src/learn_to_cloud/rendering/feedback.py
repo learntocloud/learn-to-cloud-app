@@ -47,12 +47,6 @@ def incomplete_verification_message(
             "because the verification service needs attention. "
             "You do not need to shrink or split your work."
         )
-    elif error_code == "evidence.changed":
-        recovery = (
-            "The repository changed while evidence was being collected. "
-            "Try again later, after the repository stops changing. "
-            "If this keeps happening, report the issue."
-        )
     return " ".join(part for part in (explanation, cause, recovery) if part)
 
 

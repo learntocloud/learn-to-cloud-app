@@ -94,31 +94,6 @@ def validate_grading_request(request: LLMGradingRequest) -> None:
         raise EvidenceError("evidence.selection") from exc
 
 
-def build_repo_rubric_message(
-    *,
-    requirement_slug: str,
-    requirement_name: str,
-    deterministic_result: ValidationResult,
-    owner: str,
-    repo: str,
-    task: VerificationTask,
-    evidence: dict[str, object],
-) -> str:
-    """Build the LLM prompt for a repository-backed rubric review."""
-    payload = {
-        "requirement": {"id": requirement_slug, "name": requirement_name},
-        "task": _task_payload(task),
-        "repository": {"owner": owner, "name": repo},
-        "deterministic_result": deterministic_result.model_dump(mode="json"),
-        "evidence": _validated_evidence_payload(task, evidence, deterministic_result),
-    }
-    return (
-        "Grade this Learn to Cloud verification task using only the JSON payload. "
-        "Return a structured grading decision that follows the configured schema.\n\n"
-        f"{json.dumps(payload, sort_keys=True)}"
-    )
-
-
 def build_text_rubric_message(
     *,
     requirement_slug: str,

@@ -1,7 +1,6 @@
 """Tests for the verification engine."""
 
 import asyncio
-import json
 import logging
 import traceback
 from unittest.mock import AsyncMock, Mock
@@ -19,20 +18,18 @@ from opentelemetry.trace import Status, StatusCode
 from learn_to_cloud.models import SubmissionType
 from learn_to_cloud.schemas.verification import TaskResult, ValidationResult
 from learn_to_cloud.verification import engine as engine_module
-from learn_to_cloud.verification import github_api, github_errors, security_scanning
+from learn_to_cloud.verification import github_errors, security_scanning
 from learn_to_cloud.verification.attempt_types import (
     PreparedVerificationAttempt,
 )
 from learn_to_cloud.verification.core import (
     CheckResult,
+    GradingEvidence,
 )
-from learn_to_cloud.verification.deployed_api import DeployedApiServerError
 from learn_to_cloud.verification.engine import run_verification
-from learn_to_cloud.verification.evidence import apply_evidence_cap
+from learn_to_cloud.verification.evidence import EvidenceError, apply_evidence_cap
+from learn_to_cloud.verification.grading_requests import validate_grading_request
 from learn_to_cloud.verification.submission_values import submitted_value_from_raw
-from learn_to_cloud.verification.tasks.phase6 import (
-    SECURITY_SCANNING_RUBRIC_TASK,
-)
 from learn_to_cloud.verification.tasks.phase7 import (
     CAREER_REFLECTION_RUBRIC_TASK,
 )
@@ -503,8 +500,8 @@ async def test_devops_workflow_uses_only_run_results(
 
 
 # ---------------------------------------------------------------------------
-# Phase 6/7 rubric checks: security scanning gates repository evidence;
-# career reflection prepares submitted text for grading.
+# Phase 6 security checks are deterministic; Phase 7 career reflection
+# prepares submitted text for grading.
 # ---------------------------------------------------------------------------
 
 
@@ -537,25 +534,30 @@ def _career_job(text: str) -> PreparedVerificationAttempt:
     )
 
 
+def _pass_live_check(monkeypatch) -> AsyncMock:
+    live = AsyncMock(
+        return_value=ValidationResult(is_valid=True, message="HTTPS only.")
+    )
+    monkeypatch.setattr(security_scanning, "verify_secure_deployment", live)
+    return live
+
+
 @pytest.mark.asyncio
-async def test_security_workflow_records_grading_request_when_gate_passes(monkeypatch):
+async def test_security_workflow_passes_without_grading_when_gates_pass(monkeypatch):
 
     gate = AsyncMock(
         return_value=ValidationResult(is_valid=True, message="CodeQL green on main")
     )
     monkeypatch.setattr(security_scanning, "verify_codeql_status", gate)
-    github = _github(
-        files={".github/workflows/codeql.yml": "name: CodeQL\non: [push]\n"}
-    )
+    live = _pass_live_check(monkeypatch)
+    github = _github()
 
     result = await run_verification(_security_job(), github=github)
 
     gate.assert_awaited_once_with("learner", "sec-repo", github)
+    live.assert_awaited_once_with("learner", "sec-repo", github)
     assert result.validation_result.is_valid is True
-    assert result.grading_requests is not None
-    assert result.grading_requests is not None
-    assert len(result.grading_requests) == 1
-    assert result.grading_requests[0].task.id == SECURITY_SCANNING_RUBRIC_TASK.id
+    assert result.grading_requests == []
 
 
 @pytest.mark.asyncio
@@ -574,158 +576,6 @@ async def test_security_workflow_skips_grading_when_gate_fails(monkeypatch):
     assert result.grading_requests == []
 
 
-def _evidence_flow(monkeypatch):
-    passing = ValidationResult(is_valid=True, message="Prerequisite passed.")
-    monkeypatch.setattr(
-        security_scanning, "verify_codeql_status", AsyncMock(return_value=passing)
-    )
-    policy = SECURITY_SCANNING_RUBRIC_TASK.evidence
-    return _security_job(), [*policy.required_files, *policy.optional_files]
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("failure", "category"),
-    [
-        (401, "authentication"),
-        (403, "authorization"),
-        (429, "rate_limit"),
-        (503, "provider_unavailable"),
-        ("network", "ReadTimeout"),
-    ],
-)
-async def test_failed_evidence_read_stops_grading(monkeypatch, failure, category):
-    job, paths = _evidence_flow(monkeypatch)
-    paths = sorted(paths)
-    failed_path = paths[1]
-    fetched = []
-    mapper = Mock(wraps=github_errors.github_error_to_result)
-    monkeypatch.setattr(security_scanning, "github_error_to_result", mapper)
-    github_warning = Mock()
-    monkeypatch.setattr(github_errors.logger, "warning", github_warning)
-    tracer = _Tracer()
-    monkeypatch.setattr(engine_module, "_tracer", tracer)
-
-    def respond(request):
-        if request.url.host == "api.github.com":
-            if request.url.path == "/repos/learner/sec-repo":
-                return httpx2.Response(
-                    200,
-                    json={
-                        "owner": {"id": 1, "login": "learner"},
-                        "name": "sec-repo",
-                        "private": False,
-                    },
-                )
-            return httpx2.Response(
-                200, json={"tree": [{"type": "blob", "path": p} for p in paths]}
-            )
-        path = request.url.path.split("/main/", 1)[1]
-        fetched.append(path)
-        if path != failed_path:
-            return httpx2.Response(200, text="Evidence content")
-        if failure == "network":
-            raise httpx2.ReadTimeout("private connection details", request=request)
-        return httpx2.Response(failure, text="private response details")
-
-    async with httpx2.AsyncClient(transport=httpx2.MockTransport(respond)) as client:
-        monkeypatch.setattr(
-            github_api, "get_github_client", AsyncMock(return_value=client)
-        )
-        monkeypatch.setattr(
-            "learn_to_cloud.verification.github_http._get_github_client",
-            AsyncMock(return_value=client),
-        )
-        result = await run_verification(job, github=github_api.GitHubClient())
-
-    assert fetched == paths[:2]
-    assert result.validation_result.is_valid is False
-    assert result.validation_result.verification_completed is False
-    assert "private" not in result.validation_result.message
-    assert result.grading_requests == []
-    mapper.assert_called_once()
-    assert mapper.call_args.kwargs == {"event": "security_scanning.repo_file_error"}
-    assert github_warning.call_args.kwargs["extra"]["error.type"] == category
-    assert tracer.spans[0][1].attributes["verification.step.result"] == "passed"
-    assert tracer.spans[-1][1].attributes["verification.step.result"] == "unavailable"
-    assert tracer.spans[-1][1].status is not None
-    assert tracer.spans[-1][1].status.status_code is StatusCode.ERROR
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "error",
-    [
-        RuntimeError("programming bug"),
-        DeployedApiServerError("another integration", status_code=503),
-    ],
-)
-async def test_evidence_boundaries_do_not_swallow_unsupported_errors(
-    monkeypatch, error
-):
-    job, paths = _evidence_flow(monkeypatch)
-    github = _github(files=dict.fromkeys(paths, "evidence"))
-    monkeypatch.setattr(github, "file", AsyncMock(side_effect=error))
-    mapper = Mock(wraps=github_errors.github_error_to_result)
-    monkeypatch.setattr(security_scanning, "github_error_to_result", mapper)
-
-    with pytest.raises(type(error)) as raised:
-        await run_verification(job, github=github)
-
-    assert raised.value is error
-    mapper.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_selected_evidence_disappearance_blocks_grading(monkeypatch):
-    job, paths = _evidence_flow(monkeypatch)
-    contents = dict.fromkeys(paths, "evidence")
-    missing_path = paths[1]
-    del contents[missing_path]
-    github = _github(files=contents, tree=paths)
-
-    result = await run_verification(job, github=github)
-
-    assert result.validation_result.verification_completed is False
-    assert result.validation_result.error_code == "evidence.changed"
-    assert result.grading_requests == []
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "error",
-    [
-        github_errors.GitHubServerError("Unavailable", status_code=503),
-        httpx2.ConnectError("private connection details"),
-    ],
-)
-async def test_tree_failure_stops_grading_with_tree_event(monkeypatch, error):
-    job, _ = _evidence_flow(monkeypatch)
-    mapper = Mock(wraps=github_errors.github_error_to_result)
-    monkeypatch.setattr(security_scanning, "github_error_to_result", mapper)
-    github = _github(tree_error=error)
-    read = AsyncMock()
-    monkeypatch.setattr(github, "file", read)
-
-    result = await run_verification(job, github=github)
-
-    assert result.validation_result.verification_completed is False
-    assert result.grading_requests == []
-    mapper.assert_called_once_with(error, event="security_scanning.repo_file_error")
-    read.assert_not_awaited()
-
-
-async def test_repository_rubric_blocks_oversized_evidence(monkeypatch):
-    job, paths = _evidence_flow(monkeypatch)
-    files = dict.fromkeys(paths, "complete")
-    files[paths[0]] = "x" * (51 * 1024)
-    result = await run_verification(job, github=_github(files=files))
-    assert result.validation_result.error_code == "evidence.item_limit"
-    assert not result.validation_result.is_valid
-    assert not result.validation_result.verification_completed
-    assert result.grading_requests == []
-
-
 async def test_oversized_reflection_is_incomplete_without_any_repository_read():
     repo = AsyncMock()
     result = await run_verification(
@@ -736,25 +586,7 @@ async def test_oversized_reflection_is_incomplete_without_any_repository_read():
     assert not result.validation_result.is_valid
     assert not result.validation_result.verification_completed
     assert result.grading_requests == []
-    repo.tree.assert_not_awaited()
-    repo.file.assert_not_awaited()
-
-
-async def test_absent_optional_work_still_prepares_complete_grading(monkeypatch):
-    job, paths = _evidence_flow(monkeypatch)
-    task = SECURITY_SCANNING_RUBRIC_TASK
-    files = {
-        path: "complete" for path in paths if path not in task.evidence.optional_files
-    }
-    result = await run_verification(job, github=_github(files=files))
-    assert result.validation_result.is_valid
-    assert result.grading_requests is not None
-    assert len(result.grading_requests) == 1
-    prompt = json.loads(result.grading_requests[0].message.split("\n\n", 1)[1])
-    assert prompt["evidence"]["optional_presence"] == dict.fromkeys(
-        task.evidence.optional_files,
-        False,
-    )
+    assert repo.method_calls == []
 
 
 @pytest.mark.parametrize("mutation", ["truncated", "missing", "wrong_task"])
@@ -808,6 +640,39 @@ async def test_career_workflow_prepares_text_grading(monkeypatch):
         "verification.check.name": "career_reflection",
         "verification.step.result": "passed",
     }
+
+
+def test_grading_request_allows_deterministic_task_names_as_refs():
+    task = CAREER_REFLECTION_RUBRIC_TASK
+    bundle = apply_evidence_cap(task, [("career-reflection.md", "Reflection")])
+    gate = TaskResult(task_name="Reflection Received", passed=True, feedback="ok")
+
+    request = engine_module._grading_request(
+        _career_job("Reflection"),
+        ValidationResult(is_valid=True, message="Received", task_results=[gate]),
+        GradingEvidence(task=task, bundle=bundle),
+    )
+
+    assert request.allowed_evidence_refs == [
+        "career-reflection.md",
+        "Reflection Received",
+    ]
+    validate_grading_request(request)
+
+
+async def test_prompt_construction_failure_blocks_grading(monkeypatch):
+    monkeypatch.setattr(
+        engine_module,
+        "build_text_rubric_message",
+        Mock(side_effect=EvidenceError("evidence.selection")),
+    )
+
+    result = await run_verification(_career_job("Complete reflection"))
+
+    assert result.validation_result.error_code == "evidence.selection"
+    assert not result.validation_result.is_valid
+    assert not result.validation_result.verification_completed
+    assert result.grading_requests == []
 
 
 # ---------------------------------------------------------------------------
