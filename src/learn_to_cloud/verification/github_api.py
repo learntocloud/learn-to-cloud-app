@@ -56,6 +56,25 @@ class WorkflowJob(FrozenModel):
     conclusion: str | None
 
 
+class GitHubApp(FrozenModel):
+    slug: str = Field(min_length=1)
+
+
+class Deployment(FrozenModel):
+    """Deployment identity and the app that created it."""
+
+    id: int = Field(gt=0)
+    sha: str = Field(pattern=r"^[0-9a-f]{40}$")
+    environment: str = Field(min_length=1)
+    performed_via_github_app: GitHubApp | None
+
+
+class DeploymentStatus(FrozenModel):
+    state: str = Field(min_length=1)
+    environment_url: str
+    log_url: str
+
+
 class WorkflowJobsResponseError(ValueError):
     """Job results are incomplete or inconsistent."""
 
@@ -87,6 +106,16 @@ class GitHub(Protocol):
     async def jobs_for_attempt(
         self, owner: str, repo: str, run_id: int, attempt: int
     ) -> list[WorkflowJob]: ...
+
+    async def latest_deployment(
+        self, owner: str, repo: str, sha: str, environment: str
+    ) -> Deployment | None:
+        """Return the newest deployment of ``sha`` to ``environment``, if any."""
+        ...
+
+    async def latest_deployment_status(
+        self, owner: str, repo: str, deployment_id: int
+    ) -> DeploymentStatus | None: ...
 
     async def tree(self, owner: str, repo: str, branch: str = "main") -> list[str]:
         """Return every blob path in the repository."""
@@ -164,6 +193,30 @@ class GitHubClient:
             if len(jobs) > expected_count or not payload.jobs:
                 raise WorkflowJobsResponseError("Incomplete job listing")
         raise WorkflowJobsResponseError("Job listing exceeds the pagination limit")
+
+    async def latest_deployment(
+        self, owner: str, repo: str, sha: str, environment: str
+    ) -> Deployment | None:
+        response = await github_api_get(
+            f"{_API}/{owner}/{repo}/deployments",
+            params={"sha": sha, "environment": environment, "per_page": 1},
+        )
+        deployments = TypeAdapter(list[Deployment]).validate_python(
+            response.json(), strict=True
+        )
+        return deployments[0] if deployments else None
+
+    async def latest_deployment_status(
+        self, owner: str, repo: str, deployment_id: int
+    ) -> DeploymentStatus | None:
+        response = await github_api_get(
+            f"{_API}/{owner}/{repo}/deployments/{deployment_id}/statuses",
+            params={"per_page": 1},
+        )
+        statuses = TypeAdapter(list[DeploymentStatus]).validate_python(
+            response.json(), strict=True
+        )
+        return statuses[0] if statuses else None
 
     async def tree(self, owner: str, repo: str, branch: str = "main") -> list[str]:
         response = await github_api_get(

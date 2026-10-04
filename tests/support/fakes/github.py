@@ -2,7 +2,11 @@
 
 from typing import Any
 
-from learn_to_cloud.verification.github_api import WorkflowJob
+from learn_to_cloud.verification.github_api import (
+    Deployment,
+    DeploymentStatus,
+    WorkflowJob,
+)
 
 
 class FakeGitHub:
@@ -24,6 +28,8 @@ class FakeGitHub:
         run_error: Exception | None = None,
         jobs: list[WorkflowJob] | None = None,
         jobs_error: Exception | None = None,
+        deployment: Deployment | None = None,
+        deployment_status: DeploymentStatus | None = None,
         files: dict[str, str] | None = None,
         tree: list[str] | None = None,
         tree_error: Exception | None = None,
@@ -36,6 +42,8 @@ class FakeGitHub:
         self._run_error = run_error
         self._jobs = list(jobs or [])
         self._jobs_error = jobs_error
+        self._deployment = deployment
+        self._deployment_status = deployment_status
         self._files = dict(files or {})
         self._tree = list(tree) if tree is not None else list(self._files)
         self._tree_error = tree_error
@@ -64,6 +72,16 @@ class FakeGitHub:
         if self._jobs_error is not None:
             raise self._jobs_error
         return list(self._jobs)
+
+    async def latest_deployment(
+        self, owner: str, repo: str, sha: str, environment: str
+    ) -> Deployment | None:
+        return self._deployment
+
+    async def latest_deployment_status(
+        self, owner: str, repo: str, deployment_id: int
+    ) -> DeploymentStatus | None:
+        return self._deployment_status
 
     async def tree(self, owner: str, repo: str, branch: str = "main") -> list[str]:
         if self._tree_error is not None:

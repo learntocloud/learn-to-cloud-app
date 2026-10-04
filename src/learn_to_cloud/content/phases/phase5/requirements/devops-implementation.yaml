@@ -7,10 +7,14 @@ description: >-
   We'll check the latest run of `.github/workflows/ci.yml` on your fork's
   current `main` commit. The run must succeed with exactly one successful
   job named `test`, `build`, and `deploy`. Use those exact job IDs and display
-  names, without matrix suffixes. These jobs should test the app, build and
-  publish its container image, and deploy it to Kubernetes and confirm rollout.
-  Verification uses run and job results only, not source files, commands, logs,
-  or AI review. It does not prove what each job actually does. If you rerun
-  a workflow, choose Re-run all jobs so the latest attempt contains all three.
+  names, without matrix suffixes. The `deploy` job must use an environment
+  named `production` whose `url` is your public HTTPS API address, so GitHub
+  records a deployment from that job. We then call `GET /version` at that
+  address, which must return `{"commit": "<full commit SHA>"}` for your
+  current `main` commit. Keep the app running until verification passes.
+  Verification uses run and job results, the deployment record, and that one
+  request. It does not read source files or logs, or use AI review. If you
+  rerun a workflow, choose Re-run all jobs so the latest attempt contains all
+  three jobs.
 type_config:
   required_repo: learntocloud/journal-starter

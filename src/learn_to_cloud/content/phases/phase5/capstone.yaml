@@ -23,7 +23,8 @@ learning_steps:
   - Use a suitable Python base image and reproducible dependency installation.
   - Keep secrets and unnecessary files out of the image.
   - Configure the container to start the API and accept traffic on port 8000.
-  done_when: "`docker build` succeeds and `docker run` starts the API listening on port 8000."
+  - "Pass the commit SHA into the image (for example, a `GIT_SHA` build argument set from `github.sha`) and add `GET /version` returning `{\"commit\": \"<full commit SHA>\"}` so anyone can see which commit is running."
+  done_when: "`docker build` succeeds, `docker run` starts the API listening on port 8000, and `GET /version` returns the commit the image was built from."
   slug: phase5-topic6-build-containerize-the-application
 
 - uuid: 340708fb-f0f4-438f-9058-e0c88dce33f4
@@ -48,11 +49,12 @@ learning_steps:
   - "**`build`** - Use `needs: test` to build and publish a commit-tagged container image after tests pass."
   - "**`deploy`** - Use `needs: build` to deploy that image to Kubernetes and wait for rollout to succeed."
   - "Use these exact job IDs and display names (`name: test`, `name: build`, `name: deploy`), with one of each and no matrix suffixes."
+  - "Give `deploy` an environment named `production` whose `url` is your public HTTPS API address (`environment: {name: production, url: https://...}`). GitHub then records each deployment against the commit it shipped."
   - Use secure cloud authentication and keep credentials out of the repository.
   tips:
   - type: note
     text: Choose the actions and commands that fit your deployment. Your registry does not need to be public for verification.
-  done_when: Pushing to `main` triggers the workflow, all three jobs pass, and Kubernetes runs the newly built image.
+  done_when: Pushing to `main` triggers the workflow, all three jobs pass, the repository's Deployments list shows a successful `production` deployment, and Kubernetes runs the newly built image.
   slug: phase5-topic6-build-cicd-pipeline
 
 - uuid: cddc7d25-1801-4d27-86a8-ba8317bbab8f
@@ -63,10 +65,11 @@ learning_steps:
     Write Kubernetes YAML manifests to deploy and expose your containerized
     application. Apply them from the pipeline using `kubectl`.
   checklist:
-  - Create a Deployment using the image published by your pipeline and a Service that exposes the API.
+  - Create a Deployment using the image published by your pipeline and a Service for the API.
+  - Expose the API publicly over HTTPS with an Ingress and a TLS certificate, for example from cert-manager and Let's Encrypt. If you don't own a domain, a free wildcard DNS name such as `sslip.io` works.
   - Supply application configuration securely without committing real credentials.
   - Configure health probes and make the deploy job fail if rollout does not succeed.
-  done_when: Kubernetes runs your app, health probes pass, and you can create and analyze a journal entry through the deployed API.
+  done_when: Kubernetes runs your app, health probes pass, `GET /version` over HTTPS returns your current `main` commit, and you can create and analyze a journal entry through the deployed API.
   slug: phase5-topic6-build-container-orchestration
 
 - uuid: c77ee2ee-9913-49b5-8e46-e9258129e06e
@@ -109,10 +112,11 @@ learning_steps:
   tips:
   - type: note
     text: >-
-      Automated verification uses run and job results only. It does not read
-      source files, commands, or logs, or use AI review. A green job does not
-      prove what its commands do; implementing these practices and checking
-      the deployed application remain your responsibility.
+      Automated verification uses run and job results, the `production`
+      deployment recorded by your `deploy` job, and one `GET /version` request
+      to your live API. It does not read source files, commands, or logs, or
+      use AI review. Implementing these practices well remains your
+      responsibility.
 
 - uuid: 1a7cde59-eecf-4078-ab74-d9a2a54f4351
   order: 8
@@ -122,12 +126,14 @@ learning_steps:
     Push your completed implementation to your fork. The latest run of
     `.github/workflows/ci.yml` must succeed on your current `main` commit,
     with exactly one successful job named `test`, `build`, and `deploy`.
-    A failed, skipped, or missing job does not pass. Submit your fork for
-    verification after the run finishes.
+    A failed, skipped, or missing job does not pass. The `deploy` job must
+    record a successful `production` deployment, and `GET /version` at that
+    environment's URL must return your current `main` commit. Submit your
+    fork for verification after the run finishes, while the app is running.
   tips:
   - type: note
     text: Choose Re-run all jobs if you rerun a workflow. Verification reads only the latest attempt, so rerunning just failed jobs may leave required jobs missing.
-  done_when: The latest run and all three required jobs succeed on your current `main` commit, and your submission passes.
+  done_when: The latest run and all three required jobs succeed on your current `main` commit, your live API reports that commit, and your submission passes.
   slug: phase5-topic6-practice-submit-verification
 - uuid: c43d5d38-c50f-40eb-af1b-c77cb41c4be2
   order: 9

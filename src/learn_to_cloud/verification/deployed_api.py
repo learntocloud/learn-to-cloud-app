@@ -1,4 +1,4 @@
-"""Create a journal entry and analyze it once, leaving the entry for the learner."""
+"""Probe learner-deployed Journal APIs behind HTTPS and private-target guards."""
 
 from __future__ import annotations
 
@@ -409,6 +409,72 @@ async def _verify_analysis(base_url: str, entry_id: str) -> ValidationResult:
             message="POST /entries/{id}/analyze did not return valid JSON.",
         )
     return _validate_analysis_json(data, entry_id)
+
+
+async def _get_once(url: str) -> httpx2.Response:
+    """GET once with shared connection limits and response-peer checks."""
+    client = await _get_client()
+    response = await client.get(url, headers={"Accept": "application/json"})
+    _check_response_ip(response)
+    if response.status_code >= 500:
+        raise DeployedApiServerError(
+            f"Server returned {response.status_code}",
+            status_code=response.status_code,
+        )
+    return response
+
+
+async def verify_deployed_version(base_url: str, commit_sha: str) -> ValidationResult:
+    """Require ``GET /version`` to report ``commit_sha`` as its ``commit``."""
+    base_url = base_url.strip().rstrip("/")
+    if not _is_valid_url(base_url):
+        return ValidationResult(
+            is_valid=False,
+            message="The production environment URL must be an HTTPS URL.",
+        )
+    ssrf_error = await _validate_url_target(base_url)
+    if ssrf_error:
+        return ValidationResult(is_valid=False, message=ssrf_error)
+
+    try:
+        response = await _get_once(f"{base_url}/version")
+    except _SsrfError:
+        return ValidationResult(
+            is_valid=False,
+            message="URL must point to a publicly accessible server.",
+        )
+    except (
+        httpx2.TimeoutException,
+        httpx2.RequestError,
+        DeployedApiServerError,
+    ) as exc:
+        return deployed_api_error_to_result(exc, step="GET /version")
+
+    if response.status_code != 200:
+        return ValidationResult(
+            is_valid=False,
+            message=f"GET /version returned {response.status_code}. Expected 200.",
+        )
+    try:
+        data = response.json()
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return ValidationResult(
+            is_valid=False,
+            message="GET /version did not return valid JSON.",
+        )
+    commit = data.get("commit") if isinstance(data, dict) else None
+    if commit != commit_sha:
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                'GET /version must return {"commit": "<full commit SHA>"} '
+                f"matching your current main commit ({commit_sha[:7]})."
+            ),
+        )
+    return ValidationResult(
+        is_valid=True,
+        message=f"{base_url} is serving commit {commit_sha[:7]}.",
+    )
 
 
 async def validate_deployed_api(base_url: str) -> ValidationResult:

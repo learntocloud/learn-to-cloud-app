@@ -1,18 +1,24 @@
-"""Phase 5 trusts complete current-commit workflow and job outcomes."""
+"""Phase 5 requires current-commit jobs, their deployment, and the live commit."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, call
 
 import httpx2
 import pytest
 
+from learn_to_cloud.schemas.verification import ValidationResult
+from learn_to_cloud.verification import devops_analysis
 from learn_to_cloud.verification.devops_analysis import verify_devops_pipeline
 from learn_to_cloud.verification.github_api import (
+    Deployment,
+    DeploymentStatus,
     GitHub,
     GitHubClient,
     WorkflowJob,
 )
 
 SHA = "a" * 40
+APP_URL = "https://journal.example"
+DEPLOY_LOG = "https://github.com/learner/journal/actions/runs/789/job/3"
 
 
 def _run(**updates):
@@ -44,6 +50,38 @@ def _job(name, identifier, **updates):
     )
 
 
+def _deployment(**updates):
+    return Deployment.model_validate(
+        {
+            "id": 55,
+            "sha": SHA,
+            "environment": "production",
+            "performed_via_github_app": {"slug": "github-actions"},
+            **updates,
+        }
+    )
+
+
+def _status(**updates):
+    return DeploymentStatus.model_validate(
+        {
+            "state": "success",
+            "environment_url": APP_URL,
+            "log_url": DEPLOY_LOG,
+            **updates,
+        }
+    )
+
+
+@pytest.fixture(autouse=True)
+def live(monkeypatch):
+    probe = AsyncMock(
+        return_value=ValidationResult(is_valid=True, message="serving commit")
+    )
+    monkeypatch.setattr(devops_analysis, "verify_deployed_version", probe)
+    return probe
+
+
 @pytest.fixture
 def ports():
     github = AsyncMock(spec=GitHub)
@@ -52,10 +90,12 @@ def ports():
         _job(name, index) for index, name in enumerate(("test", "build", "deploy"), 1)
     ]
     github.head_sha.return_value = SHA
+    github.latest_deployment.return_value = _deployment()
+    github.latest_deployment_status.return_value = _status()
     return github
 
 
-async def test_success_uses_captured_attempt_and_safe_run_url(ports):
+async def test_success_uses_captured_attempt_and_safe_run_url(ports, live):
     github = ports
     github.latest_run.return_value = _run(html_url="https://untrusted.example/run")
     result = await verify_devops_pipeline("learner", "journal", github)
@@ -67,15 +107,23 @@ async def test_success_uses_captured_attempt_and_safe_run_url(ports):
         "test",
         "build",
         "deploy",
+        "deployment",
+        "version",
     ]
+    assert all(task.passed for task in result.task_results)
     github.jobs_for_attempt.assert_awaited_once_with("learner", "journal", 789, 2)
     github.head_sha.assert_awaited_once_with("learner", "journal")
+    github.latest_deployment.assert_awaited_once_with(
+        "learner", "journal", SHA, "production"
+    )
+    github.latest_deployment_status.assert_awaited_once_with("learner", "journal", 55)
+    live.assert_awaited_once_with(APP_URL, SHA)
 
 
 async def test_manual_run_on_current_main_is_allowed(ports):
     github = ports
     github.latest_run.return_value = _run(event="workflow_dispatch")
-    assert (await verify_devops_pipeline("o", "r", github)).is_valid
+    assert (await verify_devops_pipeline("learner", "journal", github)).is_valid
 
 
 @pytest.mark.parametrize(
@@ -209,11 +257,13 @@ async def test_inconsistent_job_identity_or_metadata_is_incomplete(ports, update
 async def test_additional_jobs_and_optional_attempt_field_are_allowed(ports):
     github = ports
     github.jobs_for_attempt.return_value.append(_job("docs", 4, run_attempt=None))
-    result = await verify_devops_pipeline("o", "r", github)
+    result = await verify_devops_pipeline("learner", "journal", github)
     assert result.is_valid
 
 
-@pytest.mark.parametrize("stage", ["workflow", "jobs", "branch"])
+@pytest.mark.parametrize(
+    "stage", ["workflow", "jobs", "branch", "deployment", "deployment_status"]
+)
 @pytest.mark.parametrize("status", [401, 403, 404, 429, 500])
 async def test_http_failures_are_safe_and_actionable(ports, stage, status):
     github = ports
@@ -226,8 +276,12 @@ async def test_http_failures_are_safe_and_actionable(ports, stage, status):
         github.latest_run.side_effect = error
     elif stage == "jobs":
         github.jobs_for_attempt.side_effect = error
-    else:
+    elif stage == "branch":
         github.head_sha.side_effect = error
+    elif stage == "deployment":
+        github.latest_deployment.side_effect = error
+    else:
+        github.latest_deployment_status.side_effect = error
     result = await verify_devops_pipeline("o", "r", github)
     assert not result.is_valid
     assert result.verification_completed == (
@@ -278,9 +332,171 @@ async def test_latest_workflow_is_requested_without_success_filter(monkeypatch, 
     client = GitHubClient()
     client.jobs_for_attempt = ports.jobs_for_attempt
     client.head_sha = ports.head_sha
-    result = await verify_devops_pipeline("o", "r", client)
+    client.latest_deployment = ports.latest_deployment
+    client.latest_deployment_status = ports.latest_deployment_status
+    result = await verify_devops_pipeline("learner", "journal", client)
     assert result.is_valid
     get.assert_awaited_once_with(
-        "https://api.github.com/repos/o/r/actions/workflows/ci.yml/runs",
+        "https://api.github.com/repos/learner/journal/actions/workflows/ci.yml/runs",
         params={"branch": "main", "per_page": 1},
     )
+
+
+async def test_failed_jobs_skip_deployment_and_live_checks(ports, live):
+    github = ports
+    github.jobs_for_attempt.return_value[2] = _job("deploy", 3, conclusion="failure")
+    result = await verify_devops_pipeline("o", "r", github)
+    assert not result.is_valid
+    github.latest_deployment.assert_not_awaited()
+    live.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("deployment", "status", "feedback"),
+    [
+        (None, _status(), "No production deployment"),
+        (_deployment(performed_via_github_app=None), _status(), "`environment`"),
+        (
+            _deployment(performed_via_github_app={"slug": "vercel"}),
+            _status(),
+            "`environment`",
+        ),
+        (_deployment(), None, "no status"),
+        (
+            _deployment(),
+            _status(
+                log_url="https://github.com/learner/journal/actions/runs/789/job/9"
+            ),
+            "not made by the deploy job",
+        ),
+        (
+            _deployment(),
+            _status(log_url="https://github.com/learner/journal/actions/runs/1/job/3"),
+            "not made by the deploy job",
+        ),
+        (_deployment(), _status(log_url=""), "not made by the deploy job"),
+        (_deployment(), _status(state="failure"), "is failure"),
+        (_deployment(), _status(state="in_progress"), "is in_progress"),
+        (_deployment(), _status(environment_url=""), "no URL"),
+    ],
+)
+async def test_deployment_must_come_from_this_runs_deploy_job(
+    ports, live, deployment, status, feedback
+):
+    github = ports
+    github.latest_deployment.return_value = deployment
+    github.latest_deployment_status.return_value = status
+    result = await verify_devops_pipeline("learner", "journal", github)
+    assert not result.is_valid and result.verification_completed
+    assert result.task_results is not None
+    assert [(task.task_name, task.passed) for task in result.task_results] == [
+        ("test", True),
+        ("build", True),
+        ("deploy", True),
+        ("deployment", False),
+    ]
+    assert feedback in result.task_results[-1].feedback
+    assert "environment:" in result.task_results[-1].next_steps
+    live.assert_not_awaited()
+
+
+async def test_deploy_log_url_comparison_ignores_case(ports):
+    github = ports
+    github.latest_deployment_status.return_value = _status(
+        log_url=DEPLOY_LOG.replace("learner/journal", "Learner/Journal")
+    )
+    assert (await verify_devops_pipeline("learner", "journal", github)).is_valid
+
+
+async def test_deployment_for_another_commit_is_incomplete(ports, live):
+    github = ports
+    github.latest_deployment.return_value = _deployment(sha="b" * 40)
+    result = await verify_devops_pipeline("learner", "journal", github)
+    assert not result.is_valid and not result.verification_completed
+    live.assert_not_awaited()
+
+
+@pytest.mark.parametrize("completed", [True, False])
+async def test_live_app_must_serve_current_commit(ports, live, completed):
+    github = ports
+    live.return_value = ValidationResult(
+        is_valid=False,
+        verification_completed=completed,
+        message="GET /version returned 404. Expected 200.",
+    )
+    result = await verify_devops_pipeline("learner", "journal", github)
+    assert not result.is_valid
+    assert result.verification_completed == completed
+    assert result.task_results is not None
+    version = result.task_results[-1]
+    assert (version.task_name, version.passed) == ("version", False)
+    assert version.feedback == "GET /version returned 404. Expected 200."
+    assert "GET /version" in version.next_steps
+
+
+async def test_deployment_http_requests_use_sha_environment_and_latest_status(
+    monkeypatch,
+):
+    deployment = {
+        "id": 55,
+        "sha": SHA,
+        "environment": "production",
+        "performed_via_github_app": {"slug": "github-actions", "id": 15368},
+        "payload": {},
+    }
+    status = {
+        "id": 1,
+        "state": "success",
+        "environment_url": APP_URL,
+        "log_url": DEPLOY_LOG,
+    }
+    get = AsyncMock(
+        side_effect=[
+            httpx2.Response(200, json=[deployment]),
+            httpx2.Response(200, json=[status]),
+        ]
+    )
+    monkeypatch.setattr("learn_to_cloud.verification.github_api.github_api_get", get)
+    client = GitHubClient()
+    found = await client.latest_deployment("o", "r", SHA, "production")
+    assert found == _deployment()
+    assert await client.latest_deployment_status("o", "r", 55) == _status()
+    assert get.await_args_list == [
+        call(
+            "https://api.github.com/repos/o/r/deployments",
+            params={"sha": SHA, "environment": "production", "per_page": 1},
+        ),
+        call(
+            "https://api.github.com/repos/o/r/deployments/55/statuses",
+            params={"per_page": 1},
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        [{}],
+        [{"id": 55, "sha": SHA, "environment": "production"}],
+        [
+            {
+                "id": "55",
+                "sha": SHA,
+                "environment": "production",
+                "performed_via_github_app": None,
+            }
+        ],
+    ],
+)
+async def test_malformed_deployment_payload_is_incomplete(monkeypatch, ports, payload):
+    monkeypatch.setattr(
+        "learn_to_cloud.verification.github_api.github_api_get",
+        AsyncMock(return_value=httpx2.Response(200, json=payload)),
+    )
+    client = GitHubClient()
+    client.latest_run = ports.latest_run
+    client.jobs_for_attempt = ports.jobs_for_attempt
+    client.head_sha = ports.head_sha
+    result = await verify_devops_pipeline("o", "r", client)
+    assert not result.is_valid and not result.verification_completed
