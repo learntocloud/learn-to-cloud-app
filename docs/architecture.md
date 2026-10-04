@@ -106,6 +106,17 @@ when changing the
 [`request boundary`](https://github.com/learntocloud/learn-to-cloud-app/blob/main/src/learn_to_cloud/verification/deployed_api.py).
 Response-peer inspection cannot undo a request's side effects.
 
+## DevOps delivery verification
+
+Phase 5 passes only when all three links hold for the fork's current `main`
+commit: the latest `ci.yml` attempt has successful `test`, `build`, and `deploy`
+jobs; the newest `production` deployment for that commit was created by the
+`github-actions` app and its latest status links to that exact `deploy` job; and
+`GET /version` at the deployment's `environment_url` returns that commit. The
+live request uses the same HTTPS and private-target guards as the deployed API
+probe. Each link is learner-controlled, so this raises the cost of faking
+delivery rather than proving what each job did.
+
 ## Verification UI
 
 Show server-confirmed states, not simulated progress. On completion, refresh the

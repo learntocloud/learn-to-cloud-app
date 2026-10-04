@@ -5,7 +5,9 @@ import pytest
 from learn_to_cloud.curriculum.catalog import load_curriculum_catalog
 from learn_to_cloud.verification.ci_status import CAPSTONE_WORKFLOW_FILE
 from learn_to_cloud.verification.devops_analysis import (
+    DEVOPS_ENVIRONMENT,
     DEVOPS_REQUIRED_JOBS,
+    DEVOPS_VERSION_PATH,
     DEVOPS_WORKFLOW_FILE,
 )
 from learn_to_cloud.verification.tasks import VerificationTask
@@ -78,6 +80,9 @@ def test_devops_run_and_job_contract_is_published() -> None:
             assert f"`{job}`" in text
         assert "Re-run all jobs" in text
         assert "run and job results" in text
+        assert f"`{DEVOPS_ENVIRONMENT}`" in text
+        assert f"`GET {DEVOPS_VERSION_PATH}`" in text
+        assert "HTTPS" in text
         assert "public GHCR" not in text
         assert "Required evidence" not in text
 

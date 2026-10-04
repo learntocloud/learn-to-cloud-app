@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "c3b1b96adb9542719f9ac05a5da55c6f2a6b1215bd2ee9e50ab8398d8d4feaa7",
-  "curriculum_version": 26,
+  "content_hash": "d075bd87debd59870667d5760b707a956bb22ec6ca280dd56654f42f4a6fb691",
+  "curriculum_version": 27,
   "phases": [
     {
       "completion_summary": "You built a foundation in Linux, networking, programming, cloud computing, and DevOps and created a public learning profile.",
@@ -3649,7 +3649,7 @@
         ],
         "requirements": [
           {
-            "description": "We'll check the latest run of `.github/workflows/ci.yml` on your fork's current `main` commit. The run must succeed with exactly one successful job named `test`, `build`, and `deploy`. Use those exact job IDs and display names, without matrix suffixes. These jobs should test the app, build and publish its container image, and deploy it to Kubernetes and confirm rollout. Verification uses run and job results only, not source files, commands, logs, or AI review. It does not prove what each job actually does. If you rerun a workflow, choose Re-run all jobs so the latest attempt contains all three.",
+            "description": "We'll check the latest run of `.github/workflows/ci.yml` on your fork's current `main` commit. The run must succeed with exactly one successful job named `test`, `build`, and `deploy`. Use those exact job IDs and display names, without matrix suffixes. The `deploy` job must use an environment named `production` whose `url` is your public HTTPS API address, so GitHub records a deployment from that job. We then call `GET /version` at that address, which must return `{\"commit\": \"<full commit SHA>\"}` for your current `main` commit. Keep the app running until verification passes. Verification uses run and job results, the deployment record, and that one request. It does not read source files or logs, or use AI review. If you rerun a workflow, choose Re-run all jobs so the latest attempt contains all three jobs.",
             "name": "Complete the DevOps Capstone",
             "slug": "devops-implementation",
             "submission_type": "devops_analysis",
@@ -4825,11 +4825,12 @@
               "checklist": [
                 "Use a suitable Python base image and reproducible dependency installation.",
                 "Keep secrets and unnecessary files out of the image.",
-                "Configure the container to start the API and accept traffic on port 8000."
+                "Configure the container to start the API and accept traffic on port 8000.",
+                "Pass the commit SHA into the image (for example, a `GIT_SHA` build argument set from `github.sha`) and add `GET /version` returning `{\"commit\": \"<full commit SHA>\"}` so anyone can see which commit is running."
               ],
               "code": null,
               "description": "Package your Journal API as a Docker image that you can run locally and deploy to Kubernetes.",
-              "done_when": "`docker build` succeeds and `docker run` starts the API listening on port 8000.",
+              "done_when": "`docker build` succeeds, `docker run` starts the API listening on port 8000, and `GET /version` returns the commit the image was built from.",
               "options": [],
               "order": 1,
               "slug": "phase5-topic6-build-containerize-the-application",
@@ -4863,11 +4864,12 @@
                 "**`build`** - Use `needs: test` to build and publish a commit-tagged container image after tests pass.",
                 "**`deploy`** - Use `needs: build` to deploy that image to Kubernetes and wait for rollout to succeed.",
                 "Use these exact job IDs and display names (`name: test`, `name: build`, `name: deploy`), with one of each and no matrix suffixes.",
+                "Give `deploy` an environment named `production` whose `url` is your public HTTPS API address (`environment: {name: production, url: https://...}`). GitHub then records each deployment against the commit it shipped.",
                 "Use secure cloud authentication and keep credentials out of the repository."
               ],
               "code": null,
               "description": "Extend `.github/workflows/ci.yml` from the CI/CD topic so pushes to `main` test, build, and deploy your application.",
-              "done_when": "Pushing to `main` triggers the workflow, all three jobs pass, and Kubernetes runs the newly built image.",
+              "done_when": "Pushing to `main` triggers the workflow, all three jobs pass, the repository's Deployments list shows a successful `production` deployment, and Kubernetes runs the newly built image.",
               "options": [],
               "order": 3,
               "slug": "phase5-topic6-build-cicd-pipeline",
@@ -4884,13 +4886,14 @@
             {
               "action": "build",
               "checklist": [
-                "Create a Deployment using the image published by your pipeline and a Service that exposes the API.",
+                "Create a Deployment using the image published by your pipeline and a Service for the API.",
+                "Expose the API publicly over HTTPS with an Ingress and a TLS certificate, for example from cert-manager and Let's Encrypt. If you don't own a domain, a free wildcard DNS name such as `sslip.io` works.",
                 "Supply application configuration securely without committing real credentials.",
                 "Configure health probes and make the deploy job fail if rollout does not succeed."
               ],
               "code": null,
               "description": "Write Kubernetes YAML manifests to deploy and expose your containerized application. Apply them from the pipeline using `kubectl`.",
-              "done_when": "Kubernetes runs your app, health probes pass, and you can create and analyze a journal entry through the deployed API.",
+              "done_when": "Kubernetes runs your app, health probes pass, `GET /version` over HTTPS returns your current `main` commit, and you can create and analyze a journal entry through the deployed API.",
               "options": [],
               "order": 4,
               "slug": "phase5-topic6-build-container-orchestration",
@@ -4950,7 +4953,7 @@
               "slug": "phase5-topic6-build-required-project-structure",
               "tips": [
                 {
-                  "text": "Automated verification uses run and job results only. It does not read source files, commands, or logs, or use AI review. A green job does not prove what its commands do; implementing these practices and checking the deployed application remain your responsibility.",
+                  "text": "Automated verification uses run and job results, the `production` deployment recorded by your `deploy` job, and one `GET /version` request to your live API. It does not read source files, commands, or logs, or use AI review. Implementing these practices well remains your responsibility.",
                   "type": "note"
                 }
               ],
@@ -4962,8 +4965,8 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Push your completed implementation to your fork. The latest run of `.github/workflows/ci.yml` must succeed on your current `main` commit, with exactly one successful job named `test`, `build`, and `deploy`. A failed, skipped, or missing job does not pass. Submit your fork for verification after the run finishes.",
-              "done_when": "The latest run and all three required jobs succeed on your current `main` commit, and your submission passes.",
+              "description": "Push your completed implementation to your fork. The latest run of `.github/workflows/ci.yml` must succeed on your current `main` commit, with exactly one successful job named `test`, `build`, and `deploy`. A failed, skipped, or missing job does not pass. The `deploy` job must record a successful `production` deployment, and `GET /version` at that environment's URL must return your current `main` commit. Submit your fork for verification after the run finishes, while the app is running.",
+              "done_when": "The latest run and all three required jobs succeed on your current `main` commit, your live API reports that commit, and your submission passes.",
               "options": [],
               "order": 8,
               "slug": "phase5-topic6-practice-submit-verification",
