@@ -9,7 +9,7 @@ from pydantic import Field
 from learn_to_cloud.schemas.base import FrozenModel
 from learn_to_cloud.schemas.verification import CriterionResult
 
-EvidenceSource = Literal["repo_files", "submitted_text"]
+EvidenceSource = Literal["submitted_text"]
 RubricCriterionKind = Literal["required", "quality", "bonus"]
 
 

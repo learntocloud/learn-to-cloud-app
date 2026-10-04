@@ -29,6 +29,7 @@ from learn_to_cloud.services.verification_attempt_executor import (
     prepare_verification_attempt,
     terminalize_verification_attempt,
 )
+from learn_to_cloud.verification import github_http
 from learn_to_cloud.verification.attempt_snapshot import (
     ATTEMPT_PAYLOAD_VERSION,
     build_requirement_snapshot,
@@ -39,17 +40,17 @@ from learn_to_cloud.verification.attempt_types import (
 )
 from learn_to_cloud.verification.ci_status import verify_ci_status
 from learn_to_cloud.verification.execution import attempt_to_submission_data
-from learn_to_cloud.verification.github_api import GitHubClient
 from learn_to_cloud.verification.github_errors import (
     GitHubServerError,
     github_error_to_result,
 )
 from learn_to_cloud.verification.grading_requests import LLMGradingRequest
 from learn_to_cloud.verification.submission_values import value_kind_for_submission_type
-from learn_to_cloud.verification.tasks.phase6 import (
-    SECURITY_SCANNING_RUBRIC_TASK,
+from learn_to_cloud.verification.tasks.phase7 import (
+    CAREER_REFLECTION_RUBRIC_TASK,
 )
 from tests.support.fakes.github import FakeGitHub
+from tests.support.retrying import retry_with
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -325,14 +326,12 @@ async def test_failed_github_fetch_persists_incomplete_without_completion(
     )
     async with httpx2.AsyncClient(transport=transport) as client:
         monkeypatch.setattr(
-            "learn_to_cloud.verification.github_api.get_github_client",
-            AsyncMock(return_value=client),
+            github_http, "_get_github_client", AsyncMock(return_value=client)
         )
+        fetch = retry_with(github_http.github_api_get, sleep=AsyncMock())
         with pytest.raises(GitHubServerError) as raised:
-            await GitHubClient().file("octocat", "repo", "README.md")
-    validation = github_error_to_result(
-        raised.value, event="llm_rubric_review.repo_file_error"
-    )
+            await fetch("https://api.github.com/repos/octocat/repo")
+    validation = github_error_to_result(raised.value, event="codeql_status.api_error")
     run_result = VerificationRunResult(
         attempt=preparation,
         validation_result=validation,
@@ -416,7 +415,7 @@ async def test_finalize_persists_only_safe_llm_error_category(
     ("error_code", "completed", "expected_code"),
     [
         ("evidence.required_missing", True, "evidence.required_missing"),
-        ("evidence.changed", False, "evidence.changed"),
+        ("evidence.changed", False, "verification_incomplete"),
         ("evidence.file_limit", False, "evidence.file_limit"),
         ("evidence.item_limit", False, "evidence.item_limit"),
         ("evidence.total_limit", False, "evidence.total_limit"),
@@ -564,7 +563,7 @@ async def test_incomplete_finalization_never_persists_private_grading_prompt(
         ),
         grading_requests=[
             LLMGradingRequest(
-                task=SECURITY_SCANNING_RUBRIC_TASK,
+                task=CAREER_REFLECTION_RUBRIC_TASK,
                 message=private,
             )
         ],

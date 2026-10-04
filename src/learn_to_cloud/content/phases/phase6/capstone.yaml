@@ -63,7 +63,13 @@ learning_steps:
   - "**Verify TLS** — `curl -v https://yourdomain/entries` shows a valid certificate"
   - "**Block HTTP** — Either redirect HTTP→HTTPS in your reverse proxy, or remove port 80 from your security group entirely"
   - "**Test plaintext** — `curl http://yourdomain/entries` should either redirect to HTTPS or fail to connect"
-  done_when: "All API traffic is encrypted, and `curl http://yourdomain/entries` does not return a plaintext `200 OK`."
+  - "**Send HSTS** — Return a [`Strict-Transport-Security`](https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Strict-Transport-Security) header such as `max-age=31536000` from your API or proxy so browsers only use HTTPS. Check it with `curl -sI https://yourdomain/version`"
+  done_when: "All API traffic is encrypted, `curl http://yourdomain/entries` does not return a plaintext `200 OK`, and HTTPS responses include a `Strict-Transport-Security` header."
+  tips:
+  - type: note
+    text: >-
+      Phase 6 verification checks this on the live URL from your Phase 5
+      `production` deployment for your latest `main` commit.
   slug: phase6-capstone-practice-configure-https-for-all
 
 - uuid: 69d24a4d-881b-44eb-946e-0c23f9ffccef
@@ -108,17 +114,6 @@ learning_steps:
   - "**Review findings**: triage any critical or high severity [code scanning alerts](https://docs.github.com/en/code-security/code-scanning/managing-code-scanning-alerts/about-code-scanning-alerts)"
   done_when: The CodeQL workflow is committed as `.github/workflows/codeql.yml`, targets Python, and its latest run is green on your `main` branch.
   slug: phase6-capstone-practice-enable-security-scanning-on
-  tips:
-  - type: note
-    text: >-
-      Verification reads the full `.github/workflows/codeql.yml`. Optional
-      Dependabot configuration must use `.github/dependabot.yml` to be included
-      for bonus review; `.github/dependabot.yaml` is not collected. Absence of
-      Dependabot configuration does not block grading. If it is present, its
-      full content is included, never silently dropped to fit an internal
-      limit. Other files are not automatically discovered. If internal limits
-      prevent complete evidence collection, your work remains ungraded; report
-      the service issue rather than shrinking valid work.
 
 - uuid: 831a7907-14bc-4a99-b03d-d7dc1fc4d742
   order: 8
@@ -132,6 +127,8 @@ learning_steps:
   - AI service deployments
   - Monitoring or logging configurations that incur cost
   tips:
+  - type: warning
+    text: Pass Phase 6 verification first. It probes your live API, so it fails once the API is deleted.
   - type: tip
     text: If you used resource groups or tags, deleting the group removes everything at once.
   done_when: Your cloud console shows no remaining billable resources from this project.

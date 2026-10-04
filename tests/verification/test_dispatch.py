@@ -11,7 +11,7 @@ from learn_to_cloud.verification import engine as engine_module
 from learn_to_cloud.verification import security_scanning
 from learn_to_cloud.verification.attempt_types import PreparedVerificationAttempt
 from learn_to_cloud.verification.core import CheckResult
-from learn_to_cloud.verification.evidence import EvidenceError, apply_evidence_cap
+from learn_to_cloud.verification.evidence import EvidenceError
 from learn_to_cloud.verification.repository_ownership import OwnedRepository
 from learn_to_cloud.verification.submission_values import (
     DeployedUrlValue,
@@ -19,7 +19,6 @@ from learn_to_cloud.verification.submission_values import (
     TokenValue,
     submitted_value_from_raw,
 )
-from learn_to_cloud.verification.tasks.phase6 import SECURITY_SCANNING_RUBRIC_TASK
 from learn_to_cloud.verification.tasks.phase7 import CAREER_REFLECTION_RUBRIC_TASK
 from tests.support.fakes.github import FakeGitHub
 from tests.support.requirement_factories import make_requirement
@@ -160,10 +159,23 @@ async def test_career_reflection_rejects_evidence_exceeding_byte_limit():
         )
 
 
+async def test_dispatch_wraps_security_scanning_result(monkeypatch):
+    job = _job(SubmissionType.SECURITY_SCANNING)
+    repository = _owned(job)
+    assert repository is not None
+    result = ValidationResult(is_valid=True, message="Secure.")
+    verify = AsyncMock(return_value=result)
+    monkeypatch.setattr(engine_module, "verify_security_scanning", verify)
+    github = FakeGitHub()
+
+    check_result = await engine_module._dispatch(job, repository, github)
+
+    assert check_result == CheckResult(validation_result=result)
+    verify.assert_awaited_once_with(repository.target, github)
+
+
 @pytest.mark.parametrize("completed", [True, False])
-async def test_security_returns_failed_codeql_gate_without_reading_files(
-    monkeypatch, completed
-):
+async def test_security_codeql_failure_skips_live_check(monkeypatch, completed):
     target = _job(SubmissionType.SECURITY_SCANNING).target
     assert target is not None
     gate = ValidationResult(
@@ -173,43 +185,75 @@ async def test_security_returns_failed_codeql_gate_without_reading_files(
     )
     verify = AsyncMock(return_value=gate)
     monkeypatch.setattr(security_scanning, "verify_codeql_status", verify)
-    collect = AsyncMock()
-    monkeypatch.setattr(
-        security_scanning, "collect_security_scanning_evidence", collect
-    )
+    live = AsyncMock()
+    monkeypatch.setattr(security_scanning, "verify_secure_deployment", live)
 
     github = FakeGitHub()
     result = await security_scanning.verify_security_scanning(target, github)
 
-    assert result == CheckResult(validation_result=gate)
-    assert result.validation_result is gate
+    assert result is gate
     verify.assert_awaited_once_with(target.owner, target.repo, github)
-    collect.assert_not_awaited()
+    live.assert_not_awaited()
 
 
-async def test_security_requests_grading_after_codeql_passes(monkeypatch):
-    target = _job(SubmissionType.SECURITY_SCANNING).target
-    assert target is not None
-    gate = ValidationResult(is_valid=True, message="CodeQL green on main")
+def _security_gates(monkeypatch, live: ValidationResult):
+    gate = ValidationResult(is_valid=True, message="CodeQL green on main.")
     monkeypatch.setattr(
         security_scanning, "verify_codeql_status", AsyncMock(return_value=gate)
     )
-    bundle = apply_evidence_cap(
-        SECURITY_SCANNING_RUBRIC_TASK,
-        [(".github/workflows/codeql.yml", "name: CodeQL")],
+    verify_live = AsyncMock(return_value=live)
+    monkeypatch.setattr(security_scanning, "verify_secure_deployment", verify_live)
+    return verify_live
+
+
+async def test_security_passes_when_both_gates_pass(monkeypatch):
+    target = _job(SubmissionType.SECURITY_SCANNING).target
+    assert target is not None
+    live = ValidationResult(
+        is_valid=True,
+        message="HTTPS only.",
+        task_results=[
+            TaskResult(task_name="https-only", passed=True, feedback="Refused."),
+            TaskResult(task_name="hsts", passed=True, feedback="HSTS sent."),
+        ],
     )
-    collect = AsyncMock(return_value=bundle)
-    monkeypatch.setattr(
-        security_scanning, "collect_security_scanning_evidence", collect
-    )
+    verify_live = _security_gates(monkeypatch, live)
     github = FakeGitHub()
 
     result = await security_scanning.verify_security_scanning(target, github)
 
-    assert result.validation_result is gate
-    assert result.grading is not None
-    assert result.grading.task is SECURITY_SCANNING_RUBRIC_TASK
-    assert result.grading.bundle is bundle
-    collect.assert_awaited_once_with(
-        target.owner, target.repo, github, SECURITY_SCANNING_RUBRIC_TASK
+    verify_live.assert_awaited_once_with(target.owner, target.repo, github)
+    assert result.is_valid
+    assert result.message == "CodeQL green on main. HTTPS only."
+    assert [t.task_name for t in result.task_results or []] == [
+        "codeql",
+        "https-only",
+        "hsts",
+    ]
+    assert all(t.passed for t in result.task_results or [])
+
+
+@pytest.mark.parametrize("completed", [True, False])
+async def test_security_live_failure_fails_with_combined_tasks(monkeypatch, completed):
+    target = _job(SubmissionType.SECURITY_SCANNING).target
+    assert target is not None
+    https_only = TaskResult(task_name="https-only", passed=False, feedback="200.")
+    hsts = TaskResult(task_name="hsts", passed=False, feedback="Missing.")
+    live = ValidationResult(
+        is_valid=False,
+        verification_completed=completed,
+        message="Not locked to HTTPS.",
+        task_results=[https_only, hsts],
     )
+    _security_gates(monkeypatch, live)
+
+    result = await security_scanning.verify_security_scanning(target, FakeGitHub())
+
+    assert not result.is_valid
+    assert result.verification_completed is completed
+    assert result.message == "Not locked to HTTPS."
+    assert [t.task_name for t in result.task_results or []] == [
+        "codeql",
+        "https-only",
+        "hsts",
+    ]

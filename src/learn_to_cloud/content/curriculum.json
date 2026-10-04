@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "3d9eea486211d3aeb7a91f8225ec52ebd0d47bbea1ede382ae9c21da5dbf18c9",
-  "curriculum_version": 28,
+  "content_hash": "44a08adf6092a575adde8e877c137fb69db1f9482db8e46fe3754bce912477fc",
+  "curriculum_version": 29,
   "phases": [
     {
       "completion_summary": "You built a foundation in Linux, networking, programming, cloud computing, and DevOps and created a public learning profile.",
@@ -5045,8 +5045,8 @@
         ],
         "requirements": [
           {
-            "description": "We'll check the latest CodeQL run for your fork's `main` branch and review the complete `.github/workflows/codeql.yml`. Optional `.github/dependabot.yml` is read in full when present for bonus review; its absence does not block grading. These are the canonical filenames, and other files are not automatically discovered. If an internal evidence limit prevents grading, your work is not failed; report the service issue rather than shrinking it.",
-            "name": "Enable Security Scanning",
+            "description": "We'll check that the latest CodeQL run for your fork's `main` branch passed on your latest commit, then probe the live API your deploy job records as the `production` environment for that commit: plain `http://` must redirect to HTTPS or not serve your API, and HTTPS responses must send a `Strict-Transport-Security` header. Verify before you clean up your cloud resources.",
+            "name": "Secure Your Journal API",
             "slug": "security-scanning",
             "submission_type": "security_scanning",
             "type_config": {
@@ -5649,7 +5649,7 @@
               "action": "practice",
               "checklist": [],
               "code": null,
-              "description": "Enable GitHub CodeQL code scanning on your journal-starter fork. Use **advanced setup** (not default setup): from the Security tab choose CodeQL advanced setup, which commits a workflow to `.github/workflows/codeql.yml`. Set the language to **Python**, keep the push, pull_request, and schedule triggers, and enable GitHub Actions on your fork so the workflow runs. Make sure the latest run is green on `main`. This is what the phase verification checks: it confirms a successful CodeQL run for your most recent commit on `main`. Dependabot (a `.github/dependabot.yml` file) is recommended as defense-in-depth but is not required.",
+              "description": "Enable GitHub CodeQL code scanning on your journal-starter fork. Use **advanced setup** (not default setup): from the Security tab choose CodeQL advanced setup, which commits a workflow to `.github/workflows/codeql.yml`. Set the language to **Python**, keep the push, pull_request, and schedule triggers, and enable GitHub Actions on your fork so the workflow runs. Make sure the latest run is green on `main`. Phase verification confirms a successful CodeQL run for your most recent commit on `main`, alongside the HTTPS checks from the capstone. Dependabot (a `.github/dependabot.yml` file) is recommended as defense-in-depth but is not required.",
               "done_when": null,
               "options": [],
               "order": 5,
@@ -5762,15 +5762,21 @@
               "checklist": [
                 "**Verify TLS** \u2014 `curl -v https://yourdomain/entries` shows a valid certificate",
                 "**Block HTTP** \u2014 Either redirect HTTP\u2192HTTPS in your reverse proxy, or remove port 80 from your security group entirely",
-                "**Test plaintext** \u2014 `curl http://yourdomain/entries` should either redirect to HTTPS or fail to connect"
+                "**Test plaintext** \u2014 `curl http://yourdomain/entries` should either redirect to HTTPS or fail to connect",
+                "**Send HSTS** \u2014 Return a [`Strict-Transport-Security`](https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Strict-Transport-Security) header such as `max-age=31536000` from your API or proxy so browsers only use HTTPS. Check it with `curl -sI https://yourdomain/version`"
               ],
               "code": null,
               "description": "Ensure your API **only** accepts HTTPS connections. No plaintext HTTP traffic should reach your application.",
-              "done_when": "All API traffic is encrypted, and `curl http://yourdomain/entries` does not return a plaintext `200 OK`.",
+              "done_when": "All API traffic is encrypted, `curl http://yourdomain/entries` does not return a plaintext `200 OK`, and HTTPS responses include a `Strict-Transport-Security` header.",
               "options": [],
               "order": 4,
               "slug": "phase6-capstone-practice-configure-https-for-all",
-              "tips": [],
+              "tips": [
+                {
+                  "text": "Phase 6 verification checks this on the live URL from your Phase 5 `production` deployment for your latest `main` commit.",
+                  "type": "note"
+                }
+              ],
               "title": "Configure HTTPS for all API traffic",
               "url": null,
               "uuid": "58a1b003-1828-4475-9960-a0f5e23707ce"
@@ -5832,12 +5838,7 @@
               "options": [],
               "order": 7,
               "slug": "phase6-capstone-practice-enable-security-scanning-on",
-              "tips": [
-                {
-                  "text": "Verification reads the full `.github/workflows/codeql.yml`. Optional Dependabot configuration must use `.github/dependabot.yml` to be included for bonus review; `.github/dependabot.yaml` is not collected. Absence of Dependabot configuration does not block grading. If it is present, its full content is included, never silently dropped to fit an internal limit. Other files are not automatically discovered. If internal limits prevent complete evidence collection, your work remains ungraded; report the service issue rather than shrinking valid work.",
-                  "type": "note"
-                }
-              ],
+              "tips": [],
               "title": "Enable security scanning on your repository",
               "url": "https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/configuring-advanced-setup-for-code-scanning",
               "uuid": "e2b8c099-6322-446d-9118-a1406c1ad6b8"
@@ -5858,6 +5859,10 @@
               "order": 8,
               "slug": "phase6-capstone-practice-clean-up-your-cloud",
               "tips": [
+                {
+                  "text": "Pass Phase 6 verification first. It probes your live API, so it fails once the API is deleted.",
+                  "type": "warning"
+                },
                 {
                   "text": "If you used resource groups or tags, deleting the group removes everything at once.",
                   "type": "tip"

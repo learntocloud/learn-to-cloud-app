@@ -9,10 +9,6 @@ from learn_to_cloud.verification.tasks.base import (
     RubricCriterion,
     VerificationTask,
 )
-from learn_to_cloud.verification.tasks.phase6 import (
-    PHASE6_REQUIREMENT_SLUG,
-    SECURITY_SCANNING_RUBRIC_TASK,
-)
 from learn_to_cloud.verification.tasks.phase7 import (
     CAREER_REFLECTION_RUBRIC_TASK,
     PHASE7_REQUIREMENT_SLUG,
@@ -25,9 +21,7 @@ __all__ = [
     "LLMGradingDecision",
     "LLMRubricGraderConfig",
     "RubricCriterion",
-    "PHASE6_REQUIREMENT_SLUG",
     "CAREER_REFLECTION_RUBRIC_TASK",
     "PHASE7_REQUIREMENT_SLUG",
-    "SECURITY_SCANNING_RUBRIC_TASK",
     "VerificationTask",
 ]

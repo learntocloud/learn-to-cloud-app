@@ -58,7 +58,8 @@ One shared ownership check runs before profile README (Phase 0), repository
 forks (Phases 1/2), Journal API (Phase 3), DevOps (Phase 5), and security scanning
 (Phase 6) checks. The public repository
 must belong to the signed-in learner's numeric GitHub ID. Existing fork, CI,
-file, deployment-description, GHCR, CodeQL, and rubric requirements still apply.
+file, deployment-description, GHCR, CodeQL, and live HTTPS requirements still
+apply.
 
 Verification uses the saved GitHub username. If a username change causes an
 ownership or repository-not-found failure, sign out, sign in again, and submit

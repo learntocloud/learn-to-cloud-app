@@ -13,8 +13,7 @@ class FakeGitHub:
     """Answer every :class:`GitHub` read from in-memory data.
 
     ``repos`` maps ``"owner/repo"`` to metadata JSON; a missing key is a 404.
-    ``files`` is one repository snapshot; ``tree`` overrides its listing so it
-    can name unreadable files. Each ``*_error`` makes that read raise.
+    Each ``*_error`` makes that read raise.
     """
 
     def __init__(
@@ -30,9 +29,6 @@ class FakeGitHub:
         jobs_error: Exception | None = None,
         deployment: Deployment | None = None,
         deployment_status: DeploymentStatus | None = None,
-        files: dict[str, str] | None = None,
-        tree: list[str] | None = None,
-        tree_error: Exception | None = None,
     ) -> None:
         self._repos = dict(repos or {})
         self._repo_error = repo_error
@@ -44,10 +40,6 @@ class FakeGitHub:
         self._jobs_error = jobs_error
         self._deployment = deployment
         self._deployment_status = deployment_status
-        self._files = dict(files or {})
-        self._tree = list(tree) if tree is not None else list(self._files)
-        self._tree_error = tree_error
-        self.file_reads: list[str] = []
 
     async def repo_metadata(self, owner: str, repo: str) -> dict[str, Any] | None:
         if self._repo_error is not None:
@@ -82,14 +74,3 @@ class FakeGitHub:
         self, owner: str, repo: str, deployment_id: int
     ) -> DeploymentStatus | None:
         return self._deployment_status
-
-    async def tree(self, owner: str, repo: str, branch: str = "main") -> list[str]:
-        if self._tree_error is not None:
-            raise self._tree_error
-        return list(self._tree)
-
-    async def file(
-        self, owner: str, repo: str, path: str, branch: str = "main"
-    ) -> str | None:
-        self.file_reads.append(path)
-        return self._files.get(path)

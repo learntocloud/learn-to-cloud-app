@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import json
+import re
 import socket
 from typing import Any
 from urllib.parse import quote, urlparse
@@ -424,17 +425,18 @@ async def _get_once(url: str) -> httpx2.Response:
     return response
 
 
+async def _https_target_error(base_url: str) -> str | None:
+    if not _is_valid_url(base_url):
+        return "The production environment URL must be an HTTPS URL."
+    return await _validate_url_target(base_url)
+
+
 async def verify_deployed_version(base_url: str, commit_sha: str) -> ValidationResult:
     """Require ``GET /version`` to report ``commit_sha`` as its ``commit``."""
     base_url = base_url.strip().rstrip("/")
-    if not _is_valid_url(base_url):
-        return ValidationResult(
-            is_valid=False,
-            message="The production environment URL must be an HTTPS URL.",
-        )
-    ssrf_error = await _validate_url_target(base_url)
-    if ssrf_error:
-        return ValidationResult(is_valid=False, message=ssrf_error)
+    target_error = await _https_target_error(base_url)
+    if target_error:
+        return ValidationResult(is_valid=False, message=target_error)
 
     try:
         response = await _get_once(f"{base_url}/version")
@@ -474,6 +476,116 @@ async def verify_deployed_version(base_url: str, commit_sha: str) -> ValidationR
     return ValidationResult(
         is_valid=True,
         message=f"{base_url} is serving commit {commit_sha[:7]}.",
+    )
+
+
+def _plaintext_url(base_url: str) -> str:
+    """Point ``base_url`` at the default HTTP port, keeping its path."""
+    parsed = urlparse(base_url)
+    host = parsed.hostname or ""
+    if ":" in host:
+        host = f"[{host}]"
+    return f"http://{host}{parsed.path}"
+
+
+async def verify_plaintext_http_blocked(base_url: str) -> ValidationResult:
+    """Require plain HTTP to redirect to HTTPS or not serve a success response."""
+    base_url = base_url.strip().rstrip("/")
+    target_error = await _https_target_error(base_url)
+    if target_error:
+        return ValidationResult(is_valid=False, message=target_error)
+
+    url = f"{_plaintext_url(base_url)}/version"
+    span = trace.get_current_span()
+    client = await _get_client()
+    try:
+        response = await client.get(url)
+        _check_response_ip(response)
+    except _SsrfError:
+        return ValidationResult(
+            is_valid=False,
+            message="URL must point to a publicly accessible server.",
+        )
+    except httpx2.RequestError as exc:
+        span.add_event(
+            "deployed_api.plaintext_refused",
+            {"error.type": type(exc).__qualname__},
+        )
+        return ValidationResult(
+            is_valid=True,
+            message="Plain HTTP connections are refused.",
+        )
+
+    status = response.status_code
+    if response.is_redirect:
+        location = response.headers.get("location", "")
+        if urlparse(location).scheme == "https":
+            return ValidationResult(
+                is_valid=True,
+                message=f"Plain HTTP redirects to HTTPS ({status}).",
+            )
+        span.add_event("deployed_api.plaintext_redirect_not_https")
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                f"{url} redirects ({status}), but not to an https:// URL. "
+                "Redirect plain HTTP to HTTPS or close port 80."
+            ),
+        )
+    if response.is_success:
+        span.add_event("deployed_api.plaintext_served")
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                f"{url} returned {status} over plain HTTP. Redirect HTTP to "
+                "HTTPS or close port 80 so your API is only reachable over HTTPS."
+            ),
+        )
+    return ValidationResult(
+        is_valid=True,
+        message=f"Plain HTTP does not serve your API ({status}).",
+    )
+
+
+_HSTS_MAX_AGE = re.compile(r'(?:^|;)\s*max-age\s*=\s*"?(\d+)"?\s*(?=;|$)', re.I)
+
+
+async def verify_hsts(base_url: str) -> ValidationResult:
+    """Require the HTTPS API to send ``Strict-Transport-Security`` with a max-age."""
+    base_url = base_url.strip().rstrip("/")
+    target_error = await _https_target_error(base_url)
+    if target_error:
+        return ValidationResult(is_valid=False, message=target_error)
+
+    try:
+        response = await _get_once(f"{base_url}/version")
+    except _SsrfError:
+        return ValidationResult(
+            is_valid=False,
+            message="URL must point to a publicly accessible server.",
+        )
+    except (
+        httpx2.TimeoutException,
+        httpx2.RequestError,
+        DeployedApiServerError,
+    ) as exc:
+        return deployed_api_error_to_result(exc, step="GET /version")
+
+    header = response.headers.get("strict-transport-security", "")
+    match = _HSTS_MAX_AGE.search(header)
+    if match is None or int(match.group(1)) <= 0:
+        trace.get_current_span().add_event("deployed_api.hsts_missing")
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                "Your HTTPS responses don't include a Strict-Transport-Security "
+                "header with a max-age above 0. Add one, for example "
+                '"Strict-Transport-Security: max-age=31536000".'
+            ),
+        )
+    return ValidationResult(
+        is_valid=True,
+        message="HTTPS responses send Strict-Transport-Security.",
     )
 
 

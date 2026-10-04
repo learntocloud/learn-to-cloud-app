@@ -10,10 +10,6 @@ from learn_to_cloud.verification.devops_verification import (
     DEVOPS_VERSION_PATH,
     DEVOPS_WORKFLOW_FILE,
 )
-from learn_to_cloud.verification.tasks import VerificationTask
-from learn_to_cloud.verification.tasks.phase6 import (
-    SECURITY_SCANNING_RUBRIC_TASK,
-)
 from learn_to_cloud.verification.tasks.phase7 import (
     CAREER_REFLECTION_RUBRIC_TASK,
 )
@@ -35,35 +31,6 @@ def _topic(catalog, phase_slug, topic_slug):
         for topic in catalog.phases_by_slug[phase_slug].topics
         if topic.slug == topic_slug
     )
-
-
-@pytest.mark.parametrize(
-    ("task", "topic_slug", "required", "optional"),
-    [
-        (
-            SECURITY_SCANNING_RUBRIC_TASK,
-            "capstone",
-            {".github/workflows/codeql.yml"},
-            {".github/dependabot.yml"},
-        ),
-    ],
-)
-def test_named_evidence_is_published(
-    task: VerificationTask,
-    topic_slug: str,
-    required: set[str],
-    optional: set[str],
-) -> None:
-    catalog = load_curriculum_catalog()
-    assert task.requirement_slug is not None
-    requirement = _requirement(catalog, task.requirement_slug)
-    topic = _topic(catalog, f"phase{task.phase_id}", topic_slug)
-
-    assert set(task.evidence.required_files) == required
-    assert set(task.evidence.optional_files) == optional
-    for path in required | optional:
-        assert f"`{path}`" in requirement.description
-        assert f"`{path}`" in topic.model_dump_json()
 
 
 def test_devops_run_and_job_contract_is_published() -> None:

@@ -2,44 +2,50 @@
 
 import json
 from hashlib import sha256
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
-import httpx2
 import pytest
 from pydantic import ValidationError
 
 from learn_to_cloud.schemas.verification import ValidationResult
 from learn_to_cloud.verification import evidence as evidence_module
-from learn_to_cloud.verification import github_api
 from learn_to_cloud.verification.evidence import (
     EVIDENCE_ERROR_CODES,
     EvidenceError,
     apply_evidence_cap,
-    collect_repo_file_evidence,
 )
-from learn_to_cloud.verification.github_api import GitHubClient
 from learn_to_cloud.verification.grading_requests import (
     LLMGradingRequest,
-    build_repo_rubric_message,
     build_text_rubric_message,
     validate_grading_request,
 )
-from learn_to_cloud.verification.security_scanning import (
-    collect_security_scanning_evidence,
-)
 from learn_to_cloud.verification.tasks import (
     CAREER_REFLECTION_RUBRIC_TASK,
-    SECURITY_SCANNING_RUBRIC_TASK,
+    EvidencePolicy,
+    LLMRubricGraderConfig,
+    VerificationTask,
 )
 from learn_to_cloud.verification.tasks.base import (
     EvidenceBundle,
 )
-from tests.support.fakes.github import FakeGitHub
 
-TASKS = [
-    SECURITY_SCANNING_RUBRIC_TASK,
-    CAREER_REFLECTION_RUBRIC_TASK,
-]
+TASKS = [CAREER_REFLECTION_RUBRIC_TASK]
+
+# Exercises the optional-evidence half of the policy contract.
+OPTIONAL_TASK = VerificationTask(
+    id="optional-evidence-task",
+    phase_id=7,
+    name="Optional evidence task",
+    evidence=EvidencePolicy(
+        source="submitted_text",
+        required_files=["work.md"],
+        optional_files=["extra.md"],
+        max_files=2,
+    ),
+    grader=LLMRubricGraderConfig(
+        rubric_id="test", prompt_version="test", passing_score=0.5
+    ),
+)
 
 
 def _with_policy(task, **updates):
@@ -60,102 +66,60 @@ def test_every_rubric_criterion_has_declared_evidence(task):
     assert task.grader.prompt_version == "2026-09-06"
 
 
-@pytest.mark.parametrize(
-    "missing", SECURITY_SCANNING_RUBRIC_TASK.evidence.required_files
-)
-async def test_proven_absence_names_canonical_work_without_reads(missing):
-    task = SECURITY_SCANNING_RUBRIC_TASK
-    files = dict.fromkeys(task.evidence.required_files, "complete")
-    del files[missing]
-    files.update(
-        {".github/workflows/ci.yaml": "alternate", "requirements.txt": "alternate"}
-    )
-    repo = FakeGitHub(files=files)
+def test_proven_absence_names_required_work():
     with pytest.raises(EvidenceError, match="evidence.required_missing") as caught:
-        await collect_repo_file_evidence(repo, "owner", "repo", [], task)
+        apply_evidence_cap(OPTIONAL_TASK, [("extra.md", "optional only")])
     result = caught.value.to_validation_result()
     assert result.verification_completed
-    assert missing in result.message
-    assert not repo.file_reads
-
-
-async def test_helpers_use_only_named_files_and_full_optional_support():
-    task = SECURITY_SCANNING_RUBRIC_TASK
-    selected = [*task.evidence.required_files, *task.evidence.optional_files]
-    files = dict.fromkeys(selected, "完整\nimplementation")
-    files.update(
-        {
-            "tests/test_api.py": "x" * 500_000,
-            "api/uncollected.py": "x" * 500_000,
-            ".github/workflows/ci.yaml": "x" * 500_000,
-            "requirements.txt": "x" * 500_000,
-        }
-    )
-    repo = FakeGitHub(files=files)
-    bundle = await collect_security_scanning_evidence(
-        "owner",
-        "repo",
-        repo,
-    )
-    assert repo.file_reads == sorted(selected)
-    assert all(item.content == "完整\nimplementation" for item in bundle.items)
-    assert bundle.optional_presence == dict.fromkeys(task.evidence.optional_files, True)
+    assert "work.md" in result.message
 
 
 @pytest.mark.parametrize("present", [False, True])
-async def test_dependabot_presence_is_explicit_in_the_real_prompt(present):
-    task = SECURITY_SCANNING_RUBRIC_TASK
-    files = dict.fromkeys(task.evidence.required_files, "CodeQL")
+def test_optional_presence_is_explicit_in_the_real_prompt(present):
+    pairs = [("work.md", "完整\nimplementation")]
     if present:
-        files[task.evidence.optional_files[0]] = "version: 2\nupdates: []"
-    files[".github/dependabot.yaml"] = "out of contract" * 50_000
-    repo = FakeGitHub(files=files)
-    bundle = await collect_security_scanning_evidence("owner", "repo", repo)
-    message = build_repo_rubric_message(
-        requirement_slug="security-scanning",
-        requirement_name="Security",
+        pairs.append(("extra.md", "optional"))
+    bundle = apply_evidence_cap(OPTIONAL_TASK, pairs)
+    message = build_text_rubric_message(
+        requirement_slug="optional",
+        requirement_name="Optional",
         deterministic_result=ValidationResult(is_valid=True, message="Passed"),
-        owner="owner",
-        repo="repo",
-        task=task,
+        task=OPTIONAL_TASK,
         evidence=bundle.model_dump(mode="json"),
     )
     payload = json.loads(message.split("\n\n", 1)[1])
-    assert payload["evidence"]["optional_presence"] == {
-        ".github/dependabot.yml": present
-    }
-    assert ".github/dependabot.yaml" not in repo.file_reads
-
-
-async def test_oversized_optional_dependabot_blocks_whole_packet():
-    task = SECURITY_SCANNING_RUBRIC_TASK
-    repo = FakeGitHub(
-        files={
-            task.evidence.required_files[0]: "CodeQL",
-            task.evidence.optional_files[0]: "x"
-            * (task.evidence.max_file_size_bytes + 1),
-        }
+    assert payload["evidence"]["optional_presence"] == {"extra.md": present}
+    assert [item["content"] for item in payload["evidence"]["items"]][0] == (
+        "完整\nimplementation"
     )
+
+
+def test_oversized_optional_work_blocks_whole_packet():
+    task = OPTIONAL_TASK
     with pytest.raises(EvidenceError, match="evidence.item_limit"):
-        await collect_security_scanning_evidence("owner", "repo", repo)
+        apply_evidence_cap(
+            task,
+            [
+                ("work.md", "complete"),
+                ("extra.md", "x" * (task.evidence.max_file_size_bytes + 1)),
+            ],
+        )
 
 
 @pytest.mark.parametrize(("count", "code"), [(24, None), (25, "evidence.file_limit")])
-async def test_selected_count_limit_precedes_any_file_read(count, code):
+def test_selected_count_limit_is_enforced(count, code):
     files = {f"evidence-{i}.txt": "source" for i in range(count)}
     task = _with_policy(
-        SECURITY_SCANNING_RUBRIC_TASK,
+        OPTIONAL_TASK,
         required_files=list(files),
         optional_files=[],
         max_files=24,
     )
-    repo = FakeGitHub(files=files)
     if code:
         with pytest.raises(EvidenceError, match=code):
-            await collect_repo_file_evidence(repo, "owner", "repo", [], task)
-        assert not repo.file_reads
+            apply_evidence_cap(task, files.items())
     else:
-        bundle = await collect_repo_file_evidence(repo, "owner", "repo", [], task)
+        bundle = apply_evidence_cap(task, files.items())
         assert len(bundle.items) == count
 
 
@@ -210,7 +174,6 @@ def test_invalid_configuration_is_not_a_learner_failure(updates):
         "content",
         "total",
         "task",
-        "source",
         "missing",
         "duplicate",
         "selection",
@@ -219,21 +182,15 @@ def test_invalid_configuration_is_not_a_learner_failure(updates):
     ],
 )
 def test_restored_tampered_packet_is_rejected_at_prompt_construction(tamper):
-    task = SECURITY_SCANNING_RUBRIC_TASK
-    bundle = apply_evidence_cap(
-        task,
-        [
-            (task.evidence.required_files[0], "CodeQL"),
-            (task.evidence.optional_files[0], "version: 2"),
-        ],
-    )
+    task = OPTIONAL_TASK
+    bundle = apply_evidence_cap(task, [("work.md", "Work"), ("extra.md", "Extra")])
     data = bundle.model_dump(mode="json")
     if tamper == "truncated":
         data["items"][0]["truncated"] = True
     elif tamper == "hash":
         data["items"][0]["sha256"] = "wrong"
     elif tamper == "content":
-        data["items"][0]["content"] = "codeql"
+        data["items"][0]["content"] = "work"
         assert (
             sum(len(item["content"].encode("utf-8")) for item in data["items"])
             == data["total_bytes"]
@@ -242,8 +199,6 @@ def test_restored_tampered_packet_is_rejected_at_prompt_construction(tamper):
         data["total_bytes"] += 1
     elif tamper == "task":
         data["task_id"] = "wrong"
-    elif tamper == "source":
-        data["source"] = "submitted_text"
     elif tamper == "missing":
         data["items"].pop()
     elif tamper == "duplicate":
@@ -256,12 +211,10 @@ def test_restored_tampered_packet_is_rejected_at_prompt_construction(tamper):
         data["optional_presence"] = {}
     restored = EvidenceBundle.model_validate(data)
     with pytest.raises(EvidenceError, match="evidence.selection"):
-        build_repo_rubric_message(
-            requirement_slug="security",
-            requirement_name="Security",
+        build_text_rubric_message(
+            requirement_slug="optional",
+            requirement_name="Optional",
             deterministic_result=ValidationResult(is_valid=True, message="Passed"),
-            owner="owner",
-            repo="repo",
             task=task,
             evidence=restored.model_dump(mode="json"),
         )
@@ -316,22 +269,14 @@ def test_actual_serialized_request_is_revalidated_before_provider(mutation):
     ],
 )
 def test_prompt_boundary_recomputes_all_budget_limits(field, value, code):
-    task = SECURITY_SCANNING_RUBRIC_TASK
-    bundle = apply_evidence_cap(
-        task,
-        [
-            (task.evidence.required_files[0], "CodeQL"),
-            (task.evidence.optional_files[0], "version: 2"),
-        ],
-    )
+    task = OPTIONAL_TASK
+    bundle = apply_evidence_cap(task, [("work.md", "Work"), ("extra.md", "Extra")])
     limited_task = _with_policy(task, **{field: value})
     with pytest.raises(EvidenceError, match=code):
-        build_repo_rubric_message(
-            requirement_slug="security",
-            requirement_name="Security",
+        build_text_rubric_message(
+            requirement_slug="optional",
+            requirement_name="Optional",
             deterministic_result=ValidationResult(is_valid=True, message="Passed"),
-            owner="owner",
-            repo="repo",
             task=limited_task,
             evidence=bundle.model_dump(mode="json"),
         )
@@ -382,59 +327,22 @@ def test_restored_prompt_enforces_utf8_item_budget(text, oversized):
 
 @pytest.mark.parametrize("field", ["selected_paths", "optional_presence"])
 def test_evidence_packet_requires_current_selection_fields(field):
-    task = SECURITY_SCANNING_RUBRIC_TASK
-    bundle = apply_evidence_cap(task, [(task.evidence.required_files[0], "CodeQL")])
+    bundle = apply_evidence_cap(OPTIONAL_TASK, [("work.md", "Work")])
     data = bundle.model_dump(mode="json")
     del data[field]
     with pytest.raises(ValidationError):
         EvidenceBundle.model_validate(data)
-
-
-async def test_wrong_source_is_configuration_failure_before_repository_access():
-    repo = FakeGitHub(files={"career-reflection.md": "text"})
-    with pytest.raises(EvidenceError, match="evidence.configuration"):
-        await collect_repo_file_evidence(
-            repo,
-            "owner",
-            "repo",
-            [],
-            CAREER_REFLECTION_RUBRIC_TASK,
+    with pytest.raises(EvidenceError, match="evidence.selection"):
+        build_text_rubric_message(
+            requirement_slug="optional",
+            requirement_name="Optional",
+            deterministic_result=ValidationResult(is_valid=True, message="Passed"),
+            task=OPTIONAL_TASK,
+            evidence=data,
         )
-    assert not repo.file_reads
 
 
-@pytest.mark.parametrize("boundary", ["tree", "collector"])
-async def test_truncated_github_tree_is_never_trusted(monkeypatch, boundary):
-    monkeypatch.setattr(
-        github_api,
-        "github_api_get",
-        AsyncMock(
-            return_value=httpx2.Response(
-                200,
-                json={
-                    "truncated": True,
-                    "tree": [{"type": "blob", "path": "Dockerfile"}],
-                },
-            )
-        ),
-    )
-    repo = GitHubClient()
-    with pytest.raises(EvidenceError, match="evidence.selection") as caught:
-        if boundary == "tree":
-            await repo.tree("owner", "repo")
-        else:
-            await collect_repo_file_evidence(
-                repo, "owner", "repo", [], SECURITY_SCANNING_RUBRIC_TASK
-            )
-    result = caught.value.to_validation_result()
-    assert not result.verification_completed
-    assert not result.is_valid
-    assert result.error_code == "evidence.selection"
-
-
-@pytest.mark.parametrize(
-    "reason", sorted(EVIDENCE_ERROR_CODES | {"complete", "retrieval"})
-)
+@pytest.mark.parametrize("reason", sorted(EVIDENCE_ERROR_CODES | {"complete"}))
 def test_evidence_event_has_closed_privacy_safe_attribute_contract(monkeypatch, reason):
     span = Mock()
     monkeypatch.setattr(evidence_module.trace, "get_current_span", lambda: span)
@@ -457,7 +365,6 @@ def test_evidence_event_has_closed_privacy_safe_attribute_contract(monkeypatch, 
     assert attributes["evidence.outcome"] in {
         "complete",
         "required_missing",
-        "retrieval_failed",
         "incomplete",
     }
     assert attributes["evidence.reason"] == reason
@@ -466,23 +373,19 @@ def test_evidence_event_has_closed_privacy_safe_attribute_contract(monkeypatch, 
     assert attributes["evidence.total_bytes"] == 123
 
 
-async def test_collection_telemetry_never_contains_sensitive_sentinels(monkeypatch):
+@pytest.mark.parametrize("reason", ["retrieval", "evidence.changed", "other"])
+def test_evidence_event_rejects_unknown_reasons(reason):
+    with pytest.raises(ValueError, match="Unknown evidence telemetry reason"):
+        evidence_module.record_evidence_decision(reason)
+
+
+def test_collection_telemetry_never_contains_sensitive_sentinels(monkeypatch):
     span = Mock()
     monkeypatch.setattr(evidence_module.trace, "get_current_span", lambda: span)
     secret_path = "SENTINEL-PATH.txt"
     content = "SENTINEL-CODE https://private.example/repo learner-secret"
-    task = _with_policy(
-        SECURITY_SCANNING_RUBRIC_TASK,
-        required_files=[secret_path],
-        optional_files=[],
-    )
-    await collect_repo_file_evidence(
-        FakeGitHub(files={secret_path: content}),
-        "private-owner",
-        "private-repo",
-        [secret_path],
-        task,
-    )
+    task = _with_policy(OPTIONAL_TASK, required_files=[secret_path], optional_files=[])
+    apply_evidence_cap(task, [(secret_path, content)])
     span.add_event.assert_called_once()
     output = repr(span.add_event.call_args)
     assert all(
@@ -490,8 +393,6 @@ async def test_collection_telemetry_never_contains_sensitive_sentinels(monkeypat
         for secret in [
             secret_path,
             content,
-            "private-owner",
-            "private-repo",
             sha256(content.encode()).hexdigest(),
         ]
     )

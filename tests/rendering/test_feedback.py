@@ -62,14 +62,6 @@ def test_evidence_service_failure_needs_service_attention(error_code):
     assert "You can try again." not in message
 
 
-def test_changed_evidence_recommends_stable_repository_retry():
-    message = incomplete_verification_message(None, "evidence.changed")
-
-    assert "Your work was not judged" in message
-    assert "after the repository stops changing" in message
-    assert "report the issue" in message
-
-
 @pytest.mark.parametrize(
     "error_code",
     [
@@ -94,7 +86,7 @@ def test_retrieval_failure_recommends_retry_later(error_code):
     assert "401" not in message
 
 
-@pytest.mark.parametrize("error_code", [None, "historical.unknown"])
+@pytest.mark.parametrize("error_code", [None, "historical.unknown", "evidence.changed"])
 def test_unknown_codes_keep_generic_recovery_without_parsing_cause(error_code):
     message = incomplete_verification_message("evidence.total_limit", error_code)
 
