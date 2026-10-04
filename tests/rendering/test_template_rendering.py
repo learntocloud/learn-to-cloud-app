@@ -265,27 +265,27 @@ def _card_contexts(
 
 
 @pytest.mark.unit
-def test_phase5_holistic_feedback_renders_in_shared_panel():
+def test_phase5_delivery_feedback_renders_in_shared_panel():
     html = _render(
         "partials/verification_feedback.html",
         feedback_tasks=[
             {
-                "name": "DevOps Implementation Review",
+                "name": "deployment",
                 "passed": False,
                 "message": (
-                    "Dockerfile and CI/CD are sound; Kubernetes references "
-                    "a different image."
+                    "The latest production deployment was not made by the "
+                    "deploy job in this run."
                 ),
-                "next_steps": "Align the workflow and Deployment image reference.",
+                "next_steps": "Give the deploy job a production environment.",
             }
         ],
         feedback_passed=0,
         requirement_slug="devops-implementation",
     )
 
-    assert "DevOps Implementation Review" in html
-    assert "Kubernetes references" in html
-    assert "Align the workflow" in html
+    assert "deployment" in html
+    assert "not made by the deploy job" in html
+    assert "Give the deploy job a production environment." in html
     assert 'id="feedback-panel-devops-implementation"' in html
 
 
