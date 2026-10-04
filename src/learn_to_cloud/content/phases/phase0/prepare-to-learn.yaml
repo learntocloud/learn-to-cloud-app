@@ -52,8 +52,8 @@ learning_steps:
 - uuid: 018392db-e453-4349-a162-cee0ee69b7f4
   order: 6
   action: 'Practice:'
-  title: Join the Learn to Cloud Discord
-  url: https://discord.gg/kDUStZnczs
-  description: Join the Learn to Cloud Discord server to connect with other learners and get help as you work through the curriculum.
-  done_when: You've joined the server and read the community rules.
-  slug: phase0-topic0-practice-join-discord
+  title: Introduce yourself on GitHub Discussions
+  url: https://github.com/learntocloud/learn-to-cloud-app/discussions/956
+  description: Reply to the Introduce yourself discussion to meet other learners. Use GitHub Discussions to ask questions as you work through the curriculum, and open an issue when something is broken.
+  done_when: You've replied to the Introduce yourself discussion.
+  slug: phase0-topic0-practice-introduce-yourself
