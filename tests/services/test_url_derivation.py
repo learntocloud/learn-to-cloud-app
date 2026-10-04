@@ -95,9 +95,9 @@ class TestDeriveSubmissionValue:
             == "https://github.com/bob/journal-starter"
         )
 
-    def test_devops_analysis(self):
+    def test_devops_verification(self):
         req = _req(
-            SubmissionType.DEVOPS_ANALYSIS,
+            SubmissionType.DEVOPS_VERIFICATION,
             required_repo="learntocloud/journal-starter",
         )
         assert (

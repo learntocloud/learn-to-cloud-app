@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "d075bd87debd59870667d5760b707a956bb22ec6ca280dd56654f42f4a6fb691",
-  "curriculum_version": 27,
+  "content_hash": "3d9eea486211d3aeb7a91f8225ec52ebd0d47bbea1ede382ae9c21da5dbf18c9",
+  "curriculum_version": 28,
   "phases": [
     {
       "completion_summary": "You built a foundation in Linux, networking, programming, cloud computing, and DevOps and created a public learning profile.",
@@ -3652,7 +3652,7 @@
             "description": "We'll check the latest run of `.github/workflows/ci.yml` on your fork's current `main` commit. The run must succeed with exactly one successful job named `test`, `build`, and `deploy`. Use those exact job IDs and display names, without matrix suffixes. The `deploy` job must use an environment named `production` whose `url` is your public HTTPS API address, so GitHub records a deployment from that job. We then call `GET /version` at that address, which must return `{\"commit\": \"<full commit SHA>\"}` for your current `main` commit. Keep the app running until verification passes. Verification uses run and job results, the deployment record, and that one request. It does not read source files or logs, or use AI review. If you rerun a workflow, choose Re-run all jobs so the latest attempt contains all three jobs.",
             "name": "Complete the DevOps Capstone",
             "slug": "devops-implementation",
-            "submission_type": "devops_analysis",
+            "submission_type": "devops_verification",
             "type_config": {
               "required_repo": "learntocloud/journal-starter"
             },

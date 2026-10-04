@@ -40,7 +40,7 @@ def input_shape_for_submission_type(
         SubmissionType.PROFILE_README,
         SubmissionType.REPO_FORK,
         SubmissionType.JOURNAL_API_VERIFIER,
-        SubmissionType.DEVOPS_ANALYSIS,
+        SubmissionType.DEVOPS_VERIFICATION,
         SubmissionType.SECURITY_SCANNING,
     }:
         return VerificationInputShape.DERIVED

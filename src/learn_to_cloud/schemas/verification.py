@@ -22,7 +22,7 @@ class SubmissionData(FrozenModel):
 class TaskResult(FrozenModel):
     """Result of verifying a single task in a multi-task verification.
 
-    Used by DEVOPS_ANALYSIS and SECURITY_SCANNING validations to provide
+    Used by DEVOPS_VERIFICATION and SECURITY_SCANNING validations to provide
     detailed per-task feedback.
     """
 

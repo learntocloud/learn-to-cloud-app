@@ -6,8 +6,8 @@ import httpx2
 import pytest
 
 from learn_to_cloud.schemas.verification import ValidationResult
-from learn_to_cloud.verification import devops_analysis
-from learn_to_cloud.verification.devops_analysis import verify_devops_pipeline
+from learn_to_cloud.verification import devops_verification
+from learn_to_cloud.verification.devops_verification import verify_devops_pipeline
 from learn_to_cloud.verification.github_api import (
     Deployment,
     DeploymentStatus,
@@ -78,7 +78,7 @@ def live(monkeypatch):
     probe = AsyncMock(
         return_value=ValidationResult(is_valid=True, message="serving commit")
     )
-    monkeypatch.setattr(devops_analysis, "verify_deployed_version", probe)
+    monkeypatch.setattr(devops_verification, "verify_deployed_version", probe)
     return probe
 
 

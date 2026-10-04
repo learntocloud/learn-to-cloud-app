@@ -83,7 +83,7 @@ All submissions run through the background worker inside the API.
 | 2 | `networking-lab-token` | `networking_token` | Minted locally (see below) |
 | 3 | `journal-api-implementation` | `journal_api_verifier` | Auto-derived |
 | 4 | `deployed-journal-api` | `deployed_api` | User-provided URL |
-| 5 | `devops-implementation` | `devops_analysis` | Auto-derived |
+| 5 | `devops-implementation` | `devops_verification` | Auto-derived |
 | 6 | `security-scanning` | `security_scanning` | Auto-derived |
 | 7 | `career-reflection` | `career_reflection` | Three answers, 200 characters minimum each |
 

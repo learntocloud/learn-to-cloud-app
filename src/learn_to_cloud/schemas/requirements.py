@@ -72,8 +72,8 @@ class JournalApiVerifierConfig(RepoConfig):
     """Config for journal_api_verifier requirements."""
 
 
-class DevopsAnalysisConfig(RepoConfig):
-    """Config for devops_analysis requirements."""
+class DevopsVerificationConfig(RepoConfig):
+    """Config for devops_verification requirements."""
 
 
 class SecurityScanningConfig(RepoConfig):
@@ -162,9 +162,9 @@ class DeployedApiRequirement(_RequirementBase):
     type_config: DeployedApiConfig = Field(default_factory=DeployedApiConfig)
 
 
-class DevopsAnalysisRequirement(_RequirementBase):
-    submission_type: Literal[SubmissionType.DEVOPS_ANALYSIS]
-    type_config: DevopsAnalysisConfig
+class DevopsVerificationRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.DEVOPS_VERIFICATION]
+    type_config: DevopsVerificationConfig
 
 
 class SecurityScanningRequirement(_RequirementBase):
@@ -184,7 +184,7 @@ HandsOnRequirement = Annotated[
     | NetworkingTokenRequirement
     | JournalApiVerifierRequirement
     | DeployedApiRequirement
-    | DevopsAnalysisRequirement
+    | DevopsVerificationRequirement
     | SecurityScanningRequirement
     | CareerReflectionRequirement,
     Field(discriminator="submission_type"),

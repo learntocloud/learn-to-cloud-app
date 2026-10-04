@@ -37,7 +37,7 @@ from learn_to_cloud.verification.tasks.phase7 import (
     CAREER_REFLECTION_RUBRIC_TASK,
 )
 from tests.support.requirement_factories import (
-    devops_analysis_requirement,
+    devops_verification_requirement,
 )
 
 
@@ -103,7 +103,7 @@ async def test_grading_rejects_missing_evidence_contract(execution):
 
 @pytest.fixture
 def execution(monkeypatch):
-    requirement = devops_analysis_requirement(slug="devops")
+    requirement = devops_verification_requirement(slug="devops")
     attempt = PreparedVerificationAttempt(
         id=uuid4(),
         user_id=1,
