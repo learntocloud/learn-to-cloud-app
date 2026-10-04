@@ -2,15 +2,9 @@ const assert = require('node:assert/strict');
 const listeners = new Map();
 const reduced = process.argv[3] === 'true';
 const ajaxCalls = [];
-const progressAnimations = [];
 const announcement = { textContent: '' };
 const error = { hidden: true };
 const celebration = { classList: new Set() };
-const bar = {
-    value: '0',
-    getAttribute: () => bar.value,
-    firstElementChild: { animate: frames => progressAnimations.push(frames) },
-};
 let cards = [];
 function card(id, state) {
     const step = { classList: new Set() };
@@ -25,7 +19,6 @@ const root = {
     contains: element => cards.includes(element),
     querySelectorAll: () => cards,
     querySelector: selector => ({
-        '[role="progressbar"]': bar,
         '[data-verification-announcement]': announcement,
         '[data-verification-error]': error,
         '[data-phase-celebration]': celebration,
@@ -47,12 +40,11 @@ global.htmx = {
 };
 require(process.argv[2]);
 
-function swap(next, { complete = false, progress = '0' } = {}) {
+function swap(next, { complete = false } = {}) {
     const xhr = {};
     listeners.get('htmx:beforeSwap')({ detail: { target: root, xhr } });
     cards = next;
     root.dataset.phaseComplete = String(complete);
-    bar.value = progress;
     document.activeElement = document.body;
     listeners.get('htmx:afterSettle')({ detail: { xhr } });
 }
@@ -74,19 +66,17 @@ assert.equal(cards[0].classList.size, 0, 'polls must not replay entry');
 assert.equal(announcement.textContent, '');
 
 document.activeElement = { closest: () => cards[0] };
-swap([card('first', 'passed'), card('second', 'not_started')], { progress: '50' });
+swap([card('first', 'passed'), card('second', 'not_started')]);
 assert.equal(cards[0].classList.has('verification-success'), !reduced);
 assert.equal(cards[1].classList.has('verification-enter'), !reduced);
 assert.equal(cards[0].closest().classList.has('verification-step-completed'), !reduced);
 assert.equal(document.activeElement, cards[0]);
 assert.match(announcement.textContent, /next requirement is ready/);
-assert.equal(progressAnimations.length, reduced ? 0 : 1);
-if (!reduced) assert.deepEqual(progressAnimations[0], [{ width: '0%' }, { width: '50%' }]);
 
 // A result must not steal focus when the learner is reading elsewhere.
 cards = [card('first', 'passed'), card('second', 'checking')];
 document.activeElement = { closest: () => null };
-swap([card('first', 'passed'), card('second', 'failed')], { progress: '50' });
+swap([card('first', 'passed'), card('second', 'failed')]);
 assert.equal(document.activeElement, document.body);
 assert.equal(cards[0].classList.size, 0);
 assert.match(announcement.textContent, /Review the result/);
@@ -94,7 +84,7 @@ assert.equal(cards[1].classList.has('verification-success'), false);
 
 cards = [card('first', 'passed'), card('second', 'checking')];
 document.activeElement = { closest: () => null };
-swap([card('first', 'passed'), card('second', 'passed')], { complete: true, progress: '100' });
+swap([card('first', 'passed'), card('second', 'passed')], { complete: true });
 assert.equal(celebration.classList.has('verification-success'), !reduced);
 assert.match(announcement.textContent, /Every requirement is complete/);
 

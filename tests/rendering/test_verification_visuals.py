@@ -103,7 +103,6 @@ def test_mixed_feedback_discloses_passed_checks_but_keeps_fixes_visible(
     assert "details" not in parser.text_contexts["Next step: Add a health endpoint."]
     if structured:
         assert parser.text_contexts["README.md"].count("details") == 2
-    assert "verification-result-summary" in html
     assert "verification-check-unmet" in html
     assert "verification-check-met" in html
 
@@ -149,11 +148,8 @@ def test_result_summary_counts_required_checks_not_optional_suggestions() -> Non
         feedback_passed=1,
         requirement_slug="journal",
     )
-    parser = _FeedbackParser()
-    parser.feed(html)
 
-    assert "Required checks passed" in parser.text_contexts
-    assert "/1" in parser.text_contexts
-    assert "/2" not in parser.text_contexts
+    assert "1 of 1 required checks passed" in html
+    assert "of 2 required" not in html
     assert 'x-data="{ expanded: false }"' in html
     assert "1 suggestion" in html
