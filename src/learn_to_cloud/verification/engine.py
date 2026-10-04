@@ -16,7 +16,7 @@ from learn_to_cloud.verification.attempt_types import (
 from learn_to_cloud.verification.ci_status import verify_ci_status
 from learn_to_cloud.verification.core import CheckResult, GradingEvidence
 from learn_to_cloud.verification.deployed_api import validate_deployed_api
-from learn_to_cloud.verification.devops_analysis import verify_devops_pipeline
+from learn_to_cloud.verification.devops_verification import verify_devops_pipeline
 from learn_to_cloud.verification.evidence import (
     EvidenceError,
     collect_submitted_text_evidence,
@@ -162,7 +162,7 @@ async def _dispatch(
             result = await verify_ci_status(target.owner, target.repo, github)
         case SubmissionType.DEPLOYED_API:
             result = await validate_deployed_api(_value(job, DeployedUrlValue).url)
-        case SubmissionType.DEVOPS_ANALYSIS:
+        case SubmissionType.DEVOPS_VERIFICATION:
             target = _owned(repository).target
             result = await verify_devops_pipeline(target.owner, target.repo, github)
         case SubmissionType.SECURITY_SCANNING:

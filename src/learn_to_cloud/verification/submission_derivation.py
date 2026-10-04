@@ -23,7 +23,7 @@ _DERIVABLE_TYPES: frozenset[SubmissionType] = frozenset(
         SubmissionType.PROFILE_README,
         SubmissionType.REPO_FORK,
         SubmissionType.JOURNAL_API_VERIFIER,
-        SubmissionType.DEVOPS_ANALYSIS,
+        SubmissionType.DEVOPS_VERIFICATION,
         SubmissionType.SECURITY_SCANNING,
     }
 )
@@ -34,7 +34,7 @@ _REPO_TARGET_TYPES: frozenset[SubmissionType] = frozenset(
     {
         SubmissionType.REPO_FORK,
         SubmissionType.JOURNAL_API_VERIFIER,
-        SubmissionType.DEVOPS_ANALYSIS,
+        SubmissionType.DEVOPS_VERIFICATION,
         SubmissionType.SECURITY_SCANNING,
     }
 )
@@ -121,7 +121,7 @@ def derive_submission_value(
     if sub_type in (
         SubmissionType.REPO_FORK,
         SubmissionType.JOURNAL_API_VERIFIER,
-        SubmissionType.DEVOPS_ANALYSIS,
+        SubmissionType.DEVOPS_VERIFICATION,
         SubmissionType.SECURITY_SCANNING,
     ):
         required_repo = _required_repo(requirement)

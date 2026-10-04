@@ -32,7 +32,7 @@ def test_input_length_range_must_be_ordered() -> None:
     [
         SubmissionType.REPO_FORK,
         SubmissionType.JOURNAL_API_VERIFIER,
-        SubmissionType.DEVOPS_ANALYSIS,
+        SubmissionType.DEVOPS_VERIFICATION,
         SubmissionType.SECURITY_SCANNING,
     ],
 )

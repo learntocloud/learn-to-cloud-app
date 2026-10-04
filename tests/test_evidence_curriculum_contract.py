@@ -4,7 +4,7 @@ import pytest
 
 from learn_to_cloud.curriculum.catalog import load_curriculum_catalog
 from learn_to_cloud.verification.ci_status import CAPSTONE_WORKFLOW_FILE
-from learn_to_cloud.verification.devops_analysis import (
+from learn_to_cloud.verification.devops_verification import (
     DEVOPS_ENVIRONMENT,
     DEVOPS_REQUIRED_JOBS,
     DEVOPS_VERSION_PATH,
@@ -71,7 +71,7 @@ def test_devops_run_and_job_contract_is_published() -> None:
     requirement = _requirement(catalog, "devops-implementation")
     topic = _topic(catalog, "phase5", "capstone")
     assert str(requirement.uuid) == "623a87ae-156f-42da-a83c-09241d523e00"
-    assert requirement.submission_type == "devops_analysis"
+    assert requirement.submission_type == "devops_verification"
     for text in (requirement.description, topic.model_dump_json()):
         assert f"`.github/workflows/{DEVOPS_WORKFLOW_FILE}`" in text
         assert "latest run" in text

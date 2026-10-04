@@ -28,7 +28,7 @@ _REPOSITORY_TYPES = [
     SubmissionType.PROFILE_README,
     SubmissionType.REPO_FORK,
     SubmissionType.JOURNAL_API_VERIFIER,
-    SubmissionType.DEVOPS_ANALYSIS,
+    SubmissionType.DEVOPS_VERIFICATION,
     SubmissionType.SECURITY_SCANNING,
 ]
 
@@ -62,7 +62,7 @@ def _owned(job, parent=None) -> OwnedRepository | None:
         (SubmissionType.CTF_TOKEN, "verify_ctf_token", False),
         (SubmissionType.NETWORKING_TOKEN, "verify_networking_token", False),
         (SubmissionType.DEPLOYED_API, "validate_deployed_api", True),
-        (SubmissionType.DEVOPS_ANALYSIS, "verify_devops_pipeline", True),
+        (SubmissionType.DEVOPS_VERIFICATION, "verify_devops_pipeline", True),
     ],
 )
 @pytest.mark.parametrize(

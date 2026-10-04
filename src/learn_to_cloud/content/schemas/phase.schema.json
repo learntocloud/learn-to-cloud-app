@@ -241,9 +241,9 @@
       "title": "DeployedApiRequirement",
       "type": "object"
     },
-    "DevopsAnalysisConfig": {
+    "DevopsVerificationConfig": {
       "additionalProperties": false,
-      "description": "Config for devops_analysis requirements.",
+      "description": "Config for devops_verification requirements.",
       "properties": {
         "required_repo": {
           "description": "Upstream repo (owner/name) the learner forks from.",
@@ -254,10 +254,10 @@
       "required": [
         "required_repo"
       ],
-      "title": "DevopsAnalysisConfig",
+      "title": "DevopsVerificationConfig",
       "type": "object"
     },
-    "DevopsAnalysisRequirement": {
+    "DevopsVerificationRequirement": {
       "additionalProperties": false,
       "properties": {
         "description": {
@@ -273,12 +273,12 @@
           "type": "string"
         },
         "submission_type": {
-          "const": "devops_analysis",
+          "const": "devops_verification",
           "title": "Submission Type",
           "type": "string"
         },
         "type_config": {
-          "$ref": "#/$defs/DevopsAnalysisConfig"
+          "$ref": "#/$defs/DevopsVerificationConfig"
         },
         "uuid": {
           "format": "uuid",
@@ -294,7 +294,7 @@
         "submission_type",
         "type_config"
       ],
-      "title": "DevopsAnalysisRequirement",
+      "title": "DevopsVerificationRequirement",
       "type": "object"
     },
     "EmptyConfig": {
@@ -595,7 +595,7 @@
                 "career_reflection": "#/$defs/CareerReflectionRequirement",
                 "ctf_token": "#/$defs/CtfTokenRequirement",
                 "deployed_api": "#/$defs/DeployedApiRequirement",
-                "devops_analysis": "#/$defs/DevopsAnalysisRequirement",
+                "devops_verification": "#/$defs/DevopsVerificationRequirement",
                 "journal_api_verifier": "#/$defs/JournalApiVerifierRequirement",
                 "networking_token": "#/$defs/NetworkingTokenRequirement",
                 "profile_readme": "#/$defs/ProfileReadmeRequirement",
@@ -624,7 +624,7 @@
                 "$ref": "#/$defs/DeployedApiRequirement"
               },
               {
-                "$ref": "#/$defs/DevopsAnalysisRequirement"
+                "$ref": "#/$defs/DevopsVerificationRequirement"
               },
               {
                 "$ref": "#/$defs/SecurityScanningRequirement"

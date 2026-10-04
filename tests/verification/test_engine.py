@@ -41,7 +41,7 @@ from tests.support.requirement_factories import (
     career_reflection_requirement,
     ctf_token_requirement,
     deployed_api_requirement,
-    devops_analysis_requirement,
+    devops_verification_requirement,
     journal_api_verifier_requirement,
     make_requirement,
     networking_token_requirement,
@@ -197,7 +197,7 @@ _REPOSITORY_TYPES = {
     SubmissionType.PROFILE_README,
     SubmissionType.REPO_FORK,
     SubmissionType.JOURNAL_API_VERIFIER,
-    SubmissionType.DEVOPS_ANALYSIS,
+    SubmissionType.DEVOPS_VERIFICATION,
     SubmissionType.SECURITY_SCANNING,
 }
 
@@ -468,7 +468,7 @@ def _deployed_api_job() -> PreparedVerificationAttempt:
 
 def _devops_job() -> PreparedVerificationAttempt:
 
-    requirement = devops_analysis_requirement(
+    requirement = devops_verification_requirement(
         slug="devops-analysis",
         required_repo="owner/devops-repo",
     )

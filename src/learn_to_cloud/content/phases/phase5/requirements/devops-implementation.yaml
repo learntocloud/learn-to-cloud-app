@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../../schemas/requirement.schema.json
 uuid: 623a87ae-156f-42da-a83c-09241d523e00
 slug: devops-implementation
-submission_type: devops_analysis
+submission_type: devops_verification
 name: Complete the DevOps Capstone
 description: >-
   We'll check the latest run of `.github/workflows/ci.yml` on your fork's

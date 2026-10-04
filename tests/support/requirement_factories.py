@@ -13,8 +13,8 @@ from learn_to_cloud.schemas.requirements import (
     CtfTokenRequirement,
     DeployedApiConfig,
     DeployedApiRequirement,
-    DevopsAnalysisConfig,
-    DevopsAnalysisRequirement,
+    DevopsVerificationConfig,
+    DevopsVerificationRequirement,
     JournalApiVerifierConfig,
     JournalApiVerifierRequirement,
     NetworkingTokenConfig,
@@ -145,20 +145,20 @@ def deployed_api_requirement(
     )
 
 
-def devops_analysis_requirement(
+def devops_verification_requirement(
     *,
     slug: str = "devops-analysis",
     name: str = "Test devops analysis requirement",
     description: str = "Test description",
     required_repo: str = "owner/devops-repo",
-) -> DevopsAnalysisRequirement:
-    return DevopsAnalysisRequirement(
+) -> DevopsVerificationRequirement:
+    return DevopsVerificationRequirement(
         uuid=uuid4(),
         slug=slug,
-        submission_type=SubmissionType.DEVOPS_ANALYSIS,
+        submission_type=SubmissionType.DEVOPS_VERIFICATION,
         name=name,
         description=description,
-        type_config=DevopsAnalysisConfig(required_repo=required_repo),
+        type_config=DevopsVerificationConfig(required_repo=required_repo),
     )
 
 
@@ -251,8 +251,8 @@ def make_requirement(
             return deployed_api_requirement(
                 slug=slug, name=name, description=description, placeholder=placeholder
             )
-        case SubmissionType.DEVOPS_ANALYSIS:
-            return devops_analysis_requirement(
+        case SubmissionType.DEVOPS_VERIFICATION:
+            return devops_verification_requirement(
                 slug=slug,
                 name=name,
                 description=description,

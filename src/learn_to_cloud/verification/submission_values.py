@@ -13,7 +13,7 @@ _GITHUB_URL_TYPES = {
     SubmissionType.PROFILE_README.value,
     SubmissionType.REPO_FORK.value,
     SubmissionType.JOURNAL_API_VERIFIER.value,
-    SubmissionType.DEVOPS_ANALYSIS.value,
+    SubmissionType.DEVOPS_VERIFICATION.value,
     SubmissionType.SECURITY_SCANNING.value,
 }
 _TOKEN_TYPES = {
