@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "content_hash": "44a08adf6092a575adde8e877c137fb69db1f9482db8e46fe3754bce912477fc",
-  "curriculum_version": 29,
+  "content_hash": "3852a8c1d3099d7d8cc41fd3446eb580e4f0d666d82f8050ecae46adb99a0e55",
+  "curriculum_version": 30,
   "phases": [
     {
       "completion_summary": "You built a foundation in Linux, networking, programming, cloud computing, and DevOps and created a public learning profile.",
@@ -996,19 +996,19 @@
               "done_when": null,
               "options": [
                 {
-                  "description": "Run this command in your terminal:\n```bash az --version ```",
+                  "description": "Run this command in your terminal:\n`az --version`",
                   "provider": "azure",
                   "title": "Verify Azure CLI",
                   "url": "https://learn.microsoft.com/cli/azure/reference-index?view=azure-cli-latest#az-version"
                 },
                 {
-                  "description": "Run this command in your terminal:\n```bash aws --version ```",
+                  "description": "Run this command in your terminal:\n`aws --version`",
                   "provider": "aws",
                   "title": "Verify AWS CLI",
                   "url": "https://docs.aws.amazon.com/cli/latest/reference/#global-options"
                 },
                 {
-                  "description": "Run this command in your terminal:\n```bash gcloud --version ```",
+                  "description": "Run this command in your terminal:\n`gcloud --version`",
                   "provider": "gcp",
                   "title": "Verify Google Cloud CLI",
                   "url": "https://docs.cloud.google.com/sdk/gcloud/reference/version"
@@ -1029,19 +1029,19 @@
               "done_when": null,
               "options": [
                 {
-                  "description": "Run this command in your terminal:\n```bash az login ```",
+                  "description": "Run this command in your terminal:\n`az login`",
                   "provider": "azure",
                   "title": "Authenticate Azure CLI",
                   "url": "https://learn.microsoft.com/cli/azure/authenticate-azure-cli"
                 },
                 {
-                  "description": "Run this command in your terminal:\n```bash aws configure ```",
+                  "description": "Run this command in your terminal:\n`aws configure`",
                   "provider": "aws",
                   "title": "Authenticate AWS CLI",
                   "url": "https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html"
                 },
                 {
-                  "description": "Run this command in your terminal:\n```bash gcloud auth login ```",
+                  "description": "Run this command in your terminal:\n`gcloud auth login`",
                   "provider": "gcp",
                   "title": "Authenticate Google Cloud CLI",
                   "url": "https://docs.cloud.google.com/sdk/docs/authorizing"
