@@ -26,6 +26,7 @@ from learn_to_cloud.curriculum.compiler import (
     compile_curriculum_artifact,
     compute_content_hash,
 )
+from learn_to_cloud.rendering.markdown import render_md
 
 pytestmark = pytest.mark.unit
 
@@ -79,6 +80,34 @@ class TestLoadCurriculumCatalog:
         catalog = load_curriculum_catalog()
         assert catalog.phases
         assert catalog.artifact_schema_version == ARTIFACT_SCHEMA_VERSION
+
+    @pytest.mark.parametrize(
+        "step_order,provider,command",
+        [
+            (2, "azure", "az --version"),
+            (2, "aws", "aws --version"),
+            (2, "gcp", "gcloud --version"),
+            (3, "azure", "az login"),
+            (3, "aws", "aws configure"),
+            (3, "gcp", "gcloud auth login"),
+        ],
+    )
+    def test_cloud_cli_commands_render_without_shell_prefix(
+        self, step_order: int, provider: str, command: str
+    ):
+        catalog = load_curriculum_catalog()
+        topic = next(
+            topic
+            for topic in catalog.phases_by_slug["phase1"].topics
+            if topic.slug == "cloud-cli"
+        )
+        step = next(step for step in topic.learning_steps if step.order == step_order)
+        option = next(option for option in step.options if option.provider == provider)
+
+        html = render_md(option.description)
+
+        assert f"<code>{command}</code>" in html
+        assert "bash" not in html
 
     def test_missing_artifact_raises(self):
         with (

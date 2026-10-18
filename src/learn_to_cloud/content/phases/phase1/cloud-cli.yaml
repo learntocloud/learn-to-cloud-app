@@ -43,19 +43,19 @@ learning_steps:
     url: https://learn.microsoft.com/cli/azure/reference-index?view=azure-cli-latest#az-version
     description: 'Run this command in your terminal:
 
-      ```bash az --version ```'
+      `az --version`'
   - provider: aws
     title: Verify AWS CLI
     url: https://docs.aws.amazon.com/cli/latest/reference/#global-options
     description: 'Run this command in your terminal:
 
-      ```bash aws --version ```'
+      `aws --version`'
   - provider: gcp
     title: Verify Google Cloud CLI
     url: https://docs.cloud.google.com/sdk/gcloud/reference/version
     description: 'Run this command in your terminal:
 
-      ```bash gcloud --version ```'
+      `gcloud --version`'
   title: Test your CLI installation
   slug: phase1-topic2-practice-test-your-cli-installation
 - uuid: 6c8ee969-af99-4bdc-b75d-989c751aa71c
@@ -68,18 +68,18 @@ learning_steps:
     url: https://learn.microsoft.com/cli/azure/authenticate-azure-cli
     description: 'Run this command in your terminal:
 
-      ```bash az login ```'
+      `az login`'
   - provider: aws
     title: Authenticate AWS CLI
     url: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
     description: 'Run this command in your terminal:
 
-      ```bash aws configure ```'
+      `aws configure`'
   - provider: gcp
     title: Authenticate Google Cloud CLI
     url: https://docs.cloud.google.com/sdk/docs/authorizing
     description: 'Run this command in your terminal:
 
-      ```bash gcloud auth login ```'
+      `gcloud auth login`'
   title: Configure authentication
   slug: phase1-topic2-practice-configure-authentication
