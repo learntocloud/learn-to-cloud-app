@@ -29,19 +29,21 @@ dependencies = [
     # The aio extra installs aiohttp, which azure.identity.aio needs at runtime.
     "azure-core[aio]>=1.41.0",
     "azure-identity>=1.25.3",
-    "azure-monitor-opentelemetry>=1.8.10",
+    "azure-monitor-opentelemetry>=1.8.11",
     "fastapi>=0.141.1,<1",
     "httpx2>=2.12.0",
     "itsdangerous>=2.1.0",
     "jinja2>=3.1.0",
     "markdown>=3.5.0",
-    # azure-monitor-opentelemetry 1.8.10 requires the OpenTelemetry 1.44 line.
-    "opentelemetry-api>=1.44.0,<1.45.0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.44.0,<1.45.0",
-    "opentelemetry-instrumentation-httpx==0.65b0",
-    "opentelemetry-instrumentation-logging==0.65b0",
-    "opentelemetry-instrumentation-sqlalchemy==0.65b0",
-    "opentelemetry-sdk>=1.44.0,<1.45.0",
+    # OpenTelemetry packages release as matched sets (core 1.x with
+    # instrumentation 0.y), and azure-monitor-opentelemetry pins the set.
+    # Lower bounds only, so the resolver picks the set Azure Monitor supports.
+    "opentelemetry-api>=1.45.2",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.45.2",
+    "opentelemetry-instrumentation-httpx>=0.66b2",
+    "opentelemetry-instrumentation-logging>=0.66b2",
+    "opentelemetry-instrumentation-sqlalchemy>=0.66b2",
+    "opentelemetry-sdk>=1.45.2",
     "openai>=3.20.0,<4",
     "pydantic>=2.13.3,<3",
     "pydantic-settings>=2.14.2",
