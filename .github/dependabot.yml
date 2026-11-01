@@ -41,6 +41,12 @@ updates:
           - "alembic"
           - "asyncpg"
           - "sqlalchemy"
+      # Groups above only cover version updates; without this, every security
+      # fix (including transitive packages) opens its own pull request.
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   # npm dependencies (Tailwind CSS)
   - package-ecosystem: "npm"
@@ -56,6 +62,10 @@ updates:
       npm-all:
         patterns:
           - "*"
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -69,6 +79,10 @@ updates:
       - "github-actions"
     groups:
       actions-all:
+        patterns:
+          - "*"
+      actions-security:
+        applies-to: security-updates
         patterns:
           - "*"
 
