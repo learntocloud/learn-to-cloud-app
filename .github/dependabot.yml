@@ -27,6 +27,12 @@ updates:
           - "alembic"
           - "asyncpg"
           - "sqlalchemy"
+      # OpenTelemetry packages must move as one matched set; one-at-a-time
+      # updates cannot resolve.
+      opentelemetry:
+        patterns:
+          - "azure-monitor-opentelemetry"
+          - "opentelemetry-*"
       python-all:
         patterns:
           - "*"
@@ -41,6 +47,8 @@ updates:
           - "alembic"
           - "asyncpg"
           - "sqlalchemy"
+          - "azure-monitor-opentelemetry"
+          - "opentelemetry-*"
       # Groups above only cover version updates; without this, every security
       # fix (including transitive packages) opens its own pull request.
       python-security:
