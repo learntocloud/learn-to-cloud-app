@@ -114,6 +114,8 @@ def test_phase0_feedback_banner_is_available_across_pages(page, signed_in):
     )
     html = _render(page, phases=[], user=user)
 
+    banner = html.split("<aside", 1)[1].split(">", 1)[0]
+    assert "x-cloak" in banner
     assert "What would help you make progress in Phase 0?" in html
     assert (
         'href="https://github.com/learntocloud/learn-to-cloud-app/discussions/1001"'
