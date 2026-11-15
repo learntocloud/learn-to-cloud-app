@@ -66,6 +66,14 @@ run "api_verification_worker" {
 
   assert {
     condition = (
+      azurerm_container_app.api_v5.template[0].container[0].readiness_probe[0].interval_seconds == 10 &&
+      azurerm_container_app.api_v5.template[0].container[0].readiness_probe[0].success_count_threshold == 1
+    )
+    error_message = "The API readiness probe must use a 10-second interval and one successful check."
+  }
+
+  assert {
+    condition = (
       azurerm_container_app.api_v5.template[0].container[0].cpu == 0.25 &&
       azurerm_container_app.api_v5.template[0].container[0].memory == "0.5Gi"
     )
