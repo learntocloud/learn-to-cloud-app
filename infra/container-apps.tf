@@ -198,9 +198,10 @@ resource "azurerm_container_app" "api_v5" {
         transport               = "HTTP"
         path                    = "/ready"
         port                    = 8000
-        interval_seconds        = 30
+        interval_seconds        = 10
         timeout                 = 5
         failure_count_threshold = 3
+        success_count_threshold = 1
       }
 
       startup_probe {
