@@ -101,6 +101,29 @@ def _render(template_name: str, **ctx: object) -> str:
     return _ENV.get_template(template_name).render(**_base_ctx(**ctx))
 
 
+@pytest.mark.unit
+@pytest.mark.parametrize("page", ["pages/home.html", "pages/privacy.html"])
+@pytest.mark.parametrize("signed_in", [False, True])
+def test_phase0_feedback_banner_is_available_across_pages(page, signed_in):
+    user = (
+        SimpleNamespace(
+            github_username="tester", display_name="Tester", avatar_url=None
+        )
+        if signed_in
+        else None
+    )
+    html = _render(page, phases=[], user=user)
+
+    banner = html.split("<aside", 1)[1].split(">", 1)[0]
+    assert "x-cloak" in banner
+    assert "What would help you make progress in Phase 0?" in html
+    assert (
+        'href="https://github.com/learntocloud/learn-to-cloud-app/discussions/1001"'
+        in html
+    )
+    assert 'aria-label="Dismiss feedback banner"' in html
+
+
 def _report_links(html: str) -> list[dict[str, str | None]]:
     class ReportLinkParser(HTMLParser):
         def __init__(self):
