@@ -8,7 +8,7 @@ content.
 ## Content flow
 
 ```text
-YAML files -> strict validation -> curriculum.json -> in-memory catalog
+YAML and lesson Markdown -> strict validation -> curriculum.json -> in-memory catalog
 ```
 
 Authored YAML lives under
@@ -83,3 +83,19 @@ rewritten.
 4. Commit the YAML changes, regenerated `curriculum.json`, and any schema changes.
 
 Adding or removing curriculum content does not require a database migration.
+
+## Authoring lessons
+
+A learning step can use `lesson: lessons/example.md` instead of `url`. The
+path is relative to the topic YAML file and must point to a non-empty Markdown
+file inside the phase directory. Do not set both `lesson` and `url`. Steps
+with external URLs, provider options, or text alone continue to work.
+
+Write original lesson content. Use fenced code blocks for commands and
+GitHub-style callouts such as `> [!NOTE]` for notes. Give the step a stable
+UUID, slug, title, and order. The same step completion applies to the topic
+and lesson pages.
+
+The compiler reads the Markdown and embeds it in `curriculum.json`. Runtime
+packages do not need the source Markdown. Bump `curriculum_version` for
+lesson edits, then regenerate the artifact as described above.

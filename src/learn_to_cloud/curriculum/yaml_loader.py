@@ -90,6 +90,34 @@ def _build_topic(topic_file: Path, *, order: int) -> Topic:
             "'topics:' list -- remove the 'order' field from this file."
         )
     _validate_topic_payload(data, topic_file)
+    for step in data["learning_steps"]:
+        if "lesson_markdown" in step:
+            raise ContentValidationError("lesson_markdown is generated, not authored")
+        if "lesson" not in step:
+            continue
+        lesson = step["lesson"]
+        if not isinstance(lesson, str) or not lesson.strip():
+            raise ContentValidationError(
+                f"{topic_file}: lesson must be a non-empty path"
+            )
+        path = Path(lesson)
+        if path.is_absolute() or path.suffix.lower() != ".md":
+            raise ContentValidationError(
+                f"{topic_file}: invalid lesson path {lesson!r}"
+            )
+        phase_dir = topic_file.parent.resolve()
+        resolved = (phase_dir / path).resolve()
+        if not resolved.is_relative_to(phase_dir):
+            raise ContentValidationError(f"{topic_file}: lesson path escapes its phase")
+        try:
+            markdown = resolved.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise ContentValidationError(
+                f"{topic_file}: cannot read lesson {lesson!r}: {exc}"
+            ) from exc
+        if not markdown.strip():
+            raise ContentValidationError(f"{topic_file}: lesson {lesson!r} is empty")
+        step["lesson_markdown"] = markdown
     data["order"] = order
     return Topic.model_validate(data)
 

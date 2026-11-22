@@ -22,6 +22,7 @@ Marked @pytest.mark.smoke so they can be run separately:
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -29,6 +30,7 @@ from fastapi.responses import HTMLResponse
 from httpx2 import ASGITransport, AsyncClient
 
 from learn_to_cloud.core.database import get_db
+from learn_to_cloud.curriculum.reads import get_curriculum_catalog
 from learn_to_cloud.curriculum.yaml_loader import (
     get_all_phases_from_yaml,
 )
@@ -471,3 +473,84 @@ class TestRedirectSmoke:
         response = await anon_client.get(path, follow_redirects=False)
         assert response.status_code == 303
         assert "/auth/login" in response.headers["location"]
+
+
+@pytest.mark.smoke
+async def test_lesson_completion_stays_in_sync_with_topic(auth_client: AsyncClient):
+    catalog = get_curriculum_catalog()
+    topic = next(
+        t
+        for t in catalog.phases_by_slug["phase1"].topics
+        if t.slug == "developer-setup"
+    )
+    step = next(s for s in topic.learning_steps if s.lesson_markdown)
+    completed = set()
+
+    def complete(_db, _user_id, _step_uuid):
+        completed.add(step.uuid)
+        return topic, step, completed
+
+    def uncomplete(_db, _user_id, _step_uuid):
+        completed.discard(step.uuid)
+        return topic, step, completed
+
+    with (
+        patch(
+            "learn_to_cloud.routes.pages_routes.get_valid_completed_steps",
+            new=AsyncMock(side_effect=lambda *_: set(completed)),
+        ),
+        patch(
+            "learn_to_cloud.routes.htmx_routes.complete_step",
+            new=AsyncMock(side_effect=complete),
+        ),
+        patch(
+            "learn_to_cloud.routes.htmx_routes.uncomplete_step",
+            new=AsyncMock(side_effect=uncomplete),
+        ),
+    ):
+        page = await auth_client.get(f"/lesson/{step.uuid}")
+        assert page.status_code == 200
+        assert "<pre><code" in page.text
+        assert 'class="callout callout-note"' in page.text
+        assert f"/phase/1/{topic.slug}#step-{step.uuid}" in page.text
+        assert 'hx-post="/htmx/steps/complete?view=lesson"' in page.text
+
+        result = await auth_client.post(
+            "/htmx/steps/complete?view=lesson", data={"step_uuid": str(step.uuid)}
+        )
+        assert result.status_code == 200
+        assert f'hx-delete="/htmx/steps/{step.uuid}?view=lesson"' in result.text
+        topic_page_response = await auth_client.get(f"/phase/1/{topic.slug}")
+        assert f'href="/lesson/{step.uuid}"' in topic_page_response.text
+        assert f'hx-delete="/htmx/steps/{step.uuid}"' in topic_page_response.text
+
+        result = await auth_client.delete(f"/htmx/steps/{step.uuid}?view=lesson")
+        assert result.status_code == 200
+        assert 'hx-post="/htmx/steps/complete?view=lesson"' in result.text
+        page = await auth_client.get(f"/lesson/{step.uuid}")
+        assert "checked" not in page.text.split('id="lesson-completion"', 1)[1]
+
+        await auth_client.post(
+            "/htmx/steps/complete", data={"step_uuid": str(step.uuid)}
+        )
+        page = await auth_client.get(f"/lesson/{step.uuid}")
+        assert f'hx-delete="/htmx/steps/{step.uuid}?view=lesson"' in page.text
+
+
+@pytest.mark.smoke
+async def test_lesson_page_requires_auth(anon_client: AsyncClient):
+    catalog = get_curriculum_catalog()
+    step = next(s for s in catalog.steps_by_uuid.values() if s.lesson_markdown)
+    response = await anon_client.get(f"/lesson/{step.uuid}", follow_redirects=False)
+    assert response.status_code == 303
+    assert "/auth/login" in response.headers["location"]
+
+
+@pytest.mark.smoke
+async def test_lesson_page_rejects_non_lessons(auth_client: AsyncClient):
+    catalog = get_curriculum_catalog()
+    non_lesson = next(
+        s for s in catalog.steps_by_uuid.values() if not s.lesson_markdown
+    )
+    assert (await auth_client.get(f"/lesson/{non_lesson.uuid}")).status_code == 404
+    assert (await auth_client.get(f"/lesson/{uuid4()}")).status_code == 404

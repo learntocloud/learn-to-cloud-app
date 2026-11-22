@@ -14,6 +14,7 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
+import yaml
 
 from learn_to_cloud.curriculum.yaml_loader import (
     ContentValidationError,
@@ -115,10 +116,66 @@ class TestValidateTopicPayload:
 # ---------------------------------------------------------------------------
 
 
+def _write_lesson_topic(tmp_path: Path, lesson: str, **fields: str) -> None:
+    data = {
+        "uuid": "00000000-0000-0000-0000-000000000001",
+        "slug": "basics",
+        "name": "Basics",
+        "description": "Learn the basics",
+        "learning_steps": [
+            {
+                "uuid": "00000000-0000-0000-0000-000000000002",
+                "slug": "step-intro",
+                "order": 1,
+                "title": "Introduction",
+                "lesson": lesson,
+                **fields,
+            }
+        ],
+    }
+    (tmp_path / "basics.yaml").write_text(yaml.safe_dump(data), encoding="utf-8")
+
+
 @pytest.mark.unit
 class TestLoadTopic:
     def test_missing_file_returns_none(self, tmp_path: Path):
         assert _load_topic(tmp_path, "nonexistent", order=1) is None
+
+    def test_loads_lesson_markdown(self, tmp_path: Path):
+        lesson_dir = tmp_path / "lessons"
+        lesson_dir.mkdir()
+        (lesson_dir / "intro.md").write_text("# Hello\n", encoding="utf-8")
+        _write_lesson_topic(tmp_path, "lessons/intro.md")
+
+        topic = _load_topic(tmp_path, "basics", order=1, strict=True)
+        assert topic is not None
+        assert topic.learning_steps[0].lesson_markdown == "# Hello\n"
+
+    @pytest.mark.parametrize(
+        "lesson",
+        ["", "../outside.md", "missing.md", "lesson.txt", "empty.md"],
+    )
+    def test_rejects_invalid_lesson_paths(self, tmp_path: Path, lesson: str):
+        (tmp_path / "empty.md").write_text(" \n", encoding="utf-8")
+        _write_lesson_topic(tmp_path, lesson)
+        with pytest.raises(ContentValidationError):
+            _load_topic(tmp_path, "basics", order=1, strict=True)
+
+    def test_rejects_absolute_lesson_path(self, tmp_path: Path):
+        _write_lesson_topic(tmp_path, str(tmp_path / "intro.md"))
+        with pytest.raises(ContentValidationError, match="invalid lesson path"):
+            _load_topic(tmp_path, "basics", order=1, strict=True)
+
+    def test_rejects_lesson_with_url(self, tmp_path: Path):
+        (tmp_path / "intro.md").write_text("# Hello", encoding="utf-8")
+        _write_lesson_topic(tmp_path, "intro.md", url="https://example.com")
+        with pytest.raises(ValueError, match="both a lesson and a URL"):
+            _load_topic(tmp_path, "basics", order=1, strict=True)
+
+    def test_rejects_authored_runtime_markdown(self, tmp_path: Path):
+        _write_lesson_topic(tmp_path, "intro.md", lesson_markdown="not from a file")
+        with pytest.raises(ContentValidationError, match="generated, not authored"):
+            _load_topic(tmp_path, "basics", order=1, strict=True)
 
     def test_valid_yaml_returns_topic(self, tmp_path: Path):
         topic_file = tmp_path / "basics.yaml"

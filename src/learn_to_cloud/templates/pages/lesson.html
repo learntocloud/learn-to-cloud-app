@@ -1,0 +1,19 @@
+{% extends "layouts/content_page.html" %}
+{% block title %}{{ step.title }} - Learn to Cloud{% endblock %}
+
+{% block breadcrumb %}
+<nav class="mb-4 flex min-h-11 items-center text-sm text-gray-500 dark:text-gray-400" aria-label="Breadcrumb">
+    <a href="/phase/{{ phase_id }}/{{ topic.slug }}#step-{{ step.uuid }}" class="font-medium hover:text-blue-700 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:hover:text-blue-300">&larr; Back to {{ topic.name }}</a>
+</nav>
+{% endblock %}
+
+{% block page_header %}
+<h1 class="page-title">{{ step.title }}</h1>
+{% endblock %}
+
+{% block page_body %}
+<article class="lesson-content" x-data="proseCopyButtons">
+    {{ step.lesson_markdown | md | safe }}
+</article>
+{% include "partials/lesson_completion.html" %}
+{% endblock %}

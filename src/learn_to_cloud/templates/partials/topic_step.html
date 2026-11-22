@@ -41,7 +41,9 @@
         <div class="min-w-0 flex-1 py-2">
             <div class="flex flex-wrap items-center gap-2">
                 {{ action_badge(step.action) }}
-                {% if step.title and step.url %}
+                {% if step.title and step.lesson_markdown %}
+                <a href="/lesson/{{ step.uuid }}" class="inline-flex min-h-11 items-center break-words text-base font-medium text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-700 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:decoration-blue-800 dark:hover:decoration-blue-300">{{ step.title }}</a>
+                {% elif step.title and step.url %}
                 <a href="{{ step.url }}" target="_blank" rel="noopener" hx-boost="false" class="inline-flex min-h-11 items-center break-words text-base font-medium text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-700 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-blue-300 dark:decoration-blue-800 dark:hover:decoration-blue-300">{{ step.title }}</a>
                 {% elif step.title %}
                 <h2 class="break-words text-base font-medium {% if is_completed %}text-gray-500 dark:text-gray-400{% else %}text-gray-950 dark:text-white{% endif %}">{{ step.title }}</h2>

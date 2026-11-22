@@ -126,12 +126,24 @@ class LearningStep(FrozenModel):
     action: StepAction | None = None
     title: str | None = None
     url: str | None = None
+    lesson: str | None = None
+    lesson_markdown: str | None = None
     description: str | None = None
     code: str | None = None
     options: list[ProviderOption] = Field(default_factory=list)
     checklist: list[str] = Field(default_factory=list)
     tips: list[TipItem] = Field(default_factory=list)
     done_when: str | None = None
+
+    @model_validator(mode="after")
+    def validate_lesson(self) -> Self:
+        if self.lesson and self.url:
+            raise ValueError("A step cannot have both a lesson and a URL")
+        if bool(self.lesson) != bool(self.lesson_markdown):
+            raise ValueError("A lesson must have a path and non-empty Markdown")
+        if self.lesson and not (self.title and self.title.strip()):
+            raise ValueError("A lesson step must have a title")
+        return self
 
     @field_validator("action", mode="before")
     @classmethod

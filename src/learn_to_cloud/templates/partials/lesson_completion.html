@@ -1,0 +1,20 @@
+{% set is_completed = step.uuid in completed_steps %}
+<div id="lesson-completion" class="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700">
+    <label class="inline-flex min-h-11 cursor-pointer items-center gap-3 text-base font-medium text-gray-950 dark:text-white">
+        <input
+            type="checkbox"
+            {% if is_completed %}checked{% endif %}
+            class="h-5 w-5 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-3 focus:ring-blue-500"
+            {% if is_completed %}
+            hx-delete="/htmx/steps/{{ step.uuid }}?view=lesson"
+            {% else %}
+            hx-post="/htmx/steps/complete?view=lesson"
+            hx-vals='{"step_uuid": "{{ step.uuid }}"}'
+            {% endif %}
+            hx-target="#lesson-completion"
+            hx-swap="outerHTML"
+            hx-disabled-elt="this"
+        >
+        Mark {{ step.title or "lesson" }} complete
+    </label>
+</div>

@@ -8,7 +8,7 @@ The worker processes attempts; authenticated polling reads their database state.
 """
 
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, Path, Query, Request
@@ -93,6 +93,7 @@ async def htmx_complete_step(
     db: DbSession,
     account: CurrentAccount,
     step_uuid: Annotated[UUID, Form()],
+    view: Literal["topic", "lesson"] = "topic",
 ) -> HTMLResponse:
     """Complete a step and return the updated step partial."""
     try:
@@ -104,7 +105,7 @@ async def htmx_complete_step(
         response.headers["HX-Refresh"] = "true"
         return response
 
-    return render_step_toggle(account, topic, step, completed)
+    return render_step_toggle(account, topic, step, completed, view=view)
 
 
 @router.delete("/steps/{step_uuid}", response_class=HTMLResponse)
@@ -112,6 +113,7 @@ async def htmx_uncomplete_step(
     step_uuid: UUID,
     db: DbSession,
     account: CurrentAccount,
+    view: Literal["topic", "lesson"] = "topic",
 ) -> HTMLResponse:
     """Uncomplete a step and return the updated step partial."""
     try:
@@ -121,7 +123,7 @@ async def htmx_uncomplete_step(
         response.headers["HX-Refresh"] = "true"
         return response
 
-    return render_step_toggle(account, topic, step, completed)
+    return render_step_toggle(account, topic, step, completed, view=view)
 
 
 async def _parse_verification_form[FormModel: BaseModel](

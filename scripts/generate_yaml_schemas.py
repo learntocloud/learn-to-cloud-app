@@ -48,6 +48,27 @@ def _topic_authoring_schema() -> dict:
     schema["properties"].pop("order")
     schema["required"].remove("order")
     schema["additionalProperties"] = False
+    step_schema = schema["$defs"]["LearningStep"]
+    step_schema["properties"].pop("lesson_markdown")
+    step_schema["properties"]["lesson"] = {
+        "title": "Lesson",
+        "type": "string",
+        "minLength": 1,
+        "pattern": r"\.[mM][dD]$",
+    }
+    step_schema["allOf"] = [
+        {
+            "if": {"required": ["lesson"]},
+            "then": {
+                "required": ["title"],
+                "properties": {"title": {"type": "string", "minLength": 1}},
+                "not": {
+                    "required": ["url"],
+                    "properties": {"url": {"type": "string", "minLength": 1}},
+                },
+            },
+        }
+    ]
 
     action_schema = schema["$defs"]["StepAction"]
     action_schema["enum"] = [
