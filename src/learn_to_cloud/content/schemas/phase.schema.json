@@ -442,6 +442,30 @@
           "default": null,
           "title": "Done When"
         },
+        "lesson": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lesson"
+        },
+        "lesson_markdown": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lesson Markdown"
+        },
         "options": {
           "items": {
             "$ref": "#/$defs/ProviderOption"

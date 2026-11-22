@@ -6,6 +6,7 @@ JSON API routes but render HTML templates instead of returning JSON.
 
 from datetime import UTC, datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -13,10 +14,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from learn_to_cloud.core.database import DbSession
 from learn_to_cloud.core.routing import LoginRedirectRoute
 from learn_to_cloud.curriculum.reads import (
+    get_curriculum_catalog,
     get_curriculum_overview,
     get_next_phase,
     get_phase_by_slug,
     get_phase_start_url,
+    get_topic_containing_step,
 )
 from learn_to_cloud.models import User
 from learn_to_cloud.rendering.page_content import (
@@ -315,6 +318,42 @@ async def topic_page(
             progress=progress,
             phase_started_transition_id=phase_started_transition_id,
             source_phase=source_phase_value,
+        ),
+    )
+
+
+@router.get(
+    "/lesson/{step_uuid:uuid}",
+    response_class=HTMLResponse,
+    summary="Lesson",
+)
+async def lesson_page(
+    request: Request,
+    step_uuid: UUID,
+    db: DbSession,
+    account: CurrentAccount,
+) -> HTMLResponse:
+    result = get_topic_containing_step(step_uuid)
+    if result is None or not result[1].lesson_markdown:
+        return templates.TemplateResponse(
+            request,
+            "pages/404.html",
+            _template_context(user=account),
+            status_code=404,
+        )
+
+    topic, step = result
+    phase_id = get_curriculum_catalog().phase_order_by_step_uuid[step_uuid]
+    completed_steps = await get_valid_completed_steps(db, account.id, topic)
+    return templates.TemplateResponse(
+        request,
+        "pages/lesson.html",
+        _template_context(
+            user=account,
+            topic=topic,
+            step=step,
+            phase_id=phase_id,
+            completed_steps=completed_steps,
         ),
     )
 

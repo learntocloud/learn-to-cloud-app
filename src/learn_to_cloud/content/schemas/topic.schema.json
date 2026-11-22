@@ -26,6 +26,37 @@
       "type": "object"
     },
     "LearningStep": {
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "lesson"
+            ]
+          },
+          "then": {
+            "not": {
+              "properties": {
+                "url": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url"
+              ]
+            },
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "title"
+            ]
+          }
+        }
+      ],
       "description": "A learning step within a topic.",
       "properties": {
         "action": {
@@ -81,6 +112,12 @@
           ],
           "default": null,
           "title": "Done When"
+        },
+        "lesson": {
+          "minLength": 1,
+          "pattern": "\\.[mM][dD]$",
+          "title": "Lesson",
+          "type": "string"
         },
         "options": {
           "items": {

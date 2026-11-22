@@ -99,6 +99,35 @@ def minimal_content_root(tmp_path: Path) -> Path:
 
 
 class TestCompileCurriculumArtifact:
+    def test_lesson_content_is_packaged_and_changes_hash(
+        self, minimal_content_root: Path
+    ):
+        phase = minimal_content_root / "phases" / "phase0"
+        topic_file = phase / "basics.yaml"
+        topic = yaml.safe_load(topic_file.read_text())
+        topic["learning_steps"][0]["lesson"] = "intro.md"
+        topic_file.write_text(yaml.safe_dump(topic))
+        lesson = phase / "intro.md"
+        lesson.write_text("# First", encoding="utf-8")
+
+        with _patched_content_dir(minimal_content_root / "phases"):
+            first = compile_curriculum_artifact()
+            lesson.write_text("# Second", encoding="utf-8")
+            second = compile_curriculum_artifact()
+
+        assert (
+            first["phases"][0]["topics"][0]["learning_steps"][0]["lesson_markdown"]
+            == "# First"
+        )
+        assert first["content_hash"] != second["content_hash"]
+        previous = minimal_content_root / "previous.json"
+        previous.write_text(render_artifact_file(first), encoding="utf-8")
+        with (
+            _patched_content_dir(minimal_content_root / "phases"),
+            pytest.raises(ContentCompileError, match="was not bumped"),
+        ):
+            compile_curriculum_artifact(previous_artifact_path=previous)
+
     def test_compiles_minimal_curriculum(self, minimal_content_root: Path):
         with _patched_content_dir(minimal_content_root / "phases"):
             payload = compile_curriculum_artifact()

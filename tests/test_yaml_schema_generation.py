@@ -16,3 +16,9 @@ def test_topic_schema_accepts_authored_step_action_labels():
 
     assert "practice" in action_values
     assert "Practice:" in action_values
+
+
+def test_topic_schema_exposes_lesson_path_but_not_generated_markdown():
+    step = _topic_authoring_schema()["$defs"]["LearningStep"]
+    assert step["properties"]["lesson"]["type"] == "string"
+    assert "lesson_markdown" not in step["properties"]

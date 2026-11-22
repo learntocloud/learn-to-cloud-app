@@ -27,6 +27,58 @@
         @apply text-xl font-medium tracking-tight text-gray-950 dark:text-white;
     }
 
+    .lesson-content {
+        @apply max-w-3xl text-base leading-7 text-gray-700 dark:text-gray-300;
+    }
+
+    .lesson-content > * + * {
+        @apply mt-5;
+    }
+
+    .lesson-content h2 {
+        @apply mt-10 border-t border-gray-200 pt-8 text-2xl font-medium leading-tight tracking-tight text-gray-950 dark:border-gray-700 dark:text-white;
+    }
+
+    .lesson-content h3 {
+        @apply mt-8 text-xl font-medium leading-snug text-gray-950 dark:text-white;
+    }
+
+    .lesson-content a {
+        @apply wrap-anywhere text-blue-700 underline underline-offset-4 dark:text-blue-300;
+    }
+
+    .lesson-content strong {
+        @apply font-semibold text-gray-950 dark:text-white;
+    }
+
+    .lesson-content ul {
+        @apply list-disc space-y-2 pl-6;
+    }
+
+    .lesson-content ol {
+        @apply list-decimal space-y-2 pl-6;
+    }
+
+    .lesson-content :not(pre) > code {
+        @apply rounded bg-gray-100 px-1.5 py-0.5 text-sm text-gray-900 dark:bg-gray-800 dark:text-gray-100;
+    }
+
+    .lesson-content pre {
+        @apply overflow-x-auto rounded-xl border border-gray-700 bg-gray-900 p-5 pr-14 text-sm leading-7 text-gray-100 dark:border-gray-700 dark:bg-gray-950;
+    }
+
+    .lesson-content pre code {
+        @apply block;
+    }
+
+    .lesson-content pre .copy-btn {
+        @apply flex h-8 w-8 items-center justify-center border border-gray-600 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300;
+    }
+
+    .lesson-content blockquote {
+        @apply border-l-4 border-gray-300 pl-5 text-gray-600 dark:border-gray-600 dark:text-gray-400;
+    }
+
     .button-primary,
     .button-secondary {
         @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700 dark:focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50;
