@@ -72,15 +72,19 @@
     <h2 id="journey-heading" class="text-2xl font-medium tracking-tight text-gray-950 dark:text-white sm:text-3xl">
         The phases.
     </h2>
-    <ul class="mt-4 list-disc pl-5 text-base text-gray-600 dark:text-gray-400">
+    <ol class="mt-9 max-w-2xl border-b border-gray-200 dark:border-gray-700">
         {% for phase in phases %}
-        <li>
-            <a href="/phase/{{ phase.order }}" class="text-link min-h-12">
-                Phase {{ phase.order }}: {{ phase.name }}
+        <li class="border-t border-gray-200 dark:border-gray-700">
+            <a href="/phase/{{ phase.order }}" class="group/phase flex min-h-11 items-center gap-4 py-3 text-base font-medium text-gray-700 transition-colors hover:text-blue-700 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:text-blue-300">
+                <span class="w-4 shrink-0 font-mono text-sm text-gray-500 dark:text-gray-400"><span class="sr-only">Phase </span>{{ phase.order }}</span>
+                <span class="flex-1">{{ phase.name }}</span>
+                <svg class="h-4 w-4 shrink-0 text-gray-400 transition-transform group-hover/phase:translate-x-0.5 group-hover/phase:text-blue-700 dark:text-gray-500 dark:group-hover/phase:text-blue-300" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h12m-5-5 5 5-5 5"/>
+                </svg>
             </a>
         </li>
         {% endfor %}
-    </ul>
+    </ol>
     {% else %}
     <h2 id="journey-heading" class="text-2xl font-medium tracking-tight text-gray-950 dark:text-white">
         The learning path is temporarily unavailable.

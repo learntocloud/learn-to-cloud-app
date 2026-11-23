@@ -563,9 +563,6 @@
   .resize {
     resize: both;
   }
-  .list-disc {
-    list-style-type: disc;
-  }
   .grid-cols-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1123,10 +1120,6 @@
   .placeholder-gray-400::placeholder {
     color: var(--color-gray-400);
   }
-  .shadow {
-    --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-  }
   .shadow-lg {
     --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 4px 6px -4px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
@@ -1175,6 +1168,13 @@
   }
   @media (hover: hover) {
     .group-hover\:text-blue-700:is(:where(.group):hover *) {
+      color: var(--color-blue-700);
+    }
+    .group-hover\/phase\:translate-x-0\.5:is(:where(.group\/phase):hover *) {
+      --tw-translate-x: calc(var(--spacing) * 0.5);
+      translate: var(--tw-translate-x) var(--tw-translate-y);
+    }
+    .group-hover\/phase\:text-blue-700:is(:where(.group\/phase):hover *) {
       color: var(--color-blue-700);
     }
     .group-hover\/topic\:translate-x-0\.5:is(:where(.group\/topic):hover *) {
@@ -1574,6 +1574,9 @@
   }
   @media (hover: hover) {
     .dark\:group-hover\:text-blue-300:where(.dark, .dark *):is(:where(.group):hover *) {
+      color: var(--color-blue-300);
+    }
+    .dark\:group-hover\/phase\:text-blue-300:where(.dark, .dark *):is(:where(.group\/phase):hover *) {
       color: var(--color-blue-300);
     }
     .dark\:group-hover\/topic\:text-blue-300:where(.dark, .dark *):is(:where(.group\/topic):hover *) {
