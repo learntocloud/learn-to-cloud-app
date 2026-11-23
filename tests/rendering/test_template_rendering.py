@@ -246,13 +246,12 @@ class TestHomePage:
         ctx = {} if signed_in else {"user": None}
         html = _render("pages/home.html", phases=phases, **ctx)
         journey = html.split('aria-labelledby="journey-heading"', 1)[1]
-        phase_list = unescape(journey.split("<ul", 1)[1].split("</ul>", 1)[0])
+        phase_list = unescape(journey.split("<ol", 1)[1].split("</ol>", 1)[0])
 
-        assert phase_list.count("<li>") == len(phases)
+        assert phase_list.count("<li ") == len(phases)
         previous_position = -1
         for phase in phases:
-            label = f"Phase {phase.order}: {phase.name}"
-            position = phase_list.index(label)
+            position = phase_list.index(f'<span class="flex-1">{phase.name}</span>')
             assert position > previous_position
             assert f'href="/phase/{phase.order}"' in phase_list
             previous_position = position
