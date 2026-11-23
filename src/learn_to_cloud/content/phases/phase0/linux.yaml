@@ -14,24 +14,10 @@ learning_objectives:
   text: Understand what the most popular Linux distros are.
   order: 3
 learning_steps:
-- uuid: 90cba226-9b47-483e-abe9-06265b378f45
+- uuid: caeceed5-8f73-49fb-8d7b-9fa1a8230dbf
   order: 1
-  action: 'Watch:'
-  title: Linux Documentary (The Story of Linux)
-  url: https://www.youtube.com/watch?v=zPt_e9Cdk08
-  description: Watch this documentary for the history, ecosystem, and culture behind Linux so you understand why it became the foundation of modern cloud infrastructure.
-  slug: phase0-topic1-watch-linux-documentary-the-story
-- uuid: 65563a74-3a18-4dfa-b312-ee07661b6756
-  order: 2
   action: 'Practice:'
-  title: Bash Scripting and Command Line for Beginners
-  url: https://www.freecodecamp.org/news/bash-scripting-tutorial-linux-shell-script-and-command-line-for-beginners/
-  description: Learn the basics of Bash and the command line so you can understand how Linux terminal commands work.
-  slug: phase0-topic1-practice-bash-scripting-and-command
-- uuid: 68abc922-ed80-424f-b6ff-e0a76b925f1c
-  order: 3
-  action: 'Watch:'
-  title: Every LINUX DISTRO Explained in 4 minutes
-  url: https://youtu.be/VKNMI6cYOFk?si=zudsWVGRxBCpRlyA
-  description: Get a quick overview of common Linux distributions and how they differ.
-  slug: phase0-topic1-watch-every-linux-distro-explained
+  title: Explore Linux
+  lesson: lessons/linux.md
+  description: Learn about Linux and distributions, then try basic terminal commands.
+  slug: phase0-linux-lesson

@@ -14,24 +14,10 @@ learning_objectives:
   text: Relate networking fundamentals to cloud deployment and troubleshooting tasks.
   order: 3
 learning_steps:
-- uuid: fe527e98-2928-4f23-aa80-8e8de313e712
+- uuid: 1cdc0f85-661d-4b68-a504-8b6bfee9beb3
   order: 1
-  action: 'Watch:'
-  title: What is Networking
-  url: https://youtu.be/3QhU9jd03a0
-  description: Learn how data moves across networks and why networking knowledge is essential for cloud engineering.
-  slug: phase0-topic2-watch-what-is-networking
-- uuid: 6278022e-d20c-441e-a8cc-4f3cf4cc63d8
-  order: 2
   action: 'Read:'
-  title: What is an IP Address?
-  url: https://www.cloudflare.com/learning/dns/glossary/what-is-my-ip-address/
-  description: Understand IP addresses—the unique identifiers that allow devices to communicate.
-  slug: phase0-topic2-read-what-is-an-ip
-- uuid: 50b8f642-3657-468a-a437-35559e7a7eb7
-  order: 3
-  action: 'Read:'
-  title: What is DNS?
-  url: https://www.cloudflare.com/learning/dns/what-is-dns/
-  description: Learn how DNS translates domain names into IP addresses—the phonebook of the internet.
-  slug: phase0-topic2-read-what-is-dns
+  title: Explore computer networking
+  lesson: lessons/networking.md
+  description: Follow a request across networks and learn how IP addresses and DNS help it reach a service.
+  slug: phase0-networking-lesson

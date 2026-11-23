@@ -14,28 +14,21 @@ learning_objectives:
   text: Choose a primary cloud provider while keeping concepts transferable across platforms.
   order: 3
 learning_steps:
-- uuid: 896b6f45-9273-46c6-8459-fadad67c2857
+- uuid: b8844b05-617c-47a0-b055-ca69cec7b19b
   order: 1
-  action: 'Watch:'
-  title: What is Cloud Computing
-  url: https://youtu.be/eZLcyTxi8ZI
-  description: Learn about IaaS, PaaS, SaaS and the different service models that make up cloud computing.
-  slug: phase0-topic4-watch-what-is-cloud-computing
-- uuid: 3bc1c215-a8ca-410f-8c73-caa5299aa07a
-  order: 2
   action: 'Read:'
-  title: IaaS vs PaaS vs SaaS
-  url: https://azure.microsoft.com/resources/cloud-computing-dictionary/types-of-cloud-computing
-  description: Dive deeper into the three main cloud service models and when to use each.
-  slug: phase0-topic4-read-iaas-vs-paas-vs
+  title: Explore cloud computing
+  lesson: lessons/cloud-computing.md
+  description: Compare cloud service models and choose a provider for the curriculum.
+  slug: phase0-cloud-computing-lesson
 - uuid: f0548620-51e7-4196-a912-1d077e7fb4ce
-  order: 3
+  order: 2
   action: 'Practice:'
   title: Choose One Cloud and Stick With It
   description: Select one cloud provider and stick with it throughout the entire curriculum—do not switch, because changing providers mid-way wastes time. Research job listings in your local area for roles like "sysadmin," "helpdesk," "cloud engineer," and "devops," then pick the cloud provider that appears most often.
   slug: phase0-topic4-practice-choose-one-cloud-and
 - uuid: c2386ab8-0997-40e1-9996-ccd7391a96be
-  order: 4
+  order: 3
   action: 'Practice:'
   title: Create Your Cloud Account
   description: Use your cloud picker decision from the previous step, then create an account in your chosen provider.

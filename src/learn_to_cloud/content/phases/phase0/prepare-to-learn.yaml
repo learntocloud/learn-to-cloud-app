@@ -14,46 +14,10 @@ learning_objectives:
   text: Understand how learning actually works and build a structured study routine.
   order: 3
 learning_steps:
-- uuid: 755e00f3-e90f-4752-b3ec-7bffcf067a7d
+- uuid: 02b540ac-614f-4e08-85a2-64d2c159fc20
   order: 1
-  action: 'Watch:'
-  title: Why You Should Stop Watching YouTube (HealthyGamerGG)
-  url: https://www.youtube.com/watch?v=XEb89CQJPO4
-  description: Dr. K explains why self-help content crosses from helpful to harmful — why watching another roadmap or motivational video feels productive but actually replaces doing the work. Commit to this learning resource until you finish it and stop. Every time you watch a roadmap video, you are restarting your journey. Stop doing that.
-  slug: phase0-topic0-watch-why-you-should-stop
-- uuid: e4e257d2-f376-45af-9041-1bbb72026197
-  order: 2
   action: 'Read:'
-  title: My Weekly Screen Time Average is 41 Minutes
-  url: https://substack.com/@madebygps/p-181593856
-  description: Your phone is a massive distraction machine. Read this post and follow the advice outlined there to remove all distractions from your phone — which apps to delete, how to configure notifications so only calls and calendar alerts make sound, disabling tap-to-wake and raise-to-wake, and keeping your home screen distraction-free.
-  slug: phase0-topic0-read-my-weekly-screen-time
-- uuid: e67dbaa9-13fc-4a35-8184-8ef46010d06a
-  order: 3
-  action: 'Practice:'
-  title: Install a Feed Blocker on Your Browser
-  url: https://chromewebstore.google.com/detail/socialfocus-%E2%80%94-hide-feeds/abocjojdmemdpiffeadpdnicnlhcndcg
-  description: Now that you've eliminated distractions from your phone, do the same on your laptop. Install the SocialFocus browser extension (or similar) to hide social media feeds. This removes the temptation to scroll YouTube, Twitter, or LinkedIn when you sit down to study. You can toggle it off when you need to, but the default should be distraction-free.
-  slug: phase0-topic0-practice-install-a-feed-blocker
-- uuid: 57e8f00d-1c4e-4275-8291-3821ecb950ca
-  order: 4
-  action: 'Watch:'
-  title: Learning How to Learn (Barbara Oakley, TEDx)
-  url: https://www.youtube.com/watch?v=O96fE1E-rf8
-  description: Engineering professor Barbara Oakley shares techniques from her online course — one of the largest in the world — on how your brain actually acquires new skills. Learn how to use focused and diffuse modes of thinking, and why short daily practice beats long cramming sessions.
-  slug: phase0-topic0-watch-learning-how-to-learn
-- uuid: b967e042-7164-400c-b8a3-2aca864da0eb
-  order: 5
-  action: 'Watch:'
-  title: 6 Months Following This Study Routine TRANSFORMED My Cloud Career
-  url: https://www.youtube.com/watch?v=88hnhRmpPZs
-  description: See the exact study routine that was followed for 6 months while learning cloud engineering — how to structure sessions, stay consistent, and avoid burnout. Use this as a template to build your own study schedule before moving on to the next topic.
-  slug: phase0-topic0-watch-6-months-following-this
-- uuid: 018392db-e453-4349-a162-cee0ee69b7f4
-  order: 6
-  action: 'Practice:'
-  title: Introduce yourself on GitHub Discussions
-  url: https://github.com/learntocloud/learn-to-cloud-app/discussions/956
-  description: Reply to the Introduce yourself discussion to meet other learners. Use GitHub Discussions to ask questions as you work through the curriculum, and open an issue when something is broken.
-  done_when: You've replied to the Introduce yourself discussion.
-  slug: phase0-topic0-practice-introduce-yourself
+  title: Prepare to learn
+  lesson: lessons/prepare-to-learn.md
+  description: Choose a learning path, reduce distractions, and make a study plan.
+  slug: phase0-prepare-to-learn-lesson
