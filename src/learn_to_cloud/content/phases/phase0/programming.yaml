@@ -14,13 +14,13 @@ learning_objectives:
   text: Build confidence reading API-style JSON data with a simple Python script.
   order: 3
 learning_steps:
-- uuid: b4e89f70-5216-44ff-ac4c-36706bd206b6
+- uuid: 19856b76-c374-4fe8-b52f-9c4446e38bde
   order: 1
-  action: 'Watch:'
-  title: What is Computer Programming
-  url: https://youtu.be/ifo76VyrBYo
-  description: Learn core computer programming concepts including what a program, programmer, and programming language are, types of languages (machine, assembly, middle, and high level), and how compilation vs interpretation works.
-  slug: phase0-topic3-watch-what-is-computer-programming
+  action: 'Practice:'
+  title: Explore programming with Python
+  lesson: lessons/programming.md
+  description: Learn how programs help automate cloud work and practice reading JSON.
+  slug: phase0-programming-lesson
 - uuid: 05fa7e46-8d09-4845-8ef6-843e16d9700f
   order: 2
   action: 'Practice:'
@@ -28,10 +28,3 @@ learning_steps:
   url: https://7daysofpython.com/days/day1/
   description: Install Python on your computer, then complete Day 1 of this beginner track to set up your environment and run your first Python exercises.
   slug: phase0-topic3-practice-install-python-and-complete
-- uuid: 01e74e45-2267-472e-9a83-506834097d9e
-  order: 3
-  action: 'Practice:'
-  title: Parse JSON with a Simple Python Script
-  description: Run this small script to practice reading JSON data like you'll do when working with APIs in later phases.
-  code: "sample = {\n  \"service\": \"journal-api\",\n  \"status\": \"healthy\",\n  \"region\": \"eastus\",\n  \"requests_last_hour\": 128,\n}\n\nfor key, value in sample.items():\n    print(f\"{key}: {value}\")\n"
-  slug: phase0-topic3-practice-parse-json-with-a
