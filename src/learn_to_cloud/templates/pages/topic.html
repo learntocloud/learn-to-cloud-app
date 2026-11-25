@@ -58,17 +58,20 @@
 {% endif %}
 
 {% if steps %}
-<div class="mb-4 flex flex-wrap justify-end gap-2" x-data>
-    <button
-        type="button"
-        @click="document.querySelectorAll('#topic-steps [data-step]').forEach(el => { if (el._x_dataStack && el._x_dataStack[0]) el._x_dataStack[0].expanded = true })"
-        class="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-bold text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
-    >Expand all</button>
-    <button
-        type="button"
-        @click="document.querySelectorAll('#topic-steps [data-step]').forEach(el => { if (el._x_dataStack && el._x_dataStack[0]) el._x_dataStack[0].expanded = false })"
-        class="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-bold text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
-    >Collapse all</button>
+<div class="mb-4 flex flex-wrap items-center justify-between gap-2" x-data>
+    <h2 class="section-title">Learning checklist</h2>
+    <div class="flex gap-2">
+        <button
+            type="button"
+            @click="document.querySelectorAll('#topic-steps [data-step]').forEach(el => { if (el._x_dataStack && el._x_dataStack[0]) el._x_dataStack[0].expanded = true })"
+            class="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-bold text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+        >Expand all</button>
+        <button
+            type="button"
+            @click="document.querySelectorAll('#topic-steps [data-step]').forEach(el => { if (el._x_dataStack && el._x_dataStack[0]) el._x_dataStack[0].expanded = false })"
+            class="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-bold text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+        >Collapse all</button>
+    </div>
 </div>
 {% endif %}
 
@@ -90,7 +93,7 @@
 </div>
 {% endif %}
 
-<nav class="mt-12 grid gap-3 border-t border-gray-200 pt-6 dark:border-gray-700 sm:grid-cols-2" aria-label="Topic navigation">
+<nav class="mt-8 grid gap-3 sm:grid-cols-2" aria-label="Topic navigation">
     <a href="{{ prev_topic.url }}" class="group flex min-h-11 min-w-0 items-center gap-3 rounded-md p-3 text-left hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 dark:hover:bg-gray-800/50">
         <svg class="h-5 w-5 shrink-0 text-gray-500 group-hover:text-blue-700 dark:text-gray-400 dark:group-hover:text-blue-300" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m12 5-5 5 5 5"/></svg>
         <span class="min-w-0">

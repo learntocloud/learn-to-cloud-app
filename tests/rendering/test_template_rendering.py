@@ -71,6 +71,29 @@ def test_step_toggle_uses_explicit_account_without_request_state(completed):
 
 
 @pytest.mark.unit
+def test_topic_checklist_links_lessons_without_extra_divider():
+    phase = get_all_phases_from_yaml()[0]
+    topic = phase.topics[0]
+    step = next(step for step in topic.learning_steps if step.lesson_markdown)
+    html = _render(
+        "pages/topic.html",
+        topic=topic,
+        steps=topic.learning_steps,
+        phase_id=phase.order,
+        phase_name=phase.name,
+        completed_steps=set(),
+        progress=None,
+        prev_topic={"url": "/phase/0", "name": phase.name},
+        next_topic={"url": "/phase/0", "name": phase.name},
+    )
+
+    assert html.count('type="checkbox"') == len(topic.learning_steps)
+    assert f'href="/lesson/{step.uuid}"' in html
+    navigation = html.split('aria-label="Topic navigation"', 1)[0].rsplit("<nav", 1)[1]
+    assert "border-t" not in navigation
+
+
+@pytest.mark.unit
 def test_code_blocks_keep_independent_clipboard_targets():
     html = _ENV.from_string(
         '{% from "macros/code_block.html" import copy_code %}'
@@ -1132,6 +1155,23 @@ def test_dashboard_help_section_links_to_issue_report():
 
 @pytest.mark.unit
 class TestDashboardPrimaryState:
+    def test_verification_link_stays_in_navbar_only(self):
+        phase = SimpleNamespace(
+            order=0,
+            name="Starting from Zero",
+            required_for_graduation=True,
+            progress=None,
+        )
+        html = _render(
+            "pages/dashboard.html",
+            dashboard=self._dashboard(phases=[phase]),
+            help_links=[],
+        )
+        assert "Open verification workspace" not in html
+        main = html.split("<main", 1)[1].split("</main>", 1)[0]
+        assert 'href="/verifications"' not in main
+        assert 'href="/verifications"' in html.split("<main", 1)[0]
+
     @pytest.mark.parametrize(
         ("name", "greeting"),
         [

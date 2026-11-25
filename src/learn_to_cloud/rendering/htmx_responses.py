@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Literal
 from uuid import UUID
 
 from fastapi import Request
@@ -105,15 +104,7 @@ def render_step_toggle(
     topic: Topic,
     step,
     completed_step_uuids: set[UUID],
-    *,
-    view: Literal["topic", "lesson"] = "topic",
 ) -> HTMLResponse:
-    if view == "lesson":
-        lesson_control = templates.get_template(
-            "partials/lesson_completion.html"
-        ).render(step=step, completed_steps=completed_step_uuids)
-        return HTMLResponse(lesson_control)
-
     progress = build_progress_dict(
         len(completed_step_uuids),
         len(topic.learning_steps),
