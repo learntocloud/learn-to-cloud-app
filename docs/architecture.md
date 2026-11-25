@@ -24,9 +24,9 @@ Packages under `src/learn_to_cloud/`:
 | `services/` | Application behavior that combines the packages above |
 | `routes/` | HTTP handlers |
 
-`models.py` and `schemas/` are shared by every layer. Lower packages never
-import `services/` or `routes/`; `tests/test_runtime_boundaries.py` enforces
-the allowed imports for each package.
+`models.py` holds shared database models, and `schemas/` holds shared Pydantic
+contracts. Lower packages never import `services/` or `routes/`;
+`tests/test_runtime_boundaries.py` enforces the allowed imports for each package.
 
 Prepare template data in
 [`rendering/`](https://github.com/learntocloud/learn-to-cloud-app/tree/main/src/learn_to_cloud/rendering).

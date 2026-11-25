@@ -75,9 +75,9 @@ uv run poe test
 uv run poe check
 ```
 
-Continuous integration runs `uv run poe check`, plus the curriculum version
-check against the base commit and path-selected Terraform checks. Run those
-additional checks when changing their inputs.
+Continuous integration runs `uv run poe check`, a curriculum version check
+against the base commit, and Terraform format, validation, and tests on every
+pull request. Run those additional checks when changing their inputs.
 
 For workflow changes that add a Python command, also run that exact command
 with only the environment variables supplied by the workflow. Do not rely on
