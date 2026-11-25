@@ -122,6 +122,11 @@ class LearningStep(FrozenModel):
     # Stable opaque identifier (issue #462).
     uuid: UUID
     slug: str
+    lesson_slug: str | None = Field(
+        default=None,
+        max_length=100,
+        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
+    )
     order: int
     action: StepAction | None = None
     title: str | None = None
@@ -141,6 +146,8 @@ class LearningStep(FrozenModel):
             raise ValueError("A step cannot have both a lesson and a URL")
         if bool(self.lesson) != bool(self.lesson_markdown):
             raise ValueError("A lesson must have a path and non-empty Markdown")
+        if bool(self.lesson) != bool(self.lesson_slug):
+            raise ValueError("A lesson must have a slug, and other steps must not")
         if self.lesson and not (self.title and self.title.strip()):
             raise ValueError("A lesson step must have a title")
         return self

@@ -14,6 +14,7 @@ instead.
 from __future__ import annotations
 
 import logging
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -40,6 +41,7 @@ def _validate_topic_payload(data: dict, topic_file: Path) -> None:
         raise ContentValidationError("learning_steps must be a list")
 
     seen: set[str] = set()
+    seen_lesson_slugs: set[str] = set()
     for step in steps:
         if not isinstance(step, dict):
             raise ContentValidationError("Each learning step must be a mapping")
@@ -59,6 +61,30 @@ def _validate_topic_payload(data: dict, topic_file: Path) -> None:
                 f"Duplicate learning_steps[].slug '{step_slug}' in topic '{topic_name}'"
             )
         seen.add(step_slug)
+
+        lesson_slug = step.get("lesson_slug")
+        if "lesson" in step:
+            if not isinstance(lesson_slug, str) or not lesson_slug.strip():
+                raise ContentValidationError(
+                    f"Missing learning_steps[].lesson_slug in topic '{topic_name}'"
+                )
+            if len(lesson_slug) > 100 or not re.fullmatch(
+                r"[a-z0-9]+(?:-[a-z0-9]+)*", lesson_slug
+            ):
+                raise ContentValidationError(
+                    f"Invalid learning_steps[].lesson_slug '{lesson_slug}' "
+                    f"in topic '{topic_name}'"
+                )
+            if lesson_slug in seen_lesson_slugs:
+                raise ContentValidationError(
+                    f"Duplicate learning_steps[].lesson_slug '{lesson_slug}' "
+                    f"in topic '{topic_name}'"
+                )
+            seen_lesson_slugs.add(lesson_slug)
+        elif lesson_slug is not None:
+            raise ContentValidationError(
+                f"learning_steps[].lesson_slug requires lesson in topic '{topic_name}'"
+            )
 
 
 def _get_content_dir() -> Path:

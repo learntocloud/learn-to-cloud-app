@@ -19,5 +19,6 @@ learning_steps:
   action: 'Read:'
   title: Explore computer networking
   lesson: lessons/networking.md
+  lesson_slug: explore-computer-networking
   description: Follow a request across networks and learn how IP addresses and DNS help it reach a service.
   slug: phase0-networking-lesson

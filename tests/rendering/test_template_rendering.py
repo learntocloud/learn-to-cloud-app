@@ -12,6 +12,7 @@ from uuid import uuid4
 import pytest
 from fastapi import Request
 
+from learn_to_cloud.curriculum.reads import get_curriculum_catalog
 from learn_to_cloud.curriculum.yaml_loader import get_all_phases_from_yaml
 from learn_to_cloud.models import User
 from learn_to_cloud.rendering.feedback import feedback_tasks_and_passed
@@ -50,6 +51,7 @@ def test_step_toggle_uses_explicit_account_without_request_state(completed):
     )
     step = topic.learning_steps[0]
     account = User(id=42, github_username="current-user")
+    phase_id = get_curriculum_catalog().phase_order_by_step_uuid[step.uuid]
     with patch.object(
         Request,
         "state",
@@ -57,7 +59,7 @@ def test_step_toggle_uses_explicit_account_without_request_state(completed):
         side_effect=AssertionError("Rendering must not read request state"),
     ):
         response = render_step_toggle(
-            account, topic, step, {step.uuid} if completed else set()
+            account, topic, step, {step.uuid} if completed else set(), phase_id
         )
     html = bytes(response.body).decode()
     assert 'type="checkbox"' in html
@@ -66,6 +68,8 @@ def test_step_toggle_uses_explicit_account_without_request_state(completed):
         assert "checked" in html
     else:
         assert 'hx-post="/htmx/steps/complete"' in html
+    if step.lesson_markdown:
+        assert f'href="/phase/{phase_id}/{topic.slug}/{step.lesson_slug}"' in html
     assert 'id="topic-progress" hx-swap-oob="true"' in html
     assert f"{int(completed)}/{len(topic.learning_steps)} steps checked" in html
 
@@ -88,7 +92,7 @@ def test_topic_checklist_links_lessons_without_extra_divider():
     )
 
     assert html.count('type="checkbox"') == len(topic.learning_steps)
-    assert f'href="/lesson/{step.uuid}"' in html
+    assert f'href="/phase/{phase.order}/{topic.slug}/{step.lesson_slug}"' in html
     navigation = html.split('aria-label="Topic navigation"', 1)[0].rsplit("<nav", 1)[1]
     assert "border-t" not in navigation
 

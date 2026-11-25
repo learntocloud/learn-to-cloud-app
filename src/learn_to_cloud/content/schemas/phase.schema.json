@@ -466,6 +466,20 @@
           "default": null,
           "title": "Lesson Markdown"
         },
+        "lesson_slug": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lesson Slug"
+        },
         "options": {
           "items": {
             "$ref": "#/$defs/ProviderOption"

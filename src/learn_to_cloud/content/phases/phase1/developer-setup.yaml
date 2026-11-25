@@ -80,6 +80,7 @@ learning_steps:
   action: 'Practice:'
   title: Practice Git fundamentals
   lesson: lessons/git-fundamentals.md
+  lesson_slug: practice-git-fundamentals
   description: Create a practice repository and learn how to record, inspect, merge, and share changes.
   slug: phase1-topic1-practice-git-fundamentals
 - uuid: d2184bd4-a077-4de8-8f88-0f1a640a6806

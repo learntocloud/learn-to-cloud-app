@@ -106,6 +106,7 @@ class TestCompileCurriculumArtifact:
         topic_file = phase / "basics.yaml"
         topic = yaml.safe_load(topic_file.read_text())
         topic["learning_steps"][0]["lesson"] = "intro.md"
+        topic["learning_steps"][0]["lesson_slug"] = "intro"
         topic_file.write_text(yaml.safe_dump(topic))
         lesson = phase / "intro.md"
         lesson.write_text("# First", encoding="utf-8")

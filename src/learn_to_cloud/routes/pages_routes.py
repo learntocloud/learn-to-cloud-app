@@ -323,18 +323,20 @@ async def topic_page(
 
 
 @router.get(
-    "/lesson/{step_uuid:uuid}",
+    "/phase/{phase_id:int}/{topic_slug}/{lesson_slug}",
     response_class=HTMLResponse,
     summary="Lesson",
 )
 async def lesson_page(
     request: Request,
-    step_uuid: UUID,
+    phase_id: int,
+    topic_slug: str,
+    lesson_slug: str,
     db: DbSession,
     account: CurrentAccount,
 ) -> HTMLResponse:
-    result = get_topic_containing_step(step_uuid)
-    if result is None or not result[1].lesson_markdown:
+    phase = get_phase_by_slug(f"phase{phase_id}")
+    if phase is None:
         return templates.TemplateResponse(
             request,
             "pages/404.html",
@@ -342,17 +344,33 @@ async def lesson_page(
             status_code=404,
         )
 
-    topic, step = result
-    phase_id = get_curriculum_catalog().phase_order_by_step_uuid[step_uuid]
+    topic = next((t for t in phase.topics if t.slug == topic_slug), None)
+    if topic is None:
+        return templates.TemplateResponse(
+            request,
+            "pages/404.html",
+            _template_context(user=account),
+            status_code=404,
+        )
+
+    step = next((s for s in topic.learning_steps if s.lesson_slug == lesson_slug), None)
+    if step is None or not step.lesson_markdown:
+        return templates.TemplateResponse(
+            request,
+            "pages/404.html",
+            _template_context(user=account),
+            status_code=404,
+        )
+
     completed_steps = await get_valid_completed_steps(db, account.id, topic)
     topic_url = f"/phase/{phase_id}/{topic.slug}"
     steps = topic.learning_steps
-    index = next(i for i, s in enumerate(steps) if s.uuid == step_uuid)
+    index = next(i for i, s in enumerate(steps) if s.uuid == step.uuid)
     next_step = steps[index + 1] if index + 1 < len(steps) else None
     if next_step is None:
         next_url = f"{topic_url}#topic-steps"
-    elif next_step.lesson_markdown:
-        next_url = f"/lesson/{next_step.uuid}"
+    elif next_step.lesson_markdown and next_step.lesson_slug:
+        next_url = f"{topic_url}/{next_step.lesson_slug}"
     else:
         next_url = f"{topic_url}#step-{next_step.uuid}"
     return templates.TemplateResponse(
@@ -368,6 +386,35 @@ async def lesson_page(
             next_step=next_step,
             next_url=next_url,
         ),
+    )
+
+
+@router.get(
+    "/lesson/{step_uuid:uuid}",
+    response_class=HTMLResponse,
+    response_model=None,
+    summary="Legacy lesson URL",
+)
+async def legacy_lesson_page(
+    request: Request,
+    step_uuid: UUID,
+    account: CurrentAccount,
+) -> RedirectResponse | HTMLResponse:
+    """Redirect UUID lesson URLs to their canonical slug paths."""
+    result = get_topic_containing_step(step_uuid)
+    if result is None or not result[1].lesson_markdown or not result[1].lesson_slug:
+        return templates.TemplateResponse(
+            request,
+            "pages/404.html",
+            _template_context(user=account),
+            status_code=404,
+        )
+
+    topic, step = result
+    phase_id = get_curriculum_catalog().phase_order_by_step_uuid[step_uuid]
+    return RedirectResponse(
+        url=f"/phase/{phase_id}/{topic.slug}/{step.lesson_slug}",
+        status_code=301,
     )
 
 

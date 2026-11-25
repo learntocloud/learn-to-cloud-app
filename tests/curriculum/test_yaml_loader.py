@@ -87,6 +87,38 @@ class TestValidateTopicPayload:
         with pytest.raises(ContentValidationError, match="Duplicate"):
             _validate_topic_payload(data, Path("test.yaml"))
 
+    def test_requires_lesson_slug(self):
+        data = {
+            "learning_steps": [{"slug": "step-1", "order": 1, "lesson": "intro.md"}]
+        }
+        with pytest.raises(ContentValidationError, match="lesson_slug"):
+            _validate_topic_payload(data, Path("test.yaml"))
+
+    @pytest.mark.parametrize("lesson_slug", ["Uppercase", "two words", "x" * 101])
+    def test_rejects_invalid_lesson_slug(self, lesson_slug: str):
+        data = {
+            "learning_steps": [
+                {
+                    "slug": "step-1",
+                    "lesson_slug": lesson_slug,
+                    "lesson": "intro.md",
+                    "order": 1,
+                }
+            ]
+        }
+        with pytest.raises(ContentValidationError, match="Invalid"):
+            _validate_topic_payload(data, Path("test.yaml"))
+
+    def test_rejects_duplicate_lesson_slugs(self):
+        data = {
+            "learning_steps": [
+                {"slug": "step-1", "lesson_slug": "intro", "lesson": "one.md"},
+                {"slug": "step-2", "lesson_slug": "intro", "lesson": "two.md"},
+            ]
+        }
+        with pytest.raises(ContentValidationError, match="Duplicate"):
+            _validate_topic_payload(data, Path("test.yaml"))
+
     def test_oversized_step_id_raises(self):
         data = {
             "id": "topic1",
@@ -126,6 +158,7 @@ def _write_lesson_topic(tmp_path: Path, lesson: str, **fields: str) -> None:
             {
                 "uuid": "00000000-0000-0000-0000-000000000002",
                 "slug": "step-intro",
+                "lesson_slug": "intro",
                 "order": 1,
                 "title": "Introduction",
                 "lesson": lesson,

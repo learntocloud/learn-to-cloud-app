@@ -60,14 +60,21 @@ def _topic_authoring_schema() -> dict:
         {
             "if": {"required": ["lesson"]},
             "then": {
-                "required": ["title"],
-                "properties": {"title": {"type": "string", "minLength": 1}},
+                "required": ["title", "lesson_slug"],
+                "properties": {
+                    "lesson_slug": {"type": "string", "minLength": 1},
+                    "title": {"type": "string", "minLength": 1},
+                },
                 "not": {
                     "required": ["url"],
                     "properties": {"url": {"type": "string", "minLength": 1}},
                 },
             },
-        }
+        },
+        {
+            "if": {"not": {"required": ["lesson"]}},
+            "then": {"not": {"required": ["lesson_slug"]}},
+        },
     ]
 
     action_schema = schema["$defs"]["StepAction"]

@@ -104,6 +104,7 @@ def render_step_toggle(
     topic: Topic,
     step,
     completed_step_uuids: set[UUID],
+    phase_id: int,
 ) -> HTMLResponse:
     progress = build_progress_dict(
         len(completed_step_uuids),
@@ -111,6 +112,8 @@ def render_step_toggle(
     )
     step_html = templates.get_template("partials/topic_step.html").render(
         step=step,
+        topic=topic,
+        phase_id=phase_id,
         completed_steps=completed_step_uuids,
         user=account,
     )
