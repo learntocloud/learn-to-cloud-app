@@ -22,6 +22,10 @@ Learning and verification use separate page spaces:
 - `/verifications/phase/{phase}` contains submissions, active checks, and
   paginated learner-safe attempt and feedback history for that phase.
 
+Topic pages hold the learning checklist, with one completion checkbox per step.
+Lesson steps open on their own page. The lesson footer marks the lesson
+complete and moves to the next step in the topic.
+
 ## Progress Calculation
 
 **Topic:** `Steps Completed / Total Steps`

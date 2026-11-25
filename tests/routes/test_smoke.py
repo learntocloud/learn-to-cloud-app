@@ -513,28 +513,34 @@ async def test_lesson_completion_stays_in_sync_with_topic(auth_client: AsyncClie
         assert "<pre><code" in page.text
         assert 'class="callout callout-note"' in page.text
         assert f"/phase/1/{topic.slug}#step-{step.uuid}" in page.text
-        assert 'hx-post="/htmx/steps/complete?view=lesson"' in page.text
+        assert 'type="checkbox"' not in page.text
+        assert 'hx-post="/htmx/steps/complete"' in page.text
+        steps = topic.learning_steps
+        following = steps[steps.index(step) + 1 :]
+        if not following:
+            next_url = f"/phase/1/{topic.slug}#topic-steps"
+        elif following[0].lesson_markdown:
+            next_url = f"/lesson/{following[0].uuid}"
+        else:
+            next_url = f"/phase/1/{topic.slug}#step-{following[0].uuid}"
+        assert f"window.location.href = '{next_url}'" in page.text
 
         result = await auth_client.post(
-            "/htmx/steps/complete?view=lesson", data={"step_uuid": str(step.uuid)}
+            "/htmx/steps/complete", data={"step_uuid": str(step.uuid)}
         )
         assert result.status_code == 200
-        assert f'hx-delete="/htmx/steps/{step.uuid}?view=lesson"' in result.text
         topic_page_response = await auth_client.get(f"/phase/1/{topic.slug}")
         assert f'href="/lesson/{step.uuid}"' in topic_page_response.text
         assert f'hx-delete="/htmx/steps/{step.uuid}"' in topic_page_response.text
+        page = await auth_client.get(f"/lesson/{step.uuid}")
+        assert f'href="{next_url}"' in page.text
+        lesson_nav = page.text.split('aria-label="Lesson navigation"', 1)[1]
+        assert "hx-post" not in lesson_nav.split("</nav>", 1)[0]
 
-        result = await auth_client.delete(f"/htmx/steps/{step.uuid}?view=lesson")
+        result = await auth_client.delete(f"/htmx/steps/{step.uuid}")
         assert result.status_code == 200
-        assert 'hx-post="/htmx/steps/complete?view=lesson"' in result.text
         page = await auth_client.get(f"/lesson/{step.uuid}")
-        assert "checked" not in page.text.split('id="lesson-completion"', 1)[1]
-
-        await auth_client.post(
-            "/htmx/steps/complete", data={"step_uuid": str(step.uuid)}
-        )
-        page = await auth_client.get(f"/lesson/{step.uuid}")
-        assert f'hx-delete="/htmx/steps/{step.uuid}?view=lesson"' in page.text
+        assert 'hx-post="/htmx/steps/complete"' in page.text
 
 
 @pytest.mark.smoke

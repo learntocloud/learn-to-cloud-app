@@ -345,6 +345,16 @@ async def lesson_page(
     topic, step = result
     phase_id = get_curriculum_catalog().phase_order_by_step_uuid[step_uuid]
     completed_steps = await get_valid_completed_steps(db, account.id, topic)
+    topic_url = f"/phase/{phase_id}/{topic.slug}"
+    steps = topic.learning_steps
+    index = next(i for i, s in enumerate(steps) if s.uuid == step_uuid)
+    next_step = steps[index + 1] if index + 1 < len(steps) else None
+    if next_step is None:
+        next_url = f"{topic_url}#topic-steps"
+    elif next_step.lesson_markdown:
+        next_url = f"/lesson/{next_step.uuid}"
+    else:
+        next_url = f"{topic_url}#step-{next_step.uuid}"
     return templates.TemplateResponse(
         request,
         "pages/lesson.html",
@@ -354,6 +364,9 @@ async def lesson_page(
             step=step,
             phase_id=phase_id,
             completed_steps=completed_steps,
+            topic_url=topic_url,
+            next_step=next_step,
+            next_url=next_url,
         ),
     )
 
