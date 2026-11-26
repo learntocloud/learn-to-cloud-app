@@ -508,7 +508,14 @@ async def test_lesson_completion_stays_in_sync_with_topic(auth_client: AsyncClie
             new=AsyncMock(side_effect=uncomplete),
         ),
     ):
-        page = await auth_client.get(f"/lesson/{step.uuid}")
+        lesson_url = f"/phase/1/{topic.slug}/{step.lesson_slug}"
+        legacy_response = await auth_client.get(
+            f"/lesson/{step.uuid}", follow_redirects=False
+        )
+        assert legacy_response.status_code == 301
+        assert legacy_response.headers["location"] == lesson_url
+
+        page = await auth_client.get(lesson_url)
         assert page.status_code == 200
         assert "<pre><code" in page.text
         assert 'class="callout callout-note"' in page.text
@@ -519,8 +526,8 @@ async def test_lesson_completion_stays_in_sync_with_topic(auth_client: AsyncClie
         following = steps[steps.index(step) + 1 :]
         if not following:
             next_url = f"/phase/1/{topic.slug}#topic-steps"
-        elif following[0].lesson_markdown:
-            next_url = f"/lesson/{following[0].uuid}"
+        elif following[0].lesson_markdown and following[0].lesson_slug:
+            next_url = f"/phase/1/{topic.slug}/{following[0].lesson_slug}"
         else:
             next_url = f"/phase/1/{topic.slug}#step-{following[0].uuid}"
         assert f"window.location.href = '{next_url}'" in page.text
@@ -530,16 +537,16 @@ async def test_lesson_completion_stays_in_sync_with_topic(auth_client: AsyncClie
         )
         assert result.status_code == 200
         topic_page_response = await auth_client.get(f"/phase/1/{topic.slug}")
-        assert f'href="/lesson/{step.uuid}"' in topic_page_response.text
+        assert f'href="{lesson_url}"' in topic_page_response.text
         assert f'hx-delete="/htmx/steps/{step.uuid}"' in topic_page_response.text
-        page = await auth_client.get(f"/lesson/{step.uuid}")
+        page = await auth_client.get(lesson_url)
         assert f'href="{next_url}"' in page.text
         lesson_nav = page.text.split('aria-label="Lesson navigation"', 1)[1]
         assert "hx-post" not in lesson_nav.split("</nav>", 1)[0]
 
         result = await auth_client.delete(f"/htmx/steps/{step.uuid}")
         assert result.status_code == 200
-        page = await auth_client.get(f"/lesson/{step.uuid}")
+        page = await auth_client.get(lesson_url)
         assert 'hx-post="/htmx/steps/complete"' in page.text
 
 
@@ -560,3 +567,7 @@ async def test_lesson_page_rejects_non_lessons(auth_client: AsyncClient):
     )
     assert (await auth_client.get(f"/lesson/{non_lesson.uuid}")).status_code == 404
     assert (await auth_client.get(f"/lesson/{uuid4()}")).status_code == 404
+    topic = catalog.topic_by_step_uuid[non_lesson.uuid]
+    phase_id = catalog.phase_order_by_step_uuid[non_lesson.uuid]
+    invalid_lesson_url = f"/phase/{phase_id}/{topic.slug}/not-a-lesson"
+    assert (await auth_client.get(invalid_lesson_url)).status_code == 404

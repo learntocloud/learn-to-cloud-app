@@ -19,5 +19,6 @@ learning_steps:
   action: 'Practice:'
   title: Explore Linux
   lesson: lessons/linux.md
+  lesson_slug: explore-linux
   description: Learn about Linux and distributions, then try basic terminal commands.
   slug: phase0-linux-lesson

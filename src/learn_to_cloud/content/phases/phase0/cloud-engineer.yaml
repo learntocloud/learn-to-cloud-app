@@ -19,6 +19,7 @@ learning_steps:
   action: 'Read:'
   title: Explore cloud engineering
   lesson: lessons/cloud-engineer.md
+  lesson_slug: explore-cloud-engineering
   description: Learn what cloud engineers do and reflect on the skills you want to build.
   slug: phase0-cloud-engineer-lesson
 - uuid: 489661ee-07a6-483d-90a1-607656eef9aa

@@ -46,14 +46,35 @@
               ]
             },
             "properties": {
+              "lesson_slug": {
+                "minLength": 1,
+                "type": "string"
+              },
               "title": {
                 "minLength": 1,
                 "type": "string"
               }
             },
             "required": [
-              "title"
+              "title",
+              "lesson_slug"
             ]
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "required": [
+                "lesson"
+              ]
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "lesson_slug"
+              ]
+            }
           }
         }
       ],
@@ -118,6 +139,20 @@
           "pattern": "\\.[mM][dD]$",
           "title": "Lesson",
           "type": "string"
+        },
+        "lesson_slug": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lesson Slug"
         },
         "options": {
           "items": {

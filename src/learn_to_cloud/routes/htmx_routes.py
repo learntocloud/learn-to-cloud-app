@@ -104,7 +104,8 @@ async def htmx_complete_step(
         response.headers["HX-Refresh"] = "true"
         return response
 
-    return render_step_toggle(account, topic, step, completed)
+    phase_id = get_curriculum_catalog().phase_order_by_step_uuid[step.uuid]
+    return render_step_toggle(account, topic, step, completed, phase_id)
 
 
 @router.delete("/steps/{step_uuid}", response_class=HTMLResponse)
@@ -121,7 +122,8 @@ async def htmx_uncomplete_step(
         response.headers["HX-Refresh"] = "true"
         return response
 
-    return render_step_toggle(account, topic, step, completed)
+    phase_id = get_curriculum_catalog().phase_order_by_step_uuid[step.uuid]
+    return render_step_toggle(account, topic, step, completed, phase_id)
 
 
 async def _parse_verification_form[FormModel: BaseModel](

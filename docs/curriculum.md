@@ -93,8 +93,9 @@ with external URLs, provider options, or text alone continue to work.
 
 Write original lesson content. Use fenced code blocks for commands and
 GitHub-style callouts such as `> [!NOTE]` for notes. Give the step a stable
-UUID, slug, title, and order. The same step completion applies to the topic
-and lesson pages.
+UUID, slug, title, and order. Give lesson steps a unique, lowercase kebab-case
+`lesson_slug` within the topic. The lesson URL uses the phase, topic slug, and
+lesson slug. The same step completion applies to the topic and lesson pages.
 
 The compiler reads the Markdown and embeds it in `curriculum.json`. Runtime
 packages do not need the source Markdown. Bump `curriculum_version` for

@@ -19,6 +19,7 @@ learning_steps:
   action: 'Practice:'
   title: Explore programming with Python
   lesson: lessons/programming.md
+  lesson_slug: explore-programming-with-python
   description: Learn how programs help automate cloud work and practice reading JSON.
   slug: phase0-programming-lesson
 - uuid: 05fa7e46-8d09-4845-8ef6-843e16d9700f

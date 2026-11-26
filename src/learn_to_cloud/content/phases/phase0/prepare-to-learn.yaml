@@ -19,5 +19,6 @@ learning_steps:
   action: 'Read:'
   title: Prepare to learn
   lesson: lessons/prepare-to-learn.md
+  lesson_slug: prepare-to-learn
   description: Choose a learning path, reduce distractions, and make a study plan.
   slug: phase0-prepare-to-learn-lesson

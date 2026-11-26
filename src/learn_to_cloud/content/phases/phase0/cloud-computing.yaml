@@ -19,6 +19,7 @@ learning_steps:
   action: 'Read:'
   title: Explore cloud computing
   lesson: lessons/cloud-computing.md
+  lesson_slug: explore-cloud-computing
   description: Compare cloud service models and choose a provider for the curriculum.
   slug: phase0-cloud-computing-lesson
 - uuid: f0548620-51e7-4196-a912-1d077e7fb4ce

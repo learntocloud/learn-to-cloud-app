@@ -19,5 +19,6 @@ learning_steps:
   action: 'Read:'
   title: Explore DevOps
   lesson: lessons/devops.md
+  lesson_slug: explore-devops
   description: See how teams use collaboration, automation, and feedback to deliver software.
   slug: phase0-devops-lesson
