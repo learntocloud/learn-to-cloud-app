@@ -1,7 +1,6 @@
 """Rendered-HTML tests for phase and dashboard progress states."""
 
 from datetime import datetime
-from html import unescape
 from html.parser import HTMLParser
 from types import SimpleNamespace
 from typing import Any
@@ -246,10 +245,12 @@ class TestHomePage:
         assert 'href="/phase/0"' in main
         assert "Start learning" in main
         assert main.count('href="/curriculum"') == 1
-        assert main.count("<a ") == 4
+        assert main.count("<a ") == 3
         assert "Explore the curriculum" in main
-        assert "See the full path" not in main
-        assert 'href="/phase/1"' in main
+        assert "Ready to start?" in main
+        assert "The phases." not in main
+        assert "<ol" not in main
+        assert 'href="/phase/1"' not in main
         assert "Continue learning" not in main
 
     def test_returning_learner_continues_from_dashboard(self):
@@ -264,34 +265,24 @@ class TestHomePage:
         assert main.count('href="/curriculum"') == 1
         assert main.count("<a ") == 3
         assert "Explore the curriculum" in main
-        assert "See the full path" not in main
-        assert 'href="/phase/0"' in main
+        assert "Ready to start?" in main
+        assert "The phases." not in main
+        assert "<ol" not in main
+        assert 'href="/phase/' not in main
 
     @pytest.mark.parametrize("signed_in", [False, True])
-    def test_phase_list_follows_curriculum_order(self, signed_in):
-        phases = get_all_phases_from_yaml()
-        ctx = {} if signed_in else {"user": None}
-        html = _render("pages/home.html", phases=phases, **ctx)
-        journey = html.split('aria-labelledby="journey-heading"', 1)[1]
-        phase_list = unescape(journey.split("<ol", 1)[1].split("</ol>", 1)[0])
-
-        assert phase_list.count("<li ") == len(phases)
-        previous_position = -1
-        for phase in phases:
-            position = phase_list.index(f'<span class="flex-1">{phase.name}</span>')
-            assert position > previous_position
-            assert f'href="/phase/{phase.order}"' in phase_list
-            previous_position = position
-
-    @pytest.mark.parametrize("signed_in", [False, True])
-    def test_missing_curriculum_keeps_recovery_and_dashboard_access(self, signed_in):
+    def test_missing_curriculum_shows_recovery_in_hero(self, signed_in):
         ctx = {} if signed_in else {"user": None}
         html = _render("pages/home.html", phases=[], **ctx)
+        hero = html.split('aria-labelledby="home-heading"', 1)[1].split(
+            "</section>", 1
+        )[0]
         main = html.split("<main", 1)[1].split("</main>", 1)[0]
 
-        assert "The learning path is temporarily unavailable." in main
-        assert 'href="/" hx-boost="false"' in main
-        assert 'href="/faq"' in main
+        assert "The learning path is temporarily unavailable." in hero
+        assert 'href="/" hx-boost="false"' in hero
+        assert 'href="/faq"' in hero
+        assert "Ready to start?" not in main
         assert 'href="/phase/' not in main
         assert ('href="/dashboard"' in main) is signed_in
 
